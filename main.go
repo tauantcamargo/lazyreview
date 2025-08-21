@@ -30,12 +30,12 @@ func main() {
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 
-	if v, err := g.SetView("hello", maxX/2-7, maxY/2, maxX/2+7, maxY/2+2, 0); err != nil {
+	if v, err := g.SetView("main", maxX/2-7, maxY/2, maxX/2+7, maxY/2+2, 0); err != nil {
 		if !errors.Is(err, gocui.ErrUnknownView) {
 			return err
 		}
 
-		if _, err := g.SetCurrentView("hello"); err != nil {
+		if _, err := g.SetCurrentView("main"); err != nil {
 			return err
 		}
 
