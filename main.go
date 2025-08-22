@@ -27,20 +27,99 @@ func main() {
 	}
 }
 
+// Create App Layout
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 
-	if v, err := g.SetView("main", maxX/2-7, maxY/2, maxX/2+7, maxY/2+2, 0); err != nil {
+	if v, err := g.SetView("header", 0, 0, maxX-1, 3, 0); err != nil {
 		if !errors.Is(err, gocui.ErrUnknownView) {
 			return err
 		}
 
-		if _, err := g.SetCurrentView("main"); err != nil {
+		if _, err := g.SetCurrentView("header"); err != nil {
 			return err
 		}
 
-		fmt.Fprintln(v, "LazyReview")
+		fmt.Fprintln(v, "LazyReview - A simple CLI tool for reviewing Pull Requests")
+		v.Title = "Header"
+		v.FgColor = gocui.ColorWhite
+		v.BgColor = gocui.ColorBlue
+		v.Wrap = true
+		v.Autoscroll = true
+		v.Editable = false
+		v.Highlight = true
+		v.SelBgColor = gocui.ColorCyan
+		v.SelFgColor = gocui.ColorBlack
+
 	}
+
+	// Add sidebar
+	if v, err := g.SetView("sidebar", 0, 3, maxX-1, maxY-3, 0); err != nil {
+		if !errors.Is(err, gocui.ErrUnknownView) {
+			return err
+		}
+
+		if _, err := g.SetCurrentView("sidebar"); err != nil {
+			return err
+		}
+
+		fmt.Fprintln(v, "Sidebar content goes here.")
+		v.Title = "Sidebar"
+		v.FgColor = gocui.ColorWhite
+		v.BgColor = gocui.ColorBlack
+		v.Wrap = true
+		v.Autoscroll = true
+		v.Editable = false
+		v.Highlight = true
+		v.SelBgColor = gocui.ColorCyan
+		v.SelFgColor = gocui.ColorBlack
+	}
+
+	if v, err := g.SetView("content", 31, 3, maxX-1, maxY-3, 0); err != nil {
+		if !errors.Is(err, gocui.ErrUnknownView) {
+			return err
+		}
+
+		if _, err := g.SetCurrentView("content"); err != nil {
+			return err
+		}
+
+		fmt.Fprintln(v, "This is where the main content will be displayed.")
+		v.Title = "Content"
+		v.FgColor = gocui.ColorWhite
+		v.BgColor = gocui.ColorBlack
+		v.Wrap = true
+		v.Autoscroll = true
+		v.Editable = false
+		v.Highlight = true
+		v.SelBgColor = gocui.ColorCyan
+		v.SelFgColor = gocui.ColorBlack
+		v.Editor = gocui.DefaultEditor
+	}
+
+	// footer
+	if v, err := g.SetView("footer", 0, maxY-3, maxX-1, maxY, 0); err != nil {
+		if !errors.Is(err, gocui.ErrUnknownView) {
+			return err
+		}
+
+		if _, err := g.SetCurrentView("footer"); err != nil {
+			return err
+		}
+
+		fmt.Fprintln(v, "Press Ctrl+C to quit")
+		v.Title = "Footer"
+		v.FgColor = gocui.ColorWhite
+		v.BgColor = gocui.ColorBlue
+		v.Wrap = true
+		v.Autoscroll = true
+		v.Editable = false
+		v.Highlight = true
+		v.SelBgColor = gocui.ColorCyan
+		v.SelFgColor = gocui.ColorBlack
+	}
+
+	g.SetCurrentView("content")
 
 	return nil
 }
