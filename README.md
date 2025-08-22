@@ -194,7 +194,7 @@ repo_overrides:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/lazyreview.git
+git clone https://github.com/tauantcamargo/lazyreview.git
 cd lazyreview
 
 # Build the binary
@@ -260,7 +260,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Inspired by [lazygit](https://github.com/jesseduffield/lazygit)
-- Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) for TUI
+- Built with [Gocui](https://github.com/awesome-gocui/gocui) for TUI
+- Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) for CLI
 - Uses [Charm](https://charm.sh/) libraries for terminal utilities
 
 ## 📞 Support
