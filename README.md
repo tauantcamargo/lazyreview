@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tauantcamargo/lazyreview)](https://goreportcard.com/report/github.com/tauantcamargo/lazyreview)
 [![Go Reference](https://pkg.go.dev/badge/github.com/tauantcamargo/lazyreview.svg)](https://pkg.go.dev/github.com/tauantcamargo/lazyreview)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-orange?logo=buy-me-a-coffee&style=for-the-badge)](https://buymeacoffee.com/tauantcamargo)
 
 > A fast, keyboard-driven terminal UI for code review across multiple Git providers
 
