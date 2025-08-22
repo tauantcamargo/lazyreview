@@ -28,10 +28,10 @@ From source (choose one, depending on implementation language):
 
 1. Install the binary (see above)
 2. Run auth flow:
-   - cr auth login
+   - lazyreview auth login
    - Select provider (GitHub/GitLab/Bitbucket/Azure) and follow prompts
 3. Open the TUI:
-   - cr
+   - lazyreview
 4. Navigate:
    - Arrow keys or j/k to move, Enter to open, q to go back
 5. Create a comment:
@@ -39,24 +39,24 @@ From source (choose one, depending on implementation language):
 
 — Commands (CLI)
 
-- cr # Launch TUI
-- cr auth login [--provider github|gitlab|bitbucket|azure] [--host <url>]
-- cr auth status
-- cr auth logout [--all]
-- cr pr list [--author me] [--state open|closed|merged] [--search "..."]
-- cr pr view <id|url>
-- cr pr checkout <id>
-- cr review start <id>
-- cr review comment <id> --file <path> --line <n> --message "..."
-- cr review approve <id>
-- cr review request-changes <id> --message "..."
-- cr label add <id> <label...>
-- cr label remove <id> <label...>
-- cr assign add <id> <user...>
-- cr assign remove <id> <user...>
-- cr open <id> # open in browser
-- cr config edit
-- cr cache sync
+- lazyreview # Launch TUI
+- lazyreview auth login [--provider github|gitlab|bitbucket|azure] [--host <url>]
+- lazyreview auth status
+- lazyreview auth logout [--all]
+- lazyreview pr list [--author me] [--state open|closed|merged] [--search "..."]
+- lazyreview pr view <id|url>
+- lazyreview pr checkout <id>
+- lazyreview review start <id>
+- lazyreview review comment <id> --file <path> --line <n> --message "..."
+- lazyreview review approve <id>
+- lazyreview review request-changes <id> --message "..."
+- lazyreview label add <id> <label...>
+- lazyreview label remove <id> <label...>
+- lazyreview assign add <id> <user...>
+- lazyreview assign remove <id> <user...>
+- lazyreview open <id> # open in browser
+- lazyreview config edit
+- lazyreview cache sync
 
 — Configuration
 Default path:
@@ -149,6 +149,3 @@ repo_overrides:
 
 — License
 TBD (MIT/Apache-2.0). Add a LICENSE file before first release.
-
-— Name
-Replace ProjectName and cr with your final project name/command when decided.
