@@ -15,13 +15,41 @@ func CommandStart() *cli.App {
 	app.Usage = "A simple CLI tool for reviewing Pull Requests"
 	app.Version = "0.1.0"
 
+	// app.Flags = []cli.Flag{
+	// 	cli.BoolFlag{
+	// 		Name:  "debug, d",
+	// 		Usage: "enable debug mode",
+	// 	},
+	// }
+
 	app.Commands = []cli.Command{
 		{
 			Name:    "start",
 			Aliases: []string{"s"},
 			Usage:   "Start the LazyReview application",
 			Action: func(c *cli.Context) error {
+				ProgressUI()
 				tui.IntializeUI()
+				return nil
+			},
+		},
+		{
+			Name:    "login",
+			Aliases: []string{"l"},
+			Usage:   "Login to your GitHub account",
+			Action: func(c *cli.Context) error {
+				ProgressUI()
+				CommandUILoginStart()
+				return nil
+			},
+		},
+		{
+			Name:    "logout",
+			Aliases: []string{"lo"},
+			Usage:   "Logout from your GitHub account",
+			Action: func(c *cli.Context) error {
+				ProgressUI()
+				CommandUILogoutStart()
 				return nil
 			},
 		},
