@@ -115,55 +115,55 @@ lazyreview cache sync         # Sync offline queue
 
 ## ⚙️ Configuration
 
-### Configuration File Location
-
-| Platform | Path                                                   |
-| -------- | ------------------------------------------------------ |
-| Linux    | `~/.config/lazyreview/config.yaml`                     |
-| macOS    | `~/Library/Application Support/lazyreview/config.yaml` |
-| Windows  | `%APPDATA%\lazyreview\config.yaml`                     |
-
-### Example Configuration
-
-```yaml
-version: 0.1
-default_provider: github
-
-ui:
-  theme: auto # light|dark|auto
-  paging: true
-  show_checks: true
-
-keybindings:
-  up: k
-  down: j
-  left: h
-  right: l
-  approve: a
-  request_changes: r
-  comment: c
-  submit: s
-  search: /
-
-providers:
-  - name: github-work
-    type: github
-    host: github.com
-    token_env: GITHUB_TOKEN
-    default_query:
-      state: open
-      review_requested: me
-
-  - name: gitlab-self
-    type: gitlab
-    host: gitlab.company.internal
-    base_url: https://gitlab.company.internal/api/v4
-    token_env: GITLAB_TOKEN
-
-repo_overrides:
-  - path: ~/src/company/*
-    default_provider: gitlab-self
-```
+<!-- ### Configuration File Location -->
+<!---->
+<!-- | Platform | Path                                                   | -->
+<!-- | -------- | ------------------------------------------------------ | -->
+<!-- | Linux    | `~/.config/lazyreview/config.yaml`                     | -->
+<!-- | macOS    | `~/Library/Application Support/lazyreview/config.yaml` | -->
+<!-- | Windows  | `%APPDATA%\lazyreview\config.yaml`                     | -->
+<!---->
+<!-- ### Example Configuration -->
+<!---->
+<!-- ```yaml -->
+<!-- version: 0.1 -->
+<!-- default_provider: github -->
+<!---->
+<!-- ui: -->
+<!--   theme: auto # light|dark|auto -->
+<!--   paging: true -->
+<!--   show_checks: true -->
+<!---->
+<!-- keybindings: -->
+<!--   up: k -->
+<!--   down: j -->
+<!--   left: h -->
+<!--   right: l -->
+<!--   approve: a -->
+<!--   request_changes: r -->
+<!--   comment: c -->
+<!--   submit: s -->
+<!--   search: / -->
+<!---->
+<!-- providers: -->
+<!--   - name: github-work -->
+<!--     type: github -->
+<!--     host: github.com -->
+<!--     token_env: GITHUB_TOKEN -->
+<!--     default_query: -->
+<!--       state: open -->
+<!--       review_requested: me -->
+<!---->
+<!--   - name: gitlab-self -->
+<!--     type: gitlab -->
+<!--     host: gitlab.company.internal -->
+<!--     base_url: https://gitlab.company.internal/api/v4 -->
+<!--     token_env: GITLAB_TOKEN -->
+<!---->
+<!-- repo_overrides: -->
+<!--   - path: ~/src/company/* -->
+<!--     default_provider: gitlab-self -->
+<!-- ``` -->
 
 ## 🔐 Authentication
 
