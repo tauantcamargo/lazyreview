@@ -2,8 +2,8 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.22+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/your-org/lazyreview)](https://goreportcard.com/report/github.com/your-org/lazyreview)
-[![Go Reference](https://pkg.go.dev/badge/github.com/your-org/lazyreview.svg)](https://pkg.go.dev/github.com/your-org/lazyreview)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tauantcamargo/lazyreview)](https://goreportcard.com/report/github.com/tauantcamargo/lazyreview)
+[![Go Reference](https://pkg.go.dev/badge/github.com/tauantcamargo/lazyreview.svg)](https://pkg.go.dev/github.com/tauantcamargo/lazyreview)
 
 > A fast, keyboard-driven terminal UI for code review across multiple Git providers
 
@@ -28,14 +28,12 @@ LazyReview is a powerful CLI/TUI application that streamlines the code review pr
 
 Download the latest release from [GitHub Releases](https://github.com/your-org/lazyreview/releases).
 
-#### From Source
+<!-- ```bash -->
+<!-- # Requirements: Go ≥ 1.22 -->
+<!-- go install github.com/your-org/lazyreview/cmd/lazyreview@latest -->
+<!-- ``` -->
 
-```bash
-# Requirements: Go ≥ 1.22
-go install github.com/your-org/lazyreview/cmd/lazyreview@latest
-```
-
-### First Run
+### First Run (thinking to have this feature)
 
 1. **Authenticate** with your Git provider:
 
@@ -61,7 +59,15 @@ go install github.com/your-org/lazyreview/cmd/lazyreview@latest
 
 ## 📖 Usage
 
-### Core Commands
+```bash
+# start cli
+go run main.go
+
+# start lazyreview ui
+go run main.go start
+```
+
+### Core Commands (future commands)
 
 ```bash
 # Launch the TUI
@@ -198,17 +204,8 @@ git clone https://github.com/tauantcamargo/lazyreview.git
 cd lazyreview
 
 # Build the binary
-make build
+go build
 
-# Run tests
-make test
-
-# Lint and format
-make lint
-make fmt
-
-# Run locally with debug logging
-CR_LOG=debug ./lazyreview
 ```
 
 ### Project Structure
@@ -227,14 +224,8 @@ lazyreview/
 
 ## 🗺️ Roadmap
 
-| Version  | Features                                        | Timeline |
-| -------- | ----------------------------------------------- | -------- |
-| **v0.1** | Read-only PR/MR list and detail view for GitHub | Q1 2024  |
-| **v0.2** | Commenting and approvals; basic diff viewer     | Q2 2024  |
-| **v0.3** | GitLab support; checkout PR branches            | Q3 2024  |
-| **v0.4** | Bitbucket and Azure DevOps support              | Q4 2024  |
-| **v0.5** | Offline queue and conflict resolution           | Q1 2025  |
-| **v0.6** | Advanced filters, custom queries, saved views   | Q2 2025  |
+| Version | Features | Timeline |
+| ------- | -------- | -------- |
 
 ## 🤝 Contributing
 
@@ -268,8 +259,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 - **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/your-org/lazyreview/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/lazyreview/discussions)
+- **Issues**: [GitHub Issues](https://github.com/tauantcamargo/lazyreview/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/tauantcamargo/lazyreview/discussions)
 
 ---
 
