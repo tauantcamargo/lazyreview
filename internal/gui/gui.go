@@ -44,8 +44,22 @@ const (
 	ViewDetail                  // PR detail view (files + diff)
 )
 
+// ViewMode represents the current sidebar view mode
+type ViewMode string
+
+const (
+	ViewModeCurrentRepo    ViewMode = "current_repo"
+	ViewModeMyPRs          ViewMode = "my_prs"
+	ViewModeReviewRequests ViewMode = "review_requests"
+	ViewModeSettings       ViewMode = "settings"
+)
+
 // Message types for async operations
 type prListMsg struct {
+	prs []models.PullRequest
+}
+
+type userPRsMsg struct {
 	prs []models.PullRequest
 }
 
@@ -109,6 +123,9 @@ type Model struct {
 	gitOwner string
 	gitRepo  string
 
+	// Current view mode
+	currentViewMode ViewMode
+
 	// Current PR state
 	currentPR    *models.PullRequest
 	currentDiff  *models.Diff
@@ -125,9 +142,9 @@ type Model struct {
 func New(cfg *config.Config, provider providers.Provider, authService *auth.Service, owner, repo string) Model {
 	// Create sidebar with navigation items
 	sidebarItems := []list.Item{
-		components.NewSimpleItem("prs", "Pull Requests", "View and manage PRs"),
-		components.NewSimpleItem("reviews", "My Reviews", "PRs requesting your review"),
-		components.NewSimpleItem("authored", "My PRs", "PRs you authored"),
+		components.NewSimpleItem("my_prs", "My PRs", "PRs you authored (all repos)"),
+		components.NewSimpleItem("review_requests", "Review Requests", "PRs needing your review"),
+		components.NewSimpleItem("current_repo", "Current Repo", "PRs in detected repo"),
 		components.NewSimpleItem("settings", "Settings", "Configure LazyReview"),
 	}
 
@@ -145,38 +162,42 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	// Create text input component
 	textInput := components.NewTextInput()
 
+	// Start with "My PRs" view by default
+	initialViewMode := ViewModeMyPRs
+
 	return Model{
-		config:         cfg,
-		provider:       provider,
-		authService:    authService,
-		gitOwner:       owner,
-		gitRepo:        repo,
-		activePanel:    PanelSidebar,
-		mode:           ModeNormal,
-		viewState:      ViewList,
-		sidebar:        sidebar,
-		content:        content,
-		fileTree:       fileTree,
-		diffViewer:     diffViewer,
-		textInput:      textInput,
-		help:           components.NewHelp(),
-		keyMap:         DefaultKeyMap(),
-		keySeq:         NewKeySequence(),
-		isLoading:      true,
-		loadingMessage: "Initializing...",
+		config:          cfg,
+		provider:        provider,
+		authService:     authService,
+		gitOwner:        owner,
+		gitRepo:         repo,
+		activePanel:     PanelSidebar,
+		mode:            ModeNormal,
+		viewState:       ViewList,
+		currentViewMode: initialViewMode,
+		sidebar:         sidebar,
+		content:         content,
+		fileTree:        fileTree,
+		diffViewer:      diffViewer,
+		textInput:       textInput,
+		help:            components.NewHelp(),
+		keyMap:          DefaultKeyMap(),
+		keySeq:          NewKeySequence(),
+		isLoading:       true,
+		loadingMessage:  "Initializing...",
 	}
 }
 
 // Init implements tea.Model
 func (m Model) Init() tea.Cmd {
-	// Use detected owner/repo or default to golang/go
-	owner := m.gitOwner
-	repo := m.gitRepo
-	if owner == "" || repo == "" {
-		owner = "golang"
-		repo = "go"
+	// Start with "My PRs" view by default
+	opts := providers.UserPROptions{
+		Involvement: "authored",
+		State:       models.PRStateOpen,
+		PerPage:     50,
+		Page:        1,
 	}
-	return fetchPRList(m.provider, owner, repo)
+	return fetchUserPRs(m.provider, opts)
 }
 
 // Update implements tea.Model
@@ -257,6 +278,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Right), key.Matches(msg, m.keyMap.Select):
 			if m.viewState == ViewList {
 				if m.activePanel == PanelSidebar {
+					// Handle sidebar selection
+					selectedItem := m.sidebar.SelectedItem()
+					if selectedItem != nil {
+						simpleItem, ok := selectedItem.(components.SimpleItem)
+						if ok {
+							cmd := m.handleSidebarSelection(simpleItem.ID())
+							return m, cmd
+						}
+					}
 					m.activePanel = PanelContent
 					m.content.Focus()
 					m.sidebar.Blur()
@@ -433,11 +463,60 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isLoading = false
 		m.prList = msg.prs
 
+		if len(msg.prs) == 0 {
+			m.statusMsg = "No open PRs in this repository. Try 'My PRs' to see PRs from all your repos."
+			items := []list.Item{
+				components.NewSimpleItem("empty", "No pull requests found", "Select 'My PRs' from sidebar to see PRs from all repos"),
+			}
+			contentWidth := m.width - 44
+			contentHeight := m.height - 6
+			m.content = components.NewList("Pull Requests", items, contentWidth, contentHeight)
+			return m, nil
+		}
+
 		// Convert PRs to list items
 		items := make([]list.Item, len(msg.prs))
 		for i, pr := range msg.prs {
 			title := fmt.Sprintf("#%d: %s", pr.Number, pr.Title)
 			desc := fmt.Sprintf("by %s • %s", pr.Author.Login, pr.State)
+			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
+		}
+		contentWidth := m.width - 44
+		contentHeight := m.height - 6
+		m.content = components.NewList("Pull Requests", items, contentWidth, contentHeight)
+		m.statusMsg = fmt.Sprintf("Loaded %d pull requests", len(msg.prs))
+		return m, nil
+
+	case userPRsMsg:
+		m.isLoading = false
+		m.prList = msg.prs
+
+		if len(msg.prs) == 0 {
+			var emptyMsg string
+			switch m.currentViewMode {
+			case ViewModeMyPRs:
+				emptyMsg = "You have no open PRs across all repositories"
+			case ViewModeReviewRequests:
+				emptyMsg = "No PRs currently requesting your review"
+			default:
+				emptyMsg = "No pull requests found"
+			}
+			m.statusMsg = emptyMsg
+			items := []list.Item{
+				components.NewSimpleItem("empty", emptyMsg, "PRs will appear here when available"),
+			}
+			contentWidth := m.width - 44
+			contentHeight := m.height - 6
+			m.content = components.NewList("Pull Requests", items, contentWidth, contentHeight)
+			return m, nil
+		}
+
+		// Convert PRs to list items
+		items := make([]list.Item, len(msg.prs))
+		for i, pr := range msg.prs {
+			title := fmt.Sprintf("#%d %s", pr.Number, pr.Title)
+			// Include repo name since these are from multiple repos
+			desc := fmt.Sprintf("%s/%s • by %s • %s", pr.Repository.Owner, pr.Repository.Name, pr.Author.Login, pr.State)
 			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
 		}
 		contentWidth := m.width - 44
@@ -577,7 +656,20 @@ func (m Model) View() string {
 	// Header
 	var headerText string
 	if m.viewState == ViewList {
-		headerText = "LazyReview - Code Review TUI"
+		switch m.currentViewMode {
+		case ViewModeMyPRs:
+			headerText = fmt.Sprintf("LazyReview - My PRs (%d)", len(m.prList))
+		case ViewModeReviewRequests:
+			headerText = fmt.Sprintf("LazyReview - Review Requests (%d)", len(m.prList))
+		case ViewModeCurrentRepo:
+			if m.gitOwner != "" && m.gitRepo != "" {
+				headerText = fmt.Sprintf("LazyReview - %s/%s", m.gitOwner, m.gitRepo)
+			} else {
+				headerText = "LazyReview - Current Repo"
+			}
+		default:
+			headerText = "LazyReview - Code Review TUI"
+		}
 	} else if m.currentPR != nil {
 		headerText = fmt.Sprintf("LazyReview - PR #%d: %s", m.currentPR.Number, m.currentPR.Title)
 	} else {
@@ -692,6 +784,12 @@ func (m *Model) enterDetailView() tea.Cmd {
 		return nil
 	}
 
+	// Check if this is the empty state item
+	if simpleItem.ID() == "empty" {
+		m.statusMsg = "No PR to view"
+		return nil
+	}
+
 	// Parse PR number from the item ID
 	var prNumber int
 	_, err := fmt.Sscanf(simpleItem.ID(), "%d", &prNumber)
@@ -721,9 +819,20 @@ func (m *Model) enterDetailView() tea.Cmd {
 	m.isLoading = true
 	m.loadingMessage = fmt.Sprintf("Loading PR #%d...", prNumber)
 
-	// Use detected owner/repo or default
-	owner := m.gitOwner
-	repo := m.gitRepo
+	// Use owner/repo from the selected PR (for cross-repo views)
+	// or from git context (for current repo view)
+	owner := selectedPR.Repository.Owner
+	repo := selectedPR.Repository.Name
+
+	// Fallback to git context if PR doesn't have repo info
+	if owner == "" {
+		owner = m.gitOwner
+	}
+	if repo == "" {
+		repo = m.gitRepo
+	}
+
+	// Fallback to default if still empty
 	if owner == "" || repo == "" {
 		owner = "golang"
 		repo = "go"
@@ -842,6 +951,58 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 	return *m, nil
 }
 
+// handleSidebarSelection handles when a sidebar item is selected
+func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
+	m.isLoading = true
+	m.loadingMessage = "Loading..."
+
+	switch itemID {
+	case "my_prs":
+		m.currentViewMode = ViewModeMyPRs
+		opts := providers.UserPROptions{
+			Involvement: "authored",
+			State:       models.PRStateOpen,
+			PerPage:     50,
+			Page:        1,
+		}
+		m.statusMsg = "Loading your PRs..."
+		return fetchUserPRs(m.provider, opts)
+
+	case "review_requests":
+		m.currentViewMode = ViewModeReviewRequests
+		opts := providers.UserPROptions{
+			Involvement: "review_requested",
+			State:       models.PRStateOpen,
+			PerPage:     50,
+			Page:        1,
+		}
+		m.statusMsg = "Loading review requests..."
+		return fetchUserPRs(m.provider, opts)
+
+	case "current_repo":
+		m.currentViewMode = ViewModeCurrentRepo
+		owner := m.gitOwner
+		repo := m.gitRepo
+		if owner == "" || repo == "" {
+			m.isLoading = false
+			m.statusMsg = "No git repository detected"
+			return nil
+		}
+		m.statusMsg = fmt.Sprintf("Loading PRs for %s/%s...", owner, repo)
+		return fetchPRList(m.provider, owner, repo)
+
+	case "settings":
+		m.currentViewMode = ViewModeSettings
+		m.isLoading = false
+		m.statusMsg = "Settings view not yet implemented"
+		return nil
+
+	default:
+		m.isLoading = false
+		return nil
+	}
+}
+
 // Async command functions
 
 func fetchPRList(provider providers.Provider, owner, repo string) tea.Cmd {
@@ -855,6 +1016,19 @@ func fetchPRList(provider providers.Provider, owner, repo string) tea.Cmd {
 			return errMsg{err}
 		}
 		return prListMsg{prs}
+	}
+}
+
+func fetchUserPRs(provider providers.Provider, opts providers.UserPROptions) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		prs, err := provider.ListUserPullRequests(ctx, opts)
+		if err != nil {
+			return errMsg{err}
+		}
+		return userPRsMsg{prs}
 	}
 }
 
