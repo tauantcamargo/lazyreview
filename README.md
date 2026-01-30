@@ -95,6 +95,7 @@ lazyreview start
 | `G` | Go to bottom |
 | `Ctrl+d` / `Ctrl+u` | Half page down / up |
 | `n` / `N` | Next / previous file |
+| `{` / `}` | Previous / next hunk |
 | `a` | Approve PR |
 | `r` | Request changes |
 | `c` | Add comment |
@@ -252,12 +253,15 @@ go test ./...
 - [x] Bitbucket provider
 - [x] Azure DevOps provider
 - [x] Vim-style navigation
-- [x] Diff viewer with syntax highlighting
+- [x] Diff viewer with file navigation
+- [x] Hunk navigation ({/})
 - [x] Secure credential storage
+- [x] Real API data fetching
 - [x] Cross-platform releases
+- [ ] Review actions (approve, request changes, comment)
+- [ ] Syntax highlighting with Chroma
 - [ ] Local git integration (checkout PR branches)
 - [ ] Offline queue for comments/approvals
-- [ ] Syntax highlighting with Chroma
 - [ ] Custom themes
 
 ## Contributing
