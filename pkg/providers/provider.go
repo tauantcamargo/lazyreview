@@ -90,6 +90,20 @@ type Provider interface {
 	// AddReviewers requests reviews from users
 	AddReviewers(ctx context.Context, owner, repo string, number int, reviewers []string) error
 
+	// Organization and Repository Operations
+
+	// ListOrganizations returns organizations the authenticated user belongs to
+	ListOrganizations(ctx context.Context) ([]Organization, error)
+
+	// ListOrganizationRepos returns repositories in an organization
+	ListOrganizationRepos(ctx context.Context, org string, opts ListReposOptions) ([]models.Repository, error)
+
+	// ListUserRepos returns the authenticated user's repositories
+	ListUserRepos(ctx context.Context, opts ListReposOptions) ([]models.Repository, error)
+
+	// ListUserPullRequests returns PRs across repositories for the authenticated user
+	ListUserPullRequests(ctx context.Context, opts UserPROptions) ([]models.PullRequest, error)
+
 	// Metadata
 
 	// Name returns the configured name for this provider instance

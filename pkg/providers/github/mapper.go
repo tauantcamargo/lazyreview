@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"lazyreview/internal/models"
+	"lazyreview/pkg/providers"
 
 	"github.com/google/go-github/v60/github"
 )
@@ -108,9 +109,38 @@ func mapRepository(repo *github.Repository) models.Repository {
 		Owner:         toString(repo.Owner.Login),
 		Name:          toString(repo.Name),
 		FullName:      toString(repo.FullName),
+		Description:   toString(repo.Description),
 		URL:           toString(repo.HTMLURL),
+		CloneURL:      toString(repo.CloneURL),
 		DefaultBranch: toString(repo.DefaultBranch),
 		IsPrivate:     toBool(repo.Private),
+		IsFork:        toBool(repo.Fork),
+		OpenIssues:    toInt(repo.OpenIssuesCount),
+		Stars:         toInt(repo.StargazersCount),
+		CreatedAt:     toTime(repo.CreatedAt),
+		UpdatedAt:     toTime(repo.UpdatedAt),
+		PushedAt:      toTime(repo.PushedAt),
+	}
+}
+
+// mapOrganization converts a GitHub organization to our model
+func mapOrganization(org *github.Organization) providers.Organization {
+	repoCount := 0
+	if org.TotalPrivateRepos != nil {
+		repoCount += int(*org.TotalPrivateRepos)
+	}
+	if org.PublicRepos != nil {
+		repoCount += *org.PublicRepos
+	}
+
+	return providers.Organization{
+		ID:          toString(org.NodeID),
+		Login:       toString(org.Login),
+		Name:        toString(org.Name),
+		Description: toString(org.Description),
+		AvatarURL:   toString(org.AvatarURL),
+		URL:         toString(org.HTMLURL),
+		RepoCount:   repoCount,
 	}
 }
 

@@ -103,14 +103,38 @@ type Repository struct {
 	// FullName is owner/name
 	FullName string
 
+	// Description is the repository description
+	Description string
+
 	// URL is the web URL
 	URL string
+
+	// CloneURL is the HTTPS clone URL
+	CloneURL string
 
 	// DefaultBranch is the default branch name
 	DefaultBranch string
 
 	// IsPrivate indicates if the repo is private
 	IsPrivate bool
+
+	// IsFork indicates if this is a forked repository
+	IsFork bool
+
+	// OpenIssues is the count of open issues
+	OpenIssues int
+
+	// Stars is the number of stars/favorites
+	Stars int
+
+	// CreatedAt is when the repository was created
+	CreatedAt time.Time
+
+	// UpdatedAt is when the repository was last updated
+	UpdatedAt time.Time
+
+	// PushedAt is when the repository was last pushed to
+	PushedAt time.Time
 }
 
 // Label represents a label on a PR

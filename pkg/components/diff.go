@@ -106,6 +106,7 @@ type DiffViewer struct {
 	splitView     bool
 	hunkPositions []int // Line offsets where each hunk starts
 	currentHunk   int   // Current hunk index
+	highlighter   *Highlighter
 
 	// Styles
 	addedStyle   lipgloss.Style
@@ -122,12 +123,13 @@ func NewDiffViewer(width, height int) DiffViewer {
 	vp.SetContent("")
 
 	return DiffViewer{
-		viewport:    vp,
-		keyMap:      DefaultDiffKeyMap(),
-		width:       width,
-		height:      height,
-		focused:     true,
-		splitView:   false,
+		viewport:     vp,
+		keyMap:       DefaultDiffKeyMap(),
+		width:        width,
+		height:       height,
+		focused:      true,
+		splitView:    false,
+		highlighter:  NewHighlighter(),
 		addedStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color("42")),  // Green
 		deletedStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("196")), // Red
 		contextStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("252")), // Light gray
@@ -226,10 +228,16 @@ func (d *DiffViewer) render() {
 		content.WriteString("\n")
 		currentLine++
 
+		// Determine filename for syntax highlighting
+		filename := file.Path
+		if filename == "" {
+			filename = file.OldPath
+		}
+
 		// Render hunks
 		for _, hunk := range file.Hunks {
 			hunkPositions = append(hunkPositions, currentLine)
-			hunkContent := d.renderHunk(hunk)
+			hunkContent := d.renderHunk(hunk, filename)
 			content.WriteString(hunkContent)
 			currentLine += strings.Count(hunkContent, "\n")
 		}
@@ -277,7 +285,7 @@ func (d *DiffViewer) renderFileHeader(file models.FileDiff, selected bool) strin
 }
 
 // renderHunk renders a diff hunk
-func (d *DiffViewer) renderHunk(hunk models.Hunk) string {
+func (d *DiffViewer) renderHunk(hunk models.Hunk, filename string) string {
 	var content strings.Builder
 
 	// Hunk header
@@ -287,15 +295,15 @@ func (d *DiffViewer) renderHunk(hunk models.Hunk) string {
 
 	// Lines
 	for _, line := range hunk.Lines {
-		content.WriteString(d.renderLine(line))
+		content.WriteString(d.renderLine(line, filename))
 		content.WriteString("\n")
 	}
 
 	return content.String()
 }
 
-// renderLine renders a single diff line
-func (d *DiffViewer) renderLine(line models.DiffLine) string {
+// renderLine renders a single diff line with syntax highlighting
+func (d *DiffViewer) renderLine(line models.DiffLine, filename string) string {
 	lineNo := ""
 	if line.OldLineNo > 0 || line.NewLineNo > 0 {
 		old := "   "
@@ -309,24 +317,43 @@ func (d *DiffViewer) renderLine(line models.DiffLine) string {
 		lineNo = d.lineNoStyle.Render(fmt.Sprintf("%s %s │ ", old, new))
 	}
 
-	var style lipgloss.Style
+	var prefixStyle lipgloss.Style
 	prefix := " "
 
 	switch line.Type {
 	case models.DiffLineAdded:
-		style = d.addedStyle
+		prefixStyle = d.addedStyle
 		prefix = "+"
 	case models.DiffLineDeleted:
-		style = d.deletedStyle
+		prefixStyle = d.deletedStyle
 		prefix = "-"
 	case models.DiffLineContext:
-		style = d.contextStyle
+		prefixStyle = d.contextStyle
 		prefix = " "
 	default:
-		style = d.contextStyle
+		prefixStyle = d.contextStyle
 	}
 
-	return lineNo + style.Render(prefix+line.Content)
+	// Apply syntax highlighting to the content
+	highlightedContent := d.highlighter.HighlightLine(line.Content, filename)
+
+	// For added/deleted lines, we need to apply a background or adjust the highlighting
+	// to maintain visibility of the diff type
+	styledContent := highlightedContent
+	switch line.Type {
+	case models.DiffLineAdded:
+		// Keep syntax highlighting but ensure added lines are distinguishable
+		// We'll add a subtle background or keep the prefix highly visible
+		styledContent = highlightedContent
+	case models.DiffLineDeleted:
+		// Keep syntax highlighting but ensure deleted lines are distinguishable
+		styledContent = highlightedContent
+	case models.DiffLineContext:
+		// Context lines get full syntax highlighting
+		styledContent = highlightedContent
+	}
+
+	return lineNo + prefixStyle.Render(prefix) + " " + styledContent
 }
 
 // renderPatch renders a raw patch string
