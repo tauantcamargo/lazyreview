@@ -13,6 +13,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -136,6 +137,7 @@ type Model struct {
 	isLoading      bool
 	loadingMessage string
 	lastError      error
+	spinner        spinner.Model
 }
 
 // New creates a new GUI model
@@ -162,6 +164,11 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	// Create text input component
 	textInput := components.NewTextInput()
 
+	// Create loading spinner
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("170"))
+
 	// Start with "My PRs" view by default
 	initialViewMode := ViewModeMyPRs
 
@@ -184,7 +191,8 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		keyMap:          DefaultKeyMap(),
 		keySeq:          NewKeySequence(),
 		isLoading:       true,
-		loadingMessage:  "Initializing...",
+		loadingMessage:  "Loading your pull requests...",
+		spinner:         s,
 	}
 }
 
@@ -197,7 +205,8 @@ func (m Model) Init() tea.Cmd {
 		PerPage:     50,
 		Page:        1,
 	}
-	return fetchUserPRs(m.provider, opts)
+	// Start spinner and fetch PRs
+	return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
 }
 
 // Update implements tea.Model
@@ -619,6 +628,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case keyTimeoutMsg:
 		m.keySeq.Reset()
 		return m, nil
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	}
 
 	// Update the active panel based on view state
@@ -659,7 +673,21 @@ func (m Model) View() string {
 
 	// Show loading overlay if loading
 	if m.isLoading && m.loadingMessage != "" {
-		return fmt.Sprintf("\n\n  %s\n\n", m.loadingMessage)
+		loadingStyle := lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("170")).
+			Padding(2, 4)
+
+		spinnerView := m.spinner.View()
+		loadingText := fmt.Sprintf("%s %s", spinnerView, m.loadingMessage)
+
+		return lipgloss.Place(
+			m.width,
+			m.height,
+			lipgloss.Center,
+			lipgloss.Center,
+			loadingStyle.Render(loadingText),
+		)
 	}
 
 	// Styles
@@ -985,30 +1013,29 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 // handleSidebarSelection handles when a sidebar item is selected
 func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 	m.isLoading = true
-	m.loadingMessage = "Loading..."
 
 	switch itemID {
 	case "my_prs":
 		m.currentViewMode = ViewModeMyPRs
+		m.loadingMessage = "Loading your PRs across all repositories..."
 		opts := providers.UserPROptions{
 			Involvement: "authored",
 			State:       models.PRStateOpen,
 			PerPage:     50,
 			Page:        1,
 		}
-		m.statusMsg = "Loading your PRs..."
-		return fetchUserPRs(m.provider, opts)
+		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
 
 	case "review_requests":
 		m.currentViewMode = ViewModeReviewRequests
+		m.loadingMessage = "Loading PRs that need your review..."
 		opts := providers.UserPROptions{
 			Involvement: "review_requested",
 			State:       models.PRStateOpen,
 			PerPage:     50,
 			Page:        1,
 		}
-		m.statusMsg = "Loading review requests..."
-		return fetchUserPRs(m.provider, opts)
+		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
 
 	case "current_repo":
 		m.currentViewMode = ViewModeCurrentRepo
@@ -1019,8 +1046,8 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 			m.statusMsg = "No git repository detected"
 			return nil
 		}
-		m.statusMsg = fmt.Sprintf("Loading PRs for %s/%s...", owner, repo)
-		return fetchPRList(m.provider, owner, repo)
+		m.loadingMessage = fmt.Sprintf("Loading PRs for %s/%s...", owner, repo)
+		return tea.Batch(m.spinner.Tick, fetchPRList(m.provider, owner, repo))
 
 	case "settings":
 		m.currentViewMode = ViewModeSettings
