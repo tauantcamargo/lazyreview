@@ -147,12 +147,12 @@ func (p *Provider) ListUserPullRequests(ctx context.Context, opts providers.User
 		for _, issue := range result.Issues {
 			// GitHub Search API returns issues, but we filter by is:pr
 			if issue.PullRequestLinks != nil {
-				pr, err := p.fetchPRFromIssue(ctx, issue)
-				if err != nil {
-					// Skip PRs we can't fetch (SAML, permissions, etc.)
-					continue
+				// Use basic info directly from search results - NO extra API calls
+				// This is much faster than fetching full details for each PR
+				pr := p.mapSearchIssueToPR(issue)
+				if pr != nil {
+					allPRs = append(allPRs, *pr)
 				}
-				allPRs = append(allPRs, *pr)
 			}
 		}
 
@@ -255,6 +255,42 @@ func (p *Provider) fetchPRFromIssue(ctx context.Context, issue *github.Issue) (*
 	}
 
 	return mapPullRequest(pr), nil
+}
+
+// mapSearchIssueToPR creates a PR from search issue data without extra API calls
+// Extracts owner/repo from the issue URL since Repository object may be nil
+func (p *Provider) mapSearchIssueToPR(issue *github.Issue) *models.PullRequest {
+	// Extract owner and repo from issue URLs
+	var owner, repoName string
+
+	// Try RepositoryURL first (format: https://api.github.com/repos/owner/repo)
+	if repoURL := issue.GetRepositoryURL(); repoURL != "" {
+		parts := strings.Split(repoURL, "/")
+		if len(parts) >= 2 {
+			owner = parts[len(parts)-2]
+			repoName = parts[len(parts)-1]
+		}
+	}
+
+	// Fallback to HTMLURL (format: https://github.com/owner/repo/pull/123)
+	if owner == "" || repoName == "" {
+		if htmlURL := issue.GetHTMLURL(); htmlURL != "" {
+			parts := strings.Split(htmlURL, "/")
+			for i, part := range parts {
+				if part == "pull" && i >= 2 {
+					owner = parts[i-2]
+					repoName = parts[i-1]
+					break
+				}
+			}
+		}
+	}
+
+	if owner == "" || repoName == "" {
+		return nil
+	}
+
+	return mapIssueToBasicPR(issue, owner, repoName)
 }
 
 // mapIssueToBasicPR creates a basic PR from search issue data

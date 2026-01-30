@@ -292,7 +292,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if selectedItem != nil {
 						simpleItem, ok := selectedItem.(components.SimpleItem)
 						if ok {
-							cmd := m.handleSidebarSelection(simpleItem.ID())
+							// Check if this view is already loaded - just move to content panel
+							viewID := simpleItem.ID()
+							alreadyLoaded := (viewID == "my_prs" && m.currentViewMode == ViewModeMyPRs && len(m.prList) > 0) ||
+								(viewID == "review_requests" && m.currentViewMode == ViewModeReviewRequests && len(m.prList) > 0) ||
+								(viewID == "current_repo" && m.currentViewMode == ViewModeCurrentRepo && len(m.prList) > 0)
+
+							if alreadyLoaded {
+								// Just move focus to content panel, don't reload
+								m.activePanel = PanelContent
+								m.content.Focus()
+								m.sidebar.Blur()
+								return m, nil
+							}
+
+							cmd := m.handleSidebarSelection(viewID)
 							return m, cmd
 						}
 					}
