@@ -61,23 +61,19 @@ changelog:
     - title: "Other"
       order: 999
 
-# Homebrew tap (disabled until homebrew-tap repo is created)
-# To enable:
-# 1. Create https://github.com/tauantcamargo/homebrew-tap repository
-# 2. Add HOMEBREW_TAP_TOKEN secret to GitHub Actions with repo write access
-# brews:
-#   - repository:
-#       owner: tauantcamargo
-#       name: homebrew-tap
-#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-#     directory: Formula
-#     homepage: https://github.com/tauantcamargo/lazyreview
-#     description: Terminal UI for code review across multiple Git providers
-#     license: MIT
-#     install: |
-#       bin.install "lazyreview"
-#     test: |
-#       system "#{bin}/lazyreview", "--version"
+brews:
+  - repository:
+      owner: tauantcamargo
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/tauantcamargo/lazyreview
+    description: Terminal UI for code review across multiple Git providers
+    license: MIT
+    install: |
+      bin.install "lazyreview"
+    test: |
+      system "#{bin}/lazyreview", "--version"
 
 nfpms:
   - package_name: lazyreview
