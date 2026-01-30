@@ -114,34 +114,59 @@ func (p *Provider) ListUserPullRequests(ctx context.Context, opts providers.User
 	// Build search query based on involvement
 	query := buildUserPRQuery(user.GetLogin(), opts)
 
-	searchOpts := &github.SearchOptions{
-		Sort:  "updated",
-		Order: "desc",
-		ListOptions: github.ListOptions{
-			PerPage: opts.PerPage,
-			Page:    opts.Page,
-		},
+	// Paginate through all results (up to 500 PRs max to avoid rate limiting)
+	maxPRs := 500
+	perPage := 100
+	if opts.PerPage > 0 && opts.PerPage < perPage {
+		perPage = opts.PerPage
 	}
 
-	result, _, err := p.client.Search.Issues(ctx, query, searchOpts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to search user PRs: %w", err)
-	}
+	var allPRs []models.PullRequest
+	page := 1
 
-	prs := make([]models.PullRequest, 0, len(result.Issues))
-	for _, issue := range result.Issues {
-		// GitHub Search API returns issues, but we filter by is:pr
-		if issue.PullRequestLinks != nil {
-			pr, err := p.fetchPRFromIssue(ctx, issue)
-			if err != nil {
-				// Log error but continue with other PRs
-				continue
-			}
-			prs = append(prs, *pr)
+	for len(allPRs) < maxPRs {
+		searchOpts := &github.SearchOptions{
+			Sort:  "updated",
+			Order: "desc",
+			ListOptions: github.ListOptions{
+				PerPage: perPage,
+				Page:    page,
+			},
 		}
+
+		result, resp, err := p.client.Search.Issues(ctx, query, searchOpts)
+		if err != nil {
+			// If we already have some PRs, return what we have
+			if len(allPRs) > 0 {
+				break
+			}
+			return nil, fmt.Errorf("failed to search user PRs: %w", err)
+		}
+
+		for _, issue := range result.Issues {
+			// GitHub Search API returns issues, but we filter by is:pr
+			if issue.PullRequestLinks != nil {
+				pr, err := p.fetchPRFromIssue(ctx, issue)
+				if err != nil {
+					// Check if it's a SAML error - skip but don't fail
+					if wrapGitHubError(err, "") != err {
+						continue
+					}
+					// Log other errors but continue with other PRs
+					continue
+				}
+				allPRs = append(allPRs, *pr)
+			}
+		}
+
+		// Check if there are more pages
+		if resp.NextPage == 0 || len(result.Issues) < perPage {
+			break
+		}
+		page = resp.NextPage
 	}
 
-	return prs, nil
+	return allPRs, nil
 }
 
 // buildUserPRQuery constructs a GitHub search query for user PRs
