@@ -94,16 +94,18 @@ func DefaultDiffKeyMap() DiffKeyMap {
 
 // DiffViewer is a component for viewing diffs
 type DiffViewer struct {
-	viewport    viewport.Model
-	diff        *models.Diff
-	files       []models.FileDiff
-	currentFile int
-	currentLine int
-	keyMap      DiffKeyMap
-	width       int
-	height      int
-	focused     bool
-	splitView   bool
+	viewport      viewport.Model
+	diff          *models.Diff
+	files         []models.FileDiff
+	currentFile   int
+	currentLine   int
+	keyMap        DiffKeyMap
+	width         int
+	height        int
+	focused       bool
+	splitView     bool
+	hunkPositions []int // Line offsets where each hunk starts
+	currentHunk   int   // Current hunk index
 
 	// Styles
 	addedStyle   lipgloss.Style
@@ -166,6 +168,12 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 		case key.Matches(msg, d.keyMap.PrevFile):
 			d.prevFile()
 			return d, nil
+		case key.Matches(msg, d.keyMap.NextHunk):
+			d.nextHunk()
+			return d, nil
+		case key.Matches(msg, d.keyMap.PrevHunk):
+			d.prevHunk()
+			return d, nil
 		case key.Matches(msg, d.keyMap.ToggleView):
 			d.splitView = !d.splitView
 			d.render()
@@ -203,30 +211,41 @@ func (d DiffViewer) View() string {
 func (d *DiffViewer) render() {
 	if d.diff == nil || len(d.files) == 0 {
 		d.viewport.SetContent("No diff to display")
+		d.hunkPositions = nil
 		return
 	}
 
 	var content strings.Builder
+	var hunkPositions []int
+	currentLine := 0
 
 	for i, file := range d.files {
 		// File header
 		header := d.renderFileHeader(file, i == d.currentFile)
 		content.WriteString(header)
 		content.WriteString("\n")
+		currentLine++
 
 		// Render hunks
 		for _, hunk := range file.Hunks {
-			content.WriteString(d.renderHunk(hunk))
+			hunkPositions = append(hunkPositions, currentLine)
+			hunkContent := d.renderHunk(hunk)
+			content.WriteString(hunkContent)
+			currentLine += strings.Count(hunkContent, "\n")
 		}
 
 		// If no hunks but has patch, render raw patch
 		if len(file.Hunks) == 0 && file.Patch != "" {
-			content.WriteString(d.renderPatch(file.Patch))
+			patchContent := d.renderPatch(file.Patch)
+			content.WriteString(patchContent)
+			currentLine += strings.Count(patchContent, "\n")
 		}
 
 		content.WriteString("\n")
+		currentLine++
 	}
 
+	d.hunkPositions = hunkPositions
 	d.viewport.SetContent(content.String())
 }
 
@@ -352,6 +371,54 @@ func (d *DiffViewer) prevFile() {
 	if d.currentFile > 0 {
 		d.currentFile--
 		d.render()
+	}
+}
+
+// nextHunk moves to the next hunk
+func (d *DiffViewer) nextHunk() {
+	if len(d.hunkPositions) == 0 {
+		return
+	}
+
+	currentOffset := d.viewport.YOffset
+
+	// Find the next hunk position after current offset
+	for i, pos := range d.hunkPositions {
+		if pos > currentOffset {
+			d.currentHunk = i
+			d.viewport.SetYOffset(pos)
+			return
+		}
+	}
+
+	// If no hunk found after current position, go to last hunk
+	if len(d.hunkPositions) > 0 {
+		d.currentHunk = len(d.hunkPositions) - 1
+		d.viewport.SetYOffset(d.hunkPositions[d.currentHunk])
+	}
+}
+
+// prevHunk moves to the previous hunk
+func (d *DiffViewer) prevHunk() {
+	if len(d.hunkPositions) == 0 {
+		return
+	}
+
+	currentOffset := d.viewport.YOffset
+
+	// Find the previous hunk position before current offset
+	for i := len(d.hunkPositions) - 1; i >= 0; i-- {
+		if d.hunkPositions[i] < currentOffset {
+			d.currentHunk = i
+			d.viewport.SetYOffset(d.hunkPositions[i])
+			return
+		}
+	}
+
+	// If no hunk found before current position, go to first hunk
+	if len(d.hunkPositions) > 0 {
+		d.currentHunk = 0
+		d.viewport.SetYOffset(d.hunkPositions[d.currentHunk])
 	}
 }
 

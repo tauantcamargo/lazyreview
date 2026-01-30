@@ -146,7 +146,52 @@ func startTUI() error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	return gui.Run(cfg)
+	// Initialize auth service
+	authService, err := auth.NewService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth service: %w", err)
+	}
+
+	// Get default provider config or use GitHub as default
+	var providerCfg *config.ProviderConfig
+	if cfg.DefaultProvider != "" {
+		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
+	}
+
+	// If no provider configured, create default GitHub config
+	if providerCfg == nil {
+		providerCfg = &config.ProviderConfig{
+			Name: "github",
+			Type: config.ProviderTypeGitHub,
+			Host: "github.com",
+		}
+	}
+
+	// Get credentials for the provider
+	cred, err := authService.GetCredential(providerCfg.Type, providerCfg.GetHost())
+	if err != nil {
+		if err == auth.ErrCredentialNotFound {
+			return fmt.Errorf("not authenticated with %s. Run: lazyreview auth login --provider %s",
+				providerCfg.Type, providerCfg.Type)
+		}
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	// Create provider instance
+	provider, err := github.New(*providerCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create provider: %w", err)
+	}
+
+	// Authenticate provider
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := provider.Authenticate(ctx, cred.Token); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	return gui.Run(cfg, provider, authService)
 }
 
 // loginAction handles the login command

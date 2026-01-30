@@ -1,11 +1,15 @@
 package gui
 
 import (
+	"context"
 	"fmt"
+	"time"
 
+	"lazyreview/internal/auth"
 	"lazyreview/internal/config"
 	"lazyreview/internal/models"
 	"lazyreview/pkg/components"
+	"lazyreview/pkg/providers"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -40,6 +44,31 @@ const (
 	ViewDetail                  // PR detail view (files + diff)
 )
 
+// Message types for async operations
+type prListMsg struct {
+	prs []models.PullRequest
+}
+
+type prDetailMsg struct {
+	pr *models.PullRequest
+}
+
+type prFilesMsg struct {
+	files []models.FileChange
+}
+
+type prDiffMsg struct {
+	diff *models.Diff
+}
+
+type errMsg struct {
+	err error
+}
+
+type providerReadyMsg struct {
+	provider providers.Provider
+}
+
 // Model is the main application model
 type Model struct {
 	config      *config.Config
@@ -59,14 +88,24 @@ type Model struct {
 	ready       bool
 	statusMsg   string
 
+	// Provider and auth
+	provider    providers.Provider
+	authService *auth.Service
+
 	// Current PR state
 	currentPR    *models.PullRequest
 	currentDiff  *models.Diff
 	currentFiles []models.FileChange
+	prList       []models.PullRequest
+
+	// Loading states
+	isLoading      bool
+	loadingMessage string
+	lastError      error
 }
 
 // New creates a new GUI model
-func New(cfg *config.Config) Model {
+func New(cfg *config.Config, provider providers.Provider, authService *auth.Service) Model {
 	// Create sidebar with navigation items
 	sidebarItems := []list.Item{
 		components.NewSimpleItem("prs", "Pull Requests", "View and manage PRs"),
@@ -87,23 +126,29 @@ func New(cfg *config.Config) Model {
 	diffViewer := components.NewDiffViewer(50, 20)
 
 	return Model{
-		config:      cfg,
-		activePanel: PanelSidebar,
-		mode:        ModeNormal,
-		viewState:   ViewList,
-		sidebar:     sidebar,
-		content:     content,
-		fileTree:    fileTree,
-		diffViewer:  diffViewer,
-		help:        components.NewHelp(),
-		keyMap:      DefaultKeyMap(),
-		keySeq:      NewKeySequence(),
+		config:         cfg,
+		provider:       provider,
+		authService:    authService,
+		activePanel:    PanelSidebar,
+		mode:           ModeNormal,
+		viewState:      ViewList,
+		sidebar:        sidebar,
+		content:        content,
+		fileTree:       fileTree,
+		diffViewer:     diffViewer,
+		help:           components.NewHelp(),
+		keyMap:         DefaultKeyMap(),
+		keySeq:         NewKeySequence(),
+		isLoading:      true,
+		loadingMessage: "Initializing...",
 	}
 }
 
 // Init implements tea.Model
 func (m Model) Init() tea.Cmd {
-	return nil
+	// For now, we'll use mock repository data
+	// In the future, this could come from config or user input
+	return fetchPRList(m.provider, "golang", "go")
 }
 
 // Update implements tea.Model
@@ -170,7 +215,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.sidebar.Blur()
 				} else if m.activePanel == PanelContent {
 					// Enter PR detail view
-					m.enterDetailView()
+					cmd := m.enterDetailView()
+					return m, cmd
 				}
 			} else {
 				// In detail view, move between file tree and diff
@@ -252,7 +298,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.Refresh):
-			m.statusMsg = "Refreshing..."
+			if m.viewState == ViewList {
+				m.isLoading = true
+				m.loadingMessage = "Refreshing pull requests..."
+				m.statusMsg = "Refreshing..."
+				// Use hardcoded owner/repo for now
+				return m, fetchPRList(m.provider, "golang", "go")
+			}
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.Search):
@@ -286,6 +338,49 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.help.SetWidth(msg.Width)
 
+		return m, nil
+
+	case prListMsg:
+		m.isLoading = false
+		m.prList = msg.prs
+
+		// Convert PRs to list items
+		items := make([]list.Item, len(msg.prs))
+		for i, pr := range msg.prs {
+			title := fmt.Sprintf("#%d: %s", pr.Number, pr.Title)
+			desc := fmt.Sprintf("by %s • %s", pr.Author.Login, pr.State)
+			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
+		}
+		contentWidth := m.width - 44
+		contentHeight := m.height - 6
+		m.content = components.NewList("Pull Requests", items, contentWidth, contentHeight)
+		m.statusMsg = fmt.Sprintf("Loaded %d pull requests", len(msg.prs))
+		return m, nil
+
+	case prDetailMsg:
+		m.currentPR = msg.pr
+		m.isLoading = false
+		m.statusMsg = fmt.Sprintf("Loaded PR #%d details", msg.pr.Number)
+		return m, nil
+
+	case prFilesMsg:
+		m.currentFiles = msg.files
+		m.fileTree.SetFiles(msg.files)
+		m.isLoading = false
+		m.statusMsg = fmt.Sprintf("Loaded %d files", len(msg.files))
+		return m, nil
+
+	case prDiffMsg:
+		m.currentDiff = msg.diff
+		m.diffViewer.SetDiff(msg.diff)
+		m.isLoading = false
+		m.statusMsg = fmt.Sprintf("Loaded diff (+%d -%d)", msg.diff.Additions, msg.diff.Deletions)
+		return m, nil
+
+	case errMsg:
+		m.isLoading = false
+		m.lastError = msg.err
+		m.statusMsg = fmt.Sprintf("Error: %s", msg.err.Error())
 		return m, nil
 
 	case keyTimeoutMsg:
@@ -325,6 +420,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	if !m.ready {
 		return "Loading..."
+	}
+
+	// Show loading overlay if loading
+	if m.isLoading && m.loadingMessage != "" {
+		return fmt.Sprintf("\n\n  %s\n\n", m.loadingMessage)
 	}
 
 	// Styles
@@ -443,56 +543,60 @@ func (m *Model) switchPanel() {
 	}
 }
 
-func (m *Model) enterDetailView() {
+func (m *Model) enterDetailView() tea.Cmd {
+	// Get the selected PR from the content list
+	selectedItem := m.content.SelectedItem()
+	if selectedItem == nil {
+		m.statusMsg = "No PR selected"
+		return nil
+	}
+
+	// Find the PR number from the selected item
+	simpleItem, ok := selectedItem.(components.SimpleItem)
+	if !ok {
+		m.statusMsg = "Invalid selection"
+		return nil
+	}
+
+	// Parse PR number from the item ID
+	var prNumber int
+	_, err := fmt.Sscanf(simpleItem.ID(), "%d", &prNumber)
+	if err != nil {
+		m.statusMsg = fmt.Sprintf("Invalid PR number: %s", err.Error())
+		return nil
+	}
+
+	// Find the PR in our list
+	var selectedPR *models.PullRequest
+	for i := range m.prList {
+		if m.prList[i].Number == prNumber {
+			selectedPR = &m.prList[i]
+			break
+		}
+	}
+
+	if selectedPR == nil {
+		m.statusMsg = "PR not found in list"
+		return nil
+	}
+
+	// Change view state
 	m.viewState = ViewDetail
 	m.activePanel = PanelFiles
 	m.fileTree.Focus()
-	m.statusMsg = "Viewing PR details (mock data)"
+	m.isLoading = true
+	m.loadingMessage = fmt.Sprintf("Loading PR #%d...", prNumber)
 
-	// In a real implementation, we would fetch PR details from the provider
-	// For now, set up mock data to demonstrate the UI
-	m.currentPR = &models.PullRequest{
-		Number: 123,
-		Title:  "Add new feature",
-		Author: models.User{Login: "developer"},
-	}
-	m.currentFiles = []models.FileChange{
-		{Filename: "src/main.go", Status: models.FileStatusModified, Additions: 10, Deletions: 5},
-		{Filename: "src/utils/helper.go", Status: models.FileStatusAdded, Additions: 25, Deletions: 0},
-		{Filename: "README.md", Status: models.FileStatusModified, Additions: 3, Deletions: 1},
-	}
-	m.fileTree.SetFiles(m.currentFiles)
+	// For now, use hardcoded owner/repo (later this should come from config or selection)
+	owner := "golang"
+	repo := "go"
 
-	// Set up mock diff
-	m.currentDiff = &models.Diff{
-		Additions: 38,
-		Deletions: 6,
-		Files: []models.FileDiff{
-			{
-				Path:      "src/main.go",
-				Status:    models.FileStatusModified,
-				Additions: 10,
-				Deletions: 5,
-				Hunks: []models.Hunk{
-					{
-						Header:   "@@ -1,10 +1,15 @@",
-						OldStart: 1, OldLines: 10,
-						NewStart: 1, NewLines: 15,
-						Lines: []models.DiffLine{
-							{Type: models.DiffLineContext, Content: "package main", OldLineNo: 1, NewLineNo: 1},
-							{Type: models.DiffLineContext, Content: "", OldLineNo: 2, NewLineNo: 2},
-							{Type: models.DiffLineContext, Content: "import (", OldLineNo: 3, NewLineNo: 3},
-							{Type: models.DiffLineAdded, Content: "\t\"fmt\"", NewLineNo: 4},
-							{Type: models.DiffLineContext, Content: "\t\"os\"", OldLineNo: 4, NewLineNo: 5},
-							{Type: models.DiffLineDeleted, Content: "\t\"log\"", OldLineNo: 5},
-							{Type: models.DiffLineContext, Content: ")", OldLineNo: 6, NewLineNo: 6},
-						},
-					},
-				},
-			},
-		},
-	}
-	m.diffViewer.SetDiff(m.currentDiff)
+	// Fetch PR details, files, and diff in parallel
+	return tea.Batch(
+		fetchPRDetail(m.provider, owner, repo, prNumber),
+		fetchPRFiles(m.provider, owner, repo, prNumber),
+		fetchPRDiff(m.provider, owner, repo, prNumber),
+	)
 }
 
 func (m *Model) exitDetailView() {
@@ -534,10 +638,65 @@ func (m *Model) pageDown() {
 	// Move down a full page
 }
 
+// Async command functions
+
+func fetchPRList(provider providers.Provider, owner, repo string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		opts := providers.DefaultListOptions()
+		prs, err := provider.ListPullRequests(ctx, owner, repo, opts)
+		if err != nil {
+			return errMsg{err}
+		}
+		return prListMsg{prs}
+	}
+}
+
+func fetchPRDetail(provider providers.Provider, owner, repo string, number int) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		pr, err := provider.GetPullRequest(ctx, owner, repo, number)
+		if err != nil {
+			return errMsg{err}
+		}
+		return prDetailMsg{pr}
+	}
+}
+
+func fetchPRFiles(provider providers.Provider, owner, repo string, number int) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		files, err := provider.GetPullRequestFiles(ctx, owner, repo, number)
+		if err != nil {
+			return errMsg{err}
+		}
+		return prFilesMsg{files}
+	}
+}
+
+func fetchPRDiff(provider providers.Provider, owner, repo string, number int) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		diff, err := provider.GetPullRequestDiff(ctx, owner, repo, number)
+		if err != nil {
+			return errMsg{err}
+		}
+		return prDiffMsg{diff}
+	}
+}
+
 // Run starts the TUI application
-func Run(cfg *config.Config) error {
+func Run(cfg *config.Config, provider providers.Provider, authService *auth.Service) error {
 	p := tea.NewProgram(
-		New(cfg),
+		New(cfg, provider, authService),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)

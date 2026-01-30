@@ -229,6 +229,16 @@ func (l *List) IsFiltering() bool {
 	return l.list.SettingFilter()
 }
 
+// Width returns the list width
+func (l *List) Width() int {
+	return l.list.Width()
+}
+
+// Height returns the list height
+func (l *List) Height() int {
+	return l.list.Height()
+}
+
 // PRListItem represents a PR in a list
 type PRListItem struct {
 	id       string
