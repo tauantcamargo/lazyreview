@@ -549,6 +549,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isLoading = false
 		m.lastError = msg.err
 
+		// If we're in detail view and got an error, go back to list view
+		if m.viewState == ViewDetail {
+			m.exitDetailView()
+
+			// Check for SAML SSO errors
+			if providers.IsSAMLError(msg.err) {
+				m.statusMsg = "Cannot view PR: SAML SSO required. Authorize token at github.com/settings/tokens"
+			} else {
+				m.statusMsg = fmt.Sprintf("Cannot view PR: %s", msg.err.Error())
+			}
+			return m, nil
+		}
+
 		// Check for SAML SSO errors and show helpful message
 		if providers.IsSAMLError(msg.err) {
 			m.statusMsg = "SAML SSO required - Authorize your token at: github.com/settings/tokens"

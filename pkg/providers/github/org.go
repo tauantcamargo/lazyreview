@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"lazyreview/internal/models"
 	"lazyreview/pkg/providers"
@@ -148,11 +149,7 @@ func (p *Provider) ListUserPullRequests(ctx context.Context, opts providers.User
 			if issue.PullRequestLinks != nil {
 				pr, err := p.fetchPRFromIssue(ctx, issue)
 				if err != nil {
-					// Check if it's a SAML error - skip but don't fail
-					if wrapGitHubError(err, "") != err {
-						continue
-					}
-					// Log other errors but continue with other PRs
+					// Skip PRs we can't fetch (SAML, permissions, etc.)
 					continue
 				}
 				allPRs = append(allPRs, *pr)
@@ -207,14 +204,47 @@ func buildUserPRQuery(username string, opts providers.UserPROptions) string {
 // fetchPRFromIssue fetches the full PR details from a search issue result
 // If full fetch fails (e.g., SAML), it falls back to basic info from search result
 func (p *Provider) fetchPRFromIssue(ctx context.Context, issue *github.Issue) (*models.PullRequest, error) {
-	// Extract owner and repo from repository URL
-	repo := issue.GetRepository()
-	if repo == nil {
-		return nil, fmt.Errorf("issue missing repository information")
+	// Extract owner and repo - try multiple sources
+	var owner, repoName string
+
+	// First try the Repository object
+	if repo := issue.GetRepository(); repo != nil {
+		owner = repo.GetOwner().GetLogin()
+		repoName = repo.GetName()
 	}
 
-	owner := repo.GetOwner().GetLogin()
-	repoName := repo.GetName()
+	// If that's empty, parse from RepositoryURL (format: https://api.github.com/repos/owner/repo)
+	if owner == "" || repoName == "" {
+		repoURL := issue.GetRepositoryURL()
+		if repoURL != "" {
+			// Parse: https://api.github.com/repos/owner/repo
+			parts := strings.Split(repoURL, "/")
+			if len(parts) >= 2 {
+				owner = parts[len(parts)-2]
+				repoName = parts[len(parts)-1]
+			}
+		}
+	}
+
+	// If still empty, try to parse from HTMLURL (format: https://github.com/owner/repo/pull/123)
+	if owner == "" || repoName == "" {
+		htmlURL := issue.GetHTMLURL()
+		if htmlURL != "" {
+			parts := strings.Split(htmlURL, "/")
+			// Find "pull" and get owner/repo before it
+			for i, part := range parts {
+				if part == "pull" && i >= 2 {
+					owner = parts[i-2]
+					repoName = parts[i-1]
+					break
+				}
+			}
+		}
+	}
+
+	if owner == "" || repoName == "" {
+		return nil, fmt.Errorf("could not extract repository info from issue")
+	}
 
 	// Try to fetch full PR details
 	pr, _, err := p.client.PullRequests.Get(ctx, owner, repoName, issue.GetNumber())
