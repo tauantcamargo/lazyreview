@@ -3,266 +3,290 @@
 [![Go Version](https://img.shields.io/badge/Go-1.22+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tauantcamargo/lazyreview)](https://goreportcard.com/report/github.com/tauantcamargo/lazyreview)
-[![Go Reference](https://pkg.go.dev/badge/github.com/tauantcamargo/lazyreview.svg)](https://pkg.go.dev/github.com/tauantcamargo/lazyreview)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-orange?logo=buy-me-a-coffee&style=for-the-badge)](https://buymeacoffee.com/tauantcamargo)
+[![Release](https://img.shields.io/github/v/release/tauantcamargo/lazyreview)](https://github.com/tauantcamargo/lazyreview/releases)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-orange?logo=buy-me-a-coffee)](https://buymeacoffee.com/tauantcamargo)
 
 > A fast, keyboard-driven terminal UI for code review across multiple Git providers
 
-LazyReview is a powerful CLI/TUI application that streamlines the code review process across GitHub, GitLab, Bitbucket, and Azure DevOps. Built in the spirit of [lazygit](https://github.com/jesseduffield/lazygit), it provides an intuitive terminal interface for browsing, reviewing, and managing pull requests and merge requests.
+LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/lazygit) to code reviews. Navigate, review, and manage pull requests across GitHub, GitLab, Bitbucket, and Azure DevOps - all from your terminal with vim-style keybindings.
 
-## ✨ Features
+## Features
 
 - **Multi-Provider Support** - GitHub, GitLab, Bitbucket, Azure DevOps (cloud & self-hosted)
-- **Efficient Navigation** - Browse PRs/MRs with filters, search, and sorting
-- **Inline Review** - Diff viewing with file-by-file navigation and inline comments
-- **Review Actions** - Approve, request changes, merge, label, assign, and re-run checks
-- **Local Development** - Checkout PR branches locally for testing
-- **Multi-Account** - Manage multiple accounts and workspaces with per-repo overrides
-- **Offline Support** - Queue comments and approvals for later synchronization
-- **Customizable** - Open in browser or editor with configurable keybindings
+- **Vim-Style Navigation** - `j/k`, `h/l`, `gg`, `G`, `Ctrl+d/u` and more
+- **Inline Diff Viewing** - Syntax-highlighted diffs with file-by-file navigation
+- **Review Actions** - Approve, request changes, comment, merge, and manage labels
+- **Secure Authentication** - Tokens stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+- **Cross-Platform** - Linux, macOS, and Windows binaries available
 
-## 🚀 Quick Start
+## Installation
 
-### Installation
-
-#### Prebuilt Binaries
-
-Download the latest release from [GitHub Releases](https://github.com/your-org/lazyreview/releases).
-
-<!-- ```bash -->
-<!-- # Requirements: Go ≥ 1.22 -->
-<!-- go install github.com/your-org/lazyreview/cmd/lazyreview@latest -->
-<!-- ``` -->
-
-### First Run (thinking to have this feature)
-
-1. **Authenticate** with your Git provider:
-
-   ```bash
-   lazyreview auth login
-   ```
-
-2. **Launch the TUI**:
-
-   ```bash
-   lazyreview
-   ```
-
-3. **Navigate** using:
-   - `j/k` - Move up/down
-   - `Enter` - Open/select
-   - `q` - Go back
-   - `?` - Show help
-
-4. **Create a comment**:
-   - `c` - Comment on line/hunk
-   - Write your comment and save
-
-## 📖 Usage
+### Homebrew (macOS/Linux)
 
 ```bash
-# start cli
-go run main.go
-
-# start lazyreview ui
-go run main.go start
+brew install tauantcamargo/tap/lazyreview
 ```
 
-### Core Commands (future commands)
+### Download Binary
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/tauantcamargo/lazyreview/releases).
+
+**Linux/macOS:**
+```bash
+# Download and extract (replace VERSION and PLATFORM)
+curl -sL https://github.com/tauantcamargo/lazyreview/releases/download/vVERSION/lazyreview_VERSION_PLATFORM.tar.gz | tar xz
+sudo mv lazyreview /usr/local/bin/
+```
+
+### Install Script
 
 ```bash
-# Launch the TUI
-lazyreview
-
-# Authentication
-lazyreview auth login [--provider github|gitlab|bitbucket|azure] [--host <url>]
-lazyreview auth status
-lazyreview auth logout [--all]
-
-# Pull Request Management
-lazyreview pr list [--author me] [--state open|closed|merged] [--search "..."]
-lazyreview pr view <id|url>
-lazyreview pr checkout <id>
-
-# Review Operations
-lazyreview review start <id>
-lazyreview review comment <id> --file <path> --line <n> --message "..."
-lazyreview review approve <id>
-lazyreview review request-changes <id> --message "..."
-
-# Labels and Assignments
-lazyreview label add <id> <label...>
-lazyreview label remove <id> <label...>
-lazyreview assign add <id> <user...>
-lazyreview assign remove <id> <user...>
-
-# Utilities
-lazyreview open <id>          # Open in browser
-lazyreview config edit        # Edit configuration
-lazyreview cache sync         # Sync offline queue
+curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh
 ```
 
-### TUI Keybindings
+### Build from Source
 
-| Action         | Key     | Description             |
-| -------------- | ------- | ----------------------- |
-| **Navigation** | `j/k`   | Move up/down            |
-|                | `h/l`   | Move left/right         |
-|                | `Enter` | Open/select             |
-|                | `q`     | Go back                 |
-| **Actions**    | `a`     | Approve                 |
-|                | `r`     | Request changes         |
-|                | `c`     | Comment                 |
-|                | `e`     | Edit                    |
-|                | `d`     | Toggle diff view        |
-| **Misc**       | `/`     | Search                  |
-|                | `s`     | Switch provider/account |
-|                | `o`     | Open in browser         |
-|                | `?`     | Show help               |
+```bash
+# Requires Go 1.22+
+git clone https://github.com/tauantcamargo/lazyreview.git
+cd lazyreview
+go build -o lazyreview .
+sudo mv lazyreview /usr/local/bin/
+```
 
-## ⚙️ Configuration
+### Go Install
 
-<!-- ### Configuration File Location -->
-<!---->
-<!-- | Platform | Path                                                   | -->
-<!-- | -------- | ------------------------------------------------------ | -->
-<!-- | Linux    | `~/.config/lazyreview/config.yaml`                     | -->
-<!-- | macOS    | `~/Library/Application Support/lazyreview/config.yaml` | -->
-<!-- | Windows  | `%APPDATA%\lazyreview\config.yaml`                     | -->
-<!---->
-<!-- ### Example Configuration -->
-<!---->
-<!-- ```yaml -->
-<!-- version: 0.1 -->
-<!-- default_provider: github -->
-<!---->
-<!-- ui: -->
-<!--   theme: auto # light|dark|auto -->
-<!--   paging: true -->
-<!--   show_checks: true -->
-<!---->
-<!-- keybindings: -->
-<!--   up: k -->
-<!--   down: j -->
-<!--   left: h -->
-<!--   right: l -->
-<!--   approve: a -->
-<!--   request_changes: r -->
-<!--   comment: c -->
-<!--   submit: s -->
-<!--   search: / -->
-<!---->
-<!-- providers: -->
-<!--   - name: github-work -->
-<!--     type: github -->
-<!--     host: github.com -->
-<!--     token_env: GITHUB_TOKEN -->
-<!--     default_query: -->
-<!--       state: open -->
-<!--       review_requested: me -->
-<!---->
-<!--   - name: gitlab-self -->
-<!--     type: gitlab -->
-<!--     host: gitlab.company.internal -->
-<!--     base_url: https://gitlab.company.internal/api/v4 -->
-<!--     token_env: GITLAB_TOKEN -->
-<!---->
-<!-- repo_overrides: -->
-<!--   - path: ~/src/company/* -->
-<!--     default_provider: gitlab-self -->
-<!-- ``` -->
+```bash
+go install github.com/tauantcamargo/lazyreview@latest
+```
 
-## 🔐 Authentication
+## Quick Start
 
-### Provider Requirements
+### 1. Authenticate with your provider
 
-| Provider         | Token Type                                      | Required Scopes                                |
-| ---------------- | ----------------------------------------------- | ---------------------------------------------- |
-| **GitHub**       | Personal Access Token (Classic) or Fine-grained | `repo`, `read:org`                             |
-| **GitLab**       | Personal Access Token                           | `api`                                          |
-| **Bitbucket**    | App Password                                    | `pullrequest:read/write`, `repository:read`    |
-| **Azure DevOps** | Personal Access Token                           | `Code (Read & Write)`, `Work Items` (optional) |
+```bash
+# GitHub
+lazyreview auth login --provider github
 
-### Security Notes
+# GitLab
+lazyreview auth login --provider gitlab
 
-- Tokens are stored in the OS keychain when available
-- Environment variables are used as fallback (never stored in plaintext)
-- Follow the principle of least privilege for token scopes
+# Bitbucket (use username:app_password format)
+lazyreview auth login --provider bitbucket
 
-## 🛠️ Development
+# Azure DevOps
+lazyreview auth login --provider azuredevops
+```
+
+### 2. Launch the TUI
+
+```bash
+lazyreview start
+```
+
+### 3. Navigate and review
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` | Move down / up |
+| `h` / `l` | Move left / right (panels) |
+| `Enter` | Select / Open PR details |
+| `gg` | Go to top |
+| `G` | Go to bottom |
+| `Ctrl+d` / `Ctrl+u` | Half page down / up |
+| `n` / `N` | Next / previous file |
+| `a` | Approve PR |
+| `r` | Request changes |
+| `c` | Add comment |
+| `?` | Show help |
+| `q` | Quit / Go back |
+
+## Authentication
+
+### Token Requirements
+
+| Provider | Token Type | Required Scopes |
+|----------|------------|-----------------|
+| **GitHub** | Personal Access Token | `repo`, `read:org` |
+| **GitLab** | Personal Access Token | `api` |
+| **Bitbucket** | App Password | `pullrequest:read/write`, `repository:read` |
+| **Azure DevOps** | Personal Access Token | `Code (Read & Write)` |
+
+### Creating Tokens
+
+<details>
+<summary><strong>GitHub</strong></summary>
+
+1. Go to [Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
+2. Click "Generate new token (classic)"
+3. Select scopes: `repo`, `read:org`
+4. Generate and copy the token
+
+</details>
+
+<details>
+<summary><strong>GitLab</strong></summary>
+
+1. Go to [User Settings > Access Tokens](https://gitlab.com/-/profile/personal_access_tokens)
+2. Create a token with `api` scope
+3. Copy the token
+
+</details>
+
+<details>
+<summary><strong>Bitbucket</strong></summary>
+
+1. Go to [Personal settings > App passwords](https://bitbucket.org/account/settings/app-passwords/)
+2. Create an app password with `Repositories: Read` and `Pull requests: Read and Write`
+3. Use format: `username:app_password` when authenticating
+
+</details>
+
+<details>
+<summary><strong>Azure DevOps</strong></summary>
+
+1. Go to User Settings > Personal Access Tokens
+2. Create a token with `Code (Read & Write)` scope
+3. Copy the token
+
+</details>
+
+### Security
+
+- Tokens are stored securely in your OS keychain
+- macOS: Keychain Access
+- Windows: Credential Manager
+- Linux: Secret Service (GNOME Keyring, KWallet)
+
+## Configuration
+
+Configuration file location:
+- **Linux**: `~/.config/lazyreview/config.yaml`
+- **macOS**: `~/Library/Application Support/lazyreview/config.yaml`
+- **Windows**: `%APPDATA%\lazyreview\config.yaml`
+
+Example configuration:
+
+```yaml
+version: "0.1"
+default_provider: github
+
+ui:
+  theme: auto
+  show_checks: true
+
+keybindings:
+  up: k
+  down: j
+  left: h
+  right: l
+  approve: a
+  request_changes: r
+  comment: c
+
+providers:
+  - name: github-personal
+    type: github
+    host: github.com
+
+  - name: gitlab-work
+    type: gitlab
+    host: gitlab.company.com
+```
+
+## Project Structure
+
+```
+lazyreview/
+├── cmd/                      # CLI commands
+│   ├── cmd.go               # Command definitions
+│   └── cmui.go              # Progress UI component
+├── internal/
+│   ├── auth/                # Authentication system
+│   ├── config/              # Configuration management
+│   ├── gui/                 # Main TUI application
+│   └── models/              # Data models
+├── pkg/
+│   ├── components/          # Reusable UI components
+│   │   ├── diff.go         # Diff viewer
+│   │   ├── filetree.go     # File tree
+│   │   ├── help.go         # Help overlay
+│   │   └── list.go         # List component
+│   └── providers/           # Git provider adapters
+│       ├── github/         # GitHub implementation
+│       ├── gitlab/         # GitLab implementation
+│       ├── bitbucket/      # Bitbucket implementation
+│       └── azuredevops/    # Azure DevOps implementation
+├── scripts/
+│   └── install.sh          # Installation script
+└── .goreleaser.yaml        # Release configuration
+```
+
+## Development
 
 ### Prerequisites
 
-- Go ≥ 1.22
-- Git ≥ 2.30
-- Make
+- Go 1.22+
+- Git
 
 ### Building
 
 ```bash
-# Clone the repository
 git clone https://github.com/tauantcamargo/lazyreview.git
 cd lazyreview
-
-# Build the binary
 go build
-
+./lazyreview start
 ```
 
-### Project Structure
+### Running Tests
 
-```
-lazyreview/
-├── cmd/                    # Command-line entry points
-├── internal/              # Private application code
-├── pkg/                   # Public packages
-│   ├── providers/         # Git provider adapters
-│   ├── tui/              # Terminal UI components
-│   └── config/           # Configuration management
-├── docs/                  # Documentation
-└── examples/              # Example configurations
+```bash
+go test ./...
 ```
 
-## 🗺️ Roadmap
+## Roadmap
 
-| Version | Features | Timeline |
-| ------- | -------- | -------- |
+- [x] Core TUI with Bubble Tea
+- [x] GitHub provider
+- [x] GitLab provider
+- [x] Bitbucket provider
+- [x] Azure DevOps provider
+- [x] Vim-style navigation
+- [x] Diff viewer with syntax highlighting
+- [x] Secure credential storage
+- [x] Cross-platform releases
+- [ ] Local git integration (checkout PR branches)
+- [ ] Offline queue for comments/approvals
+- [ ] Syntax highlighting with Chroma
+- [ ] Custom themes
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions! Here's how you can help:
+Contributions are welcome! Please:
 
-1. **Report Issues** - Open an issue for bugs or feature requests
-2. **Submit PRs** - Fork the repo and submit pull requests
-3. **Add Tests** - Include tests for new features
-4. **Follow Style** - Match the existing code style and patterns
-5. **Provider Support** - Add new provider adapters under `pkg/providers/`
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### Development Guidelines
-
-- Add tests for new functionality
-- Follow existing coding conventions
-- Update documentation for new features
-- Ensure all tests pass before submitting
-
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Inspired by [lazygit](https://github.com/jesseduffield/lazygit)
-- Built with [Gocui](https://github.com/awesome-gocui/gocui)
-- Built with [cli](https://github.com/urfave/cli)
-- Maibe - Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) for CLI
-- Uses [Charm](https://charm.sh/) libraries for terminal utilities
+- Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI framework
+- Uses [Bubbles](https://github.com/charmbracelet/bubbles) components
+- Styled with [Lipgloss](https://github.com/charmbracelet/lipgloss)
+- CLI powered by [urfave/cli](https://github.com/urfave/cli)
 
-## 📞 Support
+## Support
 
-- **Documentation**: [docs/](docs/)
 - **Issues**: [GitHub Issues](https://github.com/tauantcamargo/lazyreview/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/tauantcamargo/lazyreview/discussions)
 
 ---
 
-**Note**: This project is in early development. The CLI interface and configuration format may change. We welcome feedback and contributions!
+If you find LazyReview useful, consider [buying me a coffee](https://buymeacoffee.com/tauantcamargo)!
