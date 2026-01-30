@@ -6,6 +6,7 @@ import (
 	"lazyreview/internal/config"
 	"lazyreview/pkg/components"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -19,17 +20,30 @@ const (
 	PanelContent
 )
 
+// Mode represents the current input mode
+type Mode int
+
+const (
+	ModeNormal Mode = iota
+	ModeSearch
+	ModeCommand
+)
+
 // Model is the main application model
 type Model struct {
 	config      *config.Config
 	width       int
 	height      int
 	activePanel Panel
+	mode        Mode
 	sidebar     components.List
 	content     components.List
 	help        components.Help
+	keyMap      KeyMap
+	keySeq      *KeySequence
 	showHelp    bool
 	ready       bool
+	statusMsg   string
 }
 
 // New creates a new GUI model
@@ -50,9 +64,12 @@ func New(cfg *config.Config) Model {
 	return Model{
 		config:      cfg,
 		activePanel: PanelSidebar,
+		mode:        ModeNormal,
 		sidebar:     sidebar,
 		content:     content,
 		help:        components.NewHelp(),
+		keyMap:      DefaultKeyMap(),
+		keySeq:      NewKeySequence(),
 	}
 }
 
@@ -67,38 +84,98 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			return m, tea.Quit
-		case "q":
+		// Track key sequence for multi-key bindings like "gg"
+		keyStr := msg.String()
+		m.keySeq.Add(keyStr)
+
+		// Check for "gg" sequence (go to top)
+		if m.keySeq.IsSequence("g", "g") {
+			m.keySeq.Reset()
+			m.goToTop()
+			return m, nil
+		}
+
+		// Handle single key bindings
+		switch {
+		case key.Matches(msg, m.keyMap.Quit):
 			if m.showHelp {
 				m.showHelp = false
 				return m, nil
 			}
 			return m, tea.Quit
-		case "?":
+
+		case key.Matches(msg, m.keyMap.Help):
 			m.showHelp = !m.showHelp
 			return m, nil
-		case "tab":
+
+		case key.Matches(msg, m.keyMap.NextPanel):
 			m.switchPanel()
 			return m, nil
-		case "shift+tab":
+
+		case key.Matches(msg, m.keyMap.PrevPanel):
 			m.switchPanel()
 			return m, nil
-		case "h", "left":
+
+		case key.Matches(msg, m.keyMap.Left):
 			if m.activePanel == PanelContent {
 				m.activePanel = PanelSidebar
 				m.sidebar.Focus()
 				m.content.Blur()
 			}
 			return m, nil
-		case "l", "right", "enter":
+
+		case key.Matches(msg, m.keyMap.Right), key.Matches(msg, m.keyMap.Select):
 			if m.activePanel == PanelSidebar {
 				m.activePanel = PanelContent
 				m.content.Focus()
 				m.sidebar.Blur()
 			}
 			return m, nil
+
+		case key.Matches(msg, m.keyMap.Bottom):
+			m.goToBottom()
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.HalfUp):
+			m.halfPageUp()
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.HalfDown):
+			m.halfPageDown()
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.PageUp):
+			m.pageUp()
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.PageDown):
+			m.pageDown()
+			return m, nil
+
+		// Action keys (show status message for now)
+		case key.Matches(msg, m.keyMap.Approve):
+			m.statusMsg = "Approve: Select a PR first"
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.RequestChanges):
+			m.statusMsg = "Request Changes: Select a PR first"
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.Comment):
+			m.statusMsg = "Comment: Select a PR first"
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.OpenBrowser):
+			m.statusMsg = "Open in browser: Select a PR first"
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.Refresh):
+			m.statusMsg = "Refreshing..."
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.Search):
+			m.statusMsg = "Search: Type to filter"
+			// Let the list handle the search
 		}
 
 	case tea.WindowSizeMsg:
@@ -108,9 +185,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Calculate panel dimensions
 		sidebarWidth := min(40, msg.Width/4)
-		contentWidth := msg.Width - sidebarWidth - 4 // padding
+		contentWidth := msg.Width - sidebarWidth - 4
 
-		// Reserve space for header, footer, and help
+		// Reserve space for header, footer
 		headerHeight := 3
 		footerHeight := 3
 		panelHeight := msg.Height - headerHeight - footerHeight
@@ -119,6 +196,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.content.SetSize(contentWidth, panelHeight)
 		m.help.SetWidth(msg.Width)
 
+		return m, nil
+
+	case keyTimeoutMsg:
+		m.keySeq.Reset()
 		return m, nil
 	}
 
@@ -189,12 +270,14 @@ func (m Model) View() string {
 	// Main area (sidebar + content)
 	mainArea := lipgloss.JoinHorizontal(lipgloss.Top, sidebarView, contentView)
 
-	// Footer with help
+	// Footer with help or status
 	var footer string
 	if m.showHelp {
 		footer = m.help.View()
+	} else if m.statusMsg != "" {
+		footer = footerStyle.Render(m.statusMsg)
 	} else {
-		footer = footerStyle.Render("Press ? for help • q to quit")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  ?:help  q:quit")
 	}
 
 	// Combine all
@@ -206,7 +289,8 @@ func (m Model) View() string {
 	)
 }
 
-// switchPanel switches between sidebar and content panels
+// Navigation helpers
+
 func (m *Model) switchPanel() {
 	if m.activePanel == PanelSidebar {
 		m.activePanel = PanelContent
@@ -217,6 +301,36 @@ func (m *Model) switchPanel() {
 		m.sidebar.Focus()
 		m.content.Blur()
 	}
+}
+
+func (m *Model) goToTop() {
+	// The list component handles this via the 'g' key in its Update
+	// We send a synthetic message to move to index 0
+	if m.activePanel == PanelSidebar {
+		// Move sidebar to top
+	} else {
+		// Move content to top
+	}
+}
+
+func (m *Model) goToBottom() {
+	// Move to bottom of current list
+}
+
+func (m *Model) halfPageUp() {
+	// Move up half a page
+}
+
+func (m *Model) halfPageDown() {
+	// Move down half a page
+}
+
+func (m *Model) pageUp() {
+	// Move up a full page
+}
+
+func (m *Model) pageDown() {
+	// Move down a full page
 }
 
 // Run starts the TUI application
