@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/99designs/keyring"
+	"golang.org/x/term"
 )
 
 const (
@@ -49,13 +50,31 @@ func DefaultConfig() Config {
 		},
 		FileDir: fileDir,
 		FilePasswordFunc: func(prompt string) (string, error) {
-			// In a real implementation, this would prompt the user
-			// For now, we use an environment variable as fallback
-			pass := os.Getenv("LAZYREVIEW_KEYRING_PASS")
-			if pass == "" {
-				return "", fmt.Errorf("LAZYREVIEW_KEYRING_PASS environment variable not set (needed for file-based credential storage)")
+			// First check environment variable
+			if pass := os.Getenv("LAZYREVIEW_KEYRING_PASS"); pass != "" {
+				return pass, nil
 			}
-			return pass, nil
+
+			// Prompt interactively if we have a terminal
+			fd := int(os.Stdin.Fd())
+			if !term.IsTerminal(fd) {
+				return "", fmt.Errorf("LAZYREVIEW_KEYRING_PASS environment variable not set (needed for non-interactive credential storage)")
+			}
+
+			fmt.Println("\nCredentials will be stored in an encrypted file.")
+			fmt.Println("Tip: Set LAZYREVIEW_KEYRING_PASS env var to skip this prompt.")
+			fmt.Print("\nEnter encryption password: ")
+			password, err := term.ReadPassword(fd)
+			fmt.Println()
+			if err != nil {
+				return "", fmt.Errorf("failed to read password: %w", err)
+			}
+
+			if len(password) == 0 {
+				return "", fmt.Errorf("password cannot be empty")
+			}
+
+			return string(password), nil
 		},
 	}
 }
