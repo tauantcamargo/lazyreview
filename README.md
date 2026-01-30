@@ -264,7 +264,8 @@ go test ./...
 - [x] Syntax highlighting with Chroma
 - [x] Advanced filtering (by author, state, labels, etc.)
 - [x] Provider org/repo listing extensions
-- [ ] Inline commenting
+- [x] Inline commenting (c key) and general comments (C key)
+- [x] Split/unified diff view toggle (d key)
 - [ ] Dashboard view (multi-repo)
 - [ ] Workspace management UI
 - [ ] Offline queue for comments/approvals
