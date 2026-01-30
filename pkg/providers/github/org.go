@@ -205,6 +205,7 @@ func buildUserPRQuery(username string, opts providers.UserPROptions) string {
 }
 
 // fetchPRFromIssue fetches the full PR details from a search issue result
+// If full fetch fails (e.g., SAML), it falls back to basic info from search result
 func (p *Provider) fetchPRFromIssue(ctx context.Context, issue *github.Issue) (*models.PullRequest, error) {
 	// Extract owner and repo from repository URL
 	repo := issue.GetRepository()
@@ -215,11 +216,63 @@ func (p *Provider) fetchPRFromIssue(ctx context.Context, issue *github.Issue) (*
 	owner := repo.GetOwner().GetLogin()
 	repoName := repo.GetName()
 
-	// Fetch full PR details
+	// Try to fetch full PR details
 	pr, _, err := p.client.PullRequests.Get(ctx, owner, repoName, issue.GetNumber())
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch PR details: %w", err)
+		// Fall back to basic info from search result
+		// This allows showing PRs from SAML-protected repos with limited info
+		return mapIssueToBasicPR(issue, owner, repoName), nil
 	}
 
 	return mapPullRequest(pr), nil
+}
+
+// mapIssueToBasicPR creates a basic PR from search issue data
+// Used as fallback when full PR fetch fails (e.g., SAML-protected repos)
+func mapIssueToBasicPR(issue *github.Issue, owner, repo string) *models.PullRequest {
+	pr := &models.PullRequest{
+		Number:    issue.GetNumber(),
+		Title:     issue.GetTitle(),
+		Body:      issue.GetBody(),
+		State:     models.PRStateOpen,
+		URL:       issue.GetHTMLURL(),
+		CreatedAt: issue.GetCreatedAt().Time,
+		UpdatedAt: issue.GetUpdatedAt().Time,
+		Repository: models.Repository{
+			Name:     repo,
+			FullName: fmt.Sprintf("%s/%s", owner, repo),
+			Owner:    owner,
+		},
+	}
+
+	// Set state based on issue state
+	if issue.GetState() == "closed" {
+		pr.State = models.PRStateClosed
+	}
+
+	// Map author
+	if issue.GetUser() != nil {
+		pr.Author = models.User{
+			Login:     issue.GetUser().GetLogin(),
+			AvatarURL: issue.GetUser().GetAvatarURL(),
+		}
+	}
+
+	// Map labels
+	for _, label := range issue.Labels {
+		pr.Labels = append(pr.Labels, models.Label{
+			Name:  label.GetName(),
+			Color: label.GetColor(),
+		})
+	}
+
+	// Map assignees
+	for _, assignee := range issue.Assignees {
+		pr.Assignees = append(pr.Assignees, models.User{
+			Login:     assignee.GetLogin(),
+			AvatarURL: assignee.GetAvatarURL(),
+		})
+	}
+
+	return pr
 }
