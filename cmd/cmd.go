@@ -10,6 +10,7 @@ import (
 	"lazyreview/internal/auth"
 	"lazyreview/internal/config"
 	"lazyreview/internal/gui"
+	"lazyreview/pkg/providers/github"
 
 	"github.com/urfave/cli"
 )
@@ -201,7 +202,13 @@ func loginAction(provider, host, token string) error {
 		return fmt.Errorf("failed to initialize auth service: %w", err)
 	}
 
+	// Register token validator for GitHub
+	if providerType == config.ProviderTypeGitHub {
+		authService.RegisterValidator(config.ProviderTypeGitHub, github.NewTokenValidator(host))
+	}
+
 	// Login (store credential)
+	fmt.Println("Validating token...")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
