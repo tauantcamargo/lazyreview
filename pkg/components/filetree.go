@@ -1,0 +1,330 @@
+package components
+
+import (
+	"fmt"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"lazyreview/internal/models"
+
+	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+// FileTreeKeyMap defines keybindings for the file tree
+type FileTreeKeyMap struct {
+	Up     key.Binding
+	Down   key.Binding
+	Select key.Binding
+	Toggle key.Binding
+}
+
+// DefaultFileTreeKeyMap returns default keybindings
+func DefaultFileTreeKeyMap() FileTreeKeyMap {
+	return FileTreeKeyMap{
+		Up: key.NewBinding(
+			key.WithKeys("k", "up"),
+			key.WithHelp("k/↑", "up"),
+		),
+		Down: key.NewBinding(
+			key.WithKeys("j", "down"),
+			key.WithHelp("j/↓", "down"),
+		),
+		Select: key.NewBinding(
+			key.WithKeys("enter", "l"),
+			key.WithHelp("enter/l", "view file"),
+		),
+		Toggle: key.NewBinding(
+			key.WithKeys("space"),
+			key.WithHelp("space", "toggle folder"),
+		),
+	}
+}
+
+// FileTreeItem represents an item in the file tree
+type FileTreeItem struct {
+	Name      string
+	Path      string
+	IsDir     bool
+	Expanded  bool
+	Status    models.FileStatus
+	Additions int
+	Deletions int
+	Depth     int
+	Children  []*FileTreeItem
+}
+
+// FileTree is a component for displaying changed files
+type FileTree struct {
+	items       []*FileTreeItem
+	flatItems   []*FileTreeItem
+	selected    int
+	keyMap      FileTreeKeyMap
+	width       int
+	height      int
+	focused     bool
+	offset      int
+
+	// Styles
+	selectedStyle lipgloss.Style
+	addedStyle    lipgloss.Style
+	deletedStyle  lipgloss.Style
+	modifiedStyle lipgloss.Style
+	renamedStyle  lipgloss.Style
+	dirStyle      lipgloss.Style
+}
+
+// NewFileTree creates a new file tree
+func NewFileTree(width, height int) FileTree {
+	return FileTree{
+		keyMap:        DefaultFileTreeKeyMap(),
+		width:         width,
+		height:        height,
+		focused:       true,
+		selectedStyle: lipgloss.NewStyle().Background(lipgloss.Color("237")).Bold(true),
+		addedStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("42")),
+		deletedStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("196")),
+		modifiedStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("214")),
+		renamedStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("39")),
+		dirStyle:      lipgloss.NewStyle().Foreground(lipgloss.Color("75")).Bold(true),
+	}
+}
+
+// SetFiles sets the files to display
+func (f *FileTree) SetFiles(files []models.FileChange) {
+	f.items = f.buildTree(files)
+	f.flatItems = f.flatten(f.items)
+	f.selected = 0
+	f.offset = 0
+}
+
+// buildTree builds a tree structure from flat file list
+func (f *FileTree) buildTree(files []models.FileChange) []*FileTreeItem {
+	// Sort files by path
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Filename < files[j].Filename
+	})
+
+	root := make(map[string]*FileTreeItem)
+	var items []*FileTreeItem
+
+	for _, file := range files {
+		parts := strings.Split(file.Filename, "/")
+
+		// For simple flat display, just add files directly
+		item := &FileTreeItem{
+			Name:      filepath.Base(file.Filename),
+			Path:      file.Filename,
+			IsDir:     false,
+			Status:    file.Status,
+			Additions: file.Additions,
+			Deletions: file.Deletions,
+			Depth:     len(parts) - 1,
+		}
+
+		// Add directory prefix if nested
+		if len(parts) > 1 {
+			dir := filepath.Dir(file.Filename)
+			if _, exists := root[dir]; !exists {
+				dirItem := &FileTreeItem{
+					Name:     dir,
+					Path:     dir,
+					IsDir:    true,
+					Expanded: true,
+					Depth:    0,
+				}
+				root[dir] = dirItem
+				items = append(items, dirItem)
+			}
+		}
+
+		items = append(items, item)
+	}
+
+	return items
+}
+
+// flatten flattens the tree for display
+func (f *FileTree) flatten(items []*FileTreeItem) []*FileTreeItem {
+	var flat []*FileTreeItem
+	for _, item := range items {
+		flat = append(flat, item)
+		if item.IsDir && item.Expanded {
+			flat = append(flat, f.flatten(item.Children)...)
+		}
+	}
+	return flat
+}
+
+// Init implements tea.Model
+func (f FileTree) Init() tea.Cmd {
+	return nil
+}
+
+// Update implements tea.Model
+func (f FileTree) Update(msg tea.Msg) (FileTree, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, f.keyMap.Up):
+			if f.selected > 0 {
+				f.selected--
+				f.ensureVisible()
+			}
+		case key.Matches(msg, f.keyMap.Down):
+			if f.selected < len(f.flatItems)-1 {
+				f.selected++
+				f.ensureVisible()
+			}
+		case key.Matches(msg, f.keyMap.Toggle):
+			if f.selected < len(f.flatItems) {
+				item := f.flatItems[f.selected]
+				if item.IsDir {
+					item.Expanded = !item.Expanded
+					f.flatItems = f.flatten(f.items)
+				}
+			}
+		}
+
+	case tea.WindowSizeMsg:
+		f.width = msg.Width
+		f.height = msg.Height
+	}
+
+	return f, nil
+}
+
+// View implements tea.Model
+func (f FileTree) View() string {
+	if len(f.flatItems) == 0 {
+		return "No files"
+	}
+
+	var content strings.Builder
+
+	// Calculate visible range
+	visibleHeight := f.height - 2 // Leave room for header
+	start := f.offset
+	end := start + visibleHeight
+	if end > len(f.flatItems) {
+		end = len(f.flatItems)
+	}
+
+	// Header
+	content.WriteString(lipgloss.NewStyle().Bold(true).Render(
+		fmt.Sprintf("Files (%d)", len(f.flatItems)),
+	))
+	content.WriteString("\n\n")
+
+	// Items
+	for i := start; i < end; i++ {
+		item := f.flatItems[i]
+		line := f.renderItem(item, i == f.selected)
+		content.WriteString(line)
+		content.WriteString("\n")
+	}
+
+	return content.String()
+}
+
+// renderItem renders a single item
+func (f *FileTree) renderItem(item *FileTreeItem, selected bool) string {
+	// Indent
+	indent := strings.Repeat("  ", item.Depth)
+
+	// Icon and name
+	var icon string
+	var style lipgloss.Style
+
+	if item.IsDir {
+		if item.Expanded {
+			icon = "▼ "
+		} else {
+			icon = "▶ "
+		}
+		style = f.dirStyle
+	} else {
+		switch item.Status {
+		case models.FileStatusAdded:
+			icon = "A "
+			style = f.addedStyle
+		case models.FileStatusDeleted:
+			icon = "D "
+			style = f.deletedStyle
+		case models.FileStatusModified:
+			icon = "M "
+			style = f.modifiedStyle
+		case models.FileStatusRenamed:
+			icon = "R "
+			style = f.renamedStyle
+		default:
+			icon = "  "
+			style = lipgloss.NewStyle()
+		}
+	}
+
+	// Stats
+	stats := ""
+	if !item.IsDir && (item.Additions > 0 || item.Deletions > 0) {
+		stats = fmt.Sprintf(" +%d -%d", item.Additions, item.Deletions)
+	}
+
+	line := indent + icon + item.Name + stats
+
+	if selected {
+		line = f.selectedStyle.Render(line)
+	} else {
+		line = style.Render(line)
+	}
+
+	// Truncate if too long
+	if len(line) > f.width {
+		line = line[:f.width-3] + "..."
+	}
+
+	return line
+}
+
+// ensureVisible ensures the selected item is visible
+func (f *FileTree) ensureVisible() {
+	visibleHeight := f.height - 2
+	if f.selected < f.offset {
+		f.offset = f.selected
+	} else if f.selected >= f.offset+visibleHeight {
+		f.offset = f.selected - visibleHeight + 1
+	}
+}
+
+// SetSize sets the component size
+func (f *FileTree) SetSize(width, height int) {
+	f.width = width
+	f.height = height
+}
+
+// Focus focuses the component
+func (f *FileTree) Focus() {
+	f.focused = true
+}
+
+// Blur unfocuses the component
+func (f *FileTree) Blur() {
+	f.focused = false
+}
+
+// SelectedItem returns the selected item
+func (f *FileTree) SelectedItem() *FileTreeItem {
+	if f.selected < len(f.flatItems) {
+		return f.flatItems[f.selected]
+	}
+	return nil
+}
+
+// SelectedPath returns the selected file path
+func (f *FileTree) SelectedPath() string {
+	if item := f.SelectedItem(); item != nil && !item.IsDir {
+		return item.Path
+	}
+	return ""
+}
