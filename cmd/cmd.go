@@ -10,6 +10,7 @@ import (
 	"lazyreview/internal/auth"
 	"lazyreview/internal/config"
 	"lazyreview/internal/gui"
+	"lazyreview/pkg/git"
 	"lazyreview/pkg/providers/github"
 
 	"github.com/urfave/cli"
@@ -152,6 +153,25 @@ func startTUI() error {
 		return fmt.Errorf("failed to initialize auth service: %w", err)
 	}
 
+	// Detect Git context
+	gitCtx, err := git.DetectGitContext()
+	if err != nil {
+		// Non-fatal error, just log it
+		fmt.Fprintf(os.Stderr, "Warning: failed to detect git context: %v\n", err)
+		gitCtx = &git.GitContext{IsGitRepo: false}
+	}
+
+	// Determine owner/repo from Git context
+	var owner, repo string
+	if gitCtx.IsGitRepo {
+		remote := gitCtx.GetPrimaryRemote()
+		if remote != nil && remote.IsValid() {
+			owner = remote.Owner
+			repo = remote.Repo
+			fmt.Fprintf(os.Stderr, "Detected Git repository: %s/%s (provider: %s)\n", owner, repo, remote.Provider)
+		}
+	}
+
 	// Get default provider config or use GitHub as default
 	var providerCfg *config.ProviderConfig
 	if cfg.DefaultProvider != "" {
@@ -191,7 +211,7 @@ func startTUI() error {
 		return fmt.Errorf("failed to authenticate: %w", err)
 	}
 
-	return gui.Run(cfg, provider, authService)
+	return gui.Run(cfg, provider, authService, owner, repo)
 }
 
 // loginAction handles the login command

@@ -69,6 +69,11 @@ type providerReadyMsg struct {
 	provider providers.Provider
 }
 
+type reviewResultMsg struct {
+	action string // "approve", "request_changes", "comment"
+	err    error
+}
+
 // Model is the main application model
 type Model struct {
 	config      *config.Config
@@ -92,6 +97,10 @@ type Model struct {
 	provider    providers.Provider
 	authService *auth.Service
 
+	// Git context
+	gitOwner string
+	gitRepo  string
+
 	// Current PR state
 	currentPR    *models.PullRequest
 	currentDiff  *models.Diff
@@ -105,7 +114,7 @@ type Model struct {
 }
 
 // New creates a new GUI model
-func New(cfg *config.Config, provider providers.Provider, authService *auth.Service) Model {
+func New(cfg *config.Config, provider providers.Provider, authService *auth.Service, owner, repo string) Model {
 	// Create sidebar with navigation items
 	sidebarItems := []list.Item{
 		components.NewSimpleItem("prs", "Pull Requests", "View and manage PRs"),
@@ -129,6 +138,8 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		config:         cfg,
 		provider:       provider,
 		authService:    authService,
+		gitOwner:       owner,
+		gitRepo:        repo,
 		activePanel:    PanelSidebar,
 		mode:           ModeNormal,
 		viewState:      ViewList,
@@ -146,9 +157,14 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 
 // Init implements tea.Model
 func (m Model) Init() tea.Cmd {
-	// For now, we'll use mock repository data
-	// In the future, this could come from config or user input
-	return fetchPRList(m.provider, "golang", "go")
+	// Use detected owner/repo or default to golang/go
+	owner := m.gitOwner
+	repo := m.gitRepo
+	if owner == "" || repo == "" {
+		owner = "golang"
+		repo = "go"
+	}
+	return fetchPRList(m.provider, owner, repo)
 }
 
 // Update implements tea.Model
@@ -259,10 +275,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pageDown()
 			return m, nil
 
-		// Action keys (show status message for now)
+		// Action keys
 		case key.Matches(msg, m.keyMap.Approve):
 			if m.viewState == ViewDetail && m.currentPR != nil {
-				m.statusMsg = fmt.Sprintf("Approving PR #%d... (not yet implemented)", m.currentPR.Number)
+				m.statusMsg = fmt.Sprintf("Approving PR #%d...", m.currentPR.Number)
+				m.isLoading = true
+				m.loadingMessage = "Submitting approval..."
+				owner := m.gitOwner
+				repo := m.gitRepo
+				if owner == "" || repo == "" {
+					owner = "golang"
+					repo = "go"
+				}
+				return m, approveReview(m.provider, owner, repo, m.currentPR.Number)
 			} else {
 				m.statusMsg = "Approve: Select a PR first"
 			}
@@ -270,7 +295,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keyMap.RequestChanges):
 			if m.viewState == ViewDetail && m.currentPR != nil {
-				m.statusMsg = fmt.Sprintf("Requesting changes on PR #%d... (not yet implemented)", m.currentPR.Number)
+				m.statusMsg = fmt.Sprintf("Requesting changes on PR #%d...", m.currentPR.Number)
+				m.isLoading = true
+				m.loadingMessage = "Submitting change request..."
+				owner := m.gitOwner
+				repo := m.gitRepo
+				if owner == "" || repo == "" {
+					owner = "golang"
+					repo = "go"
+				}
+				return m, requestChanges(m.provider, owner, repo, m.currentPR.Number)
 			} else {
 				m.statusMsg = "Request Changes: Select a PR first"
 			}
@@ -280,9 +314,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.viewState == ViewDetail {
 				file := m.fileTree.SelectedPath()
 				if file != "" {
-					m.statusMsg = fmt.Sprintf("Comment on %s... (not yet implemented)", file)
+					m.statusMsg = fmt.Sprintf("Comment on %s... (text input coming soon)", file)
 				} else {
-					m.statusMsg = "Comment: Select a file first"
+					m.statusMsg = "Comment: Full commenting feature coming in next phase"
 				}
 			} else {
 				m.statusMsg = "Comment: Enter PR view first"
@@ -302,8 +336,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.isLoading = true
 				m.loadingMessage = "Refreshing pull requests..."
 				m.statusMsg = "Refreshing..."
-				// Use hardcoded owner/repo for now
-				return m, fetchPRList(m.provider, "golang", "go")
+				// Use detected owner/repo or default
+				owner := m.gitOwner
+				repo := m.gitRepo
+				if owner == "" || repo == "" {
+					owner = "golang"
+					repo = "go"
+				}
+				return m, fetchPRList(m.provider, owner, repo)
 			}
 			return m, nil
 
@@ -381,6 +421,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isLoading = false
 		m.lastError = msg.err
 		m.statusMsg = fmt.Sprintf("Error: %s", msg.err.Error())
+		return m, nil
+
+	case reviewResultMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("Review action failed: %s", msg.err.Error())
+		} else {
+			switch msg.action {
+			case "approve":
+				m.statusMsg = "PR approved successfully!"
+			case "request_changes":
+				m.statusMsg = "Changes requested successfully!"
+			default:
+				m.statusMsg = "Review action completed"
+			}
+		}
 		return m, nil
 
 	case keyTimeoutMsg:
@@ -587,9 +645,13 @@ func (m *Model) enterDetailView() tea.Cmd {
 	m.isLoading = true
 	m.loadingMessage = fmt.Sprintf("Loading PR #%d...", prNumber)
 
-	// For now, use hardcoded owner/repo (later this should come from config or selection)
-	owner := "golang"
-	repo := "go"
+	// Use detected owner/repo or default
+	owner := m.gitOwner
+	repo := m.gitRepo
+	if owner == "" || repo == "" {
+		owner = "golang"
+		repo = "go"
+	}
 
 	// Fetch PR details, files, and diff in parallel
 	return tea.Batch(
@@ -693,10 +755,30 @@ func fetchPRDiff(provider providers.Provider, owner, repo string, number int) te
 	}
 }
 
+func approveReview(provider providers.Provider, owner, repo string, number int) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		err := provider.ApproveReview(ctx, owner, repo, number, "")
+		return reviewResultMsg{action: "approve", err: err}
+	}
+}
+
+func requestChanges(provider providers.Provider, owner, repo string, number int) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		err := provider.RequestChanges(ctx, owner, repo, number, "Changes requested via LazyReview")
+		return reviewResultMsg{action: "request_changes", err: err}
+	}
+}
+
 // Run starts the TUI application
-func Run(cfg *config.Config, provider providers.Provider, authService *auth.Service) error {
+func Run(cfg *config.Config, provider providers.Provider, authService *auth.Service, owner, repo string) error {
 	p := tea.NewProgram(
-		New(cfg, provider, authService),
+		New(cfg, provider, authService, owner, repo),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)
