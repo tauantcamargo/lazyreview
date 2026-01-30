@@ -261,8 +261,10 @@ go test ./...
 - [x] Review actions (approve, request changes)
 - [x] Local git detection (auto-detect repo from .git)
 - [x] SQLite storage layer (workspaces, favorites)
+- [x] Syntax highlighting with Chroma
+- [x] Advanced filtering (by author, state, labels, etc.)
+- [x] Provider org/repo listing extensions
 - [ ] Inline commenting
-- [ ] Syntax highlighting with Chroma
 - [ ] Dashboard view (multi-repo)
 - [ ] Workspace management UI
 - [ ] Offline queue for comments/approvals
