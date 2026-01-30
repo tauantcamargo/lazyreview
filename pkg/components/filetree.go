@@ -58,14 +58,14 @@ type FileTreeItem struct {
 
 // FileTree is a component for displaying changed files
 type FileTree struct {
-	items       []*FileTreeItem
-	flatItems   []*FileTreeItem
-	selected    int
-	keyMap      FileTreeKeyMap
-	width       int
-	height      int
-	focused     bool
-	offset      int
+	items     []*FileTreeItem
+	flatItems []*FileTreeItem
+	selected  int
+	keyMap    FileTreeKeyMap
+	width     int
+	height    int
+	focused   bool
+	offset    int
 
 	// Styles
 	selectedStyle lipgloss.Style

@@ -241,13 +241,13 @@ func (l *List) Height() int {
 
 // PRListItem represents a PR in a list
 type PRListItem struct {
-	id       string
-	number   int
-	title    string
-	author   string
-	status   string
-	isDraft  bool
-	updated  string
+	id      string
+	number  int
+	title   string
+	author  string
+	status  string
+	isDraft bool
+	updated string
 }
 
 // NewPRListItem creates a new PR list item

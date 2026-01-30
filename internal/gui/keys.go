@@ -32,15 +32,16 @@ type KeyMap struct {
 	Approve        key.Binding
 	RequestChanges key.Binding
 	Comment        key.Binding
+	GeneralComment key.Binding
 	OpenBrowser    key.Binding
 	Checkout       key.Binding
 	Refresh        key.Binding
 	Merge          key.Binding
 
 	// Search
-	Search     key.Binding
-	NextMatch  key.Binding
-	PrevMatch  key.Binding
+	Search      key.Binding
+	NextMatch   key.Binding
+	PrevMatch   key.Binding
 	ClearSearch key.Binding
 
 	// Global
@@ -126,15 +127,19 @@ func DefaultKeyMap() KeyMap {
 		),
 		Comment: key.NewBinding(
 			key.WithKeys("c"),
-			key.WithHelp("c", "comment"),
+			key.WithHelp("c", "comment on line"),
+		),
+		GeneralComment: key.NewBinding(
+			key.WithKeys("C"),
+			key.WithHelp("C", "general comment"),
 		),
 		OpenBrowser: key.NewBinding(
 			key.WithKeys("o"),
 			key.WithHelp("o", "open in browser"),
 		),
 		Checkout: key.NewBinding(
-			key.WithKeys("C"),
-			key.WithHelp("C", "checkout branch"),
+			key.WithKeys("shift+c"),
+			key.WithHelp("shift+c", "checkout branch"),
 		),
 		Refresh: key.NewBinding(
 			key.WithKeys("R"),
@@ -177,10 +182,10 @@ func DefaultKeyMap() KeyMap {
 
 // KeySequence tracks multi-key sequences like "gg"
 type KeySequence struct {
-	keys      []string
-	lastKey   string
-	lastTime  time.Time
-	timeout   time.Duration
+	keys     []string
+	lastKey  string
+	lastTime time.Time
+	timeout  time.Duration
 }
 
 // NewKeySequence creates a new key sequence tracker

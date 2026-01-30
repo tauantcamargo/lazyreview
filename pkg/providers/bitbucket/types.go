@@ -51,11 +51,11 @@ type bbPullRequest struct {
 			Href string `json:"href"`
 		} `json:"diff"`
 	} `json:"links"`
-	CreatedOn   time.Time  `json:"created_on"`
-	UpdatedOn   time.Time  `json:"updated_on"`
-	MergeCommit *struct{}  `json:"merge_commit,omitempty"`
-	ClosedBy    *bbUser    `json:"closed_by,omitempty"`
-	CloseSource bool       `json:"close_source_branch"`
+	CreatedOn   time.Time `json:"created_on"`
+	UpdatedOn   time.Time `json:"updated_on"`
+	MergeCommit *struct{} `json:"merge_commit,omitempty"`
+	ClosedBy    *bbUser   `json:"closed_by,omitempty"`
+	CloseSource bool      `json:"close_source_branch"`
 }
 
 // bbDiffStat represents diff statistics for a file
@@ -73,7 +73,7 @@ type bbDiffStat struct {
 
 // bbComment represents a comment on a pull request
 type bbComment struct {
-	ID      int    `json:"id"`
+	ID      int `json:"id"`
 	Content struct {
 		Raw  string `json:"raw"`
 		HTML string `json:"html"`

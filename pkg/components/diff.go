@@ -14,20 +14,20 @@ import (
 
 // DiffKeyMap defines keybindings for the diff viewer
 type DiffKeyMap struct {
-	Up        key.Binding
-	Down      key.Binding
-	PageUp    key.Binding
-	PageDown  key.Binding
-	HalfUp    key.Binding
-	HalfDown  key.Binding
-	Top       key.Binding
-	Bottom    key.Binding
-	NextFile  key.Binding
-	PrevFile  key.Binding
-	NextHunk  key.Binding
-	PrevHunk  key.Binding
+	Up         key.Binding
+	Down       key.Binding
+	PageUp     key.Binding
+	PageDown   key.Binding
+	HalfUp     key.Binding
+	HalfDown   key.Binding
+	Top        key.Binding
+	Bottom     key.Binding
+	NextFile   key.Binding
+	PrevFile   key.Binding
+	NextHunk   key.Binding
+	PrevHunk   key.Binding
 	ToggleView key.Binding
-	Comment   key.Binding
+	Comment    key.Binding
 }
 
 // DefaultDiffKeyMap returns default keybindings
@@ -107,6 +107,7 @@ type DiffViewer struct {
 	hunkPositions []int // Line offsets where each hunk starts
 	currentHunk   int   // Current hunk index
 	highlighter   *Highlighter
+	lineMapping   []lineInfo // Maps viewport line to file/line info
 
 	// Styles
 	addedStyle   lipgloss.Style
@@ -115,6 +116,13 @@ type DiffViewer struct {
 	hunkStyle    lipgloss.Style
 	lineNoStyle  lipgloss.Style
 	fileStyle    lipgloss.Style
+}
+
+// lineInfo stores information about a line in the viewport
+type lineInfo struct {
+	filePath string
+	lineNo   int
+	isCode   bool // false for headers, true for actual code lines
 }
 
 // NewDiffViewer creates a new diff viewer
@@ -214,11 +222,22 @@ func (d *DiffViewer) render() {
 	if d.diff == nil || len(d.files) == 0 {
 		d.viewport.SetContent("No diff to display")
 		d.hunkPositions = nil
+		d.lineMapping = nil
 		return
 	}
 
+	if d.splitView {
+		d.renderSplitView()
+	} else {
+		d.renderUnifiedView()
+	}
+}
+
+// renderUnifiedView renders the diff in unified view
+func (d *DiffViewer) renderUnifiedView() {
 	var content strings.Builder
 	var hunkPositions []int
+	var lineMapping []lineInfo
 	currentLine := 0
 
 	for i, file := range d.files {
@@ -226,6 +245,7 @@ func (d *DiffViewer) render() {
 		header := d.renderFileHeader(file, i == d.currentFile)
 		content.WriteString(header)
 		content.WriteString("\n")
+		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
 		currentLine++
 
 		// Determine filename for syntax highlighting
@@ -237,24 +257,167 @@ func (d *DiffViewer) render() {
 		// Render hunks
 		for _, hunk := range file.Hunks {
 			hunkPositions = append(hunkPositions, currentLine)
-			hunkContent := d.renderHunk(hunk, filename)
+			hunkContent, hunkLineMapping := d.renderHunk(hunk, filename)
 			content.WriteString(hunkContent)
-			currentLine += strings.Count(hunkContent, "\n")
+			lineMapping = append(lineMapping, hunkLineMapping...)
+			currentLine += len(hunkLineMapping)
 		}
 
 		// If no hunks but has patch, render raw patch
 		if len(file.Hunks) == 0 && file.Patch != "" {
 			patchContent := d.renderPatch(file.Patch)
 			content.WriteString(patchContent)
-			currentLine += strings.Count(patchContent, "\n")
+			patchLines := strings.Count(patchContent, "\n")
+			for j := 0; j < patchLines; j++ {
+				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+			}
+			currentLine += patchLines
 		}
 
 		content.WriteString("\n")
+		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
 		currentLine++
 	}
 
 	d.hunkPositions = hunkPositions
+	d.lineMapping = lineMapping
 	d.viewport.SetContent(content.String())
+}
+
+// renderSplitView renders the diff in split view (side-by-side)
+func (d *DiffViewer) renderSplitView() {
+	var content strings.Builder
+	var hunkPositions []int
+	var lineMapping []lineInfo
+	currentLine := 0
+
+	// Calculate half width for each side
+	halfWidth := (d.width - 5) / 2 // -5 for border and separator
+
+	for i, file := range d.files {
+		// File header spans full width
+		header := d.renderFileHeader(file, i == d.currentFile)
+		content.WriteString(header)
+		content.WriteString("\n")
+		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+		currentLine++
+
+		filename := file.Path
+		if filename == "" {
+			filename = file.OldPath
+		}
+
+		// Render hunks in split view
+		for _, hunk := range file.Hunks {
+			hunkPositions = append(hunkPositions, currentLine)
+
+			// Hunk header
+			header := d.hunkStyle.Render(hunk.Header)
+			content.WriteString(header)
+			content.WriteString("\n")
+			lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+			currentLine++
+
+			// Split lines into old (left) and new (right)
+			oldLines := []models.DiffLine{}
+			newLines := []models.DiffLine{}
+
+			for _, line := range hunk.Lines {
+				switch line.Type {
+				case models.DiffLineDeleted:
+					oldLines = append(oldLines, line)
+				case models.DiffLineAdded:
+					newLines = append(newLines, line)
+				case models.DiffLineContext:
+					// Context lines appear on both sides
+					oldLines = append(oldLines, line)
+					newLines = append(newLines, line)
+				}
+			}
+
+			// Render side by side
+			maxLines := len(oldLines)
+			if len(newLines) > maxLines {
+				maxLines = len(newLines)
+			}
+
+			for j := 0; j < maxLines; j++ {
+				var leftLine, rightLine string
+				var leftLineNo, rightLineNo int
+
+				if j < len(oldLines) {
+					leftLine = d.renderSplitLine(oldLines[j], filename, halfWidth, true)
+					leftLineNo = oldLines[j].OldLineNo
+				} else {
+					leftLine = strings.Repeat(" ", halfWidth)
+				}
+
+				if j < len(newLines) {
+					rightLine = d.renderSplitLine(newLines[j], filename, halfWidth, false)
+					rightLineNo = newLines[j].NewLineNo
+				} else {
+					rightLine = strings.Repeat(" ", halfWidth)
+				}
+
+				// Use the new line number for mapping (right side)
+				lineNo := rightLineNo
+				if lineNo == 0 {
+					lineNo = leftLineNo
+				}
+
+				content.WriteString(leftLine + " │ " + rightLine)
+				content.WriteString("\n")
+				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: lineNo, isCode: true})
+				currentLine++
+			}
+		}
+
+		content.WriteString("\n")
+		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+		currentLine++
+	}
+
+	d.hunkPositions = hunkPositions
+	d.lineMapping = lineMapping
+	d.viewport.SetContent(content.String())
+}
+
+// renderSplitLine renders a single line for split view
+func (d *DiffViewer) renderSplitLine(line models.DiffLine, filename string, width int, isLeft bool) string {
+	lineNo := ""
+	if isLeft && line.OldLineNo > 0 {
+		lineNo = d.lineNoStyle.Render(fmt.Sprintf("%4d │ ", line.OldLineNo))
+	} else if !isLeft && line.NewLineNo > 0 {
+		lineNo = d.lineNoStyle.Render(fmt.Sprintf("%4d │ ", line.NewLineNo))
+	} else {
+		lineNo = d.lineNoStyle.Render("     │ ")
+	}
+
+	var contentStyle lipgloss.Style
+	switch line.Type {
+	case models.DiffLineAdded:
+		contentStyle = d.addedStyle
+	case models.DiffLineDeleted:
+		contentStyle = d.deletedStyle
+	case models.DiffLineContext:
+		contentStyle = d.contextStyle
+	default:
+		contentStyle = d.contextStyle
+	}
+
+	// Apply syntax highlighting
+	highlightedContent := d.highlighter.HighlightLine(line.Content, filename)
+
+	// Truncate or pad to width
+	content := lineNo + highlightedContent
+	contentLen := lipgloss.Width(content)
+	if contentLen > width {
+		content = content[:width]
+	} else if contentLen < width {
+		content = content + strings.Repeat(" ", width-contentLen)
+	}
+
+	return contentStyle.Render(content)
 }
 
 // renderFileHeader renders a file header
@@ -284,22 +447,35 @@ func (d *DiffViewer) renderFileHeader(file models.FileDiff, selected bool) strin
 	return style.Render(header)
 }
 
-// renderHunk renders a diff hunk
-func (d *DiffViewer) renderHunk(hunk models.Hunk, filename string) string {
+// renderHunk renders a diff hunk and returns content and line mapping
+func (d *DiffViewer) renderHunk(hunk models.Hunk, filename string) (string, []lineInfo) {
 	var content strings.Builder
+	var lineMapping []lineInfo
 
 	// Hunk header
 	header := d.hunkStyle.Render(hunk.Header)
 	content.WriteString(header)
 	content.WriteString("\n")
+	lineMapping = append(lineMapping, lineInfo{filePath: filename, lineNo: 0, isCode: false})
 
 	// Lines
 	for _, line := range hunk.Lines {
 		content.WriteString(d.renderLine(line, filename))
 		content.WriteString("\n")
+
+		// Use new line number for mapping, fallback to old if new is not available
+		lineNo := line.NewLineNo
+		if lineNo == 0 {
+			lineNo = line.OldLineNo
+		}
+		lineMapping = append(lineMapping, lineInfo{
+			filePath: filename,
+			lineNo:   lineNo,
+			isCode:   true,
+		})
 	}
 
-	return content.String()
+	return content.String(), lineMapping
 }
 
 // renderLine renders a single diff line with syntax highlighting
@@ -486,3 +662,25 @@ func (d *DiffViewer) FileCount() int {
 	return len(d.files)
 }
 
+// CurrentLineInfo returns information about the current line in the viewport
+func (d *DiffViewer) CurrentLineInfo() (filePath string, lineNo int, isCode bool) {
+	// Get current viewport offset + first visible line
+	currentOffset := d.viewport.YOffset
+
+	if currentOffset < 0 || currentOffset >= len(d.lineMapping) {
+		return "", 0, false
+	}
+
+	info := d.lineMapping[currentOffset]
+	return info.filePath, info.lineNo, info.isCode
+}
+
+// GetLineInfoAt returns information about a specific line in the viewport
+func (d *DiffViewer) GetLineInfoAt(offset int) (filePath string, lineNo int, isCode bool) {
+	if offset < 0 || offset >= len(d.lineMapping) {
+		return "", 0, false
+	}
+
+	info := d.lineMapping[offset]
+	return info.filePath, info.lineNo, info.isCode
+}

@@ -215,14 +215,14 @@ func mapComment(comment *github.PullRequestComment) *models.Comment {
 	}
 
 	result := &models.Comment{
-		ID:         toString(comment.NodeID),
-		Type:       models.CommentTypeInline,
-		Body:       toString(comment.Body),
-		Path:       toString(comment.Path),
-		Line:       toInt(comment.Line),
-		CreatedAt:  toTime(comment.CreatedAt),
-		UpdatedAt:  toTime(comment.UpdatedAt),
-		URL:        toString(comment.HTMLURL),
+		ID:        toString(comment.NodeID),
+		Type:      models.CommentTypeInline,
+		Body:      toString(comment.Body),
+		Path:      toString(comment.Path),
+		Line:      toInt(comment.Line),
+		CreatedAt: toTime(comment.CreatedAt),
+		UpdatedAt: toTime(comment.UpdatedAt),
+		URL:       toString(comment.HTMLURL),
 	}
 
 	if comment.User != nil {

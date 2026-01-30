@@ -9,17 +9,17 @@ import (
 
 // HelpKeyMap defines keybindings shown in the help view
 type HelpKeyMap struct {
-	Up           key.Binding
-	Down         key.Binding
-	Left         key.Binding
-	Right        key.Binding
-	Select       key.Binding
-	Back         key.Binding
-	Approve      key.Binding
+	Up             key.Binding
+	Down           key.Binding
+	Left           key.Binding
+	Right          key.Binding
+	Select         key.Binding
+	Back           key.Binding
+	Approve        key.Binding
 	RequestChanges key.Binding
-	Comment      key.Binding
-	Help         key.Binding
-	Quit         key.Binding
+	Comment        key.Binding
+	Help           key.Binding
+	Quit           key.Binding
 }
 
 // ShortHelp returns a short help view

@@ -6,103 +6,103 @@ import (
 
 func TestParseRemoteURL(t *testing.T) {
 	tests := []struct {
-		name        string
-		url         string
-		wantHost    string
-		wantOwner   string
-		wantRepo    string
+		name         string
+		url          string
+		wantHost     string
+		wantOwner    string
+		wantRepo     string
 		wantProvider string
-		wantErr     bool
+		wantErr      bool
 	}{
 		{
-			name:        "GitHub SSH",
-			url:         "git@github.com:owner/repo.git",
-			wantHost:    "github.com",
-			wantOwner:   "owner",
-			wantRepo:    "repo",
+			name:         "GitHub SSH",
+			url:          "git@github.com:owner/repo.git",
+			wantHost:     "github.com",
+			wantOwner:    "owner",
+			wantRepo:     "repo",
 			wantProvider: "github",
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "GitHub HTTPS",
-			url:         "https://github.com/owner/repo.git",
-			wantHost:    "github.com",
-			wantOwner:   "owner",
-			wantRepo:    "repo",
+			name:         "GitHub HTTPS",
+			url:          "https://github.com/owner/repo.git",
+			wantHost:     "github.com",
+			wantOwner:    "owner",
+			wantRepo:     "repo",
 			wantProvider: "github",
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "GitHub HTTPS without .git",
-			url:         "https://github.com/owner/repo",
-			wantHost:    "github.com",
-			wantOwner:   "owner",
-			wantRepo:    "repo",
+			name:         "GitHub HTTPS without .git",
+			url:          "https://github.com/owner/repo",
+			wantHost:     "github.com",
+			wantOwner:    "owner",
+			wantRepo:     "repo",
 			wantProvider: "github",
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "GitLab SSH",
-			url:         "git@gitlab.com:owner/repo.git",
-			wantHost:    "gitlab.com",
-			wantOwner:   "owner",
-			wantRepo:    "repo",
+			name:         "GitLab SSH",
+			url:          "git@gitlab.com:owner/repo.git",
+			wantHost:     "gitlab.com",
+			wantOwner:    "owner",
+			wantRepo:     "repo",
 			wantProvider: "gitlab",
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "GitLab HTTPS with subgroup",
-			url:         "https://gitlab.com/group/subgroup/repo.git",
-			wantHost:    "gitlab.com",
-			wantOwner:   "group/subgroup",
-			wantRepo:    "repo",
+			name:         "GitLab HTTPS with subgroup",
+			url:          "https://gitlab.com/group/subgroup/repo.git",
+			wantHost:     "gitlab.com",
+			wantOwner:    "group/subgroup",
+			wantRepo:     "repo",
 			wantProvider: "gitlab",
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "Bitbucket SSH",
-			url:         "git@bitbucket.org:workspace/repo.git",
-			wantHost:    "bitbucket.org",
-			wantOwner:   "workspace",
-			wantRepo:    "repo",
+			name:         "Bitbucket SSH",
+			url:          "git@bitbucket.org:workspace/repo.git",
+			wantHost:     "bitbucket.org",
+			wantOwner:    "workspace",
+			wantRepo:     "repo",
 			wantProvider: "bitbucket",
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "Bitbucket HTTPS",
-			url:         "https://bitbucket.org/workspace/repo.git",
-			wantHost:    "bitbucket.org",
-			wantOwner:   "workspace",
-			wantRepo:    "repo",
+			name:         "Bitbucket HTTPS",
+			url:          "https://bitbucket.org/workspace/repo.git",
+			wantHost:     "bitbucket.org",
+			wantOwner:    "workspace",
+			wantRepo:     "repo",
 			wantProvider: "bitbucket",
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "Azure DevOps HTTPS",
-			url:         "https://dev.azure.com/organization/project/_git/repo",
-			wantHost:    "dev.azure.com",
-			wantOwner:   "organization/project",
-			wantRepo:    "repo",
+			name:         "Azure DevOps HTTPS",
+			url:          "https://dev.azure.com/organization/project/_git/repo",
+			wantHost:     "dev.azure.com",
+			wantOwner:    "organization/project",
+			wantRepo:     "repo",
 			wantProvider: "azuredevops",
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "Azure DevOps SSH",
-			url:         "git@ssh.dev.azure.com:v3/organization/project/repo",
-			wantHost:    "dev.azure.com",
-			wantOwner:   "organization/project",
-			wantRepo:    "repo",
+			name:         "Azure DevOps SSH",
+			url:          "git@ssh.dev.azure.com:v3/organization/project/repo",
+			wantHost:     "dev.azure.com",
+			wantOwner:    "organization/project",
+			wantRepo:     "repo",
 			wantProvider: "azuredevops",
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
-			name:        "Self-hosted GitLab",
-			url:         "https://git.company.com/team/repo.git",
-			wantHost:    "git.company.com",
-			wantOwner:   "team",
-			wantRepo:    "repo",
+			name:         "Self-hosted GitLab",
+			url:          "https://git.company.com/team/repo.git",
+			wantHost:     "git.company.com",
+			wantOwner:    "team",
+			wantRepo:     "repo",
 			wantProvider: "gitlab",
-			wantErr:     false,
+			wantErr:      false,
 		},
 		{
 			name:    "Empty URL",
@@ -153,43 +153,43 @@ func TestParseRemoteURL(t *testing.T) {
 
 func TestDetectProvider(t *testing.T) {
 	tests := []struct {
-		name     string
-		host     string
+		name         string
+		host         string
 		wantProvider string
 	}{
 		{
-			name:     "GitHub",
-			host:     "github.com",
+			name:         "GitHub",
+			host:         "github.com",
 			wantProvider: "github",
 		},
 		{
-			name:     "GitHub Enterprise",
-			host:     "github.company.com",
+			name:         "GitHub Enterprise",
+			host:         "github.company.com",
 			wantProvider: "github",
 		},
 		{
-			name:     "GitLab",
-			host:     "gitlab.com",
+			name:         "GitLab",
+			host:         "gitlab.com",
 			wantProvider: "gitlab",
 		},
 		{
-			name:     "GitLab self-hosted",
-			host:     "git.company.com",
+			name:         "GitLab self-hosted",
+			host:         "git.company.com",
 			wantProvider: "gitlab",
 		},
 		{
-			name:     "Bitbucket",
-			host:     "bitbucket.org",
+			name:         "Bitbucket",
+			host:         "bitbucket.org",
 			wantProvider: "bitbucket",
 		},
 		{
-			name:     "Azure DevOps",
-			host:     "dev.azure.com",
+			name:         "Azure DevOps",
+			host:         "dev.azure.com",
 			wantProvider: "azuredevops",
 		},
 		{
-			name:     "Unknown",
-			host:     "unknown.host.com",
+			name:         "Unknown",
+			host:         "unknown.host.com",
 			wantProvider: "unknown",
 		},
 	}

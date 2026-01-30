@@ -74,6 +74,13 @@ type reviewResultMsg struct {
 	err    error
 }
 
+type commentSubmitMsg struct {
+	body     string
+	filePath string // empty for general comment
+	line     int    // 0 for general comment
+	err      error
+}
+
 // Model is the main application model
 type Model struct {
 	config      *config.Config
@@ -86,6 +93,7 @@ type Model struct {
 	content     components.List
 	fileTree    components.FileTree
 	diffViewer  components.DiffViewer
+	textInput   components.TextInput
 	help        components.Help
 	keyMap      KeyMap
 	keySeq      *KeySequence
@@ -134,6 +142,9 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	// Create diff viewer (for PR detail view)
 	diffViewer := components.NewDiffViewer(50, 20)
 
+	// Create text input component
+	textInput := components.NewTextInput()
+
 	return Model{
 		config:         cfg,
 		provider:       provider,
@@ -147,6 +158,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		content:        content,
 		fileTree:       fileTree,
 		diffViewer:     diffViewer,
+		textInput:      textInput,
 		help:           components.NewHelp(),
 		keyMap:         DefaultKeyMap(),
 		keySeq:         NewKeySequence(),
@@ -173,6 +185,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// If text input is visible, handle its keys first
+		if m.textInput.IsVisible() {
+			switch msg.String() {
+			case "ctrl+s":
+				// Submit comment
+				return m.submitComment()
+			case "esc":
+				// Cancel comment
+				m.textInput.Hide()
+				m.statusMsg = "Comment cancelled"
+				return m, nil
+			default:
+				// Pass to text input
+				var cmd tea.Cmd
+				m.textInput, cmd = m.textInput.Update(msg)
+				return m, cmd
+			}
+		}
+
 		// Track key sequence for multi-key bindings like "gg"
 		keyStr := msg.String()
 		m.keySeq.Add(keyStr)
@@ -311,13 +342,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.Comment):
-			if m.viewState == ViewDetail {
-				file := m.fileTree.SelectedPath()
-				if file != "" {
-					m.statusMsg = fmt.Sprintf("Comment on %s... (text input coming soon)", file)
+			if m.viewState == ViewDetail && m.currentPR != nil {
+				// Line comment - get current line from diff viewer
+				filePath, lineNo, isCode := m.diffViewer.CurrentLineInfo()
+				if isCode && lineNo > 0 {
+					context := fmt.Sprintf("%s:%d", filePath, lineNo)
+					m.textInput.Show(components.TextInputLineComment, "Comment on line", context)
+					m.textInput.SetSize(m.width-20, m.height-10)
+					return m, nil
 				} else {
-					m.statusMsg = "Comment: Full commenting feature coming in next phase"
+					m.statusMsg = "Comment: Position cursor on a code line first"
 				}
+			} else {
+				m.statusMsg = "Comment: Enter PR view first"
+			}
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.GeneralComment):
+			if m.viewState == ViewDetail && m.currentPR != nil {
+				// General PR comment
+				m.textInput.Show(components.TextInputGeneralComment, "General PR Comment", "")
+				m.textInput.SetSize(m.width-20, m.height-10)
+				return m, nil
 			} else {
 				m.statusMsg = "Comment: Enter PR view first"
 			}
@@ -375,6 +421,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		diffWidth := msg.Width - fileTreeWidth - 4
 		m.fileTree.SetSize(fileTreeWidth, panelHeight)
 		m.diffViewer.SetSize(diffWidth, panelHeight)
+
+		// Text input takes a centered portion of the screen
+		m.textInput.SetSize(msg.Width-20, msg.Height-10)
 
 		m.help.SetWidth(msg.Width)
 
@@ -441,6 +490,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case commentSubmitMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		m.textInput.Hide()
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("Comment failed: %s", msg.err.Error())
+		} else {
+			if msg.filePath != "" && msg.line > 0 {
+				m.statusMsg = fmt.Sprintf("Comment added to %s:%d", msg.filePath, msg.line)
+			} else {
+				m.statusMsg = "Comment added to PR"
+			}
+		}
+		return m, nil
+
 	case keyTimeoutMsg:
 		m.keySeq.Reset()
 		return m, nil
@@ -448,22 +513,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Update the active panel based on view state
 	var cmd tea.Cmd
-	if m.viewState == ViewList {
-		if m.activePanel == PanelSidebar {
-			m.sidebar, cmd = m.sidebar.Update(msg)
-			cmds = append(cmds, cmd)
+	if !m.textInput.IsVisible() {
+		if m.viewState == ViewList {
+			if m.activePanel == PanelSidebar {
+				m.sidebar, cmd = m.sidebar.Update(msg)
+				cmds = append(cmds, cmd)
+			} else {
+				m.content, cmd = m.content.Update(msg)
+				cmds = append(cmds, cmd)
+			}
 		} else {
-			m.content, cmd = m.content.Update(msg)
-			cmds = append(cmds, cmd)
-		}
-	} else {
-		// Detail view
-		if m.activePanel == PanelFiles {
-			m.fileTree, cmd = m.fileTree.Update(msg)
-			cmds = append(cmds, cmd)
-		} else {
-			m.diffViewer, cmd = m.diffViewer.Update(msg)
-			cmds = append(cmds, cmd)
+			// Detail view
+			if m.activePanel == PanelFiles {
+				m.fileTree, cmd = m.fileTree.Update(msg)
+				cmds = append(cmds, cmd)
+			} else {
+				m.diffViewer, cmd = m.diffViewer.Update(msg)
+				cmds = append(cmds, cmd)
+			}
 		}
 	}
 
@@ -560,18 +627,27 @@ func (m Model) View() string {
 	} else if m.statusMsg != "" {
 		footer = footerStyle.Render(m.statusMsg)
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  c:comment  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  c:line comment  C:PR comment  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  ?:help  q:quit")
 	}
 
 	// Combine all
-	return lipgloss.JoinVertical(
+	view := lipgloss.JoinVertical(
 		lipgloss.Left,
 		header,
 		mainArea,
 		footer,
 	)
+
+	// Show text input overlay if visible
+	if m.textInput.IsVisible() {
+		inputView := m.textInput.View()
+		// Layer the input on top of the main view (centered)
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, inputView)
+	}
+
+	return view
 }
 
 // Navigation helpers
@@ -700,6 +776,72 @@ func (m *Model) pageDown() {
 	// Move down a full page
 }
 
+func (m *Model) submitComment() (tea.Model, tea.Cmd) {
+	body := m.textInput.Value()
+	if body == "" {
+		m.statusMsg = "Comment cannot be empty"
+		return *m, nil
+	}
+
+	if m.currentPR == nil {
+		m.statusMsg = "No PR selected"
+		m.textInput.Hide()
+		return *m, nil
+	}
+
+	// Get owner/repo
+	owner := m.gitOwner
+	repo := m.gitRepo
+	if owner == "" || repo == "" {
+		owner = "golang"
+		repo = "go"
+	}
+
+	m.isLoading = true
+	m.loadingMessage = "Submitting comment..."
+
+	mode := m.textInput.Mode()
+	if mode == components.TextInputLineComment {
+		// Parse file path and line from context
+		context := m.textInput.Context()
+		// Context format is "filepath:line"
+		// Split by last colon to handle file paths with colons
+		lastColon := -1
+		for i := len(context) - 1; i >= 0; i-- {
+			if context[i] == ':' {
+				lastColon = i
+				break
+			}
+		}
+
+		if lastColon == -1 {
+			m.statusMsg = "Invalid line context format"
+			m.textInput.Hide()
+			m.isLoading = false
+			return *m, nil
+		}
+
+		filePath := context[:lastColon]
+		var line int
+		_, err := fmt.Sscanf(context[lastColon+1:], "%d", &line)
+		if err != nil {
+			m.statusMsg = fmt.Sprintf("Failed to parse line number: %s", err.Error())
+			m.textInput.Hide()
+			m.isLoading = false
+			return *m, nil
+		}
+
+		return *m, submitLineComment(m.provider, owner, repo, m.currentPR.Number, body, filePath, line)
+	} else if mode == components.TextInputGeneralComment {
+		return *m, submitGeneralComment(m.provider, owner, repo, m.currentPR.Number, body)
+	}
+
+	m.textInput.Hide()
+	m.isLoading = false
+	m.statusMsg = "Unknown comment mode"
+	return *m, nil
+}
+
 // Async command functions
 
 func fetchPRList(provider providers.Provider, owner, repo string) tea.Cmd {
@@ -772,6 +914,37 @@ func requestChanges(provider providers.Provider, owner, repo string, number int)
 
 		err := provider.RequestChanges(ctx, owner, repo, number, "Changes requested via LazyReview")
 		return reviewResultMsg{action: "request_changes", err: err}
+	}
+}
+
+func submitLineComment(provider providers.Provider, owner, repo string, prNumber int, body, path string, line int) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		comment := models.CommentInput{
+			Body: body,
+			Path: path,
+			Line: line,
+			Side: models.DiffSideRight, // Comment on the new/right side by default
+		}
+
+		err := provider.CreateComment(ctx, owner, repo, prNumber, comment)
+		return commentSubmitMsg{body: body, filePath: path, line: line, err: err}
+	}
+}
+
+func submitGeneralComment(provider providers.Provider, owner, repo string, prNumber int, body string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		comment := models.CommentInput{
+			Body: body,
+		}
+
+		err := provider.CreateComment(ctx, owner, repo, prNumber, comment)
+		return commentSubmitMsg{body: body, filePath: "", line: 0, err: err}
 	}
 }
 

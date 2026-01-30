@@ -42,11 +42,11 @@ func DefaultConfig() Config {
 	return Config{
 		ServiceName: ServiceName,
 		AllowedBackends: []keyring.BackendType{
-			keyring.KeychainBackend,         // macOS
-			keyring.WinCredBackend,          // Windows
-			keyring.SecretServiceBackend,    // Linux (GNOME Keyring, KWallet)
-			keyring.KWalletBackend,          // Linux KDE
-			keyring.FileBackend,             // Fallback
+			keyring.KeychainBackend,      // macOS
+			keyring.WinCredBackend,       // Windows
+			keyring.SecretServiceBackend, // Linux (GNOME Keyring, KWallet)
+			keyring.KWalletBackend,       // Linux KDE
+			keyring.FileBackend,          // Fallback
 		},
 		FileDir: fileDir,
 		FilePasswordFunc: func(prompt string) (string, error) {

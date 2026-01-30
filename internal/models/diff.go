@@ -43,12 +43,12 @@ type FileDiff struct {
 type FileStatus string
 
 const (
-	FileStatusAdded      FileStatus = "added"
-	FileStatusModified   FileStatus = "modified"
-	FileStatusDeleted    FileStatus = "deleted"
-	FileStatusRenamed    FileStatus = "renamed"
-	FileStatusCopied     FileStatus = "copied"
-	FileStatusUnchanged  FileStatus = "unchanged"
+	FileStatusAdded     FileStatus = "added"
+	FileStatusModified  FileStatus = "modified"
+	FileStatusDeleted   FileStatus = "deleted"
+	FileStatusRenamed   FileStatus = "renamed"
+	FileStatusCopied    FileStatus = "copied"
+	FileStatusUnchanged FileStatus = "unchanged"
 )
 
 // Hunk represents a single diff hunk
@@ -91,10 +91,10 @@ type DiffLine struct {
 type DiffLineType string
 
 const (
-	DiffLineContext DiffLineType = "context"  // Unchanged line
-	DiffLineAdded   DiffLineType = "added"    // Added line
-	DiffLineDeleted DiffLineType = "deleted"  // Deleted line
-	DiffLineHunk    DiffLineType = "hunk"     // Hunk header
+	DiffLineContext DiffLineType = "context" // Unchanged line
+	DiffLineAdded   DiffLineType = "added"   // Added line
+	DiffLineDeleted DiffLineType = "deleted" // Deleted line
+	DiffLineHunk    DiffLineType = "hunk"    // Hunk header
 )
 
 // Prefix returns the diff prefix character for this line type

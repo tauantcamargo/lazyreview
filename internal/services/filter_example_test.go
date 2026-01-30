@@ -182,11 +182,11 @@ func Example_complexFiltering() {
 			},
 		},
 		{
-			Number: 2,
-			Title:  "Add new authentication method",
-			State:  models.PRStateOpen,
-			Author: models.User{Login: "bob"},
-			Labels: []models.Label{{Name: "feature"}},
+			Number:  2,
+			Title:   "Add new authentication method",
+			State:   models.PRStateOpen,
+			Author:  models.User{Login: "bob"},
+			Labels:  []models.Label{{Name: "feature"}},
 			IsDraft: true,
 		},
 	}

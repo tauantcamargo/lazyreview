@@ -21,21 +21,21 @@ type adoIdentity struct {
 
 // adoPullRequest represents an Azure DevOps pull request
 type adoPullRequest struct {
-	PullRequestID     int         `json:"pullRequestId"`
-	Title             string      `json:"title"`
-	Description       string      `json:"description"`
-	Status            string      `json:"status"` // active, abandoned, completed
-	SourceRefName     string      `json:"sourceRefName"`
-	TargetRefName     string      `json:"targetRefName"`
-	CreatedBy         adoIdentity `json:"createdBy"`
-	CreationDate      time.Time   `json:"creationDate"`
-	ClosedDate        *time.Time  `json:"closedDate,omitempty"`
-	MergeStatus       string      `json:"mergeStatus"` // succeeded, conflicts, queued, notSet
-	IsDraft           bool        `json:"isDraft"`
-	URL               string      `json:"url"`
-	Repository        adoRepository `json:"repository"`
-	Reviewers         []adoReviewer `json:"reviewers"`
-	Labels            []adoLabel    `json:"labels"`
+	PullRequestID     int                   `json:"pullRequestId"`
+	Title             string                `json:"title"`
+	Description       string                `json:"description"`
+	Status            string                `json:"status"` // active, abandoned, completed
+	SourceRefName     string                `json:"sourceRefName"`
+	TargetRefName     string                `json:"targetRefName"`
+	CreatedBy         adoIdentity           `json:"createdBy"`
+	CreationDate      time.Time             `json:"creationDate"`
+	ClosedDate        *time.Time            `json:"closedDate,omitempty"`
+	MergeStatus       string                `json:"mergeStatus"` // succeeded, conflicts, queued, notSet
+	IsDraft           bool                  `json:"isDraft"`
+	URL               string                `json:"url"`
+	Repository        adoRepository         `json:"repository"`
+	Reviewers         []adoReviewer         `json:"reviewers"`
+	Labels            []adoLabel            `json:"labels"`
 	CompletionOptions *adoCompletionOptions `json:"completionOptions,omitempty"`
 }
 
@@ -72,19 +72,19 @@ type adoLabel struct {
 
 // adoCompletionOptions represents merge completion options
 type adoCompletionOptions struct {
-	MergeCommitMessage   string `json:"mergeCommitMessage,omitempty"`
-	DeleteSourceBranch   bool   `json:"deleteSourceBranch"`
-	SquashMerge          bool   `json:"squashMerge"`
-	BypassPolicy         bool   `json:"bypassPolicy"`
-	TransitionWorkItems  bool   `json:"transitionWorkItems"`
+	MergeCommitMessage  string `json:"mergeCommitMessage,omitempty"`
+	DeleteSourceBranch  bool   `json:"deleteSourceBranch"`
+	SquashMerge         bool   `json:"squashMerge"`
+	BypassPolicy        bool   `json:"bypassPolicy"`
+	TransitionWorkItems bool   `json:"transitionWorkItems"`
 }
 
 // adoIterationChange represents a change in a PR iteration
 type adoIterationChange struct {
-	ChangeID     int    `json:"changeId"`
-	ChangeType   string `json:"changeType"` // add, edit, delete, rename
+	ChangeID     int           `json:"changeId"`
+	ChangeType   string        `json:"changeType"` // add, edit, delete, rename
 	Item         adoChangeItem `json:"item"`
-	OriginalPath string `json:"originalPath,omitempty"`
+	OriginalPath string        `json:"originalPath,omitempty"`
 }
 
 // adoChangeItem represents a changed item
@@ -94,18 +94,18 @@ type adoChangeItem struct {
 
 // adoThread represents a comment thread
 type adoThread struct {
-	ID              int          `json:"id"`
-	Status          string       `json:"status"` // active, fixed, wontFix, closed, byDesign, pending
-	Comments        []adoComment `json:"comments"`
+	ID              int               `json:"id"`
+	Status          string            `json:"status"` // active, fixed, wontFix, closed, byDesign, pending
+	Comments        []adoComment      `json:"comments"`
 	ThreadContext   *adoThreadContext `json:"threadContext,omitempty"`
-	PublishedDate   time.Time    `json:"publishedDate"`
-	LastUpdatedDate time.Time    `json:"lastUpdatedDate"`
-	IsDeleted       bool         `json:"isDeleted"`
+	PublishedDate   time.Time         `json:"publishedDate"`
+	LastUpdatedDate time.Time         `json:"lastUpdatedDate"`
+	IsDeleted       bool              `json:"isDeleted"`
 }
 
 // adoThreadContext represents the context of a comment thread
 type adoThreadContext struct {
-	FilePath       string `json:"filePath"`
+	FilePath       string           `json:"filePath"`
 	RightFileStart *adoFilePosition `json:"rightFileStart,omitempty"`
 	RightFileEnd   *adoFilePosition `json:"rightFileEnd,omitempty"`
 }
@@ -118,15 +118,15 @@ type adoFilePosition struct {
 
 // adoComment represents a comment
 type adoComment struct {
-	ID                   int         `json:"id"`
-	ParentCommentID      int         `json:"parentCommentId"`
-	Author               adoIdentity `json:"author"`
-	Content              string      `json:"content"`
-	PublishedDate        time.Time   `json:"publishedDate"`
-	LastUpdatedDate      time.Time   `json:"lastUpdatedDate"`
-	LastContentUpdatedDate time.Time `json:"lastContentUpdatedDate"`
-	CommentType          string      `json:"commentType"` // text, codeChange, system
-	IsDeleted            bool        `json:"isDeleted"`
+	ID                     int         `json:"id"`
+	ParentCommentID        int         `json:"parentCommentId"`
+	Author                 adoIdentity `json:"author"`
+	Content                string      `json:"content"`
+	PublishedDate          time.Time   `json:"publishedDate"`
+	LastUpdatedDate        time.Time   `json:"lastUpdatedDate"`
+	LastContentUpdatedDate time.Time   `json:"lastContentUpdatedDate"`
+	CommentType            string      `json:"commentType"` // text, codeChange, system
+	IsDeleted              bool        `json:"isDeleted"`
 }
 
 // adoPaginatedResponse is the paginated response wrapper

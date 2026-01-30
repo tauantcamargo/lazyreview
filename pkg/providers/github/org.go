@@ -115,8 +115,8 @@ func (p *Provider) ListUserPullRequests(ctx context.Context, opts providers.User
 	query := buildUserPRQuery(user.GetLogin(), opts)
 
 	searchOpts := &github.SearchOptions{
-		Sort:      "updated",
-		Order:     "desc",
+		Sort:  "updated",
+		Order: "desc",
 		ListOptions: github.ListOptions{
 			PerPage: opts.PerPage,
 			Page:    opts.Page,

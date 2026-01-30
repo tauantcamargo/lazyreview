@@ -10,11 +10,11 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	Version         string           `mapstructure:"version"`
-	DefaultProvider string           `mapstructure:"default_provider"`
-	UI              UIConfig         `mapstructure:"ui"`
+	Version         string            `mapstructure:"version"`
+	DefaultProvider string            `mapstructure:"default_provider"`
+	UI              UIConfig          `mapstructure:"ui"`
 	Keybindings     KeybindingsConfig `mapstructure:"keybindings"`
-	Providers       []ProviderConfig `mapstructure:"providers"`
+	Providers       []ProviderConfig  `mapstructure:"providers"`
 }
 
 // UIConfig holds UI-related settings

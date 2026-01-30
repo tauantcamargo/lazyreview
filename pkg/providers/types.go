@@ -49,9 +49,9 @@ type ListOptions struct {
 type SortField string
 
 const (
-	SortByCreated   SortField = "created"
-	SortByUpdated   SortField = "updated"
-	SortByPopularity SortField = "popularity"
+	SortByCreated     SortField = "created"
+	SortByUpdated     SortField = "updated"
+	SortByPopularity  SortField = "popularity"
 	SortByLongRunning SortField = "long-running"
 )
 

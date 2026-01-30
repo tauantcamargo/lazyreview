@@ -23,9 +23,9 @@ func createTestPR(opts ...func(*models.PullRequest)) models.PullRequest {
 			Name:     "testrepo",
 			FullName: "testorg/testrepo",
 		},
-		CreatedAt: time.Now().AddDate(0, 0, -7),
-		UpdatedAt: time.Now().AddDate(0, 0, -1),
-		IsDraft:   false,
+		CreatedAt:      time.Now().AddDate(0, 0, -7),
+		UpdatedAt:      time.Now().AddDate(0, 0, -1),
+		IsDraft:        false,
 		MergeableState: models.MergeableStateMergeable,
 	}
 
@@ -1012,10 +1012,10 @@ func TestFilterService_CombineFilters_DateFilters(t *testing.T) {
 	}
 
 	filter2 := models.PRFilter{
-		CreatedAfter:  &yesterday,  // more restrictive
-		CreatedBefore: &tomorrow,   // more restrictive
-		UpdatedAfter:  &yesterday,  // more restrictive
-		UpdatedBefore: &tomorrow,   // more restrictive
+		CreatedAfter:  &yesterday, // more restrictive
+		CreatedBefore: &tomorrow,  // more restrictive
+		UpdatedAfter:  &yesterday, // more restrictive
+		UpdatedBefore: &tomorrow,  // more restrictive
 	}
 
 	combined := service.CombineFilters(filter1, filter2)
