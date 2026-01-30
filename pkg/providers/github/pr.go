@@ -3,12 +3,30 @@ package github
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"lazyreview/internal/models"
 	"lazyreview/pkg/providers"
 
 	"github.com/google/go-github/v60/github"
 )
+
+// wrapGitHubError converts GitHub API errors into provider-specific errors
+func wrapGitHubError(err error, owner string) error {
+	if err == nil {
+		return nil
+	}
+	errStr := err.Error()
+
+	// Check for SAML enforcement errors
+	if strings.Contains(errStr, "SAML enforcement") ||
+		strings.Contains(errStr, "organization SAML") ||
+		strings.Contains(errStr, "grant your Personal Access token access") {
+		return providers.NewSAMLError(owner, errStr)
+	}
+
+	return err
+}
 
 // ListPullRequests returns pull requests matching the given options
 func (p *Provider) ListPullRequests(ctx context.Context, owner, repo string, opts providers.ListOptions) ([]models.PullRequest, error) {
@@ -28,6 +46,9 @@ func (p *Provider) ListPullRequests(ctx context.Context, owner, repo string, opt
 
 	prs, _, err := p.client.PullRequests.List(ctx, owner, repo, ghOpts)
 	if err != nil {
+		if wrappedErr := wrapGitHubError(err, owner); wrappedErr != err {
+			return nil, wrappedErr
+		}
 		return nil, fmt.Errorf("failed to list pull requests: %w", err)
 	}
 

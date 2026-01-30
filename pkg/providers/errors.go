@@ -19,6 +19,9 @@ var (
 	// ErrForbidden indicates insufficient permissions
 	ErrForbidden = errors.New("forbidden: insufficient permissions")
 
+	// ErrSAMLRequired indicates the organization requires SAML SSO authorization
+	ErrSAMLRequired = errors.New("organization requires SAML SSO authorization")
+
 	// ErrRateLimited indicates the API rate limit was exceeded
 	ErrRateLimited = errors.New("rate limit exceeded")
 
@@ -124,4 +127,38 @@ func IsForbidden(err error) bool {
 // IsAuthError returns true if the error is authentication-related
 func IsAuthError(err error) bool {
 	return errors.Is(err, ErrNotAuthenticated) || errors.Is(err, ErrInvalidToken)
+}
+
+// SAMLError contains information about SAML SSO requirement
+type SAMLError struct {
+	Organization string
+	Message      string
+}
+
+func (e *SAMLError) Error() string {
+	if e.Organization != "" {
+		return fmt.Sprintf("organization '%s' requires SAML SSO: authorize your token at GitHub > Settings > Applications > Authorized OAuth Apps", e.Organization)
+	}
+	return "organization requires SAML SSO: authorize your token at GitHub > Settings > Applications > Authorized OAuth Apps"
+}
+
+func (e *SAMLError) Is(target error) bool {
+	return target == ErrSAMLRequired
+}
+
+// NewSAMLError creates a new SAML error
+func NewSAMLError(org, message string) *SAMLError {
+	return &SAMLError{
+		Organization: org,
+		Message:      message,
+	}
+}
+
+// IsSAMLError returns true if the error is a SAML SSO error
+func IsSAMLError(err error) bool {
+	if errors.Is(err, ErrSAMLRequired) {
+		return true
+	}
+	var samlErr *SAMLError
+	return errors.As(err, &samlErr)
 }

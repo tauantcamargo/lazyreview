@@ -548,6 +548,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.isLoading = false
 		m.lastError = msg.err
+
+		// Check for SAML SSO errors and show helpful message
+		if providers.IsSAMLError(msg.err) {
+			m.statusMsg = "SAML SSO required - Authorize your token at: github.com/settings/tokens"
+			// Update content list to show helpful instructions
+			items := []list.Item{
+				components.NewSimpleItem("saml_error", "Organization requires SAML SSO", "Your token needs authorization for this org"),
+				components.NewSimpleItem("saml_step1", "Step 1: Go to github.com/settings/tokens", "Open your GitHub token settings"),
+				components.NewSimpleItem("saml_step2", "Step 2: Find your token", "Click 'Configure SSO' next to it"),
+				components.NewSimpleItem("saml_step3", "Step 3: Authorize the organization", "Click 'Authorize' for the org"),
+				components.NewSimpleItem("saml_tip", "Tip: Try 'My PRs' view", "Shows PRs from repos you have access to"),
+			}
+			contentWidth := m.width - 44
+			contentHeight := m.height - 6
+			m.content = components.NewList("SAML Authorization Required", items, contentWidth, contentHeight)
+			return m, nil
+		}
+
 		m.statusMsg = fmt.Sprintf("Error: %s", msg.err.Error())
 		return m, nil
 
