@@ -258,9 +258,13 @@ go test ./...
 - [x] Secure credential storage
 - [x] Real API data fetching
 - [x] Cross-platform releases
-- [ ] Review actions (approve, request changes, comment)
+- [x] Review actions (approve, request changes)
+- [x] Local git detection (auto-detect repo from .git)
+- [x] SQLite storage layer (workspaces, favorites)
+- [ ] Inline commenting
 - [ ] Syntax highlighting with Chroma
-- [ ] Local git integration (checkout PR branches)
+- [ ] Dashboard view (multi-repo)
+- [ ] Workspace management UI
 - [ ] Offline queue for comments/approvals
 - [ ] Custom themes
 
