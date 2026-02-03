@@ -52,6 +52,22 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT
 );
+
+CREATE TABLE IF NOT EXISTS queued_actions (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    provider_type TEXT NOT NULL,
+    host TEXT NOT NULL,
+    owner TEXT NOT NULL,
+    repo TEXT NOT NULL,
+    pr_number INTEGER NOT NULL,
+    payload TEXT,
+    attempts INTEGER DEFAULT 0,
+    last_error TEXT,
+    next_attempt_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 `
 
 // SQLiteStorage implements the Storage interface using SQLite
@@ -528,4 +544,123 @@ func (s *SQLiteStorage) SetSetting(key, value string) error {
 	}
 
 	return nil
+}
+
+// EnqueueAction stores a queued action for later processing.
+func (s *SQLiteStorage) EnqueueAction(action QueueAction) error {
+	if action.CreatedAt.IsZero() {
+		action.CreatedAt = time.Now().UTC()
+	}
+	if action.UpdatedAt.IsZero() {
+		action.UpdatedAt = action.CreatedAt
+	}
+	_, err := s.db.Exec(
+		`INSERT INTO queued_actions
+		(id, type, provider_type, host, owner, repo, pr_number, payload, attempts, last_error, next_attempt_at, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		action.ID,
+		string(action.Type),
+		action.ProviderType,
+		action.Host,
+		action.Owner,
+		action.Repo,
+		action.PRNumber,
+		action.Payload,
+		action.Attempts,
+		action.LastError,
+		nullableTime(action.NextAttemptAt),
+		action.CreatedAt,
+		action.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to enqueue action: %w", err)
+	}
+	return nil
+}
+
+// ListPendingActions retrieves pending queued actions.
+func (s *SQLiteStorage) ListPendingActions(limit int) ([]QueueAction, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	now := time.Now().UTC()
+	rows, err := s.db.Query(
+		`SELECT id, type, provider_type, host, owner, repo, pr_number, payload, attempts, last_error, next_attempt_at, created_at, updated_at
+		 FROM queued_actions
+		 WHERE next_attempt_at IS NULL OR next_attempt_at <= ?
+		 ORDER BY created_at ASC
+		 LIMIT ?`,
+		now,
+		limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list queued actions: %w", err)
+	}
+	defer rows.Close()
+
+	actions := []QueueAction{}
+	for rows.Next() {
+		var action QueueAction
+		var nextAttempt sql.NullTime
+		if err := rows.Scan(
+			&action.ID,
+			&action.Type,
+			&action.ProviderType,
+			&action.Host,
+			&action.Owner,
+			&action.Repo,
+			&action.PRNumber,
+			&action.Payload,
+			&action.Attempts,
+			&action.LastError,
+			&nextAttempt,
+			&action.CreatedAt,
+			&action.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan queued action: %w", err)
+		}
+		if nextAttempt.Valid {
+			action.NextAttemptAt = nextAttempt.Time
+		}
+		actions = append(actions, action)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating queued actions: %w", err)
+	}
+	return actions, nil
+}
+
+// UpdateQueueAction updates a queued action.
+func (s *SQLiteStorage) UpdateQueueAction(action QueueAction) error {
+	action.UpdatedAt = time.Now().UTC()
+	_, err := s.db.Exec(
+		`UPDATE queued_actions
+		 SET attempts = ?, last_error = ?, next_attempt_at = ?, updated_at = ?
+		 WHERE id = ?`,
+		action.Attempts,
+		action.LastError,
+		nullableTime(action.NextAttemptAt),
+		action.UpdatedAt,
+		action.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update queued action: %w", err)
+	}
+	return nil
+}
+
+// DeleteQueueAction deletes a queued action.
+func (s *SQLiteStorage) DeleteQueueAction(id string) error {
+	_, err := s.db.Exec("DELETE FROM queued_actions WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete queued action: %w", err)
+	}
+	return nil
+}
+
+func nullableTime(t time.Time) any {
+	if t.IsZero() {
+		return nil
+	}
+	return t
 }

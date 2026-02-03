@@ -11,6 +11,7 @@ import (
 	"lazyreview/internal/config"
 	"lazyreview/internal/gui/views"
 	"lazyreview/internal/models"
+	"lazyreview/internal/queue"
 	"lazyreview/internal/services"
 	"lazyreview/internal/storage"
 	"lazyreview/pkg/components"
@@ -21,6 +22,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/google/uuid"
 )
 
 // Panel represents different panels in the UI
@@ -96,6 +98,10 @@ type providerReadyMsg struct {
 
 type reviewResultMsg struct {
 	action string // "approve", "request_changes", "comment"
+	owner  string
+	repo   string
+	number int
+	body   string
 	err    error
 }
 
@@ -103,6 +109,9 @@ type commentSubmitMsg struct {
 	body     string
 	filePath string // empty for general comment
 	line     int    // 0 for general comment
+	owner    string
+	repo     string
+	number   int
 	err      error
 }
 
@@ -120,6 +129,24 @@ type dashboardDataMsg struct {
 	result services.AggregationResult
 	err    error
 }
+
+type queueSyncMsg struct {
+	processed int
+	failed    int
+	err       error
+}
+
+type queuedCommentPayload struct {
+	Body     string `json:"body"`
+	FilePath string `json:"file_path,omitempty"`
+	Line     int    `json:"line,omitempty"`
+}
+
+type queuedReviewPayload struct {
+	Body string `json:"body"`
+}
+
+const queueSyncInterval = time.Minute
 
 // Model is the main application model
 type Model struct {
@@ -275,6 +302,7 @@ func (m Model) Init() tea.Cmd {
 	cmds := []tea.Cmd{m.spinner.Tick, fetchUserPRs(m.provider, opts)}
 	if m.storage != nil {
 		cmds = append(cmds, loadWorkspaceTabs(m.storage))
+		cmds = append(cmds, m.queueSyncCmd())
 	}
 	return tea.Batch(cmds...)
 }
@@ -721,8 +749,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadingMessage = ""
 		m.textInput.Hide()
 		if msg.err != nil {
-			m.lastError = msg.err
-			m.statusMsg = fmt.Sprintf("Review action failed: %s", msg.err.Error())
+			if providers.IsNetworkError(msg.err) {
+				if err := m.enqueueReviewAction(msg); err != nil {
+					m.lastError = err
+					m.statusMsg = fmt.Sprintf("Review failed and could not be queued: %s", err.Error())
+				} else {
+					m.lastError = nil
+					m.statusMsg = "Offline: review action queued for retry"
+				}
+			} else {
+				m.lastError = msg.err
+				m.statusMsg = fmt.Sprintf("Review action failed: %s", msg.err.Error())
+			}
 		} else {
 			switch msg.action {
 			case "approve":
@@ -742,8 +780,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadingMessage = ""
 		m.textInput.Hide()
 		if msg.err != nil {
-			m.lastError = msg.err
-			m.statusMsg = fmt.Sprintf("Comment failed: %s", msg.err.Error())
+			if providers.IsNetworkError(msg.err) {
+				if err := m.enqueueCommentAction(msg); err != nil {
+					m.lastError = err
+					m.statusMsg = fmt.Sprintf("Comment failed and could not be queued: %s", err.Error())
+				} else {
+					m.lastError = nil
+					m.statusMsg = "Offline: comment queued for retry"
+				}
+			} else {
+				m.lastError = msg.err
+				m.statusMsg = fmt.Sprintf("Comment failed: %s", msg.err.Error())
+			}
 		} else {
 			if msg.filePath != "" && msg.line > 0 {
 				m.statusMsg = fmt.Sprintf("Comment added to %s:%d", msg.filePath, msg.line)
@@ -752,6 +800,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
+
+	case queueSyncMsg:
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("Offline queue sync failed: %s", msg.err.Error())
+		} else if msg.processed > 0 || msg.failed > 0 {
+			m.statusMsg = fmt.Sprintf("Offline queue synced: %d processed, %d failed", msg.processed, msg.failed)
+		}
+		cmds = append(cmds, m.queueSyncCmd())
+		return m, tea.Batch(cmds...)
 
 	case workspaceTabsMsg:
 		if msg.err != nil {
@@ -1310,6 +1368,82 @@ func (m *Model) resolvePRRepo() (string, string) {
 	return owner, repo
 }
 
+func (m Model) queueSyncCmd() tea.Cmd {
+	if m.storage == nil || m.provider == nil {
+		return nil
+	}
+	return tea.Tick(queueSyncInterval, func(time.Time) tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		processed, failed, err := queue.ProcessQueue(ctx, m.storage, m.provider, 25)
+		return queueSyncMsg{processed: processed, failed: failed, err: err}
+	})
+}
+
+func (m *Model) enqueueQueueAction(action storage.QueueAction) error {
+	if m.storage == nil {
+		return fmt.Errorf("offline queue unavailable")
+	}
+	if m.provider == nil {
+		return fmt.Errorf("provider unavailable")
+	}
+	if action.ID == "" {
+		action.ID = uuid.NewString()
+	}
+	if action.ProviderType == "" {
+		action.ProviderType = string(m.provider.Type())
+	}
+	if action.Host == "" {
+		action.Host = m.provider.Host()
+	}
+	return m.storage.EnqueueAction(action)
+}
+
+func (m *Model) enqueueCommentAction(msg commentSubmitMsg) error {
+	payload, err := json.Marshal(queuedCommentPayload{
+		Body:     msg.body,
+		FilePath: msg.filePath,
+		Line:     msg.line,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to encode comment payload: %w", err)
+	}
+	action := storage.QueueAction{
+		Type:     storage.QueueActionComment,
+		Owner:    msg.owner,
+		Repo:     msg.repo,
+		PRNumber: msg.number,
+		Payload:  string(payload),
+	}
+	return m.enqueueQueueAction(action)
+}
+
+func (m *Model) enqueueReviewAction(msg reviewResultMsg) error {
+	actionType := storage.QueueActionReviewComment
+	switch msg.action {
+	case "approve":
+		actionType = storage.QueueActionApprove
+	case "request_changes":
+		actionType = storage.QueueActionRequestChanges
+	case "comment":
+		actionType = storage.QueueActionReviewComment
+	default:
+		return fmt.Errorf("unsupported review action: %s", msg.action)
+	}
+	payload, err := json.Marshal(queuedReviewPayload{Body: msg.body})
+	if err != nil {
+		return fmt.Errorf("failed to encode review payload: %w", err)
+	}
+	action := storage.QueueAction{
+		Type:     actionType,
+		Owner:    msg.owner,
+		Repo:     msg.repo,
+		PRNumber: msg.number,
+		Payload:  string(payload),
+	}
+	return m.enqueueQueueAction(action)
+}
+
 // handleSidebarSelection handles when a sidebar item is selected
 func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 	m.isLoading = true
@@ -1494,7 +1628,7 @@ func approveReview(provider providers.Provider, owner, repo string, number int, 
 		defer cancel()
 
 		err := provider.ApproveReview(ctx, owner, repo, number, body)
-		return reviewResultMsg{action: "approve", err: err}
+		return reviewResultMsg{action: "approve", owner: owner, repo: repo, number: number, body: body, err: err}
 	}
 }
 
@@ -1504,7 +1638,7 @@ func requestChanges(provider providers.Provider, owner, repo string, number int,
 		defer cancel()
 
 		err := provider.RequestChanges(ctx, owner, repo, number, body)
-		return reviewResultMsg{action: "request_changes", err: err}
+		return reviewResultMsg{action: "request_changes", owner: owner, repo: repo, number: number, body: body, err: err}
 	}
 }
 
@@ -1521,7 +1655,7 @@ func submitLineComment(provider providers.Provider, owner, repo string, prNumber
 		}
 
 		err := provider.CreateComment(ctx, owner, repo, prNumber, comment)
-		return commentSubmitMsg{body: body, filePath: path, line: line, err: err}
+		return commentSubmitMsg{body: body, filePath: path, line: line, owner: owner, repo: repo, number: prNumber, err: err}
 	}
 }
 
@@ -1535,7 +1669,7 @@ func submitGeneralComment(provider providers.Provider, owner, repo string, prNum
 		}
 
 		err := provider.CreateComment(ctx, owner, repo, prNumber, comment)
-		return commentSubmitMsg{body: body, filePath: "", line: 0, err: err}
+		return commentSubmitMsg{body: body, filePath: "", line: 0, owner: owner, repo: repo, number: prNumber, err: err}
 	}
 }
 
@@ -1550,7 +1684,7 @@ func submitReviewComment(provider providers.Provider, owner, repo string, prNumb
 		}
 
 		err := provider.CreateReview(ctx, owner, repo, prNumber, review)
-		return reviewResultMsg{action: "comment", err: err}
+		return reviewResultMsg{action: "comment", owner: owner, repo: repo, number: prNumber, body: body, err: err}
 	}
 }
 

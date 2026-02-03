@@ -40,6 +40,33 @@ type Workspace struct {
 	UpdatedAt   time.Time
 }
 
+// QueueActionType represents the type of queued offline action.
+type QueueActionType string
+
+const (
+	QueueActionComment        QueueActionType = "comment"
+	QueueActionApprove        QueueActionType = "approve"
+	QueueActionRequestChanges QueueActionType = "request_changes"
+	QueueActionReviewComment  QueueActionType = "review_comment"
+)
+
+// QueueAction represents an offline action to retry later.
+type QueueAction struct {
+	ID            string
+	Type          QueueActionType
+	ProviderType  string
+	Host          string
+	Owner         string
+	Repo          string
+	PRNumber      int
+	Payload       string
+	Attempts      int
+	LastError     string
+	NextAttemptAt time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 // Storage defines the interface for persistent storage operations
 type Storage interface {
 	// Workspaces
@@ -64,6 +91,12 @@ type Storage interface {
 	// Settings
 	GetSetting(key string) (string, error)
 	SetSetting(key, value string) error
+
+	// Offline queue
+	EnqueueAction(action QueueAction) error
+	ListPendingActions(limit int) ([]QueueAction, error)
+	UpdateQueueAction(action QueueAction) error
+	DeleteQueueAction(id string) error
 
 	Close() error
 }

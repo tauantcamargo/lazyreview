@@ -10,6 +10,7 @@ import (
 	"lazyreview/internal/auth"
 	"lazyreview/internal/config"
 	"lazyreview/internal/gui"
+	"lazyreview/internal/queue"
 	"lazyreview/internal/storage"
 	"lazyreview/pkg/git"
 	"lazyreview/pkg/providers/github"
@@ -129,6 +130,19 @@ func CommandStart() *cli.App {
 			},
 		},
 		{
+			Name:  "queue",
+			Usage: "Offline queue commands",
+			Subcommands: []cli.Command{
+				{
+					Name:  "sync",
+					Usage: "Retry queued offline actions",
+					Action: func(c *cli.Context) error {
+						return queueSyncAction()
+					},
+				},
+			},
+		},
+		{
 			Name:  "version",
 			Usage: "Show version information",
 			Action: func(c *cli.Context) error {
@@ -222,6 +236,64 @@ func startTUI() error {
 	}
 
 	return gui.Run(cfg, provider, authService, owner, repo, store)
+}
+
+func queueSyncAction() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	authService, err := auth.NewService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth service: %w", err)
+	}
+
+	var providerCfg *config.ProviderConfig
+	if cfg.DefaultProvider != "" {
+		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
+	}
+	if providerCfg == nil {
+		providerCfg = &config.ProviderConfig{
+			Name: "github",
+			Type: config.ProviderTypeGitHub,
+			Host: "github.com",
+		}
+	}
+
+	cred, err := authService.GetCredential(providerCfg.Type, providerCfg.GetHost())
+	if err != nil {
+		if err == auth.ErrCredentialNotFound {
+			return fmt.Errorf("not authenticated with %s. Run: lazyreview auth login --provider %s",
+				providerCfg.Type, providerCfg.Type)
+		}
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	provider, err := github.New(*providerCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create provider: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := provider.Authenticate(ctx, cred.Token); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	store, err := storage.DefaultStorage()
+	if err != nil {
+		return fmt.Errorf("failed to initialize storage: %w", err)
+	}
+	defer store.Close()
+
+	processed, failed, err := queue.ProcessQueue(ctx, store, provider, 50)
+	if err != nil {
+		return fmt.Errorf("failed to process offline queue: %w", err)
+	}
+
+	fmt.Printf("Processed %d queued actions (%d failed)\n", processed, failed)
+	return nil
 }
 
 // loginAction handles the login command

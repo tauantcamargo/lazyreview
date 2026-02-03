@@ -3,6 +3,9 @@ package providers
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
+	"strings"
 )
 
 // Common provider errors
@@ -161,4 +164,32 @@ func IsSAMLError(err error) bool {
 	}
 	var samlErr *SAMLError
 	return errors.As(err, &samlErr)
+}
+
+// IsNetworkError returns true if the error likely indicates a network failure.
+func IsNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return true
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return true
+	}
+
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "no such host") ||
+		strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "network is unreachable") ||
+		strings.Contains(msg, "timeout") {
+		return true
+	}
+	return false
 }
