@@ -11,6 +11,7 @@ import (
 	"lazyreview/internal/config"
 	"lazyreview/internal/gui/views"
 	"lazyreview/internal/models"
+	"lazyreview/internal/services"
 	"lazyreview/internal/storage"
 	"lazyreview/pkg/components"
 	"lazyreview/pkg/providers"
@@ -60,6 +61,7 @@ const (
 	ViewModeWorkspaces     ViewMode = "workspaces"
 	ViewModeRepoSelector   ViewMode = "repo_selector"
 	ViewModeWorkspace      ViewMode = "workspace"
+	ViewModeDashboard      ViewMode = "dashboard"
 )
 
 // Message types for async operations
@@ -108,6 +110,16 @@ type workspaceTabsMsg struct {
 	err  error
 }
 
+type currentUserMsg struct {
+	user *models.User
+	err  error
+}
+
+type dashboardDataMsg struct {
+	result services.AggregationResult
+	err    error
+}
+
 // Model is the main application model
 type Model struct {
 	config      *config.Config
@@ -129,13 +141,16 @@ type Model struct {
 	statusMsg   string
 
 	// Workspace storage and views
-	storage            storage.Storage
-	workspaceManager   views.WorkspaceManager
-	repoSelector       views.RepoSelector
-	workspaceTabs      components.Tabs
-	workspaceTabItems  []models.WorkspaceTab
-	currentWorkspace   models.WorkspaceTab
+	storage             storage.Storage
+	workspaceManager    views.WorkspaceManager
+	repoSelector        views.RepoSelector
+	workspaceTabs       components.Tabs
+	workspaceTabItems   []models.WorkspaceTab
+	currentWorkspace    models.WorkspaceTab
 	workspaceRepoFilter []storage.RepoRef
+	dashboard           views.Dashboard
+	aggregator          *services.Aggregator
+	currentUserLogin    string
 
 	// Provider and auth
 	provider    providers.Provider
@@ -165,6 +180,7 @@ type Model struct {
 func New(cfg *config.Config, provider providers.Provider, authService *auth.Service, owner, repo string, store storage.Storage) Model {
 	// Create sidebar with navigation items
 	sidebarItems := []list.Item{
+		components.NewSimpleItem("dashboard", "Dashboard", "Grouped PR overview"),
 		components.NewSimpleItem("my_prs", "My PRs", "PRs you authored (all repos)"),
 		components.NewSimpleItem("review_requests", "Review Requests", "PRs needing your review"),
 		components.NewSimpleItem("current_repo", "Current Repo", "PRs in detected repo"),
@@ -197,32 +213,36 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	workspaceManager := views.NewWorkspaceManager(store, 50, 20)
 	repoSelector := views.NewRepoSelector(provider, store, "", 50, 20)
 	workspaceTabs := components.NewTabs(nil)
+	dashboard := views.NewDashboard(50, 20)
+	aggregator := services.NewAggregator(provider)
 
 	return Model{
-		config:          cfg,
-		provider:        provider,
-		authService:     authService,
-		storage:         store,
-		gitOwner:        owner,
-		gitRepo:         repo,
-		activePanel:     PanelSidebar,
-		mode:            ModeNormal,
-		viewState:       ViewList,
-		currentViewMode: initialViewMode,
-		sidebar:         sidebar,
-		content:         content,
-		fileTree:        fileTree,
-		diffViewer:      diffViewer,
-		textInput:       textInput,
-		help:            components.NewHelp(),
-		keyMap:          DefaultKeyMap(),
-		keySeq:          NewKeySequence(),
+		config:           cfg,
+		provider:         provider,
+		authService:      authService,
+		storage:          store,
+		gitOwner:         owner,
+		gitRepo:          repo,
+		activePanel:      PanelSidebar,
+		mode:             ModeNormal,
+		viewState:        ViewList,
+		currentViewMode:  initialViewMode,
+		sidebar:          sidebar,
+		content:          content,
+		fileTree:         fileTree,
+		diffViewer:       diffViewer,
+		textInput:        textInput,
+		help:             components.NewHelp(),
+		keyMap:           DefaultKeyMap(),
+		keySeq:           NewKeySequence(),
 		workspaceManager: workspaceManager,
 		repoSelector:     repoSelector,
 		workspaceTabs:    workspaceTabs,
-		isLoading:       true,
-		loadingMessage:  "Loading your pull requests...",
-		spinner:         s,
+		dashboard:        dashboard,
+		aggregator:       aggregator,
+		isLoading:        true,
+		loadingMessage:   "Loading your pull requests...",
+		spinner:          s,
 	}
 }
 
@@ -329,6 +349,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.Right), key.Matches(msg, m.keyMap.Select):
+			if m.viewState == ViewList && m.currentViewMode == ViewModeDashboard && m.activePanel == PanelContent {
+				return m.enterDetailViewFromDashboard()
+			}
 			if m.currentViewMode == ViewModeWorkspaces || m.currentViewMode == ViewModeRepoSelector {
 				break
 			}
@@ -495,6 +518,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Refresh):
 			if m.inWorkspaceView() {
 				break
+			}
+			if m.currentViewMode == ViewModeDashboard {
+				m.isLoading = true
+				m.loadingMessage = "Refreshing dashboard..."
+				return m, m.fetchDashboard()
 			}
 			if m.viewState == ViewList {
 				m.isLoading = true
@@ -706,6 +734,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.applyLayout(m.width, m.height)
 		return m, nil
 
+	case currentUserMsg:
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("Failed to load user: %s", msg.err.Error())
+			return m, nil
+		}
+		if msg.user != nil {
+			m.currentUserLogin = msg.user.Login
+		}
+		if m.currentViewMode == ViewModeDashboard {
+			return m, m.fetchDashboard()
+		}
+		return m, nil
+
+	case dashboardDataMsg:
+		m.isLoading = false
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("Dashboard error: %s", msg.err.Error())
+			return m, nil
+		}
+		m.dashboard.SetData(msg.result.NeedsReview, msg.result.MyPRs, msg.result.All)
+		m.statusMsg = fmt.Sprintf("Dashboard loaded (%d review, %d yours, %d all)", len(msg.result.NeedsReview), len(msg.result.MyPRs), len(msg.result.All))
+		return m, nil
+
 	case views.OpenRepoSelectorMsg:
 		m.currentViewMode = ViewModeRepoSelector
 		m.activePanel = PanelContent
@@ -751,6 +802,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.workspaceManager, cmd = m.workspaceManager.Update(msg)
 				case ViewModeRepoSelector:
 					m.repoSelector, cmd = m.repoSelector.Update(msg)
+				case ViewModeDashboard:
+					m.dashboard, cmd = m.dashboard.Update(msg)
 				default:
 					m.content, cmd = m.content.Update(msg)
 				}
@@ -842,6 +895,8 @@ func (m Model) View() string {
 			} else {
 				headerText = "LazyReview - Current Repo"
 			}
+		case ViewModeDashboard:
+			headerText = "LazyReview - Dashboard"
 		case ViewModeWorkspaces:
 			headerText = "LazyReview - Workspace Manager"
 		case ViewModeRepoSelector:
@@ -877,6 +932,8 @@ func (m Model) View() string {
 			rawContent = m.workspaceManager.View()
 		case ViewModeRepoSelector:
 			rawContent = m.repoSelector.View()
+		case ViewModeDashboard:
+			rawContent = m.dashboard.View()
 		default:
 			rawContent = m.content.View()
 		}
@@ -915,12 +972,16 @@ func (m Model) View() string {
 			status = m.workspaceManager.Status()
 		case ViewModeRepoSelector:
 			status = m.repoSelector.Status()
+		case ViewModeDashboard:
+			status = m.dashboard.Status()
 		}
 	}
 	if m.showHelp {
 		footer = m.help.View()
 	} else if status != "" {
 		footer = footerStyle.Render(status)
+	} else if m.currentViewMode == ViewModeDashboard {
+		footer = footerStyle.Render("tab:section  enter:view PR  /:filter  r:refresh  1-9:workspaces  ?:help")
 	} else if m.currentViewMode == ViewModeWorkspaces {
 		footer = footerStyle.Render("n:new  e:edit  d:delete  a:add repo  x:remove repo  J/K:reorder  tab:switch panel  esc:back  ?:help")
 	} else if m.currentViewMode == ViewModeRepoSelector {
@@ -1018,6 +1079,20 @@ func (m *Model) enterDetailView() tea.Cmd {
 		m.statusMsg = "PR not found in list"
 		return nil
 	}
+	return m.enterDetailViewFromPR(*selectedPR)
+}
+
+func (m *Model) enterDetailViewFromDashboard() (tea.Model, tea.Cmd) {
+	selectedPR := m.dashboard.SelectedPR()
+	if selectedPR == nil {
+		m.statusMsg = "No PR selected"
+		return *m, nil
+	}
+	return *m, m.enterDetailViewFromPR(*selectedPR)
+}
+
+func (m *Model) enterDetailViewFromPR(selectedPR models.PullRequest) tea.Cmd {
+	prNumber := selectedPR.Number
 
 	// Change view state
 	m.viewState = ViewDetail
@@ -1028,7 +1103,6 @@ func (m *Model) enterDetailView() tea.Cmd {
 	m.applyLayout(m.width, m.height)
 
 	// Use owner/repo from the selected PR (for cross-repo views)
-	// or from git context (for current repo view)
 	owner := selectedPR.Repository.Owner
 	repo := selectedPR.Repository.Name
 
@@ -1165,6 +1239,13 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 	m.isLoading = true
 
 	switch itemID {
+	case "dashboard":
+		m.currentViewMode = ViewModeDashboard
+		m.isLoading = true
+		m.loadingMessage = "Loading dashboard..."
+		m.applyLayout(m.width, m.height)
+		return m.fetchDashboard()
+
 	case "my_prs":
 		m.currentViewMode = ViewModeMyPRs
 		m.workspaceRepoFilter = nil
@@ -1254,6 +1335,28 @@ func fetchUserPRs(provider providers.Provider, opts providers.UserPROptions) tea
 			return errMsg{err}
 		}
 		return userPRsMsg{prs}
+	}
+}
+
+func fetchCurrentUser(provider providers.Provider) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		user, err := provider.GetCurrentUser(ctx)
+		return currentUserMsg{user: user, err: err}
+	}
+}
+
+func fetchDashboardData(aggregator *services.Aggregator, repos []storage.RepoRef, currentUser string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if aggregator == nil {
+			return dashboardDataMsg{err: fmt.Errorf("aggregator not available")}
+		}
+		result, err := aggregator.FetchDashboard(ctx, repos, currentUser)
+		return dashboardDataMsg{result: result, err: err}
 	}
 }
 
@@ -1370,6 +1473,7 @@ func (m *Model) applyLayout(width, height int) {
 	m.content.SetSize(contentWidth, panelHeight)
 	m.workspaceManager.SetSize(contentWidth, panelHeight)
 	m.repoSelector.SetSize(contentWidth, panelHeight)
+	m.dashboard.SetSize(contentWidth, panelHeight)
 
 	// Detail view components
 	fileTreeWidth := min(40, width/4)
@@ -1415,6 +1519,91 @@ func (m *Model) inWorkspaceView() bool {
 	return m.currentViewMode == ViewModeWorkspaces || m.currentViewMode == ViewModeRepoSelector
 }
 
+func (m *Model) fetchDashboard() tea.Cmd {
+	if m.currentUserLogin == "" {
+		return fetchCurrentUser(m.provider)
+	}
+	repos := m.resolveDashboardRepos()
+	return fetchDashboardData(m.aggregator, repos, m.currentUserLogin)
+}
+
+func (m *Model) resolveDashboardRepos() []storage.RepoRef {
+	if m.storage == nil {
+		if m.gitOwner != "" && m.gitRepo != "" {
+			return []storage.RepoRef{{
+				ProviderType: string(m.provider.Type()),
+				Host:         m.provider.Host(),
+				Owner:        m.gitOwner,
+				Repo:         m.gitRepo,
+			}}
+		}
+		return nil
+	}
+
+	switch m.currentWorkspace.Kind {
+	case models.WorkspaceKindRecent:
+		repos, _ := m.storage.GetRecentRepos(200)
+		return repos
+	case models.WorkspaceKindFavorites:
+		repos, _ := m.storage.ListFavorites()
+		return repos
+	case models.WorkspaceKindCustom:
+		workspace, err := m.storage.GetWorkspace(m.currentWorkspace.WorkspaceID)
+		if err != nil {
+			return nil
+		}
+		return workspace.Repos
+	default:
+		return m.collectAllRepos()
+	}
+}
+
+func (m *Model) collectAllRepos() []storage.RepoRef {
+	if m.storage == nil {
+		return nil
+	}
+	repos := []storage.RepoRef{}
+	add := func(repo storage.RepoRef, seen map[string]struct{}) {
+		key := fmt.Sprintf("%s:%s:%s/%s", repo.ProviderType, repo.Host, repo.Owner, repo.Repo)
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		repos = append(repos, repo)
+	}
+
+	seen := map[string]struct{}{}
+
+	if favorites, err := m.storage.ListFavorites(); err == nil {
+		for _, repo := range favorites {
+			add(repo, seen)
+		}
+	}
+	if recent, err := m.storage.GetRecentRepos(200); err == nil {
+		for _, repo := range recent {
+			add(repo, seen)
+		}
+	}
+	if workspaces, err := m.storage.ListWorkspaces(); err == nil {
+		for _, ws := range workspaces {
+			for _, repo := range ws.Repos {
+				add(repo, seen)
+			}
+		}
+	}
+
+	if len(repos) == 0 && m.gitOwner != "" && m.gitRepo != "" {
+		repos = append(repos, storage.RepoRef{
+			ProviderType: string(m.provider.Type()),
+			Host:         m.provider.Host(),
+			Owner:        m.gitOwner,
+			Repo:         m.gitRepo,
+		})
+	}
+
+	return repos
+}
+
 func parseDigitKey(key string) (int, bool) {
 	if len(key) != 1 {
 		return 0, false
@@ -1422,7 +1611,7 @@ func parseDigitKey(key string) (int, bool) {
 	if key[0] < '1' || key[0] > '9' {
 		return 0, false
 	}
-	return int(key[0]-'1'), true
+	return int(key[0] - '1'), true
 }
 
 func (m *Model) setWorkspaceTabByKind(kind models.WorkspaceKind) {
@@ -1454,6 +1643,10 @@ func (m *Model) selectWorkspaceTab(index int) tea.Cmd {
 	m.currentWorkspace = tab
 	m.workspaceRepoFilter = nil
 	m.isLoading = true
+	if m.currentViewMode == ViewModeDashboard {
+		m.loadingMessage = "Loading dashboard..."
+		return m.fetchDashboard()
+	}
 
 	switch tab.Kind {
 	case models.WorkspaceKindMyPRs:
