@@ -153,6 +153,10 @@ type Model struct {
 	aggregator          *services.Aggregator
 	currentUserLogin    string
 	sidebarCounts       map[string]int
+	prListCache         *services.Cache[[]models.PullRequest]
+	prDetailCache       *services.Cache[*models.PullRequest]
+	prFilesCache        *services.Cache[[]models.FileChange]
+	prDiffCache         *services.Cache[*models.Diff]
 
 	// Provider and auth
 	provider    providers.Provider
@@ -218,6 +222,10 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	workspaceTabs := components.NewTabs(nil)
 	dashboard := views.NewDashboard(50, 20)
 	aggregator := services.NewAggregator(provider)
+	prListCache := services.NewCache[[]models.PullRequest](2 * time.Minute)
+	prDetailCache := services.NewCache[*models.PullRequest](2 * time.Minute)
+	prFilesCache := services.NewCache[[]models.FileChange](2 * time.Minute)
+	prDiffCache := services.NewCache[*models.Diff](2 * time.Minute)
 
 	return Model{
 		config:           cfg,
@@ -244,6 +252,10 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		dashboard:        dashboard,
 		aggregator:       aggregator,
 		sidebarCounts:    map[string]int{},
+		prListCache:      prListCache,
+		prDetailCache:    prDetailCache,
+		prFilesCache:     prFilesCache,
+		prDiffCache:      prDiffCache,
 		isLoading:        true,
 		loadingMessage:   "Loading your pull requests...",
 		spinner:          s,
@@ -548,7 +560,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					owner = "golang"
 					repo = "go"
 				}
-				return m, fetchPRList(m.provider, owner, repo)
+				return m, m.fetchPRListCached(owner, repo)
 			}
 			return m, nil
 
@@ -1149,9 +1161,9 @@ func (m *Model) enterDetailViewFromPR(selectedPR models.PullRequest) tea.Cmd {
 
 	// Fetch PR details, files, and diff in parallel
 	return tea.Batch(
-		fetchPRDetail(m.provider, owner, repo, prNumber),
-		fetchPRFiles(m.provider, owner, repo, prNumber),
-		fetchPRDiff(m.provider, owner, repo, prNumber),
+		m.fetchPRDetailCached(owner, repo, prNumber),
+		m.fetchPRFilesCached(owner, repo, prNumber),
+		m.fetchPRDiffCached(owner, repo, prNumber),
 	)
 }
 
@@ -1285,7 +1297,7 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 			PerPage:     50,
 			Page:        1,
 		}
-		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
+		return tea.Batch(m.spinner.Tick, m.fetchUserPRsCached(opts))
 
 	case "review_requests":
 		m.currentViewMode = ViewModeReviewRequests
@@ -1299,7 +1311,7 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 			PerPage:     50,
 			Page:        1,
 		}
-		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
+		return tea.Batch(m.spinner.Tick, m.fetchUserPRsCached(opts))
 
 	case "assigned_to_me":
 		m.currentViewMode = ViewModeAssignedToMe
@@ -1312,7 +1324,7 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 			PerPage:     50,
 			Page:        1,
 		}
-		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
+		return tea.Batch(m.spinner.Tick, m.fetchUserPRsCached(opts))
 
 	case "current_repo":
 		m.currentViewMode = ViewModeCurrentRepo
@@ -1326,7 +1338,7 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 			return nil
 		}
 		m.loadingMessage = fmt.Sprintf("Loading PRs for %s/%s...", owner, repo)
-		return tea.Batch(m.spinner.Tick, fetchPRList(m.provider, owner, repo))
+		return tea.Batch(m.spinner.Tick, m.fetchPRListCached(owner, repo))
 
 	case "workspaces":
 		m.currentViewMode = ViewModeWorkspaces
@@ -1557,6 +1569,132 @@ func (m *Model) contentHeight() int {
 
 func (m *Model) inWorkspaceView() bool {
 	return m.currentViewMode == ViewModeWorkspaces || m.currentViewMode == ViewModeRepoSelector
+}
+
+func (m *Model) fetchUserPRsCached(opts providers.UserPROptions) tea.Cmd {
+	key := fmt.Sprintf("user_prs:%s:%s:%d:%d:%s", opts.Involvement, opts.State, opts.PerPage, opts.Page, m.provider.Host())
+	if cached, ok := m.prListCache.Get(key); ok {
+		return tea.Batch(
+			func() tea.Msg { return userPRsMsg{prs: cached} },
+			m.fetchUserPRsWithCache(opts, key),
+		)
+	}
+	return m.fetchUserPRsWithCache(opts, key)
+}
+
+func (m *Model) fetchUserPRsWithCache(opts providers.UserPROptions, key string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		prs, err := m.provider.ListUserPullRequests(ctx, opts)
+		if err != nil {
+			return errMsg{err}
+		}
+		m.prListCache.Set(key, prs)
+		return userPRsMsg{prs}
+	}
+}
+
+func (m *Model) fetchPRListCached(owner, repo string) tea.Cmd {
+	opts := providers.DefaultListOptions()
+	key := fmt.Sprintf("pr_list:%s/%s:%s:%s:%d:%d:%s", owner, repo, opts.State, opts.Sort, opts.PerPage, opts.Page, m.provider.Host())
+	if cached, ok := m.prListCache.Get(key); ok {
+		return tea.Batch(
+			func() tea.Msg { return prListMsg{prs: cached} },
+			m.fetchPRListWithCache(owner, repo, opts, key),
+		)
+	}
+	return m.fetchPRListWithCache(owner, repo, opts, key)
+}
+
+func (m *Model) fetchPRListWithCache(owner, repo string, opts providers.ListOptions, key string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		prs, err := m.provider.ListPullRequests(ctx, owner, repo, opts)
+		if err != nil {
+			return errMsg{err}
+		}
+		m.prListCache.Set(key, prs)
+		return prListMsg{prs}
+	}
+}
+
+func (m *Model) fetchPRDetailCached(owner, repo string, number int) tea.Cmd {
+	key := fmt.Sprintf("pr_detail:%s/%s:%d:%s", owner, repo, number, m.provider.Host())
+	if cached, ok := m.prDetailCache.Get(key); ok {
+		return tea.Batch(
+			func() tea.Msg { return prDetailMsg{pr: cached} },
+			m.fetchPRDetailWithCache(owner, repo, number, key),
+		)
+	}
+	return m.fetchPRDetailWithCache(owner, repo, number, key)
+}
+
+func (m *Model) fetchPRDetailWithCache(owner, repo string, number int, key string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		pr, err := m.provider.GetPullRequest(ctx, owner, repo, number)
+		if err != nil {
+			return errMsg{err}
+		}
+		m.prDetailCache.Set(key, pr)
+		return prDetailMsg{pr}
+	}
+}
+
+func (m *Model) fetchPRFilesCached(owner, repo string, number int) tea.Cmd {
+	key := fmt.Sprintf("pr_files:%s/%s:%d:%s", owner, repo, number, m.provider.Host())
+	if cached, ok := m.prFilesCache.Get(key); ok {
+		return tea.Batch(
+			func() tea.Msg { return prFilesMsg{files: cached} },
+			m.fetchPRFilesWithCache(owner, repo, number, key),
+		)
+	}
+	return m.fetchPRFilesWithCache(owner, repo, number, key)
+}
+
+func (m *Model) fetchPRFilesWithCache(owner, repo string, number int, key string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		files, err := m.provider.GetPullRequestFiles(ctx, owner, repo, number)
+		if err != nil {
+			return errMsg{err}
+		}
+		m.prFilesCache.Set(key, files)
+		return prFilesMsg{files}
+	}
+}
+
+func (m *Model) fetchPRDiffCached(owner, repo string, number int) tea.Cmd {
+	key := fmt.Sprintf("pr_diff:%s/%s:%d:%s", owner, repo, number, m.provider.Host())
+	if cached, ok := m.prDiffCache.Get(key); ok {
+		return tea.Batch(
+			func() tea.Msg { return prDiffMsg{diff: cached} },
+			m.fetchPRDiffWithCache(owner, repo, number, key),
+		)
+	}
+	return m.fetchPRDiffWithCache(owner, repo, number, key)
+}
+
+func (m *Model) fetchPRDiffWithCache(owner, repo string, number int, key string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		diff, err := m.provider.GetPullRequestDiff(ctx, owner, repo, number)
+		if err != nil {
+			return errMsg{err}
+		}
+		m.prDiffCache.Set(key, diff)
+		return prDiffMsg{diff}
+	}
 }
 
 func (m *Model) switchSidebarView(itemID string) tea.Cmd {

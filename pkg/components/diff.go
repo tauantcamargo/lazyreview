@@ -108,6 +108,7 @@ type DiffViewer struct {
 	currentHunk   int   // Current hunk index
 	highlighter   *Highlighter
 	lineMapping   []lineInfo // Maps viewport line to file/line info
+	maxLines      int
 
 	// Styles
 	addedStyle   lipgloss.Style
@@ -137,6 +138,7 @@ func NewDiffViewer(width, height int) DiffViewer {
 		height:       height,
 		focused:      true,
 		splitView:    false,
+		maxLines:     2000,
 		highlighter:  NewHighlighter(),
 		addedStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color("42")),  // Green
 		deletedStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("196")), // Red
@@ -239,8 +241,13 @@ func (d *DiffViewer) renderUnifiedView() {
 	var hunkPositions []int
 	var lineMapping []lineInfo
 	currentLine := 0
+	truncated := false
 
 	for i, file := range d.files {
+		if currentLine >= d.maxLines {
+			truncated = true
+			break
+		}
 		// File header
 		header := d.renderFileHeader(file, i == d.currentFile)
 		content.WriteString(header)
@@ -256,11 +263,23 @@ func (d *DiffViewer) renderUnifiedView() {
 
 		// Render hunks
 		for _, hunk := range file.Hunks {
+			if currentLine >= d.maxLines {
+				truncated = true
+				break
+			}
 			hunkPositions = append(hunkPositions, currentLine)
 			hunkContent, hunkLineMapping := d.renderHunk(hunk, filename)
 			content.WriteString(hunkContent)
 			lineMapping = append(lineMapping, hunkLineMapping...)
 			currentLine += len(hunkLineMapping)
+			if currentLine >= d.maxLines {
+				truncated = true
+				break
+			}
+		}
+
+		if truncated {
+			break
 		}
 
 		// If no hunks but has patch, render raw patch
@@ -279,22 +298,34 @@ func (d *DiffViewer) renderUnifiedView() {
 		currentLine++
 	}
 
+	if truncated {
+		notice := d.hunkStyle.Render("Diff truncated for performance. Open in browser for full diff.")
+		content.WriteString(notice)
+		content.WriteString("\n")
+		lineMapping = append(lineMapping, lineInfo{filePath: "", lineNo: 0, isCode: false})
+		currentLine++
+	}
+
 	d.hunkPositions = hunkPositions
 	d.lineMapping = lineMapping
 	d.viewport.SetContent(content.String())
 }
 
-// renderSplitView renders the diff in split view (side-by-side)
 func (d *DiffViewer) renderSplitView() {
 	var content strings.Builder
 	var hunkPositions []int
 	var lineMapping []lineInfo
 	currentLine := 0
+	truncated := false
 
 	// Calculate half width for each side
 	halfWidth := (d.width - 5) / 2 // -5 for border and separator
 
 	for i, file := range d.files {
+		if currentLine >= d.maxLines {
+			truncated = true
+			break
+		}
 		// File header spans full width
 		header := d.renderFileHeader(file, i == d.currentFile)
 		content.WriteString(header)
@@ -309,6 +340,10 @@ func (d *DiffViewer) renderSplitView() {
 
 		// Render hunks in split view
 		for _, hunk := range file.Hunks {
+			if currentLine >= d.maxLines {
+				truncated = true
+				break
+			}
 			hunkPositions = append(hunkPositions, currentLine)
 
 			// Hunk header
@@ -369,11 +404,31 @@ func (d *DiffViewer) renderSplitView() {
 				content.WriteString("\n")
 				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: lineNo, isCode: true})
 				currentLine++
+				if currentLine >= d.maxLines {
+					truncated = true
+					break
+				}
 			}
+
+			if truncated {
+				break
+			}
+		}
+
+		if truncated {
+			break
 		}
 
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+		currentLine++
+	}
+
+	if truncated {
+		notice := d.hunkStyle.Render("Diff truncated for performance. Open in browser for full diff.")
+		content.WriteString(notice)
+		content.WriteString("\n")
+		lineMapping = append(lineMapping, lineInfo{filePath: "", lineNo: 0, isCode: false})
 		currentLine++
 	}
 
@@ -382,7 +437,6 @@ func (d *DiffViewer) renderSplitView() {
 	d.viewport.SetContent(content.String())
 }
 
-// renderSplitLine renders a single line for split view
 func (d *DiffViewer) renderSplitLine(line models.DiffLine, filename string, width int, isLeft bool) string {
 	lineNo := ""
 	if isLeft && line.OldLineNo > 0 {
