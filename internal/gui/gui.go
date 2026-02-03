@@ -57,6 +57,7 @@ const (
 	ViewModeCurrentRepo    ViewMode = "current_repo"
 	ViewModeMyPRs          ViewMode = "my_prs"
 	ViewModeReviewRequests ViewMode = "review_requests"
+	ViewModeAssignedToMe   ViewMode = "assigned_to_me"
 	ViewModeSettings       ViewMode = "settings"
 	ViewModeWorkspaces     ViewMode = "workspaces"
 	ViewModeRepoSelector   ViewMode = "repo_selector"
@@ -151,6 +152,7 @@ type Model struct {
 	dashboard           views.Dashboard
 	aggregator          *services.Aggregator
 	currentUserLogin    string
+	sidebarCounts       map[string]int
 
 	// Provider and auth
 	provider    providers.Provider
@@ -183,6 +185,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		components.NewSimpleItem("dashboard", "Dashboard", "Grouped PR overview"),
 		components.NewSimpleItem("my_prs", "My PRs", "PRs you authored (all repos)"),
 		components.NewSimpleItem("review_requests", "Review Requests", "PRs needing your review"),
+		components.NewSimpleItem("assigned_to_me", "Assigned to Me", "PRs assigned to you"),
 		components.NewSimpleItem("current_repo", "Current Repo", "PRs in detected repo"),
 		components.NewSimpleItem("workspaces", "Workspaces", "Create and manage repo groups"),
 		components.NewSimpleItem("settings", "Settings", "Configure LazyReview"),
@@ -240,6 +243,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		workspaceTabs:    workspaceTabs,
 		dashboard:        dashboard,
 		aggregator:       aggregator,
+		sidebarCounts:    map[string]int{},
 		isLoading:        true,
 		loadingMessage:   "Loading your pull requests...",
 		spinner:          s,
@@ -297,6 +301,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.keySeq.Reset()
 			m.goToTop()
 			return m, nil
+		}
+
+		if m.viewState == ViewList {
+			switch keyStr {
+			case "m":
+				return m, m.switchSidebarView("my_prs")
+			case "R":
+				return m, m.switchSidebarView("review_requests")
+			}
 		}
 
 		// Quick workspace tab switch with number keys
@@ -584,6 +597,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.prList = prs
 
+		switch m.currentViewMode {
+		case ViewModeMyPRs:
+			m.sidebarCounts["my_prs"] = len(prs)
+		case ViewModeReviewRequests:
+			m.sidebarCounts["review_requests"] = len(prs)
+		case ViewModeAssignedToMe:
+			m.sidebarCounts["assigned_to_me"] = len(prs)
+		}
+		m.refreshSidebarItems()
+
 		if len(prs) == 0 {
 			var emptyMsg string
 			switch m.currentViewMode {
@@ -591,6 +614,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				emptyMsg = "You have no open PRs across all repositories"
 			case ViewModeReviewRequests:
 				emptyMsg = "No PRs currently requesting your review"
+			case ViewModeAssignedToMe:
+				emptyMsg = "No PRs currently assigned to you"
 			case ViewModeWorkspace:
 				if m.currentWorkspace.Name != "" {
 					emptyMsg = fmt.Sprintf("No PRs found for %s", m.currentWorkspace.Name)
@@ -883,6 +908,8 @@ func (m Model) View() string {
 			headerText = fmt.Sprintf("LazyReview - My PRs (%d)", len(m.prList))
 		case ViewModeReviewRequests:
 			headerText = fmt.Sprintf("LazyReview - Review Requests (%d)", len(m.prList))
+		case ViewModeAssignedToMe:
+			headerText = fmt.Sprintf("LazyReview - Assigned to Me (%d)", len(m.prList))
 		case ViewModeWorkspace:
 			if m.currentWorkspace.Name != "" {
 				headerText = fmt.Sprintf("LazyReview - %s (%d)", m.currentWorkspace.Name, len(m.prList))
@@ -989,7 +1016,7 @@ func (m Model) View() string {
 	} else if m.viewState == ViewDetail {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  c:line comment  C:PR comment  d:toggle view  esc:back  ?:help")
 	} else {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  ?:help  q:quit")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
 
 	// Combine all
@@ -1274,6 +1301,19 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 		}
 		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
 
+	case "assigned_to_me":
+		m.currentViewMode = ViewModeAssignedToMe
+		m.workspaceRepoFilter = nil
+		m.loadingMessage = "Loading PRs assigned to you..."
+		m.applyLayout(m.width, m.height)
+		opts := providers.UserPROptions{
+			Involvement: "assigned",
+			State:       models.PRStateOpen,
+			PerPage:     50,
+			Page:        1,
+		}
+		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
+
 	case "current_repo":
 		m.currentViewMode = ViewModeCurrentRepo
 		m.workspaceRepoFilter = nil
@@ -1517,6 +1557,54 @@ func (m *Model) contentHeight() int {
 
 func (m *Model) inWorkspaceView() bool {
 	return m.currentViewMode == ViewModeWorkspaces || m.currentViewMode == ViewModeRepoSelector
+}
+
+func (m *Model) switchSidebarView(itemID string) tea.Cmd {
+	if itemID == "" {
+		return nil
+	}
+	for i, item := range m.sidebar.Items() {
+		if simple, ok := item.(components.SimpleItem); ok && simple.ID() == itemID {
+			m.sidebar.Select(i)
+			return m.handleSidebarSelection(itemID)
+		}
+	}
+	return m.handleSidebarSelection(itemID)
+}
+
+func (m *Model) refreshSidebarItems() {
+	items := []list.Item{
+		components.NewSimpleItem("dashboard", "Dashboard", "Grouped PR overview"),
+		components.NewSimpleItem("my_prs", m.sidebarLabel("My PRs", "my_prs"), "PRs you authored (all repos)"),
+		components.NewSimpleItem("review_requests", m.sidebarLabel("Review Requests", "review_requests"), "PRs needing your review"),
+		components.NewSimpleItem("assigned_to_me", m.sidebarLabel("Assigned to Me", "assigned_to_me"), "PRs assigned to you"),
+		components.NewSimpleItem("current_repo", "Current Repo", "PRs in detected repo"),
+		components.NewSimpleItem("workspaces", "Workspaces", "Create and manage repo groups"),
+		components.NewSimpleItem("settings", "Settings", "Configure LazyReview"),
+	}
+	selectedID := ""
+	if selectedItem := m.sidebar.SelectedItem(); selectedItem != nil {
+		if simple, ok := selectedItem.(components.SimpleItem); ok {
+			selectedID = simple.ID()
+		}
+	}
+	m.sidebar.SetItems(items)
+	if selectedID != "" {
+		for i, item := range items {
+			if simple, ok := item.(components.SimpleItem); ok && simple.ID() == selectedID {
+				m.sidebar.Select(i)
+				break
+			}
+		}
+	}
+}
+
+func (m *Model) sidebarLabel(label, key string) string {
+	count := m.sidebarCounts[key]
+	if count <= 0 {
+		return label
+	}
+	return fmt.Sprintf("%s (%d)", label, count)
 }
 
 func (m *Model) fetchDashboard() tea.Cmd {

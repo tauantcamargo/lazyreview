@@ -178,6 +178,11 @@ func (l *List) SetItems(items []list.Item) tea.Cmd {
 	return l.list.SetItems(items)
 }
 
+// Items returns all list items.
+func (l *List) Items() []list.Item {
+	return l.list.Items()
+}
+
 // SelectedItem returns the currently selected item
 func (l *List) SelectedItem() list.Item {
 	return l.list.SelectedItem()
