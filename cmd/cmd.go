@@ -10,6 +10,7 @@ import (
 	"lazyreview/internal/auth"
 	"lazyreview/internal/config"
 	"lazyreview/internal/gui"
+	"lazyreview/internal/storage"
 	"lazyreview/pkg/git"
 	"lazyreview/pkg/providers/github"
 
@@ -211,7 +212,16 @@ func startTUI() error {
 		return fmt.Errorf("failed to authenticate: %w", err)
 	}
 
-	return gui.Run(cfg, provider, authService, owner, repo)
+	var store storage.Storage
+	sqliteStore, err := storage.DefaultStorage()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to initialize storage: %v\n", err)
+	} else {
+		store = sqliteStore
+		defer store.Close()
+	}
+
+	return gui.Run(cfg, provider, authService, owner, repo, store)
 }
 
 // loginAction handles the login command

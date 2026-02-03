@@ -2,12 +2,16 @@ package gui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"lazyreview/internal/auth"
 	"lazyreview/internal/config"
+	"lazyreview/internal/gui/views"
 	"lazyreview/internal/models"
+	"lazyreview/internal/storage"
 	"lazyreview/pkg/components"
 	"lazyreview/pkg/providers"
 
@@ -53,6 +57,9 @@ const (
 	ViewModeMyPRs          ViewMode = "my_prs"
 	ViewModeReviewRequests ViewMode = "review_requests"
 	ViewModeSettings       ViewMode = "settings"
+	ViewModeWorkspaces     ViewMode = "workspaces"
+	ViewModeRepoSelector   ViewMode = "repo_selector"
+	ViewModeWorkspace      ViewMode = "workspace"
 )
 
 // Message types for async operations
@@ -96,6 +103,11 @@ type commentSubmitMsg struct {
 	err      error
 }
 
+type workspaceTabsMsg struct {
+	tabs []models.WorkspaceTab
+	err  error
+}
+
 // Model is the main application model
 type Model struct {
 	config      *config.Config
@@ -115,6 +127,15 @@ type Model struct {
 	showHelp    bool
 	ready       bool
 	statusMsg   string
+
+	// Workspace storage and views
+	storage            storage.Storage
+	workspaceManager   views.WorkspaceManager
+	repoSelector       views.RepoSelector
+	workspaceTabs      components.Tabs
+	workspaceTabItems  []models.WorkspaceTab
+	currentWorkspace   models.WorkspaceTab
+	workspaceRepoFilter []storage.RepoRef
 
 	// Provider and auth
 	provider    providers.Provider
@@ -141,12 +162,13 @@ type Model struct {
 }
 
 // New creates a new GUI model
-func New(cfg *config.Config, provider providers.Provider, authService *auth.Service, owner, repo string) Model {
+func New(cfg *config.Config, provider providers.Provider, authService *auth.Service, owner, repo string, store storage.Storage) Model {
 	// Create sidebar with navigation items
 	sidebarItems := []list.Item{
 		components.NewSimpleItem("my_prs", "My PRs", "PRs you authored (all repos)"),
 		components.NewSimpleItem("review_requests", "Review Requests", "PRs needing your review"),
 		components.NewSimpleItem("current_repo", "Current Repo", "PRs in detected repo"),
+		components.NewSimpleItem("workspaces", "Workspaces", "Create and manage repo groups"),
 		components.NewSimpleItem("settings", "Settings", "Configure LazyReview"),
 	}
 
@@ -172,10 +194,15 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	// Start with "My PRs" view by default
 	initialViewMode := ViewModeMyPRs
 
+	workspaceManager := views.NewWorkspaceManager(store, 50, 20)
+	repoSelector := views.NewRepoSelector(provider, store, "", 50, 20)
+	workspaceTabs := components.NewTabs(nil)
+
 	return Model{
 		config:          cfg,
 		provider:        provider,
 		authService:     authService,
+		storage:         store,
 		gitOwner:        owner,
 		gitRepo:         repo,
 		activePanel:     PanelSidebar,
@@ -190,6 +217,9 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		help:            components.NewHelp(),
 		keyMap:          DefaultKeyMap(),
 		keySeq:          NewKeySequence(),
+		workspaceManager: workspaceManager,
+		repoSelector:     repoSelector,
+		workspaceTabs:    workspaceTabs,
 		isLoading:       true,
 		loadingMessage:  "Loading your pull requests...",
 		spinner:         s,
@@ -206,7 +236,11 @@ func (m Model) Init() tea.Cmd {
 		Page:        1,
 	}
 	// Start spinner and fetch PRs
-	return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
+	cmds := []tea.Cmd{m.spinner.Tick, fetchUserPRs(m.provider, opts)}
+	if m.storage != nil {
+		cmds = append(cmds, loadWorkspaceTabs(m.storage))
+	}
+	return tea.Batch(cmds...)
 }
 
 // Update implements tea.Model
@@ -243,6 +277,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.keySeq.Reset()
 			m.goToTop()
 			return m, nil
+		}
+
+		// Quick workspace tab switch with number keys
+		if m.viewState == ViewList && m.tabsVisible() {
+			if idx, ok := parseDigitKey(keyStr); ok {
+				if idx < len(m.workspaceTabItems) {
+					cmd := m.selectWorkspaceTab(idx)
+					return m, cmd
+				}
+			}
 		}
 
 		// Handle single key bindings
@@ -285,6 +329,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.Right), key.Matches(msg, m.keyMap.Select):
+			if m.currentViewMode == ViewModeWorkspaces || m.currentViewMode == ViewModeRepoSelector {
+				break
+			}
 			if m.viewState == ViewList {
 				if m.activePanel == PanelSidebar {
 					// Handle sidebar selection
@@ -361,6 +408,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Action keys
 		case key.Matches(msg, m.keyMap.Approve):
+			if m.inWorkspaceView() {
+				break
+			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
 				m.statusMsg = fmt.Sprintf("Approving PR #%d...", m.currentPR.Number)
 				m.isLoading = true
@@ -378,6 +428,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.RequestChanges):
+			if m.inWorkspaceView() {
+				break
+			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
 				m.statusMsg = fmt.Sprintf("Requesting changes on PR #%d...", m.currentPR.Number)
 				m.isLoading = true
@@ -395,6 +448,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.Comment):
+			if m.inWorkspaceView() {
+				break
+			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
 				// Line comment - get current line from diff viewer
 				filePath, lineNo, isCode := m.diffViewer.CurrentLineInfo()
@@ -412,6 +468,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.GeneralComment):
+			if m.inWorkspaceView() {
+				break
+			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
 				// General PR comment
 				m.textInput.Show(components.TextInputGeneralComment, "General PR Comment", "")
@@ -423,6 +482,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.OpenBrowser):
+			if m.inWorkspaceView() {
+				break
+			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
 				m.statusMsg = fmt.Sprintf("Opening PR #%d in browser... (not yet implemented)", m.currentPR.Number)
 			} else {
@@ -431,6 +493,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.Refresh):
+			if m.inWorkspaceView() {
+				break
+			}
 			if m.viewState == ViewList {
 				m.isLoading = true
 				m.loadingMessage = "Refreshing pull requests..."
@@ -452,34 +517,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		m.ready = true
-
-		// Calculate panel dimensions
-		sidebarWidth := min(40, msg.Width/4)
-		contentWidth := msg.Width - sidebarWidth - 4
-
-		// Reserve space for header, footer
-		headerHeight := 3
-		footerHeight := 3
-		panelHeight := msg.Height - headerHeight - footerHeight
-
-		// List view components
-		m.sidebar.SetSize(sidebarWidth, panelHeight)
-		m.content.SetSize(contentWidth, panelHeight)
-
-		// Detail view components
-		fileTreeWidth := min(40, msg.Width/4)
-		diffWidth := msg.Width - fileTreeWidth - 4
-		m.fileTree.SetSize(fileTreeWidth, panelHeight)
-		m.diffViewer.SetSize(diffWidth, panelHeight)
-
-		// Text input takes a centered portion of the screen
-		m.textInput.SetSize(msg.Width-20, msg.Height-10)
-
-		m.help.SetWidth(msg.Width)
-
+		m.applyLayout(msg.Width, msg.Height)
 		return m, nil
 
 	case prListMsg:
@@ -512,15 +550,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case userPRsMsg:
 		m.isLoading = false
-		m.prList = msg.prs
+		prs := msg.prs
+		if len(m.workspaceRepoFilter) > 0 {
+			prs = filterPRsByRepos(prs, m.workspaceRepoFilter)
+		}
+		m.prList = prs
 
-		if len(msg.prs) == 0 {
+		if len(prs) == 0 {
 			var emptyMsg string
 			switch m.currentViewMode {
 			case ViewModeMyPRs:
 				emptyMsg = "You have no open PRs across all repositories"
 			case ViewModeReviewRequests:
 				emptyMsg = "No PRs currently requesting your review"
+			case ViewModeWorkspace:
+				if m.currentWorkspace.Name != "" {
+					emptyMsg = fmt.Sprintf("No PRs found for %s", m.currentWorkspace.Name)
+				} else {
+					emptyMsg = "No PRs found for this workspace"
+				}
 			default:
 				emptyMsg = "No pull requests found"
 			}
@@ -535,8 +583,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Convert PRs to list items
-		items := make([]list.Item, len(msg.prs))
-		for i, pr := range msg.prs {
+		items := make([]list.Item, len(prs))
+		for i, pr := range prs {
 			title := fmt.Sprintf("#%d %s", pr.Number, pr.Title)
 			// Include repo name since these are from multiple repos
 			desc := fmt.Sprintf("%s/%s • by %s • %s", pr.Repository.Owner, pr.Repository.Name, pr.Author.Login, pr.State)
@@ -545,7 +593,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		contentWidth := m.width - 44
 		contentHeight := m.height - 6
 		m.content = components.NewList("Pull Requests", items, contentWidth, contentHeight)
-		m.statusMsg = fmt.Sprintf("Loaded %d pull requests", len(msg.prs))
+		m.statusMsg = fmt.Sprintf("Loaded %d pull requests", len(prs))
 		return m, nil
 
 	case prDetailMsg:
@@ -639,6 +687,47 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case workspaceTabsMsg:
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("Failed to load workspaces: %s", msg.err.Error())
+			return m, nil
+		}
+		m.workspaceTabItems = msg.tabs
+		tabs := make([]components.Tab, 0, len(msg.tabs))
+		for _, tab := range msg.tabs {
+			tabs = append(tabs, components.Tab{ID: tab.ID, Label: tab.Name})
+		}
+		m.workspaceTabs.SetTabs(tabs)
+		if m.currentWorkspace.ID != "" {
+			m.setWorkspaceTabByID(m.currentWorkspace.ID)
+		} else {
+			m.setWorkspaceTabByKind(models.WorkspaceKindMyPRs)
+		}
+		m.applyLayout(m.width, m.height)
+		return m, nil
+
+	case views.OpenRepoSelectorMsg:
+		m.currentViewMode = ViewModeRepoSelector
+		m.activePanel = PanelContent
+		m.repoSelector = views.NewRepoSelector(m.provider, m.storage, msg.WorkspaceID, m.contentWidth(), m.contentHeight())
+		m.statusMsg = fmt.Sprintf("Selecting repos for workspace %s", msg.WorkspaceID)
+		m.applyLayout(m.width, m.height)
+		return m, m.repoSelector.Load()
+
+	case views.RepoSelectorCloseMsg:
+		m.currentViewMode = ViewModeWorkspaces
+		m.activePanel = PanelContent
+		m.statusMsg = "Returned to workspace manager"
+		m.workspaceManager.Refresh()
+		m.applyLayout(m.width, m.height)
+		return m, nil
+
+	case views.WorkspacesChangedMsg:
+		if m.storage != nil {
+			return m, loadWorkspaceTabs(m.storage)
+		}
+		return m, nil
+
 	case keyTimeoutMsg:
 		m.keySeq.Reset()
 		return m, nil
@@ -657,7 +746,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.sidebar, cmd = m.sidebar.Update(msg)
 				cmds = append(cmds, cmd)
 			} else {
-				m.content, cmd = m.content.Update(msg)
+				switch m.currentViewMode {
+				case ViewModeWorkspaces:
+					m.workspaceManager, cmd = m.workspaceManager.Update(msg)
+				case ViewModeRepoSelector:
+					m.repoSelector, cmd = m.repoSelector.Update(msg)
+				default:
+					m.content, cmd = m.content.Update(msg)
+				}
 				cmds = append(cmds, cmd)
 			}
 		} else {
@@ -734,12 +830,22 @@ func (m Model) View() string {
 			headerText = fmt.Sprintf("LazyReview - My PRs (%d)", len(m.prList))
 		case ViewModeReviewRequests:
 			headerText = fmt.Sprintf("LazyReview - Review Requests (%d)", len(m.prList))
+		case ViewModeWorkspace:
+			if m.currentWorkspace.Name != "" {
+				headerText = fmt.Sprintf("LazyReview - %s (%d)", m.currentWorkspace.Name, len(m.prList))
+			} else {
+				headerText = fmt.Sprintf("LazyReview - Workspace (%d)", len(m.prList))
+			}
 		case ViewModeCurrentRepo:
 			if m.gitOwner != "" && m.gitRepo != "" {
 				headerText = fmt.Sprintf("LazyReview - %s/%s", m.gitOwner, m.gitRepo)
 			} else {
 				headerText = "LazyReview - Current Repo"
 			}
+		case ViewModeWorkspaces:
+			headerText = "LazyReview - Workspace Manager"
+		case ViewModeRepoSelector:
+			headerText = "LazyReview - Repo Selector"
 		default:
 			headerText = "LazyReview - Code Review TUI"
 		}
@@ -749,6 +855,11 @@ func (m Model) View() string {
 		headerText = "LazyReview - PR Details"
 	}
 	header := headerStyle.Render(headerText)
+
+	tabsView := ""
+	if m.tabsVisible() {
+		tabsView = m.workspaceTabs.View(m.width)
+	}
 
 	var mainArea string
 	if m.viewState == ViewList {
@@ -760,10 +871,20 @@ func (m Model) View() string {
 			sidebarView = unfocusedStyle.Render(m.sidebar.View())
 		}
 
+		var rawContent string
+		switch m.currentViewMode {
+		case ViewModeWorkspaces:
+			rawContent = m.workspaceManager.View()
+		case ViewModeRepoSelector:
+			rawContent = m.repoSelector.View()
+		default:
+			rawContent = m.content.View()
+		}
+
 		if m.activePanel == PanelContent {
-			contentView = focusedStyle.Render(m.content.View())
+			contentView = focusedStyle.Render(rawContent)
 		} else {
-			contentView = unfocusedStyle.Render(m.content.View())
+			contentView = unfocusedStyle.Render(rawContent)
 		}
 
 		mainArea = lipgloss.JoinHorizontal(lipgloss.Top, sidebarView, contentView)
@@ -787,10 +908,23 @@ func (m Model) View() string {
 
 	// Footer with help or status
 	var footer string
+	status := m.statusMsg
+	if status == "" {
+		switch m.currentViewMode {
+		case ViewModeWorkspaces:
+			status = m.workspaceManager.Status()
+		case ViewModeRepoSelector:
+			status = m.repoSelector.Status()
+		}
+	}
 	if m.showHelp {
 		footer = m.help.View()
-	} else if m.statusMsg != "" {
-		footer = footerStyle.Render(m.statusMsg)
+	} else if status != "" {
+		footer = footerStyle.Render(status)
+	} else if m.currentViewMode == ViewModeWorkspaces {
+		footer = footerStyle.Render("n:new  e:edit  d:delete  a:add repo  x:remove repo  J/K:reorder  tab:switch panel  esc:back  ?:help")
+	} else if m.currentViewMode == ViewModeRepoSelector {
+		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  c:line comment  C:PR comment  d:toggle view  esc:back  ?:help")
 	} else {
@@ -798,12 +932,12 @@ func (m Model) View() string {
 	}
 
 	// Combine all
-	view := lipgloss.JoinVertical(
-		lipgloss.Left,
-		header,
-		mainArea,
-		footer,
-	)
+	sections := []string{header}
+	if tabsView != "" {
+		sections = append(sections, tabsView)
+	}
+	sections = append(sections, mainArea, footer)
+	view := lipgloss.JoinVertical(lipgloss.Left, sections...)
 
 	// Show text input overlay if visible
 	if m.textInput.IsVisible() {
@@ -891,6 +1025,7 @@ func (m *Model) enterDetailView() tea.Cmd {
 	m.fileTree.Focus()
 	m.isLoading = true
 	m.loadingMessage = fmt.Sprintf("Loading PR #%d...", prNumber)
+	m.applyLayout(m.width, m.height)
 
 	// Use owner/repo from the selected PR (for cross-repo views)
 	// or from git context (for current repo view)
@@ -926,6 +1061,7 @@ func (m *Model) exitDetailView() {
 	m.currentDiff = nil
 	m.currentFiles = nil
 	m.statusMsg = ""
+	m.applyLayout(m.width, m.height)
 }
 
 func (m *Model) goToTop() {
@@ -1031,7 +1167,10 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 	switch itemID {
 	case "my_prs":
 		m.currentViewMode = ViewModeMyPRs
+		m.workspaceRepoFilter = nil
+		m.setWorkspaceTabByKind(models.WorkspaceKindMyPRs)
 		m.loadingMessage = "Loading your PRs across all repositories..."
+		m.applyLayout(m.width, m.height)
 		opts := providers.UserPROptions{
 			Involvement: "authored",
 			State:       models.PRStateOpen,
@@ -1042,7 +1181,10 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 
 	case "review_requests":
 		m.currentViewMode = ViewModeReviewRequests
+		m.workspaceRepoFilter = nil
+		m.setWorkspaceTabByKind(models.WorkspaceKindToReview)
 		m.loadingMessage = "Loading PRs that need your review..."
+		m.applyLayout(m.width, m.height)
 		opts := providers.UserPROptions{
 			Involvement: "review_requested",
 			State:       models.PRStateOpen,
@@ -1053,6 +1195,8 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 
 	case "current_repo":
 		m.currentViewMode = ViewModeCurrentRepo
+		m.workspaceRepoFilter = nil
+		m.applyLayout(m.width, m.height)
 		owner := m.gitOwner
 		repo := m.gitRepo
 		if owner == "" || repo == "" {
@@ -1063,10 +1207,19 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 		m.loadingMessage = fmt.Sprintf("Loading PRs for %s/%s...", owner, repo)
 		return tea.Batch(m.spinner.Tick, fetchPRList(m.provider, owner, repo))
 
+	case "workspaces":
+		m.currentViewMode = ViewModeWorkspaces
+		m.isLoading = false
+		m.workspaceManager.Refresh()
+		m.statusMsg = "Workspace manager"
+		m.applyLayout(m.width, m.height)
+		return nil
+
 	case "settings":
 		m.currentViewMode = ViewModeSettings
 		m.isLoading = false
 		m.statusMsg = "Settings view not yet implemented"
+		m.applyLayout(m.width, m.height)
 		return nil
 
 	default:
@@ -1194,10 +1347,286 @@ func submitGeneralComment(provider providers.Provider, owner, repo string, prNum
 	}
 }
 
+const workspaceOrderSettingKey = "workspace_order"
+
+func (m *Model) applyLayout(width, height int) {
+	m.width = width
+	m.height = height
+	m.ready = true
+
+	sidebarWidth := min(40, width/4)
+	contentWidth := width - sidebarWidth - 4
+
+	headerHeight := 3
+	footerHeight := 3
+	panelHeight := height - headerHeight - footerHeight - m.tabsHeight()
+
+	if panelHeight < 5 {
+		panelHeight = 5
+	}
+
+	// List view components
+	m.sidebar.SetSize(sidebarWidth, panelHeight)
+	m.content.SetSize(contentWidth, panelHeight)
+	m.workspaceManager.SetSize(contentWidth, panelHeight)
+	m.repoSelector.SetSize(contentWidth, panelHeight)
+
+	// Detail view components
+	fileTreeWidth := min(40, width/4)
+	diffWidth := width - fileTreeWidth - 4
+	m.fileTree.SetSize(fileTreeWidth, panelHeight)
+	m.diffViewer.SetSize(diffWidth, panelHeight)
+
+	// Text input takes a centered portion of the screen
+	m.textInput.SetSize(width-20, height-10)
+
+	m.help.SetWidth(width)
+}
+
+func (m *Model) tabsVisible() bool {
+	if m.viewState != ViewList {
+		return false
+	}
+	if m.currentViewMode == ViewModeWorkspaces || m.currentViewMode == ViewModeRepoSelector || m.currentViewMode == ViewModeSettings {
+		return false
+	}
+	return m.workspaceTabs.Count() > 0
+}
+
+func (m *Model) tabsHeight() int {
+	if m.tabsVisible() {
+		return 1
+	}
+	return 0
+}
+
+func (m *Model) contentWidth() int {
+	sidebarWidth := min(40, m.width/4)
+	return m.width - sidebarWidth - 4
+}
+
+func (m *Model) contentHeight() int {
+	headerHeight := 3
+	footerHeight := 3
+	return m.height - headerHeight - footerHeight - m.tabsHeight()
+}
+
+func (m *Model) inWorkspaceView() bool {
+	return m.currentViewMode == ViewModeWorkspaces || m.currentViewMode == ViewModeRepoSelector
+}
+
+func parseDigitKey(key string) (int, bool) {
+	if len(key) != 1 {
+		return 0, false
+	}
+	if key[0] < '1' || key[0] > '9' {
+		return 0, false
+	}
+	return int(key[0]-'1'), true
+}
+
+func (m *Model) setWorkspaceTabByKind(kind models.WorkspaceKind) {
+	for i, tab := range m.workspaceTabItems {
+		if tab.Kind == kind {
+			m.workspaceTabs.Select(i)
+			m.currentWorkspace = tab
+			return
+		}
+	}
+}
+
+func (m *Model) setWorkspaceTabByID(id string) {
+	for i, tab := range m.workspaceTabItems {
+		if tab.ID == id {
+			m.workspaceTabs.Select(i)
+			m.currentWorkspace = tab
+			return
+		}
+	}
+}
+
+func (m *Model) selectWorkspaceTab(index int) tea.Cmd {
+	if index < 0 || index >= len(m.workspaceTabItems) {
+		return nil
+	}
+	tab := m.workspaceTabItems[index]
+	m.workspaceTabs.Select(index)
+	m.currentWorkspace = tab
+	m.workspaceRepoFilter = nil
+	m.isLoading = true
+
+	switch tab.Kind {
+	case models.WorkspaceKindMyPRs:
+		m.currentViewMode = ViewModeMyPRs
+		m.loadingMessage = "Loading your PRs across all repositories..."
+		opts := providers.UserPROptions{
+			Involvement: "authored",
+			State:       models.PRStateOpen,
+			PerPage:     50,
+			Page:        1,
+		}
+		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
+	case models.WorkspaceKindToReview:
+		m.currentViewMode = ViewModeReviewRequests
+		m.loadingMessage = "Loading PRs that need your review..."
+		opts := providers.UserPROptions{
+			Involvement: "review_requested",
+			State:       models.PRStateOpen,
+			PerPage:     50,
+			Page:        1,
+		}
+		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
+	default:
+		m.currentViewMode = ViewModeWorkspace
+		if tab.Name != "" {
+			m.loadingMessage = fmt.Sprintf("Loading %s PRs...", tab.Name)
+		} else {
+			m.loadingMessage = "Loading workspace PRs..."
+		}
+		if m.storage != nil {
+			repos, err := m.loadWorkspaceRepos(tab)
+			if err != nil {
+				m.statusMsg = fmt.Sprintf("Workspace filter error: %s", err.Error())
+			} else {
+				m.workspaceRepoFilter = repos
+				if len(repos) == 0 && tab.Kind != models.WorkspaceKindAll {
+					m.statusMsg = fmt.Sprintf("No repositories configured for %s", tab.Name)
+				}
+			}
+		}
+		opts := providers.UserPROptions{
+			Involvement: "all",
+			State:       models.PRStateOpen,
+			PerPage:     50,
+			Page:        1,
+		}
+		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
+	}
+}
+
+func (m *Model) loadWorkspaceRepos(tab models.WorkspaceTab) ([]storage.RepoRef, error) {
+	if m.storage == nil {
+		return nil, fmt.Errorf("storage unavailable")
+	}
+	switch tab.Kind {
+	case models.WorkspaceKindRecent:
+		return m.storage.GetRecentRepos(200)
+	case models.WorkspaceKindFavorites:
+		return m.storage.ListFavorites()
+	case models.WorkspaceKindCustom:
+		workspace, err := m.storage.GetWorkspace(tab.WorkspaceID)
+		if err != nil {
+			return nil, err
+		}
+		return workspace.Repos, nil
+	}
+	return nil, nil
+}
+
+func loadWorkspaceTabs(store storage.Storage) tea.Cmd {
+	return func() tea.Msg {
+		workspaces, err := store.ListWorkspaces()
+		if err != nil {
+			return workspaceTabsMsg{err: err}
+		}
+		order := loadWorkspaceOrder(store, workspaces)
+		ordered := applyWorkspaceOrder(workspaces, order)
+		tabs := []models.WorkspaceTab{
+			{ID: "all", Name: "All", Kind: models.WorkspaceKindAll},
+			{ID: "recent", Name: "Recent", Kind: models.WorkspaceKindRecent},
+			{ID: "favorites", Name: "Favorites", Kind: models.WorkspaceKindFavorites},
+			{ID: "my_prs", Name: "My PRs", Kind: models.WorkspaceKindMyPRs},
+			{ID: "to_review", Name: "To Review", Kind: models.WorkspaceKindToReview},
+		}
+		for _, ws := range ordered {
+			tabs = append(tabs, models.WorkspaceTab{
+				ID:          ws.ID,
+				Name:        ws.Name,
+				Kind:        models.WorkspaceKindCustom,
+				WorkspaceID: ws.ID,
+			})
+		}
+		return workspaceTabsMsg{tabs: tabs}
+	}
+}
+
+func loadWorkspaceOrder(store storage.Storage, workspaces []storage.Workspace) []string {
+	value, err := store.GetSetting(workspaceOrderSettingKey)
+	if err != nil || value == "" {
+		return defaultWorkspaceOrder(workspaces)
+	}
+	var order []string
+	if err := json.Unmarshal([]byte(value), &order); err != nil {
+		return defaultWorkspaceOrder(workspaces)
+	}
+	seen := make(map[string]bool, len(order))
+	filtered := make([]string, 0, len(workspaces))
+	for _, id := range order {
+		seen[id] = true
+		filtered = append(filtered, id)
+	}
+	for _, ws := range workspaces {
+		if !seen[ws.ID] {
+			filtered = append(filtered, ws.ID)
+		}
+	}
+	return filtered
+}
+
+func applyWorkspaceOrder(workspaces []storage.Workspace, order []string) []storage.Workspace {
+	if len(order) == 0 || len(workspaces) == 0 {
+		return workspaces
+	}
+	lookup := make(map[string]storage.Workspace, len(workspaces))
+	for _, ws := range workspaces {
+		lookup[ws.ID] = ws
+	}
+	ordered := make([]storage.Workspace, 0, len(workspaces))
+	for _, id := range order {
+		if ws, ok := lookup[id]; ok {
+			ordered = append(ordered, ws)
+			delete(lookup, id)
+		}
+	}
+	for _, ws := range workspaces {
+		if _, ok := lookup[ws.ID]; ok {
+			ordered = append(ordered, ws)
+		}
+	}
+	return ordered
+}
+
+func defaultWorkspaceOrder(workspaces []storage.Workspace) []string {
+	order := make([]string, 0, len(workspaces))
+	for _, ws := range workspaces {
+		order = append(order, ws.ID)
+	}
+	return order
+}
+
+func filterPRsByRepos(prs []models.PullRequest, repos []storage.RepoRef) []models.PullRequest {
+	if len(repos) == 0 {
+		return []models.PullRequest{}
+	}
+	allowed := make(map[string]struct{}, len(repos))
+	for _, repo := range repos {
+		key := strings.ToLower(fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
+		allowed[key] = struct{}{}
+	}
+	filtered := make([]models.PullRequest, 0, len(prs))
+	for _, pr := range prs {
+		key := strings.ToLower(fmt.Sprintf("%s/%s", pr.Repository.Owner, pr.Repository.Name))
+		if _, ok := allowed[key]; ok {
+			filtered = append(filtered, pr)
+		}
+	}
+	return filtered
+}
+
 // Run starts the TUI application
-func Run(cfg *config.Config, provider providers.Provider, authService *auth.Service, owner, repo string) error {
+func Run(cfg *config.Config, provider providers.Provider, authService *auth.Service, owner, repo string, store storage.Storage) error {
 	p := tea.NewProgram(
-		New(cfg, provider, authService, owner, repo),
+		New(cfg, provider, authService, owner, repo, store),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)

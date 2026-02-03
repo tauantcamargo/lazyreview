@@ -188,6 +188,11 @@ func (l *List) SelectedIndex() int {
 	return l.list.Index()
 }
 
+// Select sets the selected index.
+func (l *List) Select(index int) {
+	l.list.Select(index)
+}
+
 // SetSize sets the list dimensions
 func (l *List) SetSize(width, height int) {
 	l.list.SetSize(width, height)
