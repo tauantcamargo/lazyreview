@@ -33,6 +33,7 @@ type KeyMap struct {
 	RequestChanges key.Binding
 	Comment        key.Binding
 	GeneralComment key.Binding
+	ReviewComment  key.Binding
 	OpenBrowser    key.Binding
 	Checkout       key.Binding
 	Refresh        key.Binding
@@ -132,6 +133,10 @@ func DefaultKeyMap() KeyMap {
 		GeneralComment: key.NewBinding(
 			key.WithKeys("C"),
 			key.WithHelp("C", "general comment"),
+		),
+		ReviewComment: key.NewBinding(
+			key.WithKeys("v"),
+			key.WithHelp("v", "review comment"),
 		),
 		OpenBrowser: key.NewBinding(
 			key.WithKeys("o"),

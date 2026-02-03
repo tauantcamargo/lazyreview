@@ -454,22 +454,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pageDown()
 			return m, nil
 
-		// Action keys
+			// Action keys
 		case key.Matches(msg, m.keyMap.Approve):
 			if m.inWorkspaceView() {
 				break
 			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
-				m.statusMsg = fmt.Sprintf("Approving PR #%d...", m.currentPR.Number)
-				m.isLoading = true
-				m.loadingMessage = "Submitting approval..."
-				owner := m.gitOwner
-				repo := m.gitRepo
-				if owner == "" || repo == "" {
-					owner = "golang"
-					repo = "go"
-				}
-				return m, approveReview(m.provider, owner, repo, m.currentPR.Number)
+				m.textInput.Show(components.TextInputApprove, "Approve PR", "")
+				m.textInput.SetSize(m.width-20, m.height-10)
+				return m, nil
 			} else {
 				m.statusMsg = "Approve: Select a PR first"
 			}
@@ -480,16 +473,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
-				m.statusMsg = fmt.Sprintf("Requesting changes on PR #%d...", m.currentPR.Number)
-				m.isLoading = true
-				m.loadingMessage = "Submitting change request..."
-				owner := m.gitOwner
-				repo := m.gitRepo
-				if owner == "" || repo == "" {
-					owner = "golang"
-					repo = "go"
-				}
-				return m, requestChanges(m.provider, owner, repo, m.currentPR.Number)
+				m.textInput.Show(components.TextInputRequestChanges, "Request Changes", "")
+				m.textInput.SetSize(m.width-20, m.height-10)
+				return m, nil
 			} else {
 				m.statusMsg = "Request Changes: Select a PR first"
 			}
@@ -527,6 +513,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.statusMsg = "Comment: Enter PR view first"
 			}
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.ReviewComment):
+			if m.inWorkspaceView() {
+				break
+			}
+			if m.viewState == ViewDetail && m.currentPR != nil {
+				m.textInput.Show(components.TextInputReviewComment, "Review Comment", "")
+				m.textInput.SetSize(m.width-20, m.height-10)
+				return m, nil
+			}
+			m.statusMsg = "Review Comment: Enter PR view first"
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.OpenBrowser):
@@ -721,6 +719,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case reviewResultMsg:
 		m.isLoading = false
 		m.loadingMessage = ""
+		m.textInput.Hide()
 		if msg.err != nil {
 			m.lastError = msg.err
 			m.statusMsg = fmt.Sprintf("Review action failed: %s", msg.err.Error())
@@ -730,6 +729,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.statusMsg = "PR approved successfully!"
 			case "request_changes":
 				m.statusMsg = "Changes requested successfully!"
+			case "comment":
+				m.statusMsg = "Review comment submitted!"
 			default:
 				m.statusMsg = "Review action completed"
 			}
@@ -1026,7 +1027,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  c:line comment  C:PR comment  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1209,7 +1210,7 @@ func (m *Model) pageDown() {
 
 func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 	body := m.textInput.Value()
-	if body == "" {
+	if strings.TrimSpace(body) == "" && m.textInput.Mode() != components.TextInputApprove {
 		m.statusMsg = "Comment cannot be empty"
 		return *m, nil
 	}
@@ -1220,18 +1221,20 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 		return *m, nil
 	}
 
-	// Get owner/repo
-	owner := m.gitOwner
-	repo := m.gitRepo
-	if owner == "" || repo == "" {
-		owner = "golang"
-		repo = "go"
-	}
-
-	m.isLoading = true
-	m.loadingMessage = "Submitting comment..."
+	owner, repo := m.resolvePRRepo()
 
 	mode := m.textInput.Mode()
+	m.isLoading = true
+	switch mode {
+	case components.TextInputApprove:
+		m.loadingMessage = "Submitting approval..."
+	case components.TextInputRequestChanges:
+		m.loadingMessage = "Submitting change request..."
+	case components.TextInputReviewComment:
+		m.loadingMessage = "Submitting review comment..."
+	default:
+		m.loadingMessage = "Submitting comment..."
+	}
 	if mode == components.TextInputLineComment {
 		// Parse file path and line from context
 		context := m.textInput.Context()
@@ -1265,12 +1268,46 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 		return *m, submitLineComment(m.provider, owner, repo, m.currentPR.Number, body, filePath, line)
 	} else if mode == components.TextInputGeneralComment {
 		return *m, submitGeneralComment(m.provider, owner, repo, m.currentPR.Number, body)
+	} else if mode == components.TextInputReviewComment {
+		return *m, submitReviewComment(m.provider, owner, repo, m.currentPR.Number, body)
+	} else if mode == components.TextInputApprove {
+		comment := strings.TrimSpace(body)
+		if comment == "" {
+			comment = "Approved via LazyReview"
+		}
+		return *m, approveReview(m.provider, owner, repo, m.currentPR.Number, comment)
+	} else if mode == components.TextInputRequestChanges {
+		comment := strings.TrimSpace(body)
+		if comment == "" {
+			comment = "Changes requested via LazyReview"
+		}
+		return *m, requestChanges(m.provider, owner, repo, m.currentPR.Number, comment)
 	}
 
 	m.textInput.Hide()
 	m.isLoading = false
 	m.statusMsg = "Unknown comment mode"
 	return *m, nil
+}
+
+func (m *Model) resolvePRRepo() (string, string) {
+	owner := ""
+	repo := ""
+	if m.currentPR != nil {
+		owner = m.currentPR.Repository.Owner
+		repo = m.currentPR.Repository.Name
+	}
+	if owner == "" {
+		owner = m.gitOwner
+	}
+	if repo == "" {
+		repo = m.gitRepo
+	}
+	if owner == "" || repo == "" {
+		owner = "golang"
+		repo = "go"
+	}
+	return owner, repo
 }
 
 // handleSidebarSelection handles when a sidebar item is selected
@@ -1451,22 +1488,22 @@ func fetchPRDiff(provider providers.Provider, owner, repo string, number int) te
 	}
 }
 
-func approveReview(provider providers.Provider, owner, repo string, number int) tea.Cmd {
+func approveReview(provider providers.Provider, owner, repo string, number int, body string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		err := provider.ApproveReview(ctx, owner, repo, number, "")
+		err := provider.ApproveReview(ctx, owner, repo, number, body)
 		return reviewResultMsg{action: "approve", err: err}
 	}
 }
 
-func requestChanges(provider providers.Provider, owner, repo string, number int) tea.Cmd {
+func requestChanges(provider providers.Provider, owner, repo string, number int, body string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		err := provider.RequestChanges(ctx, owner, repo, number, "Changes requested via LazyReview")
+		err := provider.RequestChanges(ctx, owner, repo, number, body)
 		return reviewResultMsg{action: "request_changes", err: err}
 	}
 }
@@ -1499,6 +1536,21 @@ func submitGeneralComment(provider providers.Provider, owner, repo string, prNum
 
 		err := provider.CreateComment(ctx, owner, repo, prNumber, comment)
 		return commentSubmitMsg{body: body, filePath: "", line: 0, err: err}
+	}
+}
+
+func submitReviewComment(provider providers.Provider, owner, repo string, prNumber int, body string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		review := models.ReviewInput{
+			Event: models.ReviewEventComment,
+			Body:  body,
+		}
+
+		err := provider.CreateReview(ctx, owner, repo, prNumber, review)
+		return reviewResultMsg{action: "comment", err: err}
 	}
 }
 

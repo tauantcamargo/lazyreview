@@ -14,6 +14,9 @@ const (
 	TextInputHidden         TextInputMode = iota
 	TextInputLineComment                  // Comment on specific line
 	TextInputGeneralComment               // General PR comment
+	TextInputReviewComment                // Review summary comment
+	TextInputApprove                      // Approve with optional summary
+	TextInputRequestChanges               // Request changes with optional summary
 )
 
 // TextInput is a component for capturing multi-line text input
@@ -77,6 +80,7 @@ func (t *TextInput) Show(mode TextInputMode, title, context string) {
 	t.title = title
 	t.context = context
 	t.visible = true
+	t.textarea.Placeholder = t.placeholderForMode(mode)
 	t.textarea.Reset()
 	t.textarea.Focus()
 }
@@ -175,4 +179,17 @@ func (t *TextInput) Focus() {
 // Blur unfocuses the text input
 func (t *TextInput) Blur() {
 	t.textarea.Blur()
+}
+
+func (t *TextInput) placeholderForMode(mode TextInputMode) string {
+	switch mode {
+	case TextInputReviewComment:
+		return "Add a review comment... (Ctrl+S to submit, Esc to cancel)"
+	case TextInputApprove:
+		return "Optional approval summary... (Ctrl+S to submit, Esc to cancel)"
+	case TextInputRequestChanges:
+		return "Describe the requested changes... (Ctrl+S to submit, Esc to cancel)"
+	default:
+		return "Enter your comment... (Ctrl+S to submit, Esc to cancel)"
+	}
 }
