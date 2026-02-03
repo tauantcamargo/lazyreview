@@ -15,6 +15,7 @@ import (
 	"lazyreview/internal/services"
 	"lazyreview/internal/storage"
 	"lazyreview/pkg/components"
+	"lazyreview/pkg/git"
 	"lazyreview/pkg/providers"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -136,6 +137,16 @@ type queueSyncMsg struct {
 	err       error
 }
 
+type gitStatusMsg struct {
+	status *git.BranchStatus
+	err    error
+}
+
+type checkoutResultMsg struct {
+	branch string
+	err    error
+}
+
 type queuedCommentPayload struct {
 	Body     string `json:"body"`
 	FilePath string `json:"file_path,omitempty"`
@@ -190,8 +201,10 @@ type Model struct {
 	authService *auth.Service
 
 	// Git context
-	gitOwner string
-	gitRepo  string
+	gitOwner        string
+	gitRepo         string
+	gitBranchStatus *git.BranchStatus
+	gitStatusErr    error
 
 	// Current view mode
 	currentViewMode ViewMode
@@ -303,6 +316,9 @@ func (m Model) Init() tea.Cmd {
 	if m.storage != nil {
 		cmds = append(cmds, loadWorkspaceTabs(m.storage))
 		cmds = append(cmds, m.queueSyncCmd())
+	}
+	if m.gitOwner != "" && m.gitRepo != "" {
+		cmds = append(cmds, m.fetchGitStatus())
 	}
 	return tea.Batch(cmds...)
 }
@@ -566,6 +582,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
+		case key.Matches(msg, m.keyMap.Checkout):
+			if m.inWorkspaceView() {
+				break
+			}
+			if m.currentPR == nil {
+				m.statusMsg = "Checkout: Select a PR first"
+				return m, nil
+			}
+			if strings.TrimSpace(m.currentPR.SourceBranch) == "" {
+				m.statusMsg = "Checkout: PR source branch unavailable"
+				return m, nil
+			}
+			m.isLoading = true
+			m.loadingMessage = fmt.Sprintf("Checking out %s...", m.currentPR.SourceBranch)
+			owner, repo := m.resolvePRRepo()
+			return m, checkoutPRBranch(m.currentPR, owner, repo)
+
 		case key.Matches(msg, m.keyMap.Refresh):
 			if m.inWorkspaceView() {
 				break
@@ -586,7 +619,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					owner = "golang"
 					repo = "go"
 				}
-				return m, m.fetchPRListCached(owner, repo)
+				return m, tea.Batch(m.fetchPRListCached(owner, repo), m.fetchGitStatus())
 			}
 			return m, nil
 
@@ -811,6 +844,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.queueSyncCmd())
 		return m, tea.Batch(cmds...)
 
+	case gitStatusMsg:
+		m.gitBranchStatus = msg.status
+		m.gitStatusErr = msg.err
+		return m, nil
+
+	case checkoutResultMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("Checkout failed: %s", msg.err.Error())
+			return m, nil
+		}
+		m.statusMsg = fmt.Sprintf("Checked out %s", msg.branch)
+		cmds = append(cmds, m.fetchGitStatus())
+		return m, tea.Batch(cmds...)
+
 	case workspaceTabsMsg:
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("Failed to load workspaces: %s", msg.err.Error())
@@ -1007,6 +1057,9 @@ func (m Model) View() string {
 	} else {
 		headerText = "LazyReview - PR Details"
 	}
+	if gitStatus := formatGitStatus(m.gitBranchStatus); gitStatus != "" {
+		headerText = fmt.Sprintf("%s | %s", headerText, gitStatus)
+	}
 	header := headerStyle.Render(headerText)
 
 	tabsView := ""
@@ -1085,7 +1138,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1348,6 +1401,16 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 	return *m, nil
 }
 
+func (m Model) fetchGitStatus() tea.Cmd {
+	if !git.IsInGitRepo() {
+		return nil
+	}
+	return func() tea.Msg {
+		status, err := git.GetBranchStatus()
+		return gitStatusMsg{status: status, err: err}
+	}
+}
+
 func (m *Model) resolvePRRepo() (string, string) {
 	owner := ""
 	repo := ""
@@ -1366,6 +1429,21 @@ func (m *Model) resolvePRRepo() (string, string) {
 		repo = "go"
 	}
 	return owner, repo
+}
+
+func resolveRemoteForRepo(ctx *git.GitContext, owner, repo string) *git.Remote {
+	if ctx == nil {
+		return nil
+	}
+	if owner != "" && repo != "" {
+		for i := range ctx.Remotes {
+			remote := &ctx.Remotes[i]
+			if strings.EqualFold(remote.Owner, owner) && strings.EqualFold(remote.Repo, repo) {
+				return remote
+			}
+		}
+	}
+	return ctx.GetPrimaryRemote()
 }
 
 func (m Model) queueSyncCmd() tea.Cmd {
@@ -1442,6 +1520,20 @@ func (m *Model) enqueueReviewAction(msg reviewResultMsg) error {
 		Payload:  string(payload),
 	}
 	return m.enqueueQueueAction(action)
+}
+
+func formatGitStatus(status *git.BranchStatus) string {
+	if status == nil || status.Branch == "" {
+		return ""
+	}
+	state := "clean"
+	if status.Dirty {
+		state = "dirty"
+	}
+	if status.Ahead > 0 || status.Behind > 0 {
+		return fmt.Sprintf("branch %s (%s ↑%d ↓%d)", status.Branch, state, status.Ahead, status.Behind)
+	}
+	return fmt.Sprintf("branch %s (%s)", status.Branch, state)
 }
 
 // handleSidebarSelection handles when a sidebar item is selected
@@ -1685,6 +1777,40 @@ func submitReviewComment(provider providers.Provider, owner, repo string, prNumb
 
 		err := provider.CreateReview(ctx, owner, repo, prNumber, review)
 		return reviewResultMsg{action: "comment", owner: owner, repo: repo, number: prNumber, body: body, err: err}
+	}
+}
+
+func checkoutPRBranch(pr *models.PullRequest, owner, repo string) tea.Cmd {
+	return func() tea.Msg {
+		if pr == nil {
+			return checkoutResultMsg{err: fmt.Errorf("no PR selected")}
+		}
+		ctx, err := git.DetectGitContext()
+		if err != nil {
+			return checkoutResultMsg{err: err}
+		}
+		if !ctx.IsGitRepo {
+			return checkoutResultMsg{err: fmt.Errorf("not in a git repository")}
+		}
+
+		remote := resolveRemoteForRepo(ctx, owner, repo)
+		if remote == nil {
+			return checkoutResultMsg{err: fmt.Errorf("no git remote found")}
+		}
+		if owner != "" && repo != "" {
+			if !strings.EqualFold(remote.Owner, owner) || !strings.EqualFold(remote.Repo, repo) {
+				return checkoutResultMsg{err: fmt.Errorf("git remote %s does not match PR repo %s/%s", remote.Name, owner, repo)}
+			}
+		}
+
+		branch := strings.TrimSpace(pr.SourceBranch)
+		if branch == "" {
+			return checkoutResultMsg{err: fmt.Errorf("PR source branch unavailable")}
+		}
+		if err := git.CheckoutBranch(ctx.RootPath, remote.Name, branch, branch); err != nil {
+			return checkoutResultMsg{err: err}
+		}
+		return checkoutResultMsg{branch: branch}
 	}
 }
 
