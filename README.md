@@ -15,7 +15,10 @@ LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/l
 - **Multi-Provider Support** - GitHub, GitLab, Bitbucket, Azure DevOps (cloud & self-hosted)
 - **Vim-Style Navigation** - `j/k`, `h/l`, `gg`, `G`, `Ctrl+d/u` and more
 - **Inline Diff Viewing** - Syntax-highlighted diffs with file-by-file navigation
-- **Review Actions** - Approve, request changes, comment, merge, and manage labels
+- **Review Actions** - Approve, request changes, line comments, general comments, and review comments
+- **Workspaces & Dashboard** - Group repos and get a multi-repo overview
+- **Offline Queue** - Automatically retries review actions and comments when you're back online
+- **Local Git Integration** - Auto-detect repo, show branch status, checkout PR branch
 - **Secure Authentication** - Tokens stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 - **Cross-Platform** - Linux, macOS, and Windows binaries available
 
@@ -98,7 +101,10 @@ lazyreview start
 | `{` / `}` | Previous / next hunk |
 | `a` | Approve PR |
 | `r` | Request changes |
-| `c` | Add comment |
+| `c` | Line comment |
+| `C` | General PR comment |
+| `v` | Review comment |
+| `Shift+c` | Checkout PR branch |
 | `?` | Show help |
 | `q` | Quit / Go back |
 
@@ -206,6 +212,9 @@ lazyreview/
 │   ├── auth/                # Authentication system
 │   ├── config/              # Configuration management
 │   ├── gui/                 # Main TUI application
+│   ├── queue/               # Offline action queue
+│   ├── services/            # Aggregation + caching helpers
+│   ├── storage/             # SQLite storage layer
 │   └── models/              # Data models
 ├── pkg/
 │   ├── components/          # Reusable UI components
@@ -213,6 +222,7 @@ lazyreview/
 │   │   ├── filetree.go     # File tree
 │   │   ├── help.go         # Help overlay
 │   │   └── list.go         # List component
+│   ├── git/                 # Local git helpers
 │   └── providers/           # Git provider adapters
 │       ├── github/         # GitHub implementation
 │       ├── gitlab/         # GitLab implementation
@@ -265,10 +275,12 @@ go test ./...
 - [x] Advanced filtering (by author, state, labels, etc.)
 - [x] Provider org/repo listing extensions
 - [x] Inline commenting (c key) and general comments (C key)
+- [x] Review comments (v key)
+- [x] Local git integration (branch status + checkout)
+- [x] Dashboard view (multi-repo)
+- [x] Workspace management UI
+- [x] Offline queue for comments/approvals
 - [x] Split/unified diff view toggle (d key)
-- [ ] Dashboard view (multi-repo)
-- [ ] Workspace management UI
-- [ ] Offline queue for comments/approvals
 - [ ] Custom themes
 
 ## Contributing
