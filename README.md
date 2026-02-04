@@ -108,6 +108,7 @@ lazyreview start
 | `c` | Line comment |
 | `C` | General PR comment |
 | `v` | Review comment |
+| `s` | Generate PR summary draft |
 | `t` | Toggle comments panel |
 | `y` | Reply to selected comment |
 | `e` | Edit selected inline comment |

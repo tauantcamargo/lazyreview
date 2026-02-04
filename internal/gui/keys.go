@@ -39,6 +39,7 @@ type KeyMap struct {
 	EditComment    key.Binding
 	DeleteComment  key.Binding
 	ResolveComment key.Binding
+	DraftSummary   key.Binding
 	AIReview       key.Binding
 	Update         key.Binding
 	OpenBrowser    key.Binding
@@ -165,6 +166,10 @@ func DefaultKeyMap() KeyMap {
 		ResolveComment: key.NewBinding(
 			key.WithKeys("z"),
 			key.WithHelp("z", "resolve thread"),
+		),
+		DraftSummary: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "draft summary"),
 		),
 		AIReview: key.NewBinding(
 			key.WithKeys("A"),

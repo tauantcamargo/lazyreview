@@ -163,6 +163,11 @@ type updateCheckMsg struct {
 	err     error
 }
 
+type summaryDraftMsg struct {
+	summary string
+	err     error
+}
+
 type updateResultMsg struct {
 	result updater.UpdateResult
 	err    error
@@ -294,6 +299,7 @@ type Model struct {
 	prList       []models.PullRequest
 	comments     []models.Comment
 	commentsList components.List
+	reviewDraft  string
 
 	// Loading states
 	isLoading      bool
@@ -697,6 +703,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
 				m.textInput.Show(components.TextInputReviewComment, "Review Comment", "")
+				if strings.TrimSpace(m.reviewDraft) != "" {
+					m.textInput.SetValue(m.reviewDraft)
+				}
 				m.textInput.SetSize(m.width-20, m.height-10)
 				return m, nil
 			}
@@ -789,6 +798,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loadingMessage = "Resolving thread..."
 			owner, repo := m.resolvePRRepo()
 			return m, submitResolveComment(m.provider, owner, repo, m.currentPR.Number, commentID)
+
+		case key.Matches(msg, m.keyMap.DraftSummary):
+			if m.inWorkspaceView() {
+				break
+			}
+			if m.viewState != ViewDetail || m.currentPR == nil || m.currentDiff == nil {
+				m.statusMsg = "Summary: Open a PR diff first"
+				return m, nil
+			}
+			m.isLoading = true
+			m.loadingMessage = "Generating review summary draft..."
+			return m, m.generateSummaryDraft()
 
 		case key.Matches(msg, m.keyMap.AIReview):
 			if m.inWorkspaceView() {
@@ -1219,6 +1240,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case summaryDraftMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("Summary failed: %s", msg.err.Error())
+			return m, nil
+		}
+		m.reviewDraft = msg.summary
+		m.statusMsg = "Review summary draft ready (press v to edit/post)"
+		return m, nil
+
 	case commentSubmitMsg:
 		m.isLoading = false
 		m.loadingMessage = ""
@@ -1560,7 +1593,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  V:select range  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  O:open editor  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  V:select range  a:approve  r:request changes  v:review comment  s:draft summary  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  O:open editor  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1667,6 +1700,7 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "  c: line or range comment")
 		lines = append(lines, "  C: general PR comment")
 		lines = append(lines, "  v: review comment")
+		lines = append(lines, "  s: generate review summary draft")
 		lines = append(lines, "  a: approve")
 		lines = append(lines, "  r: request changes")
 		lines = append(lines, "  A: AI review (current file)")
@@ -1795,6 +1829,7 @@ func (m *Model) enterDetailViewFromPR(selectedPR models.PullRequest) tea.Cmd {
 	m.isLoading = true
 	m.loadingMessage = fmt.Sprintf("Loading PR #%d...", prNumber)
 	m.comments = nil
+	m.reviewDraft = ""
 	m.diffViewer.SetComments(nil)
 	m.commentsList.SetItems(nil)
 	m.applyLayout(m.width, m.height)
@@ -1833,6 +1868,7 @@ func (m *Model) exitDetailView() {
 	m.currentDiff = nil
 	m.currentFiles = nil
 	m.comments = nil
+	m.reviewDraft = ""
 	m.diffViewer.SetComments(nil)
 	m.commentsList.SetItems(nil)
 	m.statusMsg = ""
@@ -2053,6 +2089,40 @@ func (m *Model) startAIReview() tea.Cmd {
 		defer cancel()
 		resp, err := provider.Review(ctx, req)
 		return aiReviewResultMsg{response: resp, err: err}
+	}
+}
+
+func (m *Model) generateSummaryDraft() tea.Cmd {
+	if m.currentPR == nil || m.currentDiff == nil {
+		return nil
+	}
+	diff := m.currentDiff
+	files := m.currentFiles
+	useAI := m.aiProvider != nil
+	title := m.currentPR.Title
+	manual := buildManualSummary(m.currentPR, diff, files)
+	diffInput := fmt.Sprintf(
+		"Summarize this PR in concise bullet points (scope, key changes, risks):\n\nTitle: %s\n\n%s",
+		title,
+		buildDiffExcerpt(diff),
+	)
+	return func() tea.Msg {
+		if useAI {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			req := ai.ReviewRequest{
+				FilePath: "PR_SUMMARY",
+				Diff:     diffInput,
+			}
+			resp, err := m.aiProvider.Review(ctx, req)
+			if err == nil {
+				summary := strings.TrimSpace(resp.Comment)
+				if summary != "" {
+					return summaryDraftMsg{summary: summary}
+				}
+			}
+		}
+		return summaryDraftMsg{summary: manual}
 	}
 }
 
@@ -3291,6 +3361,60 @@ func (m *Model) collectAllRepos() []storage.RepoRef {
 	}
 
 	return repos
+}
+
+func buildManualSummary(pr *models.PullRequest, diff *models.Diff, files []models.FileChange) string {
+	if pr == nil || diff == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("## Summary\n")
+	b.WriteString(fmt.Sprintf("- %s\n", strings.TrimSpace(pr.Title)))
+	b.WriteString(fmt.Sprintf("- Files changed: %d\n", len(diff.Files)))
+	b.WriteString(fmt.Sprintf("- Diff stats: +%d / -%d\n", diff.Additions, diff.Deletions))
+	if len(files) > 0 {
+		b.WriteString("- Key files:\n")
+		limit := 5
+		if len(files) < limit {
+			limit = len(files)
+		}
+		for i := 0; i < limit; i++ {
+			f := files[i]
+			b.WriteString(fmt.Sprintf("  - `%s` (+%d/-%d)\n", f.Filename, f.Additions, f.Deletions))
+		}
+	}
+	b.WriteString("\n## Review Notes\n- [ ] Confirm edge cases and error handling\n- [ ] Validate tests cover changed paths\n")
+	return b.String()
+}
+
+func buildDiffExcerpt(diff *models.Diff) string {
+	if diff == nil {
+		return ""
+	}
+	var b strings.Builder
+	maxFiles := 8
+	if len(diff.Files) < maxFiles {
+		maxFiles = len(diff.Files)
+	}
+	for i := 0; i < maxFiles; i++ {
+		file := diff.Files[i]
+		b.WriteString(fmt.Sprintf("File: %s (+%d/-%d)\n", file.Path, file.Additions, file.Deletions))
+		patch := strings.TrimSpace(file.Patch)
+		if patch == "" {
+			continue
+		}
+		lines := strings.Split(patch, "\n")
+		limit := 30
+		if len(lines) < limit {
+			limit = len(lines)
+		}
+		for j := 0; j < limit; j++ {
+			b.WriteString(lines[j])
+			b.WriteByte('\n')
+		}
+		b.WriteByte('\n')
+	}
+	return b.String()
 }
 
 func parseDigitKey(key string) (int, bool) {
