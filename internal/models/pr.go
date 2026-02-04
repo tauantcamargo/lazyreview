@@ -37,6 +37,9 @@ type PullRequest struct {
 	// TargetBranch is the branch being merged into
 	TargetBranch string
 
+	// HeadSHA is the latest commit SHA on the source branch
+	HeadSHA string
+
 	// Repository is the repository this PR belongs to
 	Repository Repository
 

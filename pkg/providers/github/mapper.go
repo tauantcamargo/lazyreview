@@ -24,6 +24,7 @@ func mapPullRequest(pr *github.PullRequest) *models.PullRequest {
 		State:        mapPRState(pr),
 		IsDraft:      toBool(pr.Draft),
 		SourceBranch: pr.Head.GetRef(),
+		HeadSHA:      pr.Head.GetSHA(),
 		TargetBranch: pr.Base.GetRef(),
 		Additions:    toInt(pr.Additions),
 		Deletions:    toInt(pr.Deletions),

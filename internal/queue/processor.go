@@ -20,6 +20,8 @@ type commentPayload struct {
 	Body     string `json:"body"`
 	FilePath string `json:"file_path,omitempty"`
 	Line     int    `json:"line,omitempty"`
+	Side     string `json:"side,omitempty"`
+	CommitID string `json:"commit_id,omitempty"`
 }
 
 type reviewPayload struct {
@@ -68,7 +70,12 @@ func executeAction(ctx context.Context, provider providers.Provider, action stor
 		if payload.FilePath != "" && payload.Line > 0 {
 			comment.Path = payload.FilePath
 			comment.Line = payload.Line
-			comment.Side = models.DiffSideRight
+			if payload.Side != "" {
+				comment.Side = models.DiffSide(payload.Side)
+			} else {
+				comment.Side = models.DiffSideRight
+			}
+			comment.CommitID = payload.CommitID
 		}
 		return provider.CreateComment(ctx, action.Owner, action.Repo, action.PRNumber, comment)
 	case storage.QueueActionApprove:

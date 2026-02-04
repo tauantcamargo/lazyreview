@@ -168,6 +168,9 @@ func (p *Provider) CreateComment(ctx context.Context, owner, repo string, number
 			side := string(comment.Side)
 			ghComment.Side = &side
 		}
+		if comment.CommitID != "" {
+			ghComment.CommitID = &comment.CommitID
+		}
 
 		_, _, err := p.client.PullRequests.CreateComment(ctx, owner, repo, number, ghComment)
 		if err != nil {

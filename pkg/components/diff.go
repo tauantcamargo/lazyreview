@@ -123,6 +123,7 @@ type DiffViewer struct {
 type lineInfo struct {
 	filePath string
 	lineNo   int
+	side     models.DiffSide
 	isCode   bool // false for headers, true for actual code lines
 }
 
@@ -252,7 +253,7 @@ func (d *DiffViewer) renderUnifiedView() {
 		header := d.renderFileHeader(file, i == d.currentFile)
 		content.WriteString(header)
 		content.WriteString("\n")
-		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
 		currentLine++
 
 		// Determine filename for syntax highlighting
@@ -288,13 +289,13 @@ func (d *DiffViewer) renderUnifiedView() {
 			content.WriteString(patchContent)
 			patchLines := strings.Count(patchContent, "\n")
 			for j := 0; j < patchLines; j++ {
-				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
 			}
 			currentLine += patchLines
 		}
 
 		content.WriteString("\n")
-		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
 		currentLine++
 	}
 
@@ -302,7 +303,7 @@ func (d *DiffViewer) renderUnifiedView() {
 		notice := d.hunkStyle.Render("Diff truncated for performance. Open in browser for full diff.")
 		content.WriteString(notice)
 		content.WriteString("\n")
-		lineMapping = append(lineMapping, lineInfo{filePath: "", lineNo: 0, isCode: false})
+		lineMapping = append(lineMapping, lineInfo{filePath: "", lineNo: 0, side: "", isCode: false})
 		currentLine++
 	}
 
@@ -330,7 +331,7 @@ func (d *DiffViewer) renderSplitView() {
 		header := d.renderFileHeader(file, i == d.currentFile)
 		content.WriteString(header)
 		content.WriteString("\n")
-		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
 		currentLine++
 
 		filename := file.Path
@@ -350,7 +351,7 @@ func (d *DiffViewer) renderSplitView() {
 			header := d.hunkStyle.Render(hunk.Header)
 			content.WriteString(header)
 			content.WriteString("\n")
-			lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+			lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
 			currentLine++
 
 			// Split lines into old (left) and new (right)
@@ -394,15 +395,17 @@ func (d *DiffViewer) renderSplitView() {
 					rightLine = strings.Repeat(" ", halfWidth)
 				}
 
-				// Use the new line number for mapping (right side)
+				// Prefer right side unless only left exists
 				lineNo := rightLineNo
+				side := models.DiffSideRight
 				if lineNo == 0 {
 					lineNo = leftLineNo
+					side = models.DiffSideLeft
 				}
 
 				content.WriteString(leftLine + " │ " + rightLine)
 				content.WriteString("\n")
-				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: lineNo, isCode: true})
+				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: lineNo, side: side, isCode: true})
 				currentLine++
 				if currentLine >= d.maxLines {
 					truncated = true
@@ -420,7 +423,7 @@ func (d *DiffViewer) renderSplitView() {
 		}
 
 		content.WriteString("\n")
-		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, isCode: false})
+		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
 		currentLine++
 	}
 
@@ -428,7 +431,7 @@ func (d *DiffViewer) renderSplitView() {
 		notice := d.hunkStyle.Render("Diff truncated for performance. Open in browser for full diff.")
 		content.WriteString(notice)
 		content.WriteString("\n")
-		lineMapping = append(lineMapping, lineInfo{filePath: "", lineNo: 0, isCode: false})
+		lineMapping = append(lineMapping, lineInfo{filePath: "", lineNo: 0, side: "", isCode: false})
 		currentLine++
 	}
 
@@ -510,7 +513,7 @@ func (d *DiffViewer) renderHunk(hunk models.Hunk, filename string) (string, []li
 	header := d.hunkStyle.Render(hunk.Header)
 	content.WriteString(header)
 	content.WriteString("\n")
-	lineMapping = append(lineMapping, lineInfo{filePath: filename, lineNo: 0, isCode: false})
+	lineMapping = append(lineMapping, lineInfo{filePath: filename, lineNo: 0, side: "", isCode: false})
 
 	// Lines
 	for _, line := range hunk.Lines {
@@ -519,12 +522,15 @@ func (d *DiffViewer) renderHunk(hunk models.Hunk, filename string) (string, []li
 
 		// Use new line number for mapping, fallback to old if new is not available
 		lineNo := line.NewLineNo
+		side := models.DiffSideRight
 		if lineNo == 0 {
 			lineNo = line.OldLineNo
+			side = models.DiffSideLeft
 		}
 		lineMapping = append(lineMapping, lineInfo{
 			filePath: filename,
 			lineNo:   lineNo,
+			side:     side,
 			isCode:   true,
 		})
 	}
@@ -717,24 +723,24 @@ func (d *DiffViewer) FileCount() int {
 }
 
 // CurrentLineInfo returns information about the current line in the viewport
-func (d *DiffViewer) CurrentLineInfo() (filePath string, lineNo int, isCode bool) {
+func (d *DiffViewer) CurrentLineInfo() (filePath string, lineNo int, side models.DiffSide, isCode bool) {
 	// Get current viewport offset + first visible line
 	currentOffset := d.viewport.YOffset
 
 	if currentOffset < 0 || currentOffset >= len(d.lineMapping) {
-		return "", 0, false
+		return "", 0, "", false
 	}
 
 	info := d.lineMapping[currentOffset]
-	return info.filePath, info.lineNo, info.isCode
+	return info.filePath, info.lineNo, info.side, info.isCode
 }
 
 // GetLineInfoAt returns information about a specific line in the viewport
-func (d *DiffViewer) GetLineInfoAt(offset int) (filePath string, lineNo int, isCode bool) {
+func (d *DiffViewer) GetLineInfoAt(offset int) (filePath string, lineNo int, side models.DiffSide, isCode bool) {
 	if offset < 0 || offset >= len(d.lineMapping) {
-		return "", 0, false
+		return "", 0, "", false
 	}
 
 	info := d.lineMapping[offset]
-	return info.filePath, info.lineNo, info.isCode
+	return info.filePath, info.lineNo, info.side, info.isCode
 }

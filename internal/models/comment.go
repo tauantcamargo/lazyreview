@@ -89,6 +89,9 @@ type CommentInput struct {
 	// StartLine is the start line for multi-line comments
 	StartLine int
 
+	// CommitID is the SHA for the commit being commented on (provider-specific)
+	CommitID string
+
 	// InReplyTo is the ID of the comment to reply to
 	InReplyTo string
 }

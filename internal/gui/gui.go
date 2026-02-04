@@ -110,6 +110,8 @@ type commentSubmitMsg struct {
 	body     string
 	filePath string // empty for general comment
 	line     int    // 0 for general comment
+	side     models.DiffSide
+	commitID string
 	owner    string
 	repo     string
 	number   int
@@ -151,6 +153,8 @@ type queuedCommentPayload struct {
 	Body     string `json:"body"`
 	FilePath string `json:"file_path,omitempty"`
 	Line     int    `json:"line,omitempty"`
+	Side     string `json:"side,omitempty"`
+	CommitID string `json:"commit_id,omitempty"`
 }
 
 type queuedReviewPayload struct {
@@ -531,9 +535,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
 				// Line comment - get current line from diff viewer
-				filePath, lineNo, isCode := m.diffViewer.CurrentLineInfo()
+				filePath, lineNo, side, isCode := m.diffViewer.CurrentLineInfo()
 				if isCode && lineNo > 0 {
-					context := fmt.Sprintf("%s:%d", filePath, lineNo)
+					context := fmt.Sprintf("%s:%d:%s", filePath, lineNo, side)
 					m.textInput.Show(components.TextInputLineComment, "Comment on line", context)
 					m.textInput.SetSize(m.width-20, m.height-10)
 					return m, nil
@@ -1349,16 +1353,8 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 	if mode == components.TextInputLineComment {
 		// Parse file path and line from context
 		context := m.textInput.Context()
-		// Context format is "filepath:line"
-		// Split by last colon to handle file paths with colons
-		lastColon := -1
-		for i := len(context) - 1; i >= 0; i-- {
-			if context[i] == ':' {
-				lastColon = i
-				break
-			}
-		}
-
+		// Context format is "filepath:line:side" (side optional)
+		lastColon := strings.LastIndex(context, ":")
 		if lastColon == -1 {
 			m.statusMsg = "Invalid line context format"
 			m.textInput.Hide()
@@ -1366,9 +1362,24 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 			return *m, nil
 		}
 
-		filePath := context[:lastColon]
+		sideValue := ""
+		fileAndLine := context
+		if lastColon != -1 {
+			sideValue = context[lastColon+1:]
+			fileAndLine = context[:lastColon]
+		}
+
+		lineColon := strings.LastIndex(fileAndLine, ":")
+		if lineColon == -1 {
+			m.statusMsg = "Invalid line context format"
+			m.textInput.Hide()
+			m.isLoading = false
+			return *m, nil
+		}
+
+		filePath := fileAndLine[:lineColon]
 		var line int
-		_, err := fmt.Sscanf(context[lastColon+1:], "%d", &line)
+		_, err := fmt.Sscanf(fileAndLine[lineColon+1:], "%d", &line)
 		if err != nil {
 			m.statusMsg = fmt.Sprintf("Failed to parse line number: %s", err.Error())
 			m.textInput.Hide()
@@ -1376,7 +1387,17 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 			return *m, nil
 		}
 
-		return *m, submitLineComment(m.provider, owner, repo, m.currentPR.Number, body, filePath, line)
+		side := models.DiffSide(strings.ToUpper(strings.TrimSpace(sideValue)))
+		if side != models.DiffSideLeft && side != models.DiffSideRight {
+			side = models.DiffSideRight
+		}
+
+		commitID := ""
+		if m.currentPR != nil {
+			commitID = m.currentPR.HeadSHA
+		}
+
+		return *m, submitLineComment(m.provider, owner, repo, m.currentPR.Number, body, filePath, line, side, commitID)
 	} else if mode == components.TextInputGeneralComment {
 		return *m, submitGeneralComment(m.provider, owner, repo, m.currentPR.Number, body)
 	} else if mode == components.TextInputReviewComment {
@@ -1482,6 +1503,8 @@ func (m *Model) enqueueCommentAction(msg commentSubmitMsg) error {
 		Body:     msg.body,
 		FilePath: msg.filePath,
 		Line:     msg.line,
+		Side:     string(msg.side),
+		CommitID: msg.commitID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to encode comment payload: %w", err)
@@ -1734,20 +1757,31 @@ func requestChanges(provider providers.Provider, owner, repo string, number int,
 	}
 }
 
-func submitLineComment(provider providers.Provider, owner, repo string, prNumber int, body, path string, line int) tea.Cmd {
+func submitLineComment(provider providers.Provider, owner, repo string, prNumber int, body, path string, line int, side models.DiffSide, commitID string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		comment := models.CommentInput{
-			Body: body,
-			Path: path,
-			Line: line,
-			Side: models.DiffSideRight, // Comment on the new/right side by default
+			Body:     body,
+			Path:     path,
+			Line:     line,
+			Side:     side,
+			CommitID: commitID,
 		}
 
 		err := provider.CreateComment(ctx, owner, repo, prNumber, comment)
-		return commentSubmitMsg{body: body, filePath: path, line: line, owner: owner, repo: repo, number: prNumber, err: err}
+		return commentSubmitMsg{
+			body:     body,
+			filePath: path,
+			line:     line,
+			side:     side,
+			commitID: commitID,
+			owner:    owner,
+			repo:     repo,
+			number:   prNumber,
+			err:      err,
+		}
 	}
 }
 
@@ -1761,7 +1795,13 @@ func submitGeneralComment(provider providers.Provider, owner, repo string, prNum
 		}
 
 		err := provider.CreateComment(ctx, owner, repo, prNumber, comment)
-		return commentSubmitMsg{body: body, filePath: "", line: 0, owner: owner, repo: repo, number: prNumber, err: err}
+		return commentSubmitMsg{
+			body:   body,
+			owner:  owner,
+			repo:   repo,
+			number: prNumber,
+			err:    err,
+		}
 	}
 }
 
