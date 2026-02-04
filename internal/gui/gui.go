@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"lazyreview/internal/ai"
 	"lazyreview/internal/auth"
 	"lazyreview/internal/config"
 	"lazyreview/internal/gui/views"
@@ -124,6 +125,11 @@ type replyResultMsg struct {
 	err       error
 }
 
+type aiReviewResultMsg struct {
+	response ai.ReviewResponse
+	err      error
+}
+
 type commentSubmitMsg struct {
 	body     string
 	filePath string // empty for general comment
@@ -221,6 +227,8 @@ type Model struct {
 	// Provider and auth
 	provider    providers.Provider
 	authService *auth.Service
+	aiProvider  ai.Provider
+	aiError     error
 
 	// Git context
 	gitOwner        string
@@ -296,11 +304,14 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	prDetailCache := services.NewCache[*models.PullRequest](2 * time.Minute)
 	prFilesCache := services.NewCache[[]models.FileChange](2 * time.Minute)
 	prDiffCache := services.NewCache[*models.Diff](2 * time.Minute)
+	aiProvider, aiErr := ai.NewProviderFromEnv()
 
 	return Model{
 		config:           cfg,
 		provider:         provider,
 		authService:      authService,
+		aiProvider:       aiProvider,
+		aiError:          aiErr,
 		storage:          store,
 		gitOwner:         owner,
 		gitRepo:          repo,
@@ -658,6 +669,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.textInput.SetSize(m.width-20, m.height-10)
 			return m, nil
 
+		case key.Matches(msg, m.keyMap.AIReview):
+			if m.inWorkspaceView() {
+				break
+			}
+			if m.viewState != ViewDetail || m.currentDiff == nil || m.currentPR == nil {
+				m.statusMsg = "AI Review: Open a PR diff first"
+				return m, nil
+			}
+			if m.aiProvider == nil {
+				if m.aiError != nil {
+					m.statusMsg = fmt.Sprintf("AI Review unavailable: %s", m.aiError.Error())
+				} else {
+					m.statusMsg = "AI Review unavailable: provider not configured"
+				}
+				return m, nil
+			}
+			m.isLoading = true
+			m.loadingMessage = "Running AI review..."
+			return m, m.startAIReview()
+
 		case key.Matches(msg, m.keyMap.OpenBrowser):
 			if m.inWorkspaceView() {
 				break
@@ -915,6 +946,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.statusMsg = "Reply posted"
 		return m, m.refreshComments()
+
+	case aiReviewResultMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("AI review failed: %s", msg.err.Error())
+			return m, nil
+		}
+		comment := strings.TrimSpace(msg.response.Comment)
+		if comment == "" {
+			comment = "AI review via LazyReview"
+		}
+		owner, repo := m.resolvePRRepo()
+		switch msg.response.Decision {
+		case ai.DecisionApprove:
+			m.statusMsg = "AI recommends approval. Submitting..."
+			return m, approveReview(m.provider, owner, repo, m.currentPR.Number, comment)
+		case ai.DecisionRequestChanges:
+			m.statusMsg = "AI recommends changes. Submitting..."
+			return m, requestChanges(m.provider, owner, repo, m.currentPR.Number, comment)
+		default:
+			m.statusMsg = "AI review comment submitted"
+			return m, submitReviewComment(m.provider, owner, repo, m.currentPR.Number, comment)
+		}
 
 	case commentSubmitMsg:
 		m.isLoading = false
@@ -1254,7 +1310,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  y:reply  t:comments  shift+c:checkout  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  y:reply  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1580,6 +1636,52 @@ func (m *Model) refreshComments() tea.Cmd {
 	return fetchPRComments(m.provider, owner, repo, m.currentPR.Number)
 }
 
+func (m *Model) startAIReview() tea.Cmd {
+	req, err := m.buildAIReviewRequest()
+	if err != nil {
+		return func() tea.Msg {
+			return aiReviewResultMsg{err: err}
+		}
+	}
+	provider := m.aiProvider
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		resp, err := provider.Review(ctx, req)
+		return aiReviewResultMsg{response: resp, err: err}
+	}
+}
+
+func (m *Model) buildAIReviewRequest() (ai.ReviewRequest, error) {
+	if m.currentDiff == nil || len(m.currentDiff.Files) == 0 {
+		return ai.ReviewRequest{}, fmt.Errorf("diff not loaded")
+	}
+
+	selectedPath := ""
+	if m.detailSidebarMode == DetailSidebarFiles && m.activePanel == PanelFiles {
+		selectedPath = m.fileTree.SelectedPath()
+	}
+	if selectedPath == "" {
+		selectedPath = m.diffViewer.CurrentFilePath()
+	}
+
+	file, err := findFileDiff(m.currentDiff, selectedPath, m.diffViewer.CurrentFile())
+	if err != nil {
+		return ai.ReviewRequest{}, err
+	}
+
+	diffText := buildDiffForFile(*file)
+	if strings.TrimSpace(diffText) == "" {
+		return ai.ReviewRequest{}, fmt.Errorf("no diff content available")
+	}
+
+	path := file.Path
+	if path == "" {
+		path = file.OldPath
+	}
+	return ai.ReviewRequest{FilePath: path, Diff: diffText}, nil
+}
+
 func (m *Model) resolvePRRepo() (string, string) {
 	owner := ""
 	repo := ""
@@ -1745,6 +1847,47 @@ func (m *Model) findCommentByID(id string) *models.Comment {
 		}
 	}
 	return nil
+}
+
+func findFileDiff(diff *models.Diff, path string, fallbackIndex int) (*models.FileDiff, error) {
+	if diff == nil || len(diff.Files) == 0 {
+		return nil, fmt.Errorf("no files in diff")
+	}
+	if path != "" {
+		for i := range diff.Files {
+			file := &diff.Files[i]
+			if file.Path == path || file.OldPath == path {
+				return file, nil
+			}
+		}
+	}
+	if fallbackIndex >= 0 && fallbackIndex < len(diff.Files) {
+		return &diff.Files[fallbackIndex], nil
+	}
+	return &diff.Files[0], nil
+}
+
+func buildDiffForFile(file models.FileDiff) string {
+	if strings.TrimSpace(file.Patch) != "" {
+		return file.Patch
+	}
+	var b strings.Builder
+	if file.OldPath != "" || file.Path != "" {
+		b.WriteString(fmt.Sprintf("--- %s\n", file.OldPath))
+		b.WriteString(fmt.Sprintf("+++ %s\n", file.Path))
+	}
+	for _, hunk := range file.Hunks {
+		if hunk.Header != "" {
+			b.WriteString(hunk.Header)
+			b.WriteString("\n")
+		}
+		for _, line := range hunk.Lines {
+			b.WriteString(line.Type.Prefix())
+			b.WriteString(line.Content)
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
 }
 
 // handleSidebarSelection handles when a sidebar item is selected
