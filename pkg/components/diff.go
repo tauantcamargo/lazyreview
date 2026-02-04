@@ -120,6 +120,14 @@ type DiffViewer struct {
 	maxLines      int
 	filePositions []int // Line offsets where each file starts
 
+	// View caching to avoid expensive recomputation on unrelated updates
+	contentVersion int
+	cachedVersion  int
+	cachedView     string
+	cachedYOffset  int
+	cachedWidth    int
+	cachedHeight   int
+
 	// Styles
 	addedStyle   lipgloss.Style
 	deletedStyle lipgloss.Style
@@ -177,6 +185,7 @@ func (d *DiffViewer) SetDiff(diff *models.Diff) {
 	d.cursor = 0
 	d.selectionOn = false
 	d.selectionFrom = 0
+	d.invalidateCache()
 	d.render()
 	d.scrollToFile(d.currentFile)
 }
@@ -364,7 +373,19 @@ func (d DiffViewer) View() string {
 	if d.diff == nil || len(d.files) == 0 {
 		return "No diff to display"
 	}
-	return d.viewport.View()
+	if d.cachedVersion == d.contentVersion &&
+		d.cachedYOffset == d.viewport.YOffset &&
+		d.cachedWidth == d.viewport.Width &&
+		d.cachedHeight == d.viewport.Height {
+		return d.cachedView
+	}
+	view := d.viewport.View()
+	d.cachedView = view
+	d.cachedVersion = d.contentVersion
+	d.cachedYOffset = d.viewport.YOffset
+	d.cachedWidth = d.viewport.Width
+	d.cachedHeight = d.viewport.Height
+	return view
 }
 
 // render renders the diff content
@@ -373,6 +394,7 @@ func (d *DiffViewer) render() {
 		d.viewport.SetContent("No diff to display")
 		d.hunkPositions = nil
 		d.lineMapping = nil
+		d.bumpContentVersion()
 		return
 	}
 
@@ -472,6 +494,7 @@ func (d *DiffViewer) renderUnifiedView() {
 	d.lineMapping = lineMapping
 	d.clampCursor()
 	d.viewport.SetContent(content.String())
+	d.bumpContentVersion()
 }
 
 func (d *DiffViewer) renderSplitView() {
@@ -624,6 +647,7 @@ func (d *DiffViewer) renderSplitView() {
 	d.lineMapping = lineMapping
 	d.clampCursor()
 	d.viewport.SetContent(content.String())
+	d.bumpContentVersion()
 }
 
 func (d *DiffViewer) renderSplitLine(line models.DiffLine, filename string, width int, isLeft bool) string {
@@ -990,6 +1014,16 @@ func (d *DiffViewer) clampCursor() {
 		d.cursor = len(d.lineMapping) - 1
 	}
 	d.ensureCursorVisible()
+}
+
+func (d *DiffViewer) bumpContentVersion() {
+	d.contentVersion++
+	d.invalidateCache()
+}
+
+func (d *DiffViewer) invalidateCache() {
+	d.cachedVersion = -1
+	d.cachedView = ""
 }
 
 func (d *DiffViewer) applyCursorHighlight(content string, startLine int) string {

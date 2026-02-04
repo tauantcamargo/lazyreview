@@ -225,6 +225,16 @@ func (p *Provider) ReplyToComment(ctx context.Context, owner, repo string, numbe
 	return nil
 }
 
+// EditComment edits an existing comment
+func (p *Provider) EditComment(ctx context.Context, owner, repo string, number int, commentID string, commentType models.CommentType, body string) error {
+	return providers.ErrUnsupported
+}
+
+// DeleteComment deletes an existing comment
+func (p *Provider) DeleteComment(ctx context.Context, owner, repo string, number int, commentID string, commentType models.CommentType) error {
+	return providers.ErrUnsupported
+}
+
 // ResolveComment marks a comment thread as resolved
 func (p *Provider) ResolveComment(ctx context.Context, owner, repo string, number int, commentID string) error {
 	if p.client == nil {

@@ -59,6 +59,12 @@ type Provider interface {
 	// ReplyToComment replies to an existing comment
 	ReplyToComment(ctx context.Context, owner, repo string, number int, commentID string, body string) error
 
+	// EditComment edits an existing comment
+	EditComment(ctx context.Context, owner, repo string, number int, commentID string, commentType models.CommentType, body string) error
+
+	// DeleteComment deletes an existing comment
+	DeleteComment(ctx context.Context, owner, repo string, number int, commentID string, commentType models.CommentType) error
+
 	// ResolveComment marks a comment thread as resolved (if supported)
 	ResolveComment(ctx context.Context, owner, repo string, number int, commentID string) error
 

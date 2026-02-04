@@ -220,6 +220,60 @@ func (p *Provider) ReplyToComment(ctx context.Context, owner, repo string, numbe
 	return nil
 }
 
+// EditComment edits an existing comment
+func (p *Provider) EditComment(ctx context.Context, owner, repo string, number int, commentID string, commentType models.CommentType, body string) error {
+	if p.client == nil {
+		return providers.ErrNotAuthenticated
+	}
+
+	id, err := strconv.ParseInt(commentID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid comment ID: %w", err)
+	}
+
+	switch commentType {
+	case models.CommentTypeGeneral:
+		issueComment := &github.IssueComment{
+			Body: &body,
+		}
+		_, _, err = p.client.Issues.EditComment(ctx, owner, repo, id, issueComment)
+	default:
+		prComment := &github.PullRequestComment{
+			Body: &body,
+		}
+		_, _, err = p.client.PullRequests.EditComment(ctx, owner, repo, id, prComment)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to edit comment: %w", err)
+	}
+	return nil
+}
+
+// DeleteComment deletes an existing comment
+func (p *Provider) DeleteComment(ctx context.Context, owner, repo string, number int, commentID string, commentType models.CommentType) error {
+	if p.client == nil {
+		return providers.ErrNotAuthenticated
+	}
+
+	id, err := strconv.ParseInt(commentID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid comment ID: %w", err)
+	}
+
+	switch commentType {
+	case models.CommentTypeGeneral:
+		_, err = p.client.Issues.DeleteComment(ctx, owner, repo, id)
+	default:
+		_, err = p.client.PullRequests.DeleteComment(ctx, owner, repo, id)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to delete comment: %w", err)
+	}
+	return nil
+}
+
 // ResolveComment marks a comment thread as resolved
 // Note: GitHub doesn't have native comment resolution via REST API,
 // this would require GraphQL API
