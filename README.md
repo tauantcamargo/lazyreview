@@ -14,14 +14,18 @@ LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/l
 
 - **Multi-Provider Support** - GitHub, GitLab, Bitbucket, Azure DevOps (cloud & self-hosted)
 - **Navigation Modes** - Vim-style by default, with optional arrows-only mode
-- **Inline Diff Viewing** - Syntax-highlighted diffs with file-by-file navigation
+- **Inline Diff Viewing** - Syntax-highlighted unified/split diffs with hunk navigation
+- **Diff Search & Jump** - Search inside diff (`/`) and jump matches with `n`/`N`
 - **Review Actions** - Approve, request changes, line comments, general comments, and review comments
 - **Workspaces & Dashboard** - Group repos and get a multi-repo overview
+- **Saved Filters** - Save PR list filters and quick-switch them with a palette
 - **Offline Queue** - Automatically retries review actions and comments when you're back online
 - **Local Git Integration** - Auto-detect repo, show branch status, checkout PR branch
-- **Comments Panel** - Browse PR comments, including replies, and manage threads inline
+- **Comments & Threads** - Reply, edit, delete, resolve, preview, and jump to comment lines
+- **Timeline Sidebar** - Compact PR activity timeline (reviews and comment activity)
 - **Theme Presets** - Switch between `auto`, `darcula`, `tokyonight`, `gruvbox`, and `catppuccin` in Settings
-- **In-App Setup** - Configure provider tokens, switch active provider, and choose AI review provider/key from Settings
+- **In-App Setup** - Configure provider tokens, switch active provider, and choose AI provider/key from Settings
+- **CLI AI Setup** - Configure AI provider/key from terminal (`lazyreview ai login/status/logout`)
 - **AI-Assisted Review** - Run AI review on the current file and submit approve/request changes/comment
 - **Range Selection** - Select multiple lines in the diff and comment on the whole block
 - **Secure Authentication** - Tokens stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
@@ -92,7 +96,14 @@ lazyreview auth login --provider azuredevops
 lazyreview start
 ```
 
-### 3. Navigate and review
+### 3. (Optional) Configure AI for in-app review
+
+```bash
+lazyreview ai login --provider openai
+lazyreview ai status
+```
+
+### 4. Navigate and review
 
 | Key | Action |
 |-----|--------|
@@ -281,7 +292,14 @@ go test ./...
 
 ## AI Review Setup
 
-Set environment variables before launching:
+Preferred (stored securely in keyring):
+
+```bash
+lazyreview ai login --provider openai
+lazyreview ai status
+```
+
+Alternative (environment variables):
 
 ```bash
 export LAZYREVIEW_AI_PROVIDER=openai
@@ -290,6 +308,16 @@ export LAZYREVIEW_AI_API_KEY=your_key
 export LAZYREVIEW_AI_MODEL=gpt-4o-mini
 export LAZYREVIEW_AI_BASE_URL=https://api.openai.com/v1
 ```
+
+Remove stored key:
+
+```bash
+lazyreview ai logout
+```
+
+Troubleshooting:
+- If AI still shows unavailable after setting a key, run `lazyreview ai status` to verify provider/key visibility.
+- LazyReview loads AI key in this order: `LAZYREVIEW_AI_API_KEY` env var, OS keyring, then local app fallback storage.
 
 ## Roadmap
 
@@ -320,7 +348,12 @@ export LAZYREVIEW_AI_BASE_URL=https://api.openai.com/v1
 - [x] AI-assisted review (OpenAI-compatible)
 - [x] Multi-line diff selection for comments
 - [x] Split/unified diff view toggle (d key)
-- [ ] Custom themes
+- [x] Theme presets (auto, darcula, tokyonight, gruvbox, catppuccin)
+- [x] Diff search and jump (/, n, N)
+- [x] PR timeline view
+- [x] Saved filters and quick switch
+- [x] In-app AI provider/key setup
+- [x] CLI AI login/status/logout
 
 ## Contributing
 

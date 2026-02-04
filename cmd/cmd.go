@@ -460,6 +460,39 @@ func aiProviderCredentialKey(provider string) string {
 	return fmt.Sprintf("ai:%s:token", name)
 }
 
+const aiKeyringTimeout = 3 * time.Second
+
+func aiKeyringSetWithTimeout(store *keyring.Store, key, value string) error {
+	ch := make(chan error, 1)
+	go func() {
+		ch <- store.Set(key, value)
+	}()
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(aiKeyringTimeout):
+		return fmt.Errorf("keyring set timeout")
+	}
+}
+
+func aiKeyringGetWithTimeout(store *keyring.Store, key string) (string, error) {
+	type result struct {
+		value string
+		err   error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		v, err := store.Get(key)
+		ch <- result{value: v, err: err}
+	}()
+	select {
+	case res := <-ch:
+		return res.value, res.err
+	case <-time.After(aiKeyringTimeout):
+		return "", fmt.Errorf("keyring get timeout")
+	}
+}
+
 func aiLoginAction(providerName, apiKey string) error {
 	providerName = strings.ToLower(strings.TrimSpace(providerName))
 	if providerName == "" {
@@ -485,43 +518,46 @@ func aiLoginAction(providerName, apiKey string) error {
 		return fmt.Errorf("API key cannot be empty")
 	}
 
-	store, err := keyring.NewDefaultStore()
-	if err != nil {
-		return fmt.Errorf("failed to initialize credential store: %w", err)
-	}
-	if err := store.Set("ai:api_key", apiKey); err != nil {
-		return fmt.Errorf("failed to store AI API key: %w", err)
-	}
-	if err := store.Set(aiProviderCredentialKey(providerName), apiKey); err != nil {
-		return fmt.Errorf("failed to store provider AI API key: %w", err)
-	}
-	if err := store.Set("ai:provider", providerName); err != nil {
-		return fmt.Errorf("failed to store AI provider: %w", err)
+	keyringErr := error(nil)
+	if store, err := keyring.NewDefaultStore(); err == nil {
+		if err := aiKeyringSetWithTimeout(store, "ai:api_key", apiKey); err == nil {
+			_ = aiKeyringSetWithTimeout(store, aiProviderCredentialKey(providerName), apiKey)
+			_ = aiKeyringSetWithTimeout(store, "ai:provider", providerName)
+		} else {
+			keyringErr = err
+		}
+	} else {
+		keyringErr = err
 	}
 
 	sqlStore, err := storage.DefaultStorage()
 	if err == nil {
 		defer sqlStore.Close()
 		_ = sqlStore.SetSetting("ai.provider", providerName)
+		_ = sqlStore.SetSetting("ai.api_key", apiKey)
+	} else if keyringErr != nil {
+		return fmt.Errorf("failed to store AI key in keyring (%v) and could not open fallback storage: %w", keyringErr, err)
 	}
 
+	if keyringErr != nil {
+		fmt.Printf("! Keyring unavailable, stored AI key in local app storage instead: %v\n", keyringErr)
+	}
 	fmt.Printf("✓ AI provider configured: %s\n", providerName)
 	return nil
 }
 
 func aiLogoutAction() error {
-	store, err := keyring.NewDefaultStore()
-	if err != nil {
-		return fmt.Errorf("failed to initialize credential store: %w", err)
+	if store, err := keyring.NewDefaultStore(); err == nil {
+		_ = store.Delete("ai:api_key")
+		_ = store.Delete("ai:provider")
+		_ = store.Delete(aiProviderCredentialKey("openai"))
 	}
-	_ = store.Delete("ai:api_key")
-	_ = store.Delete("ai:provider")
-	_ = store.Delete(aiProviderCredentialKey("openai"))
 
 	sqlStore, err := storage.DefaultStorage()
 	if err == nil {
 		defer sqlStore.Close()
 		_ = sqlStore.SetSetting("ai.provider", "none")
+		_ = sqlStore.SetSetting("ai.api_key", "")
 	}
 
 	fmt.Println("✓ AI API key removed")
@@ -529,19 +565,28 @@ func aiLogoutAction() error {
 }
 
 func aiStatusAction() error {
-	store, err := keyring.NewDefaultStore()
-	if err != nil {
-		return fmt.Errorf("failed to initialize credential store: %w", err)
-	}
 	provider := "none"
-	if p, pErr := store.Get("ai:provider"); pErr == nil && strings.TrimSpace(p) != "" {
-		provider = strings.TrimSpace(p)
-	}
 	hasKey := false
-	if _, keyErr := store.Get(aiProviderCredentialKey(provider)); keyErr == nil {
-		hasKey = true
-	} else if _, keyErr := store.Get("ai:api_key"); keyErr == nil {
-		hasKey = true
+	if store, err := keyring.NewDefaultStore(); err == nil {
+		if p, pErr := aiKeyringGetWithTimeout(store, "ai:provider"); pErr == nil && strings.TrimSpace(p) != "" {
+			provider = strings.TrimSpace(p)
+		}
+		if _, keyErr := aiKeyringGetWithTimeout(store, aiProviderCredentialKey(provider)); keyErr == nil {
+			hasKey = true
+		} else if _, keyErr := aiKeyringGetWithTimeout(store, "ai:api_key"); keyErr == nil {
+			hasKey = true
+		}
+	}
+	if sqlStore, err := storage.DefaultStorage(); err == nil {
+		defer sqlStore.Close()
+		if p, pErr := sqlStore.GetSetting("ai.provider"); pErr == nil && strings.TrimSpace(p) != "" {
+			provider = strings.TrimSpace(p)
+		}
+		if !hasKey {
+			if key, keyErr := sqlStore.GetSetting("ai.api_key"); keyErr == nil && strings.TrimSpace(key) != "" {
+				hasKey = true
+			}
+		}
 	}
 	fmt.Println("AI Configuration")
 	fmt.Println("================")

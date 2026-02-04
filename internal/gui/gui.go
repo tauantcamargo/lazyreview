@@ -4234,16 +4234,78 @@ func (m *Model) aiProviderNameStorageKey() string {
 	return "ai:provider"
 }
 
+func (m *Model) aiKeyFallbackStorageKey() string {
+	return "ai.api_key"
+}
+
+const aiKeyringOpTimeout = 3 * time.Second
+
+func aiKeyringGetWithTimeout(store *keyring.Store, key string) (string, error) {
+	type result struct {
+		value string
+		err   error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		value, err := store.Get(key)
+		ch <- result{value: value, err: err}
+	}()
+	select {
+	case res := <-ch:
+		return res.value, res.err
+	case <-time.After(aiKeyringOpTimeout):
+		return "", fmt.Errorf("keyring get timeout")
+	}
+}
+
+func aiKeyringSetWithTimeout(store *keyring.Store, key, value string) error {
+	ch := make(chan error, 1)
+	go func() {
+		ch <- store.Set(key, value)
+	}()
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(aiKeyringOpTimeout):
+		return fmt.Errorf("keyring set timeout")
+	}
+}
+
+func aiKeyringDeleteWithTimeout(store *keyring.Store, key string) error {
+	ch := make(chan error, 1)
+	go func() {
+		ch <- store.Delete(key)
+	}()
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(aiKeyringOpTimeout):
+		return fmt.Errorf("keyring delete timeout")
+	}
+}
+
 func (m *Model) hasAIKey() bool {
 	store, err := m.aiKeyStore()
 	if err != nil {
-		return false
+		if m.storage != nil {
+			if v, storageErr := m.storage.GetSetting(m.aiKeyFallbackStorageKey()); storageErr == nil && strings.TrimSpace(v) != "" {
+				return true
+			}
+		}
+		return strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_API_KEY")) != ""
 	}
-	if _, err = store.Get(m.aiKeyStorageKey()); err == nil {
+	if _, err = aiKeyringGetWithTimeout(store, m.aiKeyStorageKey()); err == nil {
 		return true
 	}
-	_, err = store.Get(m.aiProviderKeyStorageKey())
-	return err == nil
+	if _, err = aiKeyringGetWithTimeout(store, m.aiProviderKeyStorageKey()); err == nil {
+		return true
+	}
+	if m.storage != nil {
+		if v, storageErr := m.storage.GetSetting(m.aiKeyFallbackStorageKey()); storageErr == nil && strings.TrimSpace(v) != "" {
+			return true
+		}
+	}
+	return strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_API_KEY")) != ""
 }
 
 func (m *Model) setAIProvider(name string) error {
@@ -4268,44 +4330,67 @@ func (m *Model) setAIKey(value string) error {
 			_ = m.storage.SetSetting("ai.provider", "openai")
 		}
 	}
-	store, err := m.aiKeyStore()
-	if err != nil {
-		return err
-	}
 	clean := strings.TrimSpace(value)
-	if err := store.Set(m.aiKeyStorageKey(), clean); err != nil {
-		return err
+	if clean == "" {
+		return fmt.Errorf("AI API key cannot be empty")
 	}
-	if err := store.Set(m.aiProviderKeyStorageKey(), clean); err != nil {
-		return err
+	store, err := m.aiKeyStore()
+	if err == nil {
+		if err := aiKeyringSetWithTimeout(store, m.aiKeyStorageKey(), clean); err == nil {
+			_ = aiKeyringSetWithTimeout(store, m.aiProviderKeyStorageKey(), clean)
+			_ = aiKeyringSetWithTimeout(store, m.aiProviderNameStorageKey(), m.aiProviderName)
+			if m.storage != nil {
+				_ = m.storage.SetSetting(m.aiKeyFallbackStorageKey(), clean)
+			}
+			return m.reloadAIProvider()
+		}
 	}
-	_ = store.Set(m.aiProviderNameStorageKey(), m.aiProviderName)
+	if m.storage == nil {
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("unable to save AI API key")
+	}
+	if storageErr := m.storage.SetSetting(m.aiKeyFallbackStorageKey(), clean); storageErr != nil {
+		if err != nil {
+			return fmt.Errorf("failed to save AI key (keyring: %v, fallback: %w)", err, storageErr)
+		}
+		return storageErr
+	}
 	return m.reloadAIProvider()
 }
 
 func (m *Model) clearAIKey() error {
 	store, err := m.aiKeyStore()
-	if err != nil {
-		return err
+	if err == nil {
+		if err := aiKeyringDeleteWithTimeout(store, m.aiKeyStorageKey()); err != nil && err != keyring.ErrNotFound {
+			return err
+		}
+		if err := aiKeyringDeleteWithTimeout(store, m.aiProviderKeyStorageKey()); err != nil && err != keyring.ErrNotFound {
+			return err
+		}
+		if err := aiKeyringDeleteWithTimeout(store, m.aiProviderNameStorageKey()); err != nil && err != keyring.ErrNotFound {
+			return err
+		}
 	}
-	if err := store.Delete(m.aiKeyStorageKey()); err != nil && err != keyring.ErrNotFound {
-		return err
-	}
-	if err := store.Delete(m.aiProviderKeyStorageKey()); err != nil && err != keyring.ErrNotFound {
-		return err
-	}
-	if err := store.Delete(m.aiProviderNameStorageKey()); err != nil && err != keyring.ErrNotFound {
-		return err
+	if m.storage != nil {
+		_ = m.storage.SetSetting(m.aiKeyFallbackStorageKey(), "")
 	}
 	return m.reloadAIProvider()
 }
 
 func (m *Model) reloadAIProvider() error {
+	if envProvider := strings.ToLower(strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_PROVIDER"))); envProvider != "" {
+		m.aiProviderName = envProvider
+	}
 	if m.aiProviderName == "" || m.aiProviderName == "none" {
 		if store, err := m.aiKeyStore(); err == nil {
-			if providerName, providerErr := store.Get(m.aiProviderNameStorageKey()); providerErr == nil && strings.TrimSpace(providerName) != "" && strings.TrimSpace(providerName) != "none" {
+			if providerName, providerErr := aiKeyringGetWithTimeout(store, m.aiProviderNameStorageKey()); providerErr == nil && strings.TrimSpace(providerName) != "" && strings.TrimSpace(providerName) != "none" {
 				m.aiProviderName = strings.TrimSpace(providerName)
 			}
+		}
+		if (m.aiProviderName == "" || m.aiProviderName == "none") && strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_API_KEY")) != "" {
+			m.aiProviderName = "openai"
 		}
 	}
 	if m.aiProviderName == "" || m.aiProviderName == "none" {
@@ -4313,19 +4398,38 @@ func (m *Model) reloadAIProvider() error {
 		m.aiError = fmt.Errorf("AI provider disabled")
 		return nil
 	}
-	store, err := m.aiKeyStore()
-	if err != nil {
-		m.aiProvider = nil
-		m.aiError = err
-		return err
+	apiKey := strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_API_KEY"))
+	if apiKey == "" {
+		store, err := m.aiKeyStore()
+		if err == nil {
+			key, keyErr := aiKeyringGetWithTimeout(store, m.aiProviderKeyStorageKey())
+			if keyErr == nil {
+				apiKey = strings.TrimSpace(key)
+			} else if !errors.Is(keyErr, keyring.ErrNotFound) {
+				m.aiError = fmt.Errorf("failed to read AI key from keyring: %w", keyErr)
+			}
+			if apiKey == "" {
+				key, keyErr = aiKeyringGetWithTimeout(store, m.aiKeyStorageKey())
+				if keyErr == nil {
+					apiKey = strings.TrimSpace(key)
+				} else if !errors.Is(keyErr, keyring.ErrNotFound) {
+					m.aiError = fmt.Errorf("failed to read AI key from keyring: %w", keyErr)
+				}
+			}
+		} else {
+			m.aiError = fmt.Errorf("failed to access AI keyring: %w", err)
+		}
 	}
-	apiKey, err := store.Get(m.aiProviderKeyStorageKey())
-	if err != nil {
-		apiKey, err = store.Get(m.aiKeyStorageKey())
+	if apiKey == "" && m.storage != nil {
+		if v, err := m.storage.GetSetting(m.aiKeyFallbackStorageKey()); err == nil {
+			apiKey = strings.TrimSpace(v)
+		}
 	}
-	if err != nil {
+	if apiKey == "" {
 		m.aiProvider = nil
-		m.aiError = fmt.Errorf("AI API key not configured")
+		if m.aiError == nil {
+			m.aiError = fmt.Errorf("AI API key not configured")
+		}
 		return m.aiError
 	}
 	provider, err := ai.NewProviderFromConfig(m.aiProviderName, apiKey, m.aiModel, "")
@@ -4340,9 +4444,15 @@ func (m *Model) reloadAIProvider() error {
 }
 
 func (m *Model) loadPersistedAISettings() {
+	envProvider := strings.ToLower(strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_PROVIDER")))
+	if envProvider != "" {
+		m.aiProviderName = envProvider
+	}
 	if m.storage != nil {
-		if provider, err := m.storage.GetSetting("ai.provider"); err == nil && strings.TrimSpace(provider) != "" {
-			m.aiProviderName = strings.TrimSpace(provider)
+		if envProvider == "" {
+			if provider, err := m.storage.GetSetting("ai.provider"); err == nil && strings.TrimSpace(provider) != "" {
+				m.aiProviderName = strings.TrimSpace(provider)
+			}
 		}
 		if model, err := m.storage.GetSetting("ai.model"); err == nil && strings.TrimSpace(model) != "" {
 			m.aiModel = strings.TrimSpace(model)
@@ -4350,12 +4460,20 @@ func (m *Model) loadPersistedAISettings() {
 	}
 	if strings.TrimSpace(m.aiProviderName) == "" {
 		if store, err := m.aiKeyStore(); err == nil {
-			if provider, providerErr := store.Get(m.aiProviderNameStorageKey()); providerErr == nil && strings.TrimSpace(provider) != "" {
+			if provider, providerErr := aiKeyringGetWithTimeout(store, m.aiProviderNameStorageKey()); providerErr == nil && strings.TrimSpace(provider) != "" {
 				m.aiProviderName = strings.TrimSpace(provider)
-			} else if _, keyErr := store.Get(m.aiKeyStorageKey()); keyErr == nil {
+			} else if _, keyErr := aiKeyringGetWithTimeout(store, m.aiKeyStorageKey()); keyErr == nil {
 				m.aiProviderName = "openai"
 			}
 		}
+	}
+	if strings.TrimSpace(m.aiProviderName) == "" && m.storage != nil {
+		if key, err := m.storage.GetSetting(m.aiKeyFallbackStorageKey()); err == nil && strings.TrimSpace(key) != "" {
+			m.aiProviderName = "openai"
+		}
+	}
+	if strings.TrimSpace(m.aiProviderName) == "" && strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_API_KEY")) != "" {
+		m.aiProviderName = "openai"
 	}
 	if strings.TrimSpace(m.aiProviderName) == "" {
 		m.aiProviderName = "none"
