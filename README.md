@@ -200,6 +200,7 @@ default_provider: github
 ui:
   theme: auto
   vim_mode: true
+  editor: "" # optional, fallback: git core.editor -> $EDITOR -> vim
   show_checks: true
 
 keybindings:

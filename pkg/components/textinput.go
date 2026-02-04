@@ -21,6 +21,7 @@ const (
 	TextInputEditComment                  // Edit an existing comment
 	TextInputProviderToken                // Provider auth token input
 	TextInputAIKey                        // AI API key input
+	TextInputEditorCommand                // Preferred editor command
 )
 
 // TextInput is a component for capturing multi-line text input
@@ -211,6 +212,8 @@ func (t *TextInput) placeholderForMode(mode TextInputMode) string {
 		return "Paste provider token... (Ctrl+S to save, Esc to cancel)"
 	case TextInputAIKey:
 		return "Paste AI API key... (Ctrl+S to save, Esc to cancel)"
+	case TextInputEditorCommand:
+		return "Enter editor command (e.g., nvim, code --wait)... (Ctrl+S save)"
 	default:
 		return "Enter Markdown comment... (Tab indents, Ctrl+S submit, Esc cancel)"
 	}

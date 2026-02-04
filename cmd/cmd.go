@@ -590,6 +590,7 @@ ui:
   paging: true
   show_checks: true
   vim_mode: true
+  editor: ""
 
 # Providers (uncomment and configure)
 # providers:

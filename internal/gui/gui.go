@@ -296,6 +296,7 @@ type Model struct {
 	currentViewMode ViewMode
 	currentTheme    string
 	vimMode         bool
+	editorCommand   string
 	updateAvailable bool
 	updateVersion   string
 	accentColor     string
@@ -397,6 +398,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		currentViewMode:        initialViewMode,
 		currentTheme:           cfg.UI.Theme,
 		vimMode:                cfg.UI.VimMode,
+		editorCommand:          strings.TrimSpace(cfg.UI.Editor),
 		commentPreviewExpanded: true,
 		sidebar:                sidebar,
 		content:                content,
@@ -924,7 +926,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.statusMsg = "Open in editor: Select a file first"
 				return m, nil
 			}
-			return m, openFileInEditor(path, line)
+			return m, openFileInEditor(m.resolveEditorCommand(), path, line)
 
 		case key.Matches(msg, m.keyMap.Checkout):
 			if m.inWorkspaceView() {
@@ -1996,7 +1998,9 @@ func (m *Model) pageDown() {
 
 func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 	body := m.textInput.Value()
-	if strings.TrimSpace(body) == "" && m.textInput.Mode() != components.TextInputApprove {
+	if strings.TrimSpace(body) == "" &&
+		m.textInput.Mode() != components.TextInputApprove &&
+		m.textInput.Mode() != components.TextInputEditorCommand {
 		m.statusMsg = "Comment cannot be empty"
 		return *m, nil
 	}
@@ -2022,6 +2026,8 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 		m.loadingMessage = "Updating comment..."
 	case components.TextInputProviderToken, components.TextInputAIKey:
 		m.loadingMessage = "Saving settings..."
+	case components.TextInputEditorCommand:
+		m.loadingMessage = "Saving editor..."
 	default:
 		m.loadingMessage = "Submitting comment..."
 	}
@@ -2175,6 +2181,20 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 		m.textInput.Hide()
 		m.isLoading = false
 		m.statusMsg = "AI API key saved"
+		m.content.SetItems(m.buildSettingsItems())
+		return *m, nil
+	} else if mode == components.TextInputEditorCommand {
+		m.editorCommand = strings.TrimSpace(body)
+		if m.storage != nil {
+			_ = m.storage.SetSetting("ui.editor", m.editorCommand)
+		}
+		m.textInput.Hide()
+		m.isLoading = false
+		if m.editorCommand == "" {
+			m.statusMsg = "Editor set to auto fallback"
+		} else {
+			m.statusMsg = fmt.Sprintf("Editor set to %s", m.editorCommand)
+		}
 		m.content.SetItems(m.buildSettingsItems())
 		return *m, nil
 	}
@@ -3012,7 +3032,7 @@ func submitResolveComment(provider providers.Provider, owner, repo string, prNum
 	}
 }
 
-func openFileInEditor(path string, line int) tea.Cmd {
+func openFileInEditor(editorCmd, path string, line int) tea.Cmd {
 	return func() tea.Msg {
 		cleanPath := filepath.Clean(strings.TrimSpace(path))
 		if cleanPath == "" {
@@ -3022,17 +3042,20 @@ func openFileInEditor(path string, line int) tea.Cmd {
 			return openEditorResultMsg{path: cleanPath, line: line, err: err}
 		}
 
-		editor := strings.TrimSpace(os.Getenv("EDITOR"))
+		editor := strings.TrimSpace(editorCmd)
 		if editor == "" {
 			editor = "vim"
 		}
 
-		var cmd *exec.Cmd
-		if line > 0 {
-			cmd = exec.Command(editor, fmt.Sprintf("+%d", line), cleanPath)
-		} else {
-			cmd = exec.Command(editor, cleanPath)
+		parts := strings.Fields(editor)
+		if len(parts) == 0 {
+			parts = []string{"vim"}
 		}
+		bin := parts[0]
+		args := append([]string{}, parts[1:]...)
+		args = append(args, editorLineArgs(bin, cleanPath, line)...)
+
+		cmd := exec.Command(bin, args...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -3040,6 +3063,46 @@ func openFileInEditor(path string, line int) tea.Cmd {
 			return openEditorResultMsg{path: cleanPath, line: line, err: err}
 		}
 		return openEditorResultMsg{path: cleanPath, line: line, err: nil}
+	}
+}
+
+func (m *Model) resolveEditorCommand() string {
+	if strings.TrimSpace(m.editorCommand) != "" {
+		return strings.TrimSpace(m.editorCommand)
+	}
+	if gitEditor := detectGitEditor(); gitEditor != "" {
+		return gitEditor
+	}
+	if editor := strings.TrimSpace(os.Getenv("EDITOR")); editor != "" {
+		return editor
+	}
+	if visual := strings.TrimSpace(os.Getenv("VISUAL")); visual != "" {
+		return visual
+	}
+	return "vim"
+}
+
+func detectGitEditor() string {
+	cmd := exec.Command("git", "config", "--get", "core.editor")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func editorLineArgs(bin, path string, line int) []string {
+	if line <= 0 {
+		return []string{path}
+	}
+	lower := strings.ToLower(filepath.Base(bin))
+	switch lower {
+	case "code", "code-insiders", "cursor", "windsurf":
+		return []string{"-g", fmt.Sprintf("%s:%d", path, line)}
+	case "zed":
+		return []string{fmt.Sprintf("%s:%d", path, line)}
+	default:
+		return []string{fmt.Sprintf("+%d", line), path}
 	}
 }
 
@@ -3395,6 +3458,25 @@ func (m *Model) buildSettingsItems() []list.Item {
 		navDesc = "Current: vim + arrows"
 	}
 	items = append(items, components.NewSimpleItem("nav:vim_toggle", "Navigation Mode", navDesc))
+	editorDesc := "Auto (git config -> $EDITOR -> vim)"
+	if strings.TrimSpace(m.editorCommand) != "" {
+		editorDesc = "Current: " + strings.TrimSpace(m.editorCommand)
+	}
+	items = append(items, components.NewSimpleItem("section:editor", "Editor", editorDesc))
+	for _, editor := range []string{"auto", "nvim", "vim", "code --wait", "cursor --wait", "hx", "nano"} {
+		desc := "Set preferred editor"
+		if strings.TrimSpace(editor) == "" && strings.TrimSpace(m.editorCommand) == "" {
+			desc = "Current editor"
+		}
+		if editor == "auto" && strings.TrimSpace(m.editorCommand) == "" {
+			desc = "Current editor"
+		}
+		if editor != "auto" && strings.TrimSpace(editor) == strings.TrimSpace(m.editorCommand) {
+			desc = "Current editor"
+		}
+		items = append(items, components.NewSimpleItem("editor:set:"+editor, "Editor: "+editor, desc))
+	}
+	items = append(items, components.NewSimpleItem("editor:set:custom", "Editor: custom...", "Enter a custom editor command"))
 	for _, name := range availableThemes() {
 		label := themeDisplayName(name)
 		if name == "auto" {
@@ -3445,6 +3527,30 @@ func (m *Model) handleSettingsSelection() {
 			m.statusMsg = "Navigation mode: vim + arrows"
 		} else {
 			m.statusMsg = "Navigation mode: arrows only"
+		}
+		m.content.SetItems(m.buildSettingsItems())
+		return
+	}
+	if strings.HasPrefix(id, "editor:set:") {
+		value := strings.TrimPrefix(id, "editor:set:")
+		if value == "custom" {
+			m.textInput.Show(components.TextInputEditorCommand, "Set Editor Command", strings.TrimSpace(m.editorCommand))
+			m.textInput.SetValue(strings.TrimSpace(m.editorCommand))
+			m.textInput.SetSize(m.width-20, m.height-10)
+			return
+		}
+		if value == "auto" {
+			m.editorCommand = ""
+			if m.storage != nil {
+				_ = m.storage.SetSetting("ui.editor", "")
+			}
+			m.statusMsg = "Editor set to auto fallback"
+		} else {
+			m.editorCommand = strings.TrimSpace(value)
+			if m.storage != nil {
+				_ = m.storage.SetSetting("ui.editor", m.editorCommand)
+			}
+			m.statusMsg = fmt.Sprintf("Editor set to %s", m.editorCommand)
 		}
 		m.content.SetItems(m.buildSettingsItems())
 		return
@@ -3735,6 +3841,9 @@ func (m *Model) loadPersistedAISettings() {
 func (m *Model) loadPersistedUISettings() {
 	if m.storage == nil {
 		return
+	}
+	if editor, err := m.storage.GetSetting("ui.editor"); err == nil {
+		m.editorCommand = strings.TrimSpace(editor)
 	}
 	v, err := m.storage.GetSetting("ui.vim_mode")
 	if err != nil {
