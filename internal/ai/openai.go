@@ -157,8 +157,8 @@ func (p *openAIProvider) reviewWithLimit(ctx context.Context, req ReviewRequest,
 	}
 
 	content := strings.TrimSpace(decoded.Choices[0].Message.Content)
-	var envelope reviewEnvelope
-	if err := json.Unmarshal([]byte(content), &envelope); err != nil {
+	envelope, err := parseReviewEnvelope(content)
+	if err != nil {
 		return ReviewResponse{}, fmt.Errorf("failed to parse AI response: %w", err)
 	}
 
@@ -173,6 +173,76 @@ func (p *openAIProvider) reviewWithLimit(ctx context.Context, req ReviewRequest,
 		Decision: decision,
 		Comment:  strings.TrimSpace(envelope.Comment),
 	}, nil
+}
+
+func parseReviewEnvelope(content string) (reviewEnvelope, error) {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return reviewEnvelope{}, errors.New("empty AI response")
+	}
+
+	// Try strict JSON first.
+	var envelope reviewEnvelope
+	if err := json.Unmarshal([]byte(trimmed), &envelope); err == nil {
+		return normalizeEnvelope(envelope, trimmed), nil
+	}
+
+	// Handle fenced markdown blocks: ```json ... ```
+	if strings.HasPrefix(trimmed, "```") {
+		lines := strings.Split(trimmed, "\n")
+		if len(lines) >= 2 {
+			start := 1
+			end := len(lines)
+			if strings.HasPrefix(strings.TrimSpace(lines[len(lines)-1]), "```") {
+				end--
+			}
+			block := strings.TrimSpace(strings.Join(lines[start:end], "\n"))
+			if err := json.Unmarshal([]byte(block), &envelope); err == nil {
+				return normalizeEnvelope(envelope, block), nil
+			}
+			trimmed = block
+		}
+	}
+
+	// Fallback: find first JSON object in mixed text.
+	start := strings.Index(trimmed, "{")
+	end := strings.LastIndex(trimmed, "}")
+	if start >= 0 && end > start {
+		candidate := strings.TrimSpace(trimmed[start : end+1])
+		if err := json.Unmarshal([]byte(candidate), &envelope); err == nil {
+			return normalizeEnvelope(envelope, candidate), nil
+		}
+	}
+
+	// Final fallback: interpret free-form text instead of failing.
+	return reviewEnvelope{
+		Decision: inferDecisionFromText(trimmed),
+		Comment:  trimmed,
+	}, nil
+}
+
+func normalizeEnvelope(envelope reviewEnvelope, fallbackComment string) reviewEnvelope {
+	envelope.Decision = strings.TrimSpace(envelope.Decision)
+	envelope.Comment = strings.TrimSpace(envelope.Comment)
+	if envelope.Comment == "" {
+		envelope.Comment = strings.TrimSpace(fallbackComment)
+	}
+	if envelope.Decision == "" {
+		envelope.Decision = inferDecisionFromText(envelope.Comment)
+	}
+	return envelope
+}
+
+func inferDecisionFromText(text string) string {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	switch {
+	case strings.Contains(lower, "request changes"), strings.Contains(lower, "changes requested"), strings.Contains(lower, "blocker"):
+		return string(DecisionRequestChanges)
+	case strings.Contains(lower, "approve"), strings.Contains(lower, "approved"), strings.Contains(lower, "lgtm"):
+		return string(DecisionApprove)
+	default:
+		return string(DecisionComment)
+	}
 }
 
 func truncateForAI(diff string, maxChars int) (string, bool) {
