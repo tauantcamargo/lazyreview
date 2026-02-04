@@ -157,6 +157,12 @@ type openEditorResultMsg struct {
 	err  error
 }
 
+type updateCheckMsg struct {
+	current string
+	latest  string
+	err     error
+}
+
 type updateResultMsg struct {
 	result updater.UpdateResult
 	err    error
@@ -275,6 +281,8 @@ type Model struct {
 	// Current view mode
 	currentViewMode ViewMode
 	currentTheme    string
+	updateAvailable bool
+	updateVersion   string
 
 	// Detail view sidebar mode
 	detailSidebarMode DetailSidebarMode
@@ -397,6 +405,7 @@ func (m Model) Init() tea.Cmd {
 	}
 	// Start spinner and fetch PRs
 	cmds := []tea.Cmd{m.spinner.Tick, fetchUserPRs(m.provider, opts)}
+	cmds = append(cmds, checkForUpdates())
 	if m.storage != nil {
 		cmds = append(cmds, loadWorkspaceTabs(m.storage))
 		cmds = append(cmds, m.queueSyncCmd())
@@ -1191,6 +1200,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = fmt.Sprintf("Updated to %s. Restart LazyReview.", msg.result.Version)
 		} else {
 			m.statusMsg = "Update complete. Restart LazyReview."
+		}
+		return m, nil
+
+	case updateCheckMsg:
+		if msg.err != nil {
+			return m, nil
+		}
+		current := strings.TrimSpace(msg.current)
+		latest := strings.TrimSpace(msg.latest)
+		if latest == "" || current == "" || current == "(devel)" {
+			return m, nil
+		}
+		if current != latest {
+			m.updateAvailable = true
+			m.updateVersion = latest
+			m.refreshSidebarItems()
 		}
 		return m, nil
 
@@ -2578,6 +2603,19 @@ func fetchCurrentUser(provider providers.Provider) tea.Cmd {
 	}
 }
 
+func checkForUpdates() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+		defer cancel()
+		latest, err := updater.LatestVersion(ctx)
+		return updateCheckMsg{
+			current: updater.CurrentVersion(),
+			latest:  latest,
+			err:     err,
+		}
+	}
+}
+
 func fetchDashboardData(aggregator *services.Aggregator, repos []storage.RepoRef, currentUser string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -3056,6 +3094,14 @@ func (m *Model) switchSidebarView(itemID string) tea.Cmd {
 }
 
 func (m *Model) refreshSidebarItems() {
+	settingsLabel := "Settings"
+	if m.updateAvailable {
+		if m.updateVersion != "" {
+			settingsLabel = fmt.Sprintf("Settings (update %s)", m.updateVersion)
+		} else {
+			settingsLabel = "Settings (update)"
+		}
+	}
 	items := []list.Item{
 		components.NewSimpleItem("dashboard", "Dashboard", "Grouped PR overview"),
 		components.NewSimpleItem("my_prs", m.sidebarLabel("My PRs", "my_prs"), "PRs you authored (all repos)"),
@@ -3063,7 +3109,7 @@ func (m *Model) refreshSidebarItems() {
 		components.NewSimpleItem("assigned_to_me", m.sidebarLabel("Assigned to Me", "assigned_to_me"), "PRs assigned to you"),
 		components.NewSimpleItem("current_repo", "Current Repo", "PRs in detected repo"),
 		components.NewSimpleItem("workspaces", "Workspaces", "Create and manage repo groups"),
-		components.NewSimpleItem("settings", "Settings", "Configure LazyReview"),
+		components.NewSimpleItem("settings", settingsLabel, "Configure LazyReview"),
 	}
 	selectedID := ""
 	if selectedItem := m.sidebar.SelectedItem(); selectedItem != nil {

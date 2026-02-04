@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -37,6 +38,24 @@ type UpdateResult struct {
 	Updated   bool
 	Version   string
 	AssetName string
+}
+
+// CurrentVersion returns the build version when available.
+func CurrentVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok || info == nil {
+		return ""
+	}
+	return strings.TrimSpace(info.Main.Version)
+}
+
+// LatestVersion returns the latest release tag.
+func LatestVersion(ctx context.Context) (string, error) {
+	release, err := fetchLatestRelease(ctx)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(release.TagName), nil
 }
 
 // Update downloads and installs the latest release binary.
