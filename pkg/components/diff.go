@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"lazyreview/internal/models"
@@ -434,15 +435,20 @@ func (d *DiffViewer) renderUnifiedView() {
 			break
 		}
 
-		// If no hunks but has patch, render raw patch
+		// If no hunks but has patch, parse patch into hunks for line mapping
 		if len(file.Hunks) == 0 && file.Patch != "" {
-			patchContent := d.renderPatch(file.Patch)
-			content.WriteString(d.applyCursorHighlight(patchContent, currentLine))
-			patchLines := strings.Count(patchContent, "\n")
-			for j := 0; j < patchLines; j++ {
-				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
+			patchHunks := parsePatchToHunks(file.Patch)
+			for _, hunk := range patchHunks {
+				if currentLine >= d.maxLines {
+					truncated = true
+					break
+				}
+				hunkPositions = append(hunkPositions, currentLine)
+				hunkContent, hunkLineMapping := d.renderHunk(hunk, filename)
+				content.WriteString(d.applyCursorHighlight(hunkContent, currentLine))
+				lineMapping = append(lineMapping, hunkLineMapping...)
+				currentLine += len(hunkLineMapping)
 			}
-			currentLine += patchLines
 		}
 
 		content.WriteString(d.applyCursorHighlight("\n", currentLine))
@@ -501,7 +507,11 @@ func (d *DiffViewer) renderSplitView() {
 		}
 
 		// Render hunks in split view
-		for _, hunk := range file.Hunks {
+		hunks := file.Hunks
+		if len(hunks) == 0 && file.Patch != "" {
+			hunks = parsePatchToHunks(file.Patch)
+		}
+		for _, hunk := range hunks {
 			if currentLine >= d.maxLines {
 				truncated = true
 				break
@@ -795,6 +805,122 @@ func (d *DiffViewer) renderPatch(patch string) string {
 	}
 
 	return content.String()
+}
+
+func parsePatchToHunks(patch string) []models.Hunk {
+	lines := strings.Split(patch, "\n")
+	var hunks []models.Hunk
+	var current *models.Hunk
+	oldLine := 0
+	newLine := 0
+
+	flush := func() {
+		if current != nil {
+			hunks = append(hunks, *current)
+		}
+		current = nil
+	}
+
+	for _, raw := range lines {
+		if strings.HasPrefix(raw, "@@") {
+			flush()
+			oldStart, oldCount, newStart, newCount, ok := parseHunkHeader(raw)
+			if !ok {
+				continue
+			}
+			current = &models.Hunk{
+				OldStart: oldStart,
+				OldLines: oldCount,
+				NewStart: newStart,
+				NewLines: newCount,
+				Header:   raw,
+			}
+			oldLine = oldStart
+			newLine = newStart
+			continue
+		}
+		if current == nil {
+			continue
+		}
+		if raw == "" {
+			continue
+		}
+		prefix := raw[0]
+		content := raw[1:]
+		switch prefix {
+		case ' ':
+			current.Lines = append(current.Lines, models.DiffLine{
+				Type:      models.DiffLineContext,
+				Content:   content,
+				OldLineNo: oldLine,
+				NewLineNo: newLine,
+			})
+			oldLine++
+			newLine++
+		case '+':
+			current.Lines = append(current.Lines, models.DiffLine{
+				Type:      models.DiffLineAdded,
+				Content:   content,
+				NewLineNo: newLine,
+			})
+			newLine++
+		case '-':
+			current.Lines = append(current.Lines, models.DiffLine{
+				Type:      models.DiffLineDeleted,
+				Content:   content,
+				OldLineNo: oldLine,
+			})
+			oldLine++
+		default:
+			// Ignore metadata lines like \ No newline at end of file
+		}
+	}
+	flush()
+	return hunks
+}
+
+func parseHunkHeader(header string) (oldStart, oldCount, newStart, newCount int, ok bool) {
+	trimmed := strings.TrimSpace(header)
+	if !strings.HasPrefix(trimmed, "@@") {
+		return 0, 0, 0, 0, false
+	}
+	trimmed = strings.TrimPrefix(trimmed, "@@")
+	trimmed = strings.TrimSuffix(trimmed, "@@")
+	trimmed = strings.TrimSpace(trimmed)
+
+	parts := strings.Fields(trimmed)
+	if len(parts) < 2 {
+		return 0, 0, 0, 0, false
+	}
+	oldStart, oldCount, ok = parseHunkRange(parts[0], '-')
+	if !ok {
+		return 0, 0, 0, 0, false
+	}
+	newStart, newCount, ok = parseHunkRange(parts[1], '+')
+	if !ok {
+		return 0, 0, 0, 0, false
+	}
+	return oldStart, oldCount, newStart, newCount, true
+}
+
+func parseHunkRange(token string, prefix byte) (start int, count int, ok bool) {
+	token = strings.TrimSpace(token)
+	if token == "" || token[0] != prefix {
+		return 0, 0, false
+	}
+	token = token[1:]
+	parts := strings.Split(token, ",")
+	start, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, 0, false
+	}
+	count = 1
+	if len(parts) > 1 && parts[1] != "" {
+		if c, err := strconv.Atoi(parts[1]); err == nil {
+			count = c
+		}
+	}
+	return start, count, true
 }
 
 // nextFile moves to the next file
