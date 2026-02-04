@@ -3744,8 +3744,12 @@ func (m *Model) aiKeyStore() (*keyring.Store, error) {
 }
 
 func (m *Model) aiKeyStorageKey() string {
+	return "ai:api_key"
+}
+
+func (m *Model) aiProviderKeyStorageKey() string {
 	name := strings.TrimSpace(m.aiProviderName)
-	if name == "" {
+	if name == "" || name == "none" {
 		name = "openai"
 	}
 	return fmt.Sprintf("ai:%s:token", name)
@@ -3756,7 +3760,10 @@ func (m *Model) hasAIKey() bool {
 	if err != nil {
 		return false
 	}
-	_, err = store.Get(m.aiKeyStorageKey())
+	if _, err = store.Get(m.aiKeyStorageKey()); err == nil {
+		return true
+	}
+	_, err = store.Get(m.aiProviderKeyStorageKey())
 	return err == nil
 }
 
@@ -3773,11 +3780,21 @@ func (m *Model) setAIProvider(name string) error {
 }
 
 func (m *Model) setAIKey(value string) error {
+	if strings.TrimSpace(m.aiProviderName) == "" || strings.TrimSpace(m.aiProviderName) == "none" {
+		m.aiProviderName = "openai"
+		if m.storage != nil {
+			_ = m.storage.SetSetting("ai.provider", "openai")
+		}
+	}
 	store, err := m.aiKeyStore()
 	if err != nil {
 		return err
 	}
-	if err := store.Set(m.aiKeyStorageKey(), strings.TrimSpace(value)); err != nil {
+	clean := strings.TrimSpace(value)
+	if err := store.Set(m.aiKeyStorageKey(), clean); err != nil {
+		return err
+	}
+	if err := store.Set(m.aiProviderKeyStorageKey(), clean); err != nil {
 		return err
 	}
 	return m.reloadAIProvider()
@@ -3789,6 +3806,9 @@ func (m *Model) clearAIKey() error {
 		return err
 	}
 	if err := store.Delete(m.aiKeyStorageKey()); err != nil && err != keyring.ErrNotFound {
+		return err
+	}
+	if err := store.Delete(m.aiProviderKeyStorageKey()); err != nil && err != keyring.ErrNotFound {
 		return err
 	}
 	return m.reloadAIProvider()
@@ -3807,6 +3827,9 @@ func (m *Model) reloadAIProvider() error {
 		return err
 	}
 	apiKey, err := store.Get(m.aiKeyStorageKey())
+	if err != nil {
+		apiKey, err = store.Get(m.aiProviderKeyStorageKey())
+	}
 	if err != nil {
 		m.aiProvider = nil
 		m.aiError = fmt.Errorf("AI API key not configured")
