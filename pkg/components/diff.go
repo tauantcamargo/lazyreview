@@ -99,6 +99,7 @@ type DiffViewer struct {
 	files         []models.FileDiff
 	currentFile   int
 	currentLine   int
+	cursor        int
 	keyMap        DiffKeyMap
 	width         int
 	height        int
@@ -118,6 +119,7 @@ type DiffViewer struct {
 	hunkStyle    lipgloss.Style
 	lineNoStyle  lipgloss.Style
 	fileStyle    lipgloss.Style
+	cursorStyle  lipgloss.Style
 }
 
 // lineInfo stores information about a line in the viewport
@@ -148,6 +150,7 @@ func NewDiffViewer(width, height int) DiffViewer {
 		hunkStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("39")),  // Blue
 		lineNoStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")), // Dark gray
 		fileStyle:    lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("170")),
+		cursorStyle:  lipgloss.NewStyle().Background(lipgloss.Color("236")),
 	}
 }
 
@@ -161,6 +164,7 @@ func (d *DiffViewer) SetDiff(diff *models.Diff) {
 	}
 	d.currentFile = 0
 	d.currentLine = 0
+	d.cursor = 0
 	d.render()
 	d.scrollToFile(d.currentFile)
 }
@@ -173,8 +177,11 @@ func (d *DiffViewer) SetCurrentFileByPath(path string) bool {
 	for i, file := range d.files {
 		if file.Path == path || file.OldPath == path {
 			d.currentFile = i
+			if i < len(d.filePositions) {
+				d.cursor = d.filePositions[i]
+			}
+			d.ensureCursorVisible()
 			d.render()
-			d.scrollToFile(i)
 			return true
 		}
 	}
@@ -210,10 +217,78 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 			d.render()
 			return d, nil
 		case key.Matches(msg, d.keyMap.Top):
-			d.viewport.GotoTop()
+			d.cursor = 0
+			d.ensureCursorVisible()
+			d.render()
 			return d, nil
 		case key.Matches(msg, d.keyMap.Bottom):
-			d.viewport.GotoBottom()
+			if len(d.lineMapping) > 0 {
+				d.cursor = len(d.lineMapping) - 1
+				d.ensureCursorVisible()
+				d.render()
+			}
+			return d, nil
+		case key.Matches(msg, d.keyMap.Up):
+			if d.cursor > 0 {
+				d.cursor--
+				d.ensureCursorVisible()
+				d.render()
+			}
+			return d, nil
+		case key.Matches(msg, d.keyMap.Down):
+			if d.cursor < len(d.lineMapping)-1 {
+				d.cursor++
+				d.ensureCursorVisible()
+				d.render()
+			}
+			return d, nil
+		case key.Matches(msg, d.keyMap.PageUp):
+			step := d.viewport.Height
+			if step <= 0 {
+				step = 1
+			}
+			d.cursor -= step
+			if d.cursor < 0 {
+				d.cursor = 0
+			}
+			d.ensureCursorVisible()
+			d.render()
+			return d, nil
+		case key.Matches(msg, d.keyMap.PageDown):
+			step := d.viewport.Height
+			if step <= 0 {
+				step = 1
+			}
+			d.cursor += step
+			if d.cursor >= len(d.lineMapping) {
+				d.cursor = len(d.lineMapping) - 1
+			}
+			d.ensureCursorVisible()
+			d.render()
+			return d, nil
+		case key.Matches(msg, d.keyMap.HalfUp):
+			step := d.viewport.Height / 2
+			if step <= 0 {
+				step = 1
+			}
+			d.cursor -= step
+			if d.cursor < 0 {
+				d.cursor = 0
+			}
+			d.ensureCursorVisible()
+			d.render()
+			return d, nil
+		case key.Matches(msg, d.keyMap.HalfDown):
+			step := d.viewport.Height / 2
+			if step <= 0 {
+				step = 1
+			}
+			d.cursor += step
+			if d.cursor >= len(d.lineMapping) {
+				d.cursor = len(d.lineMapping) - 1
+			}
+			d.ensureCursorVisible()
+			d.render()
 			return d, nil
 		}
 
@@ -271,6 +346,9 @@ func (d *DiffViewer) renderUnifiedView() {
 		filePositions = append(filePositions, currentLine)
 		// File header
 		header := d.renderFileHeader(file, i == d.currentFile)
+		if currentLine == d.cursor {
+			header = d.cursorStyle.Render(header)
+		}
 		content.WriteString(header)
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
@@ -290,7 +368,7 @@ func (d *DiffViewer) renderUnifiedView() {
 			}
 			hunkPositions = append(hunkPositions, currentLine)
 			hunkContent, hunkLineMapping := d.renderHunk(hunk, filename)
-			content.WriteString(hunkContent)
+			content.WriteString(d.applyCursorHighlight(hunkContent, currentLine))
 			lineMapping = append(lineMapping, hunkLineMapping...)
 			currentLine += len(hunkLineMapping)
 			if currentLine >= d.maxLines {
@@ -306,7 +384,7 @@ func (d *DiffViewer) renderUnifiedView() {
 		// If no hunks but has patch, render raw patch
 		if len(file.Hunks) == 0 && file.Patch != "" {
 			patchContent := d.renderPatch(file.Patch)
-			content.WriteString(patchContent)
+			content.WriteString(d.applyCursorHighlight(patchContent, currentLine))
 			patchLines := strings.Count(patchContent, "\n")
 			for j := 0; j < patchLines; j++ {
 				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
@@ -314,13 +392,16 @@ func (d *DiffViewer) renderUnifiedView() {
 			currentLine += patchLines
 		}
 
-		content.WriteString("\n")
+		content.WriteString(d.applyCursorHighlight("\n", currentLine))
 		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
 		currentLine++
 	}
 
 	if truncated {
 		notice := d.hunkStyle.Render("Diff truncated for performance. Open in browser for full diff.")
+		if currentLine == d.cursor {
+			notice = d.cursorStyle.Render(notice)
+		}
 		content.WriteString(notice)
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: "", lineNo: 0, side: "", isCode: false})
@@ -330,6 +411,7 @@ func (d *DiffViewer) renderUnifiedView() {
 	d.hunkPositions = hunkPositions
 	d.filePositions = filePositions
 	d.lineMapping = lineMapping
+	d.clampCursor()
 	d.viewport.SetContent(content.String())
 }
 
@@ -352,6 +434,9 @@ func (d *DiffViewer) renderSplitView() {
 		filePositions = append(filePositions, currentLine)
 		// File header spans full width
 		header := d.renderFileHeader(file, i == d.currentFile)
+		if currentLine == d.cursor {
+			header = d.cursorStyle.Render(header)
+		}
 		content.WriteString(header)
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
@@ -372,6 +457,9 @@ func (d *DiffViewer) renderSplitView() {
 
 			// Hunk header
 			header := d.hunkStyle.Render(hunk.Header)
+			if currentLine == d.cursor {
+				header = d.cursorStyle.Render(header)
+			}
 			content.WriteString(header)
 			content.WriteString("\n")
 			lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
@@ -426,7 +514,11 @@ func (d *DiffViewer) renderSplitView() {
 					side = models.DiffSideLeft
 				}
 
-				content.WriteString(leftLine + " │ " + rightLine)
+				line := leftLine + " │ " + rightLine
+				if currentLine == d.cursor {
+					line = d.cursorStyle.Render(line)
+				}
+				content.WriteString(line)
 				content.WriteString("\n")
 				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: lineNo, side: side, isCode: true})
 				currentLine++
@@ -445,6 +537,9 @@ func (d *DiffViewer) renderSplitView() {
 			break
 		}
 
+		if currentLine == d.cursor {
+			content.WriteString(d.cursorStyle.Render(""))
+		}
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
 		currentLine++
@@ -452,6 +547,9 @@ func (d *DiffViewer) renderSplitView() {
 
 	if truncated {
 		notice := d.hunkStyle.Render("Diff truncated for performance. Open in browser for full diff.")
+		if currentLine == d.cursor {
+			notice = d.cursorStyle.Render(notice)
+		}
 		content.WriteString(notice)
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: "", lineNo: 0, side: "", isCode: false})
@@ -461,6 +559,7 @@ func (d *DiffViewer) renderSplitView() {
 	d.hunkPositions = hunkPositions
 	d.filePositions = filePositions
 	d.lineMapping = lineMapping
+	d.clampCursor()
 	d.viewport.SetContent(content.String())
 }
 
@@ -649,8 +748,11 @@ func (d *DiffViewer) renderPatch(patch string) string {
 func (d *DiffViewer) nextFile() {
 	if d.currentFile < len(d.files)-1 {
 		d.currentFile++
+		if d.currentFile < len(d.filePositions) {
+			d.cursor = d.filePositions[d.currentFile]
+		}
+		d.ensureCursorVisible()
 		d.render()
-		d.scrollToFile(d.currentFile)
 	}
 }
 
@@ -658,8 +760,11 @@ func (d *DiffViewer) nextFile() {
 func (d *DiffViewer) prevFile() {
 	if d.currentFile > 0 {
 		d.currentFile--
+		if d.currentFile < len(d.filePositions) {
+			d.cursor = d.filePositions[d.currentFile]
+		}
+		d.ensureCursorVisible()
 		d.render()
-		d.scrollToFile(d.currentFile)
 	}
 }
 
@@ -668,6 +773,60 @@ func (d *DiffViewer) scrollToFile(index int) {
 		return
 	}
 	d.viewport.SetYOffset(d.filePositions[index])
+}
+
+func (d *DiffViewer) ensureCursorVisible() {
+	if d.cursor < 0 {
+		d.cursor = 0
+	}
+	if len(d.lineMapping) == 0 {
+		d.viewport.SetYOffset(0)
+		return
+	}
+	if d.cursor >= len(d.lineMapping) {
+		d.cursor = len(d.lineMapping) - 1
+	}
+	if d.cursor < d.viewport.YOffset {
+		d.viewport.SetYOffset(d.cursor)
+		return
+	}
+	bottom := d.viewport.YOffset + d.viewport.Height - 1
+	if bottom < d.viewport.YOffset {
+		bottom = d.viewport.YOffset
+	}
+	if d.cursor > bottom {
+		d.viewport.SetYOffset(d.cursor - d.viewport.Height + 1)
+	}
+}
+
+func (d *DiffViewer) clampCursor() {
+	if d.cursor < 0 {
+		d.cursor = 0
+	}
+	if len(d.lineMapping) == 0 {
+		d.cursor = 0
+		return
+	}
+	if d.cursor >= len(d.lineMapping) {
+		d.cursor = len(d.lineMapping) - 1
+	}
+	d.ensureCursorVisible()
+}
+
+func (d *DiffViewer) applyCursorHighlight(content string, startLine int) string {
+	if content == "" {
+		return content
+	}
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if line == "" && i == len(lines)-1 {
+			continue
+		}
+		if startLine+i == d.cursor {
+			lines[i] = d.cursorStyle.Render(line)
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // nextHunk moves to the next hunk
@@ -682,7 +841,9 @@ func (d *DiffViewer) nextHunk() {
 	for i, pos := range d.hunkPositions {
 		if pos > currentOffset {
 			d.currentHunk = i
-			d.viewport.SetYOffset(pos)
+			d.cursor = pos
+			d.ensureCursorVisible()
+			d.render()
 			return
 		}
 	}
@@ -690,7 +851,9 @@ func (d *DiffViewer) nextHunk() {
 	// If no hunk found after current position, go to last hunk
 	if len(d.hunkPositions) > 0 {
 		d.currentHunk = len(d.hunkPositions) - 1
-		d.viewport.SetYOffset(d.hunkPositions[d.currentHunk])
+		d.cursor = d.hunkPositions[d.currentHunk]
+		d.ensureCursorVisible()
+		d.render()
 	}
 }
 
@@ -706,7 +869,9 @@ func (d *DiffViewer) prevHunk() {
 	for i := len(d.hunkPositions) - 1; i >= 0; i-- {
 		if d.hunkPositions[i] < currentOffset {
 			d.currentHunk = i
-			d.viewport.SetYOffset(d.hunkPositions[i])
+			d.cursor = d.hunkPositions[i]
+			d.ensureCursorVisible()
+			d.render()
 			return
 		}
 	}
@@ -714,7 +879,9 @@ func (d *DiffViewer) prevHunk() {
 	// If no hunk found before current position, go to first hunk
 	if len(d.hunkPositions) > 0 {
 		d.currentHunk = 0
-		d.viewport.SetYOffset(d.hunkPositions[d.currentHunk])
+		d.cursor = d.hunkPositions[d.currentHunk]
+		d.ensureCursorVisible()
+		d.render()
 	}
 }
 
@@ -755,16 +922,13 @@ func (d *DiffViewer) FileCount() int {
 	return len(d.files)
 }
 
-// CurrentLineInfo returns information about the current line in the viewport
+// CurrentLineInfo returns information about the current cursor line.
 func (d *DiffViewer) CurrentLineInfo() (filePath string, lineNo int, side models.DiffSide, isCode bool) {
-	// Get current viewport offset + first visible line
-	currentOffset := d.viewport.YOffset
-
-	if currentOffset < 0 || currentOffset >= len(d.lineMapping) {
+	if d.cursor < 0 || d.cursor >= len(d.lineMapping) {
 		return "", 0, "", false
 	}
 
-	info := d.lineMapping[currentOffset]
+	info := d.lineMapping[d.cursor]
 	return info.filePath, info.lineNo, info.side, info.isCode
 }
 
