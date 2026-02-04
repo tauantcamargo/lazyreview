@@ -12,6 +12,7 @@ import (
 	"lazyreview/internal/gui"
 	"lazyreview/internal/queue"
 	"lazyreview/internal/storage"
+	"lazyreview/internal/updater"
 	"lazyreview/pkg/git"
 	"lazyreview/pkg/providers/github"
 
@@ -147,6 +148,22 @@ func CommandStart() *cli.App {
 			Usage: "Show version information",
 			Action: func(c *cli.Context) error {
 				fmt.Printf("LazyReview version %s\n", app.Version)
+				return nil
+			},
+		},
+		{
+			Name:  "update",
+			Usage: "Update LazyReview to the latest release",
+			Action: func(c *cli.Context) error {
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				defer cancel()
+				result, err := updater.Update(ctx)
+				if err != nil {
+					return err
+				}
+				if result.Updated {
+					fmt.Printf("Updated to %s (%s). Restart LazyReview.\n", result.Version, result.AssetName)
+				}
 				return nil
 			},
 		},

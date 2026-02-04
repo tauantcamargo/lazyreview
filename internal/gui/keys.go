@@ -37,6 +37,7 @@ type KeyMap struct {
 	ToggleComments key.Binding
 	ReplyComment   key.Binding
 	AIReview       key.Binding
+	Update         key.Binding
 	OpenBrowser    key.Binding
 	Checkout       key.Binding
 	Refresh        key.Binding
@@ -152,6 +153,10 @@ func DefaultKeyMap() KeyMap {
 		AIReview: key.NewBinding(
 			key.WithKeys("A"),
 			key.WithHelp("A", "ai review"),
+		),
+		Update: key.NewBinding(
+			key.WithKeys("U"),
+			key.WithHelp("U", "update"),
 		),
 		OpenBrowser: key.NewBinding(
 			key.WithKeys("o"),

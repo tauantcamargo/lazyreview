@@ -15,6 +15,7 @@ import (
 	"lazyreview/internal/queue"
 	"lazyreview/internal/services"
 	"lazyreview/internal/storage"
+	"lazyreview/internal/updater"
 	"lazyreview/pkg/components"
 	"lazyreview/pkg/git"
 	"lazyreview/pkg/providers"
@@ -128,6 +129,11 @@ type replyResultMsg struct {
 type aiReviewResultMsg struct {
 	response ai.ReviewResponse
 	err      error
+}
+
+type updateResultMsg struct {
+	result updater.UpdateResult
+	err    error
 }
 
 type commentSubmitMsg struct {
@@ -703,6 +709,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loadingMessage = "Running AI review..."
 			return m, m.startAIReview()
 
+		case key.Matches(msg, m.keyMap.Update):
+			if m.inWorkspaceView() {
+				break
+			}
+			m.isLoading = true
+			m.loadingMessage = "Updating LazyReview..."
+			return m, m.runUpdate()
+
 		case key.Matches(msg, m.keyMap.OpenBrowser):
 			if m.inWorkspaceView() {
 				break
@@ -987,6 +1001,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "AI review comment submitted"
 			return m, submitReviewComment(m.provider, owner, repo, m.currentPR.Number, comment)
 		}
+
+	case updateResultMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("Update failed: %s", msg.err.Error())
+			return m, nil
+		}
+		if msg.result.Updated {
+			m.statusMsg = fmt.Sprintf("Updated to %s. Restart LazyReview.", msg.result.Version)
+		} else {
+			m.statusMsg = "Update complete. Restart LazyReview."
+		}
+		return m, nil
 
 	case commentSubmitMsg:
 		m.isLoading = false
@@ -1436,6 +1465,7 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "  a: approve")
 		lines = append(lines, "  r: request changes")
 		lines = append(lines, "  A: AI review (current file)")
+		lines = append(lines, "  U: update LazyReview")
 		lines = append(lines, "  shift+c: checkout PR branch")
 		lines = append(lines, "")
 
@@ -1475,6 +1505,7 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "  esc: clear filter")
 		lines = append(lines, "  r: refresh")
 		lines = append(lines, "  1-9: switch workspace tab")
+		lines = append(lines, "  U: update LazyReview")
 	}
 
 	content := strings.Join(lines, "\n")
@@ -1779,6 +1810,15 @@ func (m *Model) startAIReview() tea.Cmd {
 		defer cancel()
 		resp, err := provider.Review(ctx, req)
 		return aiReviewResultMsg{response: resp, err: err}
+	}
+}
+
+func (m *Model) runUpdate() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		result, err := updater.Update(ctx)
+		return updateResultMsg{result: result, err: err}
 	}
 }
 
