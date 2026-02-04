@@ -464,6 +464,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				// In detail view, move between file tree and diff
 				if m.activePanel == PanelFiles {
+					if selectedPath := m.fileTree.SelectedPath(); selectedPath != "" {
+						m.diffViewer.SetCurrentFileByPath(selectedPath)
+					}
 					m.activePanel = PanelDiff
 					m.diffViewer.Focus()
 					m.fileTree.Blur()

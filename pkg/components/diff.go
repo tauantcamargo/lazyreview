@@ -109,6 +109,7 @@ type DiffViewer struct {
 	highlighter   *Highlighter
 	lineMapping   []lineInfo // Maps viewport line to file/line info
 	maxLines      int
+	filePositions []int // Line offsets where each file starts
 
 	// Styles
 	addedStyle   lipgloss.Style
@@ -161,6 +162,23 @@ func (d *DiffViewer) SetDiff(diff *models.Diff) {
 	d.currentFile = 0
 	d.currentLine = 0
 	d.render()
+	d.scrollToFile(d.currentFile)
+}
+
+// SetCurrentFileByPath sets the current file by path and scrolls to it.
+func (d *DiffViewer) SetCurrentFileByPath(path string) bool {
+	if path == "" {
+		return false
+	}
+	for i, file := range d.files {
+		if file.Path == path || file.OldPath == path {
+			d.currentFile = i
+			d.render()
+			d.scrollToFile(i)
+			return true
+		}
+	}
+	return false
 }
 
 // Init implements tea.Model
@@ -241,6 +259,7 @@ func (d *DiffViewer) renderUnifiedView() {
 	var content strings.Builder
 	var hunkPositions []int
 	var lineMapping []lineInfo
+	var filePositions []int
 	currentLine := 0
 	truncated := false
 
@@ -249,6 +268,7 @@ func (d *DiffViewer) renderUnifiedView() {
 			truncated = true
 			break
 		}
+		filePositions = append(filePositions, currentLine)
 		// File header
 		header := d.renderFileHeader(file, i == d.currentFile)
 		content.WriteString(header)
@@ -308,6 +328,7 @@ func (d *DiffViewer) renderUnifiedView() {
 	}
 
 	d.hunkPositions = hunkPositions
+	d.filePositions = filePositions
 	d.lineMapping = lineMapping
 	d.viewport.SetContent(content.String())
 }
@@ -316,6 +337,7 @@ func (d *DiffViewer) renderSplitView() {
 	var content strings.Builder
 	var hunkPositions []int
 	var lineMapping []lineInfo
+	var filePositions []int
 	currentLine := 0
 	truncated := false
 
@@ -327,6 +349,7 @@ func (d *DiffViewer) renderSplitView() {
 			truncated = true
 			break
 		}
+		filePositions = append(filePositions, currentLine)
 		// File header spans full width
 		header := d.renderFileHeader(file, i == d.currentFile)
 		content.WriteString(header)
@@ -436,6 +459,7 @@ func (d *DiffViewer) renderSplitView() {
 	}
 
 	d.hunkPositions = hunkPositions
+	d.filePositions = filePositions
 	d.lineMapping = lineMapping
 	d.viewport.SetContent(content.String())
 }
@@ -626,6 +650,7 @@ func (d *DiffViewer) nextFile() {
 	if d.currentFile < len(d.files)-1 {
 		d.currentFile++
 		d.render()
+		d.scrollToFile(d.currentFile)
 	}
 }
 
@@ -634,7 +659,15 @@ func (d *DiffViewer) prevFile() {
 	if d.currentFile > 0 {
 		d.currentFile--
 		d.render()
+		d.scrollToFile(d.currentFile)
 	}
+}
+
+func (d *DiffViewer) scrollToFile(index int) {
+	if index < 0 || index >= len(d.filePositions) {
+		return
+	}
+	d.viewport.SetYOffset(d.filePositions[index])
 }
 
 // nextHunk moves to the next hunk
