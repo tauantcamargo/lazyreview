@@ -114,6 +114,7 @@ lazyreview start
 | `x` | Delete selected inline comment |
 | `z` | Resolve selected thread (provider support varies) |
 | `A` | AI review (current file) |
+| `O` | Open selected file in `$EDITOR` |
 | `V` | Select range (multi-line comment) |
 | `Shift+c` | Checkout PR branch |
 | `?` | Show help |

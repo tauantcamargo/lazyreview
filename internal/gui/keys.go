@@ -42,6 +42,7 @@ type KeyMap struct {
 	AIReview       key.Binding
 	Update         key.Binding
 	OpenBrowser    key.Binding
+	OpenEditor     key.Binding
 	Checkout       key.Binding
 	Refresh        key.Binding
 	Merge          key.Binding
@@ -176,6 +177,10 @@ func DefaultKeyMap() KeyMap {
 		OpenBrowser: key.NewBinding(
 			key.WithKeys("o"),
 			key.WithHelp("o", "open in browser"),
+		),
+		OpenEditor: key.NewBinding(
+			key.WithKeys("O"),
+			key.WithHelp("O", "open in editor"),
 		),
 		Checkout: key.NewBinding(
 			key.WithKeys("shift+c"),

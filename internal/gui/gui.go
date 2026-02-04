@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -146,6 +149,12 @@ type commentDeleteResultMsg struct {
 type commentResolveResultMsg struct {
 	commentID string
 	err       error
+}
+
+type openEditorResultMsg struct {
+	path string
+	line int
+	err  error
 }
 
 type updateResultMsg struct {
@@ -811,6 +820,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
+		case key.Matches(msg, m.keyMap.OpenEditor):
+			if m.inWorkspaceView() {
+				break
+			}
+			if m.viewState != ViewDetail {
+				m.statusMsg = "Open in editor: Open a PR first"
+				return m, nil
+			}
+			path := ""
+			line := 0
+			if m.activePanel == PanelDiff {
+				filePath, lineNo, _, _ := m.diffViewer.CurrentLineInfo()
+				path = strings.TrimSpace(filePath)
+				line = lineNo
+			}
+			if path == "" {
+				path = strings.TrimSpace(m.fileTree.SelectedPath())
+			}
+			if path == "" {
+				m.statusMsg = "Open in editor: Select a file first"
+				return m, nil
+			}
+			return m, openFileInEditor(path, line)
+
 		case key.Matches(msg, m.keyMap.Checkout):
 			if m.inWorkspaceView() {
 				break
@@ -1107,6 +1140,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.invalidateCommentsCache()
 		m.statusMsg = "Thread resolved"
 		return m, m.refreshComments()
+
+	case openEditorResultMsg:
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("Open in editor failed: %s", msg.err.Error())
+			return m, nil
+		}
+		if msg.line > 0 {
+			m.statusMsg = fmt.Sprintf("Opened %s:%d in editor", msg.path, msg.line)
+		} else {
+			m.statusMsg = fmt.Sprintf("Opened %s in editor", msg.path)
+		}
+		return m, nil
 
 	case aiReviewResultMsg:
 		m.isLoading = false
@@ -1489,7 +1535,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  V:select range  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  V:select range  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  O:open editor  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1609,6 +1655,7 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "  e: edit selected comment")
 		lines = append(lines, "  x: delete selected comment")
 		lines = append(lines, "  z: resolve selected thread")
+		lines = append(lines, "  O: open selected file in editor")
 	} else if m.currentViewMode == ViewModeWorkspaces {
 		lines = append(lines, "Workspace Manager")
 		lines = append(lines, "  n: new workspace")
@@ -2716,6 +2763,37 @@ func submitResolveComment(provider providers.Provider, owner, repo string, prNum
 
 		err := provider.ResolveComment(ctx, owner, repo, prNumber, commentID)
 		return commentResolveResultMsg{commentID: commentID, err: err}
+	}
+}
+
+func openFileInEditor(path string, line int) tea.Cmd {
+	return func() tea.Msg {
+		cleanPath := filepath.Clean(strings.TrimSpace(path))
+		if cleanPath == "" {
+			return openEditorResultMsg{err: fmt.Errorf("empty file path")}
+		}
+		if _, err := os.Stat(cleanPath); err != nil {
+			return openEditorResultMsg{path: cleanPath, line: line, err: err}
+		}
+
+		editor := strings.TrimSpace(os.Getenv("EDITOR"))
+		if editor == "" {
+			editor = "vim"
+		}
+
+		var cmd *exec.Cmd
+		if line > 0 {
+			cmd = exec.Command(editor, fmt.Sprintf("+%d", line), cleanPath)
+		} else {
+			cmd = exec.Command(editor, cleanPath)
+		}
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Start(); err != nil {
+			return openEditorResultMsg{path: cleanPath, line: line, err: err}
+		}
+		return openEditorResultMsg{path: cleanPath, line: line, err: nil}
 	}
 }
 
