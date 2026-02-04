@@ -18,6 +18,7 @@ const (
 	TextInputApprove                      // Approve with optional summary
 	TextInputRequestChanges               // Request changes with optional summary
 	TextInputReplyComment                 // Reply to an existing comment
+	TextInputEditComment                  // Edit an existing comment
 )
 
 // TextInput is a component for capturing multi-line text input
@@ -102,6 +103,11 @@ func (t *TextInput) IsVisible() bool {
 // Value returns the current text input value
 func (t *TextInput) Value() string {
 	return t.textarea.Value()
+}
+
+// SetValue pre-fills the text input.
+func (t *TextInput) SetValue(value string) {
+	t.textarea.SetValue(value)
 }
 
 // Mode returns the current mode
@@ -192,6 +198,8 @@ func (t *TextInput) placeholderForMode(mode TextInputMode) string {
 		return "Describe the requested changes... (Ctrl+S to submit, Esc to cancel)"
 	case TextInputReplyComment:
 		return "Reply to the comment... (Ctrl+S to submit, Esc to cancel)"
+	case TextInputEditComment:
+		return "Edit the comment... (Ctrl+S to submit, Esc to cancel)"
 	default:
 		return "Enter your comment... (Ctrl+S to submit, Esc to cancel)"
 	}

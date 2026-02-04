@@ -3,6 +3,7 @@ package gui
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -130,6 +131,21 @@ type replyResultMsg struct {
 type aiReviewResultMsg struct {
 	response ai.ReviewResponse
 	err      error
+}
+
+type commentEditResultMsg struct {
+	commentID string
+	err       error
+}
+
+type commentDeleteResultMsg struct {
+	commentID string
+	err       error
+}
+
+type commentResolveResultMsg struct {
+	commentID string
+	err       error
 }
 
 type updateResultMsg struct {
@@ -665,23 +681,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.inWorkspaceView() {
 				break
 			}
-			if m.viewState != ViewDetail || m.detailSidebarMode != DetailSidebarComments || m.currentPR == nil {
-				m.statusMsg = "Reply: Open comments panel in PR view"
+			if m.viewState != ViewDetail || m.currentPR == nil {
+				m.statusMsg = "Reply: Open a PR first"
 				return m, nil
 			}
-			selected := m.commentsList.SelectedItem()
-			if selected == nil {
-				m.statusMsg = "Reply: Select a comment first"
-				return m, nil
-			}
-			item, ok := selected.(components.SimpleItem)
-			if !ok {
-				m.statusMsg = "Reply: Invalid comment selection"
-				return m, nil
-			}
-			commentID := item.ID()
+			commentID := m.selectedCommentID()
 			if commentID == "" {
-				m.statusMsg = "Reply: Missing comment ID"
+				m.statusMsg = "Reply: Select a comment first"
 				return m, nil
 			}
 			if comment := m.findCommentByID(commentID); comment != nil {
@@ -693,6 +699,70 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.textInput.Show(components.TextInputReplyComment, "Reply to Comment", commentID)
 			m.textInput.SetSize(m.width-20, m.height-10)
 			return m, nil
+
+		case key.Matches(msg, m.keyMap.EditComment):
+			if m.inWorkspaceView() {
+				break
+			}
+			if m.viewState != ViewDetail || m.currentPR == nil {
+				m.statusMsg = "Edit: Open a PR first"
+				return m, nil
+			}
+			commentID := m.selectedCommentID()
+			if commentID == "" {
+				m.statusMsg = "Edit: Select a comment first"
+				return m, nil
+			}
+			comment := m.findCommentByID(commentID)
+			if comment == nil {
+				m.statusMsg = "Edit: Comment not found"
+				return m, nil
+			}
+			m.textInput.Show(components.TextInputEditComment, "Edit Comment", commentID)
+			m.textInput.SetValue(comment.Body)
+			m.textInput.SetSize(m.width-20, m.height-10)
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.DeleteComment):
+			if m.inWorkspaceView() {
+				break
+			}
+			if m.viewState != ViewDetail || m.currentPR == nil {
+				m.statusMsg = "Delete: Open a PR first"
+				return m, nil
+			}
+			commentID := m.selectedCommentID()
+			if commentID == "" {
+				m.statusMsg = "Delete: Select a comment first"
+				return m, nil
+			}
+			comment := m.findCommentByID(commentID)
+			if comment == nil {
+				m.statusMsg = "Delete: Comment not found"
+				return m, nil
+			}
+			m.isLoading = true
+			m.loadingMessage = "Deleting comment..."
+			owner, repo := m.resolvePRRepo()
+			return m, submitDeleteComment(m.provider, owner, repo, m.currentPR.Number, commentID, comment.Type)
+
+		case key.Matches(msg, m.keyMap.ResolveComment):
+			if m.inWorkspaceView() {
+				break
+			}
+			if m.viewState != ViewDetail || m.currentPR == nil {
+				m.statusMsg = "Resolve: Open a PR first"
+				return m, nil
+			}
+			commentID := m.selectedCommentID()
+			if commentID == "" {
+				m.statusMsg = "Resolve: Select a comment first"
+				return m, nil
+			}
+			m.isLoading = true
+			m.loadingMessage = "Resolving thread..."
+			owner, repo := m.resolvePRRepo()
+			return m, submitResolveComment(m.provider, owner, repo, m.currentPR.Number, commentID)
 
 		case key.Matches(msg, m.keyMap.AIReview):
 			if m.inWorkspaceView() {
@@ -902,6 +972,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			owner, repo := m.resolvePRRepo()
 			m.prCommentsCache.Set(m.commentsCacheKey(owner, repo, m.currentPR.Number), msg.comments)
 		}
+		m.diffViewer.SetComments(msg.comments)
 		cmd := m.commentsList.SetItems(buildCommentItems(msg.comments))
 		m.updateFileCommentCounts()
 		return m, cmd
@@ -986,6 +1057,47 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.invalidateCommentsCache()
 		m.statusMsg = "Reply posted"
+		return m, m.refreshComments()
+
+	case commentEditResultMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		m.textInput.Hide()
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("Edit failed: %s", msg.err.Error())
+			return m, nil
+		}
+		m.invalidateCommentsCache()
+		m.statusMsg = "Comment updated"
+		return m, m.refreshComments()
+
+	case commentDeleteResultMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("Delete failed: %s", msg.err.Error())
+			return m, nil
+		}
+		m.invalidateCommentsCache()
+		m.statusMsg = "Comment deleted"
+		return m, m.refreshComments()
+
+	case commentResolveResultMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		if msg.err != nil {
+			m.lastError = msg.err
+			if errors.Is(msg.err, providers.ErrUnsupported) {
+				m.statusMsg = "Resolve not supported by this provider"
+				return m, nil
+			}
+			m.statusMsg = fmt.Sprintf("Resolve failed: %s", msg.err.Error())
+			return m, nil
+		}
+		m.invalidateCommentsCache()
+		m.statusMsg = "Thread resolved"
 		return m, m.refreshComments()
 
 	case aiReviewResultMsg:
@@ -1369,7 +1481,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  V:select range  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  y:reply  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  V:select range  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1486,6 +1598,9 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "Comments Panel")
 		lines = append(lines, "  t: toggle comments panel")
 		lines = append(lines, "  y: reply to selected comment")
+		lines = append(lines, "  e: edit selected comment")
+		lines = append(lines, "  x: delete selected comment")
+		lines = append(lines, "  z: resolve selected thread")
 	} else if m.currentViewMode == ViewModeWorkspaces {
 		lines = append(lines, "Workspace Manager")
 		lines = append(lines, "  n: new workspace")
@@ -1599,6 +1714,9 @@ func (m *Model) enterDetailViewFromPR(selectedPR models.PullRequest) tea.Cmd {
 	m.focusDetailSidebar()
 	m.isLoading = true
 	m.loadingMessage = fmt.Sprintf("Loading PR #%d...", prNumber)
+	m.comments = nil
+	m.diffViewer.SetComments(nil)
+	m.commentsList.SetItems(nil)
 	m.applyLayout(m.width, m.height)
 
 	// Use owner/repo from the selected PR (for cross-repo views)
@@ -1635,6 +1753,7 @@ func (m *Model) exitDetailView() {
 	m.currentDiff = nil
 	m.currentFiles = nil
 	m.comments = nil
+	m.diffViewer.SetComments(nil)
 	m.commentsList.SetItems(nil)
 	m.statusMsg = ""
 	m.applyLayout(m.width, m.height)
@@ -1694,6 +1813,8 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 		m.loadingMessage = "Submitting change request..."
 	case components.TextInputReviewComment:
 		m.loadingMessage = "Submitting review comment..."
+	case components.TextInputEditComment:
+		m.loadingMessage = "Updating comment..."
 	default:
 		m.loadingMessage = "Submitting comment..."
 	}
@@ -1785,6 +1906,22 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 		}
 		optimisticID := m.addOptimisticReply(commentID, body)
 		return *m, submitReplyComment(m.provider, owner, repo, m.currentPR.Number, commentID, optimisticID, body)
+	} else if mode == components.TextInputEditComment {
+		commentID := strings.TrimSpace(m.textInput.Context())
+		if commentID == "" {
+			m.statusMsg = "Edit: Missing comment ID"
+			m.textInput.Hide()
+			m.isLoading = false
+			return *m, nil
+		}
+		comment := m.findCommentByID(commentID)
+		if comment == nil {
+			m.statusMsg = "Edit: Comment not found"
+			m.textInput.Hide()
+			m.isLoading = false
+			return *m, nil
+		}
+		return *m, submitEditComment(m.provider, owner, repo, m.currentPR.Number, commentID, comment.Type, body)
 	} else if mode == components.TextInputApprove {
 		comment := strings.TrimSpace(body)
 		if comment == "" {
@@ -2009,21 +2146,31 @@ func formatGitStatus(status *git.BranchStatus) string {
 func buildCommentItems(comments []models.Comment) []list.Item {
 	items := make([]list.Item, 0, len(comments))
 	for _, comment := range comments {
-		author := sanitizeInlineText(comment.Author.Login)
-		if author == "" {
-			author = "unknown"
-		}
-		snippet := summarizeText(comment.Body, 60)
-		title := fmt.Sprintf("@%s: %s", author, snippet)
-		desc := "General comment"
-		if comment.Path != "" && comment.Line > 0 {
-			desc = fmt.Sprintf("%s:%d", comment.Path, comment.Line)
-		} else if comment.Type == models.CommentTypeInline {
-			desc = "Inline comment"
-		}
-		items = append(items, components.NewSimpleItem(comment.ID, title, desc))
+		appendCommentItem(&items, comment, 0)
 	}
 	return items
+}
+
+func appendCommentItem(items *[]list.Item, comment models.Comment, depth int) {
+	author := sanitizeInlineText(comment.Author.Login)
+	if author == "" {
+		author = "unknown"
+	}
+	snippet := summarizeText(comment.Body, 60)
+	title := fmt.Sprintf("@%s: %s", author, snippet)
+	if depth > 0 {
+		title = fmt.Sprintf("%s↳ %s", strings.Repeat("  ", depth-1), title)
+	}
+	desc := "General comment"
+	if comment.Path != "" && comment.Line > 0 {
+		desc = fmt.Sprintf("%s:%d", comment.Path, comment.Line)
+	} else if comment.Type == models.CommentTypeInline {
+		desc = "Inline comment"
+	}
+	*items = append(*items, components.NewSimpleItem(comment.ID, title, desc))
+	for _, reply := range comment.Replies {
+		appendCommentItem(items, reply, depth+1)
+	}
 }
 
 func summarizeText(text string, max int) string {
@@ -2044,6 +2191,24 @@ func (m *Model) findCommentByID(id string) *models.Comment {
 		}
 	}
 	return nil
+}
+
+func (m *Model) selectedCommentID() string {
+	if m.activePanel == PanelDiff {
+		return strings.TrimSpace(m.diffViewer.CurrentCommentID())
+	}
+	if m.detailSidebarMode != DetailSidebarComments {
+		return ""
+	}
+	selected := m.commentsList.SelectedItem()
+	if selected == nil {
+		return ""
+	}
+	item, ok := selected.(components.SimpleItem)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(item.ID())
 }
 
 func findCommentInThread(comment *models.Comment, id string) *models.Comment {
@@ -2154,6 +2319,7 @@ func removeReplyByID(replies []models.Comment, id string) []models.Comment {
 func (m *Model) refreshCommentUI() {
 	m.commentsList.SetItems(buildCommentItems(m.comments))
 	m.updateFileCommentCounts()
+	m.diffViewer.SetComments(m.comments)
 }
 
 func (m *Model) invalidateCommentsCache() {
@@ -2508,6 +2674,36 @@ func submitReplyComment(provider providers.Provider, owner, repo string, prNumbe
 
 		err := provider.ReplyToComment(ctx, owner, repo, prNumber, commentID, body)
 		return replyResultMsg{commentID: commentID, optimisticID: optimisticID, err: err}
+	}
+}
+
+func submitEditComment(provider providers.Provider, owner, repo string, prNumber int, commentID string, commentType models.CommentType, body string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		err := provider.EditComment(ctx, owner, repo, prNumber, commentID, commentType, body)
+		return commentEditResultMsg{commentID: commentID, err: err}
+	}
+}
+
+func submitDeleteComment(provider providers.Provider, owner, repo string, prNumber int, commentID string, commentType models.CommentType) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		err := provider.DeleteComment(ctx, owner, repo, prNumber, commentID, commentType)
+		return commentDeleteResultMsg{commentID: commentID, err: err}
+	}
+}
+
+func submitResolveComment(provider providers.Provider, owner, repo string, prNumber int, commentID string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		err := provider.ResolveComment(ctx, owner, repo, prNumber, commentID)
+		return commentResolveResultMsg{commentID: commentID, err: err}
 	}
 }
 

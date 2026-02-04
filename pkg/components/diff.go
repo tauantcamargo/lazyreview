@@ -119,6 +119,7 @@ type DiffViewer struct {
 	lineMapping   []lineInfo // Maps viewport line to file/line info
 	maxLines      int
 	filePositions []int // Line offsets where each file starts
+	lineComments  map[string][]models.Comment
 
 	// View caching to avoid expensive recomputation on unrelated updates
 	contentVersion int
@@ -141,10 +142,12 @@ type DiffViewer struct {
 
 // lineInfo stores information about a line in the viewport
 type lineInfo struct {
-	filePath string
-	lineNo   int
-	side     models.DiffSide
-	isCode   bool // false for headers, true for actual code lines
+	filePath  string
+	lineNo    int
+	side      models.DiffSide
+	isCode    bool // false for headers, true for actual code lines
+	commentID string
+	isComment bool
 }
 
 // NewDiffViewer creates a new diff viewer
@@ -160,6 +163,7 @@ func NewDiffViewer(width, height int) DiffViewer {
 		focused:      true,
 		splitView:    false,
 		maxLines:     2000,
+		lineComments: map[string][]models.Comment{},
 		highlighter:  NewHighlighter(),
 		addedStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color("42")),  // Green
 		deletedStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("196")), // Red
@@ -170,6 +174,10 @@ func NewDiffViewer(width, height int) DiffViewer {
 		cursorStyle:  lipgloss.NewStyle().Background(lipgloss.Color("236")),
 		selectStyle:  lipgloss.NewStyle().Background(lipgloss.Color("235")),
 	}
+}
+
+func commentKey(path string, side models.DiffSide, line int) string {
+	return fmt.Sprintf("%s|%s|%d", path, side, line)
 }
 
 // SetDiff sets the diff to display
@@ -188,6 +196,34 @@ func (d *DiffViewer) SetDiff(diff *models.Diff) {
 	d.invalidateCache()
 	d.render()
 	d.scrollToFile(d.currentFile)
+}
+
+// SetComments sets line comment threads grouped by file/line.
+func (d *DiffViewer) SetComments(comments []models.Comment) {
+	grouped := map[string][]models.Comment{}
+	for _, comment := range comments {
+		if comment.Path == "" || comment.Line <= 0 {
+			continue
+		}
+		key := commentKey(comment.Path, comment.Side, comment.Line)
+		grouped[key] = append(grouped[key], comment)
+		for _, reply := range comment.Replies {
+			r := reply
+			if r.Path == "" {
+				r.Path = comment.Path
+			}
+			if r.Line <= 0 {
+				r.Line = comment.Line
+			}
+			if r.Side == "" {
+				r.Side = comment.Side
+			}
+			replyKey := commentKey(r.Path, r.Side, r.Line)
+			grouped[replyKey] = append(grouped[replyKey], r)
+		}
+	}
+	d.lineComments = grouped
+	d.render()
 }
 
 // SetCurrentFileByPath sets the current file by path and scrolls to it.
@@ -743,9 +779,37 @@ func (d *DiffViewer) renderHunk(hunk models.Hunk, filename string) (string, []li
 			side:     side,
 			isCode:   true,
 		})
+
+		comments := d.lineComments[commentKey(filename, side, lineNo)]
+		for _, comment := range comments {
+			commentLine := d.renderCommentLine(comment)
+			content.WriteString(commentLine)
+			content.WriteString("\n")
+			lineMapping = append(lineMapping, lineInfo{
+				filePath:  filename,
+				lineNo:    lineNo,
+				side:      side,
+				isCode:    false,
+				commentID: comment.ID,
+				isComment: true,
+			})
+		}
 	}
 
 	return content.String(), lineMapping
+}
+
+func (d *DiffViewer) renderCommentLine(comment models.Comment) string {
+	author := strings.TrimSpace(comment.Author.Login)
+	if author == "" {
+		author = "unknown"
+	}
+	body := strings.TrimSpace(strings.ReplaceAll(comment.Body, "\n", " "))
+	if len(body) > 120 {
+		body = body[:117] + "..."
+	}
+	label := fmt.Sprintf("  [@%s] %s", author, body)
+	return d.hunkStyle.Copy().Foreground(lipgloss.Color("205")).Render(label)
 }
 
 // renderLine renders a single diff line with syntax highlighting
@@ -1154,6 +1218,18 @@ func (d *DiffViewer) CurrentLineInfo() (filePath string, lineNo int, side models
 
 	info := d.lineMapping[d.cursor]
 	return info.filePath, info.lineNo, info.side, info.isCode
+}
+
+// CurrentCommentID returns the comment id if cursor is on an inline comment line.
+func (d *DiffViewer) CurrentCommentID() string {
+	if d.cursor < 0 || d.cursor >= len(d.lineMapping) {
+		return ""
+	}
+	info := d.lineMapping[d.cursor]
+	if !info.isComment {
+		return ""
+	}
+	return info.commentID
 }
 
 // EnsureCursorOnCodeLine moves the cursor to the nearest code line if needed.

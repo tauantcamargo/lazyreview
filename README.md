@@ -19,7 +19,7 @@ LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/l
 - **Workspaces & Dashboard** - Group repos and get a multi-repo overview
 - **Offline Queue** - Automatically retries review actions and comments when you're back online
 - **Local Git Integration** - Auto-detect repo, show branch status, checkout PR branch
-- **Comments Panel** - Browse PR comments and reply inline from the TUI
+- **Comments Panel** - Browse PR comments, including replies, and manage threads inline
 - **AI-Assisted Review** - Run AI review on the current file and submit approve/request changes/comment
 - **Range Selection** - Select multiple lines in the diff and comment on the whole block
 - **Secure Authentication** - Tokens stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
@@ -109,6 +109,9 @@ lazyreview start
 | `v` | Review comment |
 | `t` | Toggle comments panel |
 | `y` | Reply to selected comment |
+| `e` | Edit selected inline comment |
+| `x` | Delete selected inline comment |
+| `z` | Resolve selected thread (provider support varies) |
 | `A` | AI review (current file) |
 | `V` | Select range (multi-line comment) |
 | `Shift+c` | Checkout PR branch |
