@@ -122,8 +122,9 @@ type reviewResultMsg struct {
 }
 
 type replyResultMsg struct {
-	commentID string
-	err       error
+	commentID    string
+	optimisticID string
+	err          error
 }
 
 type aiReviewResultMsg struct {
@@ -137,16 +138,17 @@ type updateResultMsg struct {
 }
 
 type commentSubmitMsg struct {
-	body      string
-	filePath  string // empty for general comment
-	line      int    // 0 for general comment
-	startLine int
-	side      models.DiffSide
-	commitID  string
-	owner     string
-	repo      string
-	number    int
-	err       error
+	body         string
+	optimisticID string
+	filePath     string // empty for general comment
+	line         int    // 0 for general comment
+	startLine    int
+	side         models.DiffSide
+	commitID     string
+	owner        string
+	repo         string
+	number       int
+	err          error
 }
 
 type workspaceTabsMsg struct {
@@ -231,6 +233,7 @@ type Model struct {
 	prDetailCache       *services.Cache[*models.PullRequest]
 	prFilesCache        *services.Cache[[]models.FileChange]
 	prDiffCache         *services.Cache[*models.Diff]
+	prCommentsCache     *services.Cache[[]models.Comment]
 
 	// Provider and auth
 	provider    providers.Provider
@@ -312,6 +315,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	prDetailCache := services.NewCache[*models.PullRequest](2 * time.Minute)
 	prFilesCache := services.NewCache[[]models.FileChange](2 * time.Minute)
 	prDiffCache := services.NewCache[*models.Diff](2 * time.Minute)
+	prCommentsCache := services.NewCache[[]models.Comment](20 * time.Second)
 	aiProvider, aiErr := ai.NewProviderFromEnv()
 
 	return Model{
@@ -346,6 +350,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		prDetailCache:    prDetailCache,
 		prFilesCache:     prFilesCache,
 		prDiffCache:      prDiffCache,
+		prCommentsCache:  prCommentsCache,
 		isLoading:        true,
 		loadingMessage:   "Loading your pull requests...",
 		spinner:          s,
@@ -893,6 +898,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.comments = msg.comments
+		if m.currentPR != nil {
+			owner, repo := m.resolvePRRepo()
+			m.prCommentsCache.Set(m.commentsCacheKey(owner, repo, m.currentPR.Number), msg.comments)
+		}
 		cmd := m.commentsList.SetItems(buildCommentItems(msg.comments))
 		m.updateFileCommentCounts()
 		return m, cmd
@@ -970,10 +979,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadingMessage = ""
 		m.textInput.Hide()
 		if msg.err != nil {
+			m.removeCommentByID(msg.optimisticID)
 			m.lastError = msg.err
 			m.statusMsg = fmt.Sprintf("Reply failed: %s", msg.err.Error())
 			return m, nil
 		}
+		m.invalidateCommentsCache()
 		m.statusMsg = "Reply posted"
 		return m, m.refreshComments()
 
@@ -1022,6 +1033,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadingMessage = ""
 		m.textInput.Hide()
 		if msg.err != nil {
+			m.removeCommentByID(msg.optimisticID)
 			if providers.IsNetworkError(msg.err) {
 				if err := m.enqueueCommentAction(msg); err != nil {
 					m.lastError = err
@@ -1035,11 +1047,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.statusMsg = fmt.Sprintf("Comment failed: %s", msg.err.Error())
 			}
 		} else {
+			m.invalidateCommentsCache()
 			if msg.filePath != "" && msg.line > 0 {
 				m.statusMsg = fmt.Sprintf("Comment added to %s:%d", msg.filePath, msg.line)
 			} else {
 				m.statusMsg = "Comment added to PR"
 			}
+			return m, m.refreshComments()
 		}
 		return m, nil
 
@@ -1610,7 +1624,7 @@ func (m *Model) enterDetailViewFromPR(selectedPR models.PullRequest) tea.Cmd {
 		m.fetchPRDetailCached(owner, repo, prNumber),
 		m.fetchPRFilesCached(owner, repo, prNumber),
 		m.fetchPRDiffCached(owner, repo, prNumber),
-		fetchPRComments(m.provider, owner, repo, prNumber),
+		m.fetchPRCommentsCached(owner, repo, prNumber),
 	)
 }
 
@@ -1744,10 +1758,21 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 			commitID = m.currentPR.HeadSHA
 		}
 
+		optimisticID := m.addOptimisticComment(models.Comment{
+			Type: models.CommentTypeInline,
+			Body: body,
+			Path: filePath,
+			Line: line,
+			Side: side,
+		})
 		m.diffViewer.ClearSelection()
-		return *m, submitLineComment(m.provider, owner, repo, m.currentPR.Number, body, filePath, line, startLine, side, commitID)
+		return *m, submitLineComment(m.provider, owner, repo, m.currentPR.Number, body, optimisticID, filePath, line, startLine, side, commitID)
 	} else if mode == components.TextInputGeneralComment {
-		return *m, submitGeneralComment(m.provider, owner, repo, m.currentPR.Number, body)
+		optimisticID := m.addOptimisticComment(models.Comment{
+			Type: models.CommentTypeGeneral,
+			Body: body,
+		})
+		return *m, submitGeneralComment(m.provider, owner, repo, m.currentPR.Number, body, optimisticID)
 	} else if mode == components.TextInputReviewComment {
 		return *m, submitReviewComment(m.provider, owner, repo, m.currentPR.Number, body)
 	} else if mode == components.TextInputReplyComment {
@@ -1758,7 +1783,8 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 			m.isLoading = false
 			return *m, nil
 		}
-		return *m, submitReplyComment(m.provider, owner, repo, m.currentPR.Number, commentID, body)
+		optimisticID := m.addOptimisticReply(commentID, body)
+		return *m, submitReplyComment(m.provider, owner, repo, m.currentPR.Number, commentID, optimisticID, body)
 	} else if mode == components.TextInputApprove {
 		comment := strings.TrimSpace(body)
 		if comment == "" {
@@ -1794,7 +1820,7 @@ func (m *Model) refreshComments() tea.Cmd {
 		return nil
 	}
 	owner, repo := m.resolvePRRepo()
-	return fetchPRComments(m.provider, owner, repo, m.currentPR.Number)
+	return m.fetchPRCommentsCached(owner, repo, m.currentPR.Number)
 }
 
 func (m *Model) startAIReview() tea.Cmd {
@@ -1983,7 +2009,7 @@ func formatGitStatus(status *git.BranchStatus) string {
 func buildCommentItems(comments []models.Comment) []list.Item {
 	items := make([]list.Item, 0, len(comments))
 	for _, comment := range comments {
-		author := comment.Author.Login
+		author := sanitizeInlineText(comment.Author.Login)
 		if author == "" {
 			author = "unknown"
 		}
@@ -2001,7 +2027,7 @@ func buildCommentItems(comments []models.Comment) []list.Item {
 }
 
 func summarizeText(text string, max int) string {
-	trimmed := strings.TrimSpace(strings.ReplaceAll(text, "\n", " "))
+	trimmed := strings.TrimSpace(strings.ReplaceAll(sanitizeInlineText(text), "\n", " "))
 	if max <= 0 || len(trimmed) <= max {
 		return trimmed
 	}
@@ -2013,11 +2039,129 @@ func summarizeText(text string, max int) string {
 
 func (m *Model) findCommentByID(id string) *models.Comment {
 	for i := range m.comments {
-		if m.comments[i].ID == id {
-			return &m.comments[i]
+		if found := findCommentInThread(&m.comments[i], id); found != nil {
+			return found
 		}
 	}
 	return nil
+}
+
+func findCommentInThread(comment *models.Comment, id string) *models.Comment {
+	if comment == nil || id == "" {
+		return nil
+	}
+	if comment.ID == id {
+		return comment
+	}
+	for i := range comment.Replies {
+		if found := findCommentInThread(&comment.Replies[i], id); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+func sanitizeInlineText(s string) string {
+	if s == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r == '\n' || r == '\r' || r == '\t' {
+			b.WriteRune(' ')
+			continue
+		}
+		if r < 32 || r == 127 {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+func (m *Model) addOptimisticComment(comment models.Comment) string {
+	id := fmt.Sprintf("local-%d", time.Now().UnixNano())
+	author := strings.TrimSpace(m.currentUserLogin)
+	if author == "" {
+		author = "you"
+	}
+	comment.ID = id
+	comment.Author = models.User{Login: author}
+	comment.CreatedAt = time.Now()
+	comment.UpdatedAt = comment.CreatedAt
+
+	m.comments = append([]models.Comment{comment}, m.comments...)
+	m.refreshCommentUI()
+	return id
+}
+
+func (m *Model) addOptimisticReply(parentID, body string) string {
+	parent := m.findCommentByID(parentID)
+	if parent == nil {
+		return ""
+	}
+	id := fmt.Sprintf("local-%d", time.Now().UnixNano())
+	author := strings.TrimSpace(m.currentUserLogin)
+	if author == "" {
+		author = "you"
+	}
+	reply := models.Comment{
+		ID:        id,
+		Type:      models.CommentTypeInline,
+		Body:      body,
+		Author:    models.User{Login: author},
+		InReplyTo: parentID,
+		Path:      parent.Path,
+		Line:      parent.Line,
+		Side:      parent.Side,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	parent.Replies = append(parent.Replies, reply)
+	m.refreshCommentUI()
+	return id
+}
+
+func (m *Model) removeCommentByID(id string) {
+	if strings.TrimSpace(id) == "" {
+		return
+	}
+	next := m.comments[:0]
+	for i := range m.comments {
+		if m.comments[i].ID == id {
+			continue
+		}
+		m.comments[i].Replies = removeReplyByID(m.comments[i].Replies, id)
+		next = append(next, m.comments[i])
+	}
+	m.comments = next
+	m.refreshCommentUI()
+}
+
+func removeReplyByID(replies []models.Comment, id string) []models.Comment {
+	next := replies[:0]
+	for i := range replies {
+		if replies[i].ID == id {
+			continue
+		}
+		replies[i].Replies = removeReplyByID(replies[i].Replies, id)
+		next = append(next, replies[i])
+	}
+	return next
+}
+
+func (m *Model) refreshCommentUI() {
+	m.commentsList.SetItems(buildCommentItems(m.comments))
+	m.updateFileCommentCounts()
+}
+
+func (m *Model) invalidateCommentsCache() {
+	if m.currentPR == nil {
+		return
+	}
+	owner, repo := m.resolvePRRepo()
+	m.prCommentsCache.Delete(m.commentsCacheKey(owner, repo, m.currentPR.Number))
 }
 
 func (m *Model) updateFileCommentCounts() {
@@ -2290,7 +2434,7 @@ func requestChanges(provider providers.Provider, owner, repo string, number int,
 	}
 }
 
-func submitLineComment(provider providers.Provider, owner, repo string, prNumber int, body, path string, line int, startLine int, side models.DiffSide, commitID string) tea.Cmd {
+func submitLineComment(provider providers.Provider, owner, repo string, prNumber int, body, optimisticID, path string, line int, startLine int, side models.DiffSide, commitID string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -2306,21 +2450,22 @@ func submitLineComment(provider providers.Provider, owner, repo string, prNumber
 
 		err := provider.CreateComment(ctx, owner, repo, prNumber, comment)
 		return commentSubmitMsg{
-			body:      body,
-			filePath:  path,
-			line:      line,
-			startLine: startLine,
-			side:      side,
-			commitID:  commitID,
-			owner:     owner,
-			repo:      repo,
-			number:    prNumber,
-			err:       err,
+			body:         body,
+			optimisticID: optimisticID,
+			filePath:     path,
+			line:         line,
+			startLine:    startLine,
+			side:         side,
+			commitID:     commitID,
+			owner:        owner,
+			repo:         repo,
+			number:       prNumber,
+			err:          err,
 		}
 	}
 }
 
-func submitGeneralComment(provider providers.Provider, owner, repo string, prNumber int, body string) tea.Cmd {
+func submitGeneralComment(provider providers.Provider, owner, repo string, prNumber int, body, optimisticID string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -2331,11 +2476,12 @@ func submitGeneralComment(provider providers.Provider, owner, repo string, prNum
 
 		err := provider.CreateComment(ctx, owner, repo, prNumber, comment)
 		return commentSubmitMsg{
-			body:   body,
-			owner:  owner,
-			repo:   repo,
-			number: prNumber,
-			err:    err,
+			body:         body,
+			optimisticID: optimisticID,
+			owner:        owner,
+			repo:         repo,
+			number:       prNumber,
+			err:          err,
 		}
 	}
 }
@@ -2355,13 +2501,13 @@ func submitReviewComment(provider providers.Provider, owner, repo string, prNumb
 	}
 }
 
-func submitReplyComment(provider providers.Provider, owner, repo string, prNumber int, commentID, body string) tea.Cmd {
+func submitReplyComment(provider providers.Provider, owner, repo string, prNumber int, commentID, optimisticID, body string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		err := provider.ReplyToComment(ctx, owner, repo, prNumber, commentID, body)
-		return replyResultMsg{commentID: commentID, err: err}
+		return replyResultMsg{commentID: commentID, optimisticID: optimisticID, err: err}
 	}
 }
 
@@ -2593,6 +2739,21 @@ func (m *Model) fetchPRDiffWithCache(owner, repo string, number int, key string)
 		m.prDiffCache.Set(key, diff)
 		return prDiffMsg{diff}
 	}
+}
+
+func (m *Model) commentsCacheKey(owner, repo string, number int) string {
+	return fmt.Sprintf("pr_comments:%s/%s:%d:%s", owner, repo, number, m.provider.Host())
+}
+
+func (m *Model) fetchPRCommentsCached(owner, repo string, number int) tea.Cmd {
+	key := m.commentsCacheKey(owner, repo, number)
+	if cached, ok := m.prCommentsCache.Get(key); ok {
+		return tea.Batch(
+			func() tea.Msg { return prCommentsMsg{comments: cached, err: nil} },
+			fetchPRComments(m.provider, owner, repo, number),
+		)
+	}
+	return fetchPRComments(m.provider, owner, repo, number)
 }
 
 func (m *Model) switchSidebarView(itemID string) tea.Cmd {

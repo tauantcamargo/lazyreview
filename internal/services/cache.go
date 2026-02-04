@@ -66,3 +66,13 @@ func (c *Cache[T]) Clear() {
 	c.entries = make(map[string]cacheEntry[T])
 	c.mu.Unlock()
 }
+
+// Delete removes a single cache entry.
+func (c *Cache[T]) Delete(key string) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	delete(c.entries, key)
+	c.mu.Unlock()
+}
