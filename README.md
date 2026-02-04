@@ -114,6 +114,8 @@ lazyreview start
 | `e` | Edit selected inline comment |
 | `x` | Delete selected inline comment |
 | `z` | Resolve selected thread (provider support varies) |
+| `i` | Toggle full comment preview pane |
+| `Enter` (comments panel) | Jump to comment location in diff |
 | `A` | AI review (current file) |
 | `O` | Open selected file in `$EDITOR` |
 | `V` | Select range (multi-line comment) |

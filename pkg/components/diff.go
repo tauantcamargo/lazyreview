@@ -1232,6 +1232,33 @@ func (d *DiffViewer) CurrentCommentID() string {
 	return info.commentID
 }
 
+// JumpToLine moves cursor to the closest mapped line for a file/line/side.
+func (d *DiffViewer) JumpToLine(path string, line int, side models.DiffSide) bool {
+	if path == "" || line <= 0 || len(d.lineMapping) == 0 {
+		return false
+	}
+	best := -1
+	for i, info := range d.lineMapping {
+		if info.filePath != path || !info.isCode {
+			continue
+		}
+		if info.lineNo == line && (side == "" || info.side == side) {
+			best = i
+			break
+		}
+		if best == -1 && info.lineNo == line {
+			best = i
+		}
+	}
+	if best == -1 {
+		return false
+	}
+	d.cursor = best
+	d.ensureCursorVisible()
+	d.render()
+	return true
+}
+
 // EnsureCursorOnCodeLine moves the cursor to the nearest code line if needed.
 func (d *DiffViewer) EnsureCursorOnCodeLine() bool {
 	if len(d.lineMapping) == 0 {

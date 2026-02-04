@@ -29,24 +29,25 @@ type KeyMap struct {
 	PrevPanel key.Binding
 
 	// Actions
-	Approve        key.Binding
-	RequestChanges key.Binding
-	Comment        key.Binding
-	GeneralComment key.Binding
-	ReviewComment  key.Binding
-	ToggleComments key.Binding
-	ReplyComment   key.Binding
-	EditComment    key.Binding
-	DeleteComment  key.Binding
-	ResolveComment key.Binding
-	DraftSummary   key.Binding
-	AIReview       key.Binding
-	Update         key.Binding
-	OpenBrowser    key.Binding
-	OpenEditor     key.Binding
-	Checkout       key.Binding
-	Refresh        key.Binding
-	Merge          key.Binding
+	Approve              key.Binding
+	RequestChanges       key.Binding
+	Comment              key.Binding
+	GeneralComment       key.Binding
+	ReviewComment        key.Binding
+	ToggleComments       key.Binding
+	ReplyComment         key.Binding
+	EditComment          key.Binding
+	DeleteComment        key.Binding
+	ResolveComment       key.Binding
+	ToggleCommentPreview key.Binding
+	DraftSummary         key.Binding
+	AIReview             key.Binding
+	Update               key.Binding
+	OpenBrowser          key.Binding
+	OpenEditor           key.Binding
+	Checkout             key.Binding
+	Refresh              key.Binding
+	Merge                key.Binding
 
 	// Search
 	Search      key.Binding
@@ -166,6 +167,10 @@ func DefaultKeyMap() KeyMap {
 		ResolveComment: key.NewBinding(
 			key.WithKeys("z"),
 			key.WithHelp("z", "resolve thread"),
+		),
+		ToggleCommentPreview: key.NewBinding(
+			key.WithKeys("i"),
+			key.WithHelp("i", "toggle comment preview"),
 		),
 		DraftSummary: key.NewBinding(
 			key.WithKeys("s"),

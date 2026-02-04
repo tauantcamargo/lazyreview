@@ -9,28 +9,29 @@ import (
 
 // HelpKeyMap defines keybindings shown in the help view
 type HelpKeyMap struct {
-	Up             key.Binding
-	Down           key.Binding
-	Left           key.Binding
-	Right          key.Binding
-	Select         key.Binding
-	Back           key.Binding
-	Approve        key.Binding
-	RequestChanges key.Binding
-	Comment        key.Binding
-	ReviewComment  key.Binding
-	Checkout       key.Binding
-	OpenEditor     key.Binding
-	ToggleComments key.Binding
-	ReplyComment   key.Binding
-	EditComment    key.Binding
-	DeleteComment  key.Binding
-	ResolveComment key.Binding
-	DraftSummary   key.Binding
-	AIReview       key.Binding
-	Update         key.Binding
-	Help           key.Binding
-	Quit           key.Binding
+	Up                   key.Binding
+	Down                 key.Binding
+	Left                 key.Binding
+	Right                key.Binding
+	Select               key.Binding
+	Back                 key.Binding
+	Approve              key.Binding
+	RequestChanges       key.Binding
+	Comment              key.Binding
+	ReviewComment        key.Binding
+	Checkout             key.Binding
+	OpenEditor           key.Binding
+	ToggleComments       key.Binding
+	ReplyComment         key.Binding
+	EditComment          key.Binding
+	DeleteComment        key.Binding
+	ResolveComment       key.Binding
+	ToggleCommentPreview key.Binding
+	DraftSummary         key.Binding
+	AIReview             key.Binding
+	Update               key.Binding
+	Help                 key.Binding
+	Quit                 key.Binding
 }
 
 // ShortHelp returns a short help view
@@ -44,7 +45,7 @@ func (k HelpKeyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.Left, k.Right},
 		{k.Select, k.Back},
 		{k.Approve, k.RequestChanges, k.Comment, k.ReviewComment, k.Checkout, k.OpenEditor},
-		{k.ToggleComments, k.ReplyComment, k.EditComment, k.DeleteComment, k.ResolveComment},
+		{k.ToggleComments, k.ToggleCommentPreview, k.ReplyComment, k.EditComment, k.DeleteComment, k.ResolveComment},
 		{k.DraftSummary, k.AIReview, k.Update},
 		{k.Help, k.Quit},
 	}
@@ -120,6 +121,10 @@ func DefaultHelpKeyMap() HelpKeyMap {
 		ResolveComment: key.NewBinding(
 			key.WithKeys("z"),
 			key.WithHelp("z", "resolve thread"),
+		),
+		ToggleCommentPreview: key.NewBinding(
+			key.WithKeys("i"),
+			key.WithHelp("i", "toggle preview"),
 		),
 		DraftSummary: key.NewBinding(
 			key.WithKeys("s"),

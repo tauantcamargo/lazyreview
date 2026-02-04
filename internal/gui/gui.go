@@ -293,13 +293,14 @@ type Model struct {
 	detailSidebarMode DetailSidebarMode
 
 	// Current PR state
-	currentPR    *models.PullRequest
-	currentDiff  *models.Diff
-	currentFiles []models.FileChange
-	prList       []models.PullRequest
-	comments     []models.Comment
-	commentsList components.List
-	reviewDraft  string
+	currentPR              *models.PullRequest
+	currentDiff            *models.Diff
+	currentFiles           []models.FileChange
+	prList                 []models.PullRequest
+	comments               []models.Comment
+	commentsList           components.List
+	reviewDraft            string
+	commentPreviewExpanded bool
 
 	// Loading states
 	isLoading      bool
@@ -359,42 +360,43 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	aiProvider, aiErr := ai.NewProviderFromEnv()
 
 	model := Model{
-		config:           cfg,
-		provider:         provider,
-		authService:      authService,
-		aiProvider:       aiProvider,
-		aiError:          aiErr,
-		storage:          store,
-		gitOwner:         owner,
-		gitRepo:          repo,
-		activePanel:      PanelSidebar,
-		mode:             ModeNormal,
-		viewState:        ViewList,
-		currentViewMode:  initialViewMode,
-		currentTheme:     cfg.UI.Theme,
-		sidebar:          sidebar,
-		content:          content,
-		fileTree:         fileTree,
-		diffViewer:       diffViewer,
-		commentsList:     commentsList,
-		textInput:        textInput,
-		help:             components.NewHelp(),
-		keyMap:           DefaultKeyMap(),
-		keySeq:           NewKeySequence(),
-		workspaceManager: workspaceManager,
-		repoSelector:     repoSelector,
-		workspaceTabs:    workspaceTabs,
-		dashboard:        dashboard,
-		aggregator:       aggregator,
-		sidebarCounts:    map[string]int{},
-		prListCache:      prListCache,
-		prDetailCache:    prDetailCache,
-		prFilesCache:     prFilesCache,
-		prDiffCache:      prDiffCache,
-		prCommentsCache:  prCommentsCache,
-		isLoading:        true,
-		loadingMessage:   "Loading your pull requests...",
-		spinner:          s,
+		config:                 cfg,
+		provider:               provider,
+		authService:            authService,
+		aiProvider:             aiProvider,
+		aiError:                aiErr,
+		storage:                store,
+		gitOwner:               owner,
+		gitRepo:                repo,
+		activePanel:            PanelSidebar,
+		mode:                   ModeNormal,
+		viewState:              ViewList,
+		currentViewMode:        initialViewMode,
+		currentTheme:           cfg.UI.Theme,
+		commentPreviewExpanded: true,
+		sidebar:                sidebar,
+		content:                content,
+		fileTree:               fileTree,
+		diffViewer:             diffViewer,
+		commentsList:           commentsList,
+		textInput:              textInput,
+		help:                   components.NewHelp(),
+		keyMap:                 DefaultKeyMap(),
+		keySeq:                 NewKeySequence(),
+		workspaceManager:       workspaceManager,
+		repoSelector:           repoSelector,
+		workspaceTabs:          workspaceTabs,
+		dashboard:              dashboard,
+		aggregator:             aggregator,
+		sidebarCounts:          map[string]int{},
+		prListCache:            prListCache,
+		prDetailCache:          prDetailCache,
+		prFilesCache:           prFilesCache,
+		prDiffCache:            prDiffCache,
+		prCommentsCache:        prCommentsCache,
+		isLoading:              true,
+		loadingMessage:         "Loading your pull requests...",
+		spinner:                s,
 	}
 	model.applyTheme(cfg.UI.Theme)
 	return model
@@ -567,6 +569,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if selectedPath := m.fileTree.SelectedPath(); selectedPath != "" {
 							m.diffViewer.SetCurrentFileByPath(selectedPath)
 						}
+					} else if m.detailSidebarMode == DetailSidebarComments {
+						if comment := m.selectedComment(); comment != nil {
+							if comment.Path != "" {
+								m.diffViewer.SetCurrentFileByPath(comment.Path)
+							}
+							if comment.Path != "" && comment.Line > 0 {
+								m.diffViewer.JumpToLine(comment.Path, comment.Line, comment.Side)
+							}
+						}
 					}
 					m.activePanel = PanelDiff
 					m.diffViewer.Focus()
@@ -621,6 +632,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.activePanel == PanelFiles {
 					m.focusDetailSidebar()
 				}
+				return m, nil
+			}
+
+		case key.Matches(msg, m.keyMap.ToggleCommentPreview):
+			if m.viewState == ViewDetail && m.detailSidebarMode == DetailSidebarComments {
+				m.commentPreviewExpanded = !m.commentPreviewExpanded
+				m.statusMsg = "Comments preview toggled"
+				m.applyLayout(m.width, m.height)
 				return m, nil
 			}
 
@@ -1552,7 +1571,17 @@ func (m Model) View() string {
 		var fileTreeView, diffView string
 		sidebarContent := m.fileTree.View()
 		if m.detailSidebarMode == DetailSidebarComments {
-			sidebarContent = m.commentsList.View()
+			if m.commentPreviewExpanded {
+				preview := m.renderCommentPreview()
+				sidebarContent = lipgloss.JoinVertical(
+					lipgloss.Left,
+					m.commentsList.View(),
+					lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("─", max(10, m.width/4))),
+					preview,
+				)
+			} else {
+				sidebarContent = m.commentsList.View()
+			}
 		}
 		if m.activePanel == PanelFiles {
 			fileTreeView = focusedStyle.Render(sidebarContent)
@@ -1593,7 +1622,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  V:select range  a:approve  r:request changes  v:review comment  s:draft summary  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  O:open editor  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  V:select range  a:approve  r:request changes  v:review comment  s:draft summary  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  i:preview  enter:jump  O:open editor  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1714,6 +1743,8 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "  e: edit selected comment")
 		lines = append(lines, "  x: delete selected comment")
 		lines = append(lines, "  z: resolve selected thread")
+		lines = append(lines, "  i: toggle full comment preview pane")
+		lines = append(lines, "  enter: jump to comment line in diff")
 		lines = append(lines, "  O: open selected file in editor")
 	} else if m.currentViewMode == ViewModeWorkspaces {
 		lines = append(lines, "Workspace Manager")
@@ -2317,6 +2348,9 @@ func appendCommentItem(items *[]list.Item, comment models.Comment, depth int) {
 	} else if comment.Type == models.CommentTypeInline {
 		desc = "Inline comment"
 	}
+	if depth == 0 && len(comment.Replies) > 0 {
+		desc = fmt.Sprintf("%s • %d repl", desc, len(comment.Replies))
+	}
 	*items = append(*items, components.NewSimpleItem(comment.ID, title, desc))
 	for _, reply := range comment.Replies {
 		appendCommentItem(items, reply, depth+1)
@@ -2359,6 +2393,14 @@ func (m *Model) selectedCommentID() string {
 		return ""
 	}
 	return strings.TrimSpace(item.ID())
+}
+
+func (m *Model) selectedComment() *models.Comment {
+	id := m.selectedCommentID()
+	if id == "" {
+		return nil
+	}
+	return m.findCommentByID(id)
 }
 
 func findCommentInThread(comment *models.Comment, id string) *models.Comment {
@@ -2968,7 +3010,11 @@ func (m *Model) applyLayout(width, height int) {
 	fileTreeWidth := min(40, width/4)
 	diffWidth := width - fileTreeWidth - 4
 	m.fileTree.SetSize(fileTreeWidth, panelHeight)
-	m.commentsList.SetSize(fileTreeWidth, panelHeight)
+	commentsHeight := panelHeight
+	if m.commentPreviewExpanded {
+		commentsHeight = max(8, panelHeight/2)
+	}
+	m.commentsList.SetSize(fileTreeWidth, commentsHeight)
 	m.diffViewer.SetSize(diffWidth, panelHeight)
 
 	// Text input takes a centered portion of the screen
@@ -3415,6 +3461,40 @@ func buildDiffExcerpt(diff *models.Diff) string {
 		b.WriteByte('\n')
 	}
 	return b.String()
+}
+
+func (m *Model) renderCommentPreview() string {
+	comment := m.selectedComment()
+	if comment == nil {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("Comment Preview\nSelect a comment to view full thread")
+	}
+	var b strings.Builder
+	b.WriteString("Comment Preview\n")
+	b.WriteString(formatCommentBlock(*comment, 0))
+	if len(comment.Replies) > 0 {
+		b.WriteString("\nReplies:\n")
+		for _, reply := range comment.Replies {
+			b.WriteString(formatCommentBlock(reply, 1))
+		}
+	}
+	return b.String()
+}
+
+func formatCommentBlock(comment models.Comment, depth int) string {
+	indent := strings.Repeat("  ", depth)
+	author := strings.TrimSpace(comment.Author.Login)
+	if author == "" {
+		author = "unknown"
+	}
+	location := "General"
+	if comment.Path != "" && comment.Line > 0 {
+		location = fmt.Sprintf("%s:%d", comment.Path, comment.Line)
+	}
+	body := strings.TrimSpace(comment.Body)
+	if body == "" {
+		body = "(empty)"
+	}
+	return fmt.Sprintf("%s@%s (%s)\n%s%s\n", indent, author, location, indent, body)
 }
 
 func parseDigitKey(key string) (int, bool) {
