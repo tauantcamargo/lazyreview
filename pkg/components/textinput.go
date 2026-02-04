@@ -19,6 +19,8 @@ const (
 	TextInputRequestChanges               // Request changes with optional summary
 	TextInputReplyComment                 // Reply to an existing comment
 	TextInputEditComment                  // Edit an existing comment
+	TextInputProviderToken                // Provider auth token input
+	TextInputAIKey                        // AI API key input
 )
 
 // TextInput is a component for capturing multi-line text input
@@ -200,6 +202,10 @@ func (t *TextInput) placeholderForMode(mode TextInputMode) string {
 		return "Reply to the comment... (Ctrl+S to submit, Esc to cancel)"
 	case TextInputEditComment:
 		return "Edit the comment... (Ctrl+S to submit, Esc to cancel)"
+	case TextInputProviderToken:
+		return "Paste provider token... (Ctrl+S to save, Esc to cancel)"
+	case TextInputAIKey:
+		return "Paste AI API key... (Ctrl+S to save, Esc to cancel)"
 	default:
 		return "Enter your comment... (Ctrl+S to submit, Esc to cancel)"
 	}

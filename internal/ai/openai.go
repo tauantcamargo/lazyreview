@@ -68,6 +68,29 @@ func NewOpenAIProviderFromEnv() (Provider, error) {
 	}, nil
 }
 
+// NewOpenAIProvider initializes an OpenAI provider from explicit values.
+func NewOpenAIProvider(apiKey, model, baseURL string) (Provider, error) {
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return nil, errors.New("AI API key is required")
+	}
+	model = strings.TrimSpace(model)
+	if model == "" {
+		model = "gpt-4o-mini"
+	}
+	baseURL = strings.TrimSpace(baseURL)
+	if baseURL == "" {
+		baseURL = defaultOpenAIBaseURL
+	}
+
+	return &openAIProvider{
+		apiKey:  apiKey,
+		model:   model,
+		baseURL: baseURL,
+		client:  &http.Client{Timeout: 30 * time.Second},
+	}, nil
+}
+
 func (p *openAIProvider) Review(ctx context.Context, req ReviewRequest) (ReviewResponse, error) {
 	systemPrompt := "You are a senior code reviewer. Return only JSON with fields: decision (approve|request_changes|comment) and comment."
 	userPrompt := fmt.Sprintf("Review this diff for %s.\n\n```diff\n%s\n```", req.FilePath, req.Diff)

@@ -21,6 +21,7 @@ LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/l
 - **Local Git Integration** - Auto-detect repo, show branch status, checkout PR branch
 - **Comments Panel** - Browse PR comments, including replies, and manage threads inline
 - **Theme Presets** - Switch between `auto`, `darcula`, `tokyonight`, `gruvbox`, and `catppuccin` in Settings
+- **In-App Setup** - Configure provider tokens, switch active provider, and choose AI review provider/key from Settings
 - **AI-Assisted Review** - Run AI review on the current file and submit approve/request changes/comment
 - **Range Selection** - Select multiple lines in the diff and comment on the whole block
 - **Secure Authentication** - Tokens stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)

@@ -22,6 +22,7 @@ import (
 	"lazyreview/internal/updater"
 	"lazyreview/pkg/components"
 	"lazyreview/pkg/git"
+	"lazyreview/pkg/keyring"
 	"lazyreview/pkg/providers"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -168,6 +169,12 @@ type summaryDraftMsg struct {
 	err     error
 }
 
+type providerSwitchResultMsg struct {
+	provider providers.Provider
+	label    string
+	err      error
+}
+
 type updateResultMsg struct {
 	result updater.UpdateResult
 	err    error
@@ -272,10 +279,12 @@ type Model struct {
 	prCommentsCache     *services.Cache[[]models.Comment]
 
 	// Provider and auth
-	provider    providers.Provider
-	authService *auth.Service
-	aiProvider  ai.Provider
-	aiError     error
+	provider       providers.Provider
+	authService    *auth.Service
+	aiProvider     ai.Provider
+	aiError        error
+	aiProviderName string
+	aiModel        string
 
 	// Git context
 	gitOwner        string
@@ -358,6 +367,11 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	prDiffCache := services.NewCache[*models.Diff](2 * time.Minute)
 	prCommentsCache := services.NewCache[[]models.Comment](20 * time.Second)
 	aiProvider, aiErr := ai.NewProviderFromEnv()
+	aiProviderName := strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_PROVIDER"))
+	aiModel := strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_MODEL"))
+	if aiModel == "" {
+		aiModel = "gpt-4o-mini"
+	}
 
 	model := Model{
 		config:                 cfg,
@@ -365,6 +379,8 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		authService:            authService,
 		aiProvider:             aiProvider,
 		aiError:                aiErr,
+		aiProviderName:         aiProviderName,
+		aiModel:                aiModel,
 		storage:                store,
 		gitOwner:               owner,
 		gitRepo:                repo,
@@ -399,6 +415,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		spinner:                s,
 	}
 	model.applyTheme(cfg.UI.Theme)
+	model.loadPersistedAISettings()
 	return model
 }
 
@@ -842,7 +859,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.aiError != nil {
 					m.statusMsg = fmt.Sprintf("AI Review unavailable: %s", m.aiError.Error())
 				} else {
-					m.statusMsg = "AI Review unavailable: provider not configured"
+					m.statusMsg = "AI Review unavailable: configure AI in Settings"
 				}
 				return m, nil
 			}
@@ -1962,6 +1979,8 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 		m.loadingMessage = "Submitting review comment..."
 	case components.TextInputEditComment:
 		m.loadingMessage = "Updating comment..."
+	case components.TextInputProviderToken, components.TextInputAIKey:
+		m.loadingMessage = "Saving settings..."
 	default:
 		m.loadingMessage = "Submitting comment..."
 	}
@@ -2081,6 +2100,42 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 			comment = "Changes requested via LazyReview"
 		}
 		return *m, requestChanges(m.provider, owner, repo, m.currentPR.Number, comment)
+	} else if mode == components.TextInputProviderToken {
+		ctxValue := strings.TrimSpace(m.textInput.Context())
+		parts := strings.Split(ctxValue, "|")
+		if len(parts) != 2 {
+			m.statusMsg = "Provider setup: invalid context"
+			m.textInput.Hide()
+			m.isLoading = false
+			return *m, nil
+		}
+		providerType := config.ProviderType(parts[0])
+		host := parts[1]
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if _, err := m.authService.Login(ctx, providerType, host, strings.TrimSpace(body)); err != nil {
+			m.statusMsg = fmt.Sprintf("Provider setup failed: %s", err.Error())
+			m.textInput.Hide()
+			m.isLoading = false
+			return *m, nil
+		}
+		m.textInput.Hide()
+		m.isLoading = false
+		m.statusMsg = fmt.Sprintf("Connected %s (%s)", providerType, host)
+		m.content.SetItems(m.buildSettingsItems())
+		return *m, nil
+	} else if mode == components.TextInputAIKey {
+		if err := m.setAIKey(body); err != nil {
+			m.statusMsg = fmt.Sprintf("Failed to save AI key: %s", err.Error())
+			m.textInput.Hide()
+			m.isLoading = false
+			return *m, nil
+		}
+		m.textInput.Hide()
+		m.isLoading = false
+		m.statusMsg = "AI API key saved"
+		m.content.SetItems(m.buildSettingsItems())
+		return *m, nil
 	}
 
 	m.textInput.Hide()
@@ -3245,7 +3300,55 @@ func (m *Model) refreshSidebarItems() {
 }
 
 func (m *Model) buildSettingsItems() []list.Item {
-	items := make([]list.Item, 0, len(availableThemes()))
+	items := make([]list.Item, 0, 32)
+
+	items = append(items, components.NewSimpleItem("section:providers", "Providers", "Authenticate and switch active provider"))
+	for _, providerCfg := range m.configuredProviderOptions() {
+		status := "Not connected"
+		if m.isProviderAuthenticated(providerCfg.Type, providerCfg.GetHost()) {
+			status = "Connected"
+		}
+		title := fmt.Sprintf("Connect %s (%s)", providerCfg.Type, providerCfg.GetHost())
+		items = append(items, components.NewSimpleItem(
+			fmt.Sprintf("provider:login:%s:%s", providerCfg.Type, providerCfg.GetHost()),
+			title,
+			status,
+		))
+	}
+	for _, providerCfg := range m.authenticatedProviderOptions() {
+		label := fmt.Sprintf("Use %s (%s)", providerCfg.Type, providerCfg.GetHost())
+		desc := "Switch active provider"
+		if strings.EqualFold(string(providerCfg.Type), string(m.provider.Type())) &&
+			strings.EqualFold(providerCfg.GetHost(), m.provider.Host()) {
+			desc = "Current provider"
+		}
+		items = append(items, components.NewSimpleItem(
+			fmt.Sprintf("provider:switch:%s:%s", providerCfg.Type, providerCfg.GetHost()),
+			label,
+			desc,
+		))
+	}
+
+	items = append(items, components.NewSimpleItem("section:ai", "AI Review", "Choose provider and token"))
+	for _, name := range []string{"openai", "anthropic", "gemini", "copilot", "none"} {
+		desc := "Select AI provider"
+		if strings.EqualFold(name, m.aiProviderName) {
+			desc = "Current AI provider"
+		}
+		items = append(items, components.NewSimpleItem(
+			"ai:provider:"+name,
+			"AI Provider: "+themeDisplayName(name),
+			desc,
+		))
+	}
+	keyStatus := "Not set"
+	if m.hasAIKey() {
+		keyStatus = "Configured"
+	}
+	items = append(items, components.NewSimpleItem("ai:key:set", "Set AI API key", keyStatus))
+	items = append(items, components.NewSimpleItem("ai:key:clear", "Clear AI API key", "Remove stored key"))
+
+	items = append(items, components.NewSimpleItem("section:theme", "Themes", "Visual presets"))
 	for _, name := range availableThemes() {
 		label := themeDisplayName(name)
 		if name == "auto" {
@@ -3280,13 +3383,61 @@ func (m *Model) handleSettingsSelection() {
 		return
 	}
 	id := item.ID()
-	if !strings.HasPrefix(id, "theme:") {
+	if strings.HasPrefix(id, "section:") {
 		return
 	}
-	theme := strings.TrimPrefix(id, "theme:")
-	m.applyTheme(theme)
-	m.content.SetItems(m.buildSettingsItems())
-	m.statusMsg = fmt.Sprintf("Theme switched to %s", theme)
+	if strings.HasPrefix(id, "theme:") {
+		theme := strings.TrimPrefix(id, "theme:")
+		m.applyTheme(theme)
+		m.content.SetItems(m.buildSettingsItems())
+		m.statusMsg = fmt.Sprintf("Theme switched to %s", theme)
+		return
+	}
+	if strings.HasPrefix(id, "provider:login:") {
+		parts := strings.Split(id, ":")
+		if len(parts) >= 4 {
+			context := fmt.Sprintf("%s|%s", parts[2], parts[3])
+			m.textInput.Show(components.TextInputProviderToken, "Connect Provider Token", context)
+			m.textInput.SetSize(m.width-20, m.height-10)
+		}
+		return
+	}
+	if strings.HasPrefix(id, "provider:switch:") {
+		parts := strings.Split(id, ":")
+		if len(parts) >= 4 {
+			if err := m.switchProvider(config.ProviderType(parts[2]), parts[3]); err != nil {
+				m.statusMsg = fmt.Sprintf("Failed to switch provider: %s", err.Error())
+			} else {
+				m.statusMsg = fmt.Sprintf("Switched provider to %s (%s)", parts[2], parts[3])
+			}
+			m.content.SetItems(m.buildSettingsItems())
+		}
+		return
+	}
+	if strings.HasPrefix(id, "ai:provider:") {
+		name := strings.TrimPrefix(id, "ai:provider:")
+		if err := m.setAIProvider(name); err != nil {
+			m.statusMsg = fmt.Sprintf("AI provider setup: %s", err.Error())
+		} else {
+			m.statusMsg = fmt.Sprintf("AI provider set to %s", name)
+		}
+		m.content.SetItems(m.buildSettingsItems())
+		return
+	}
+	if id == "ai:key:set" {
+		m.textInput.Show(components.TextInputAIKey, "Set AI API Key", "")
+		m.textInput.SetSize(m.width-20, m.height-10)
+		return
+	}
+	if id == "ai:key:clear" {
+		if err := m.clearAIKey(); err != nil {
+			m.statusMsg = fmt.Sprintf("Failed to clear AI key: %s", err.Error())
+		} else {
+			m.statusMsg = "AI API key cleared"
+		}
+		m.content.SetItems(m.buildSettingsItems())
+		return
+	}
 }
 
 func (m *Model) applyTheme(themeName string) {
@@ -3314,6 +3465,188 @@ func (m *Model) applyTheme(themeName string) {
 		theme.CursorBg,
 		theme.SelectionBg,
 	)
+}
+
+func (m *Model) configuredProviderOptions() []config.ProviderConfig {
+	seen := map[string]struct{}{}
+	options := make([]config.ProviderConfig, 0, 8)
+	add := func(cfg config.ProviderConfig) {
+		key := fmt.Sprintf("%s|%s", cfg.Type, cfg.GetHost())
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		options = append(options, cfg)
+	}
+	for _, cfg := range m.config.Providers {
+		add(cfg)
+	}
+	add(config.ProviderConfig{Name: "github", Type: config.ProviderTypeGitHub, Host: "github.com"})
+	add(config.ProviderConfig{Name: "gitlab", Type: config.ProviderTypeGitLab, Host: "gitlab.com"})
+	add(config.ProviderConfig{Name: "bitbucket", Type: config.ProviderTypeBitbucket, Host: "bitbucket.org"})
+	add(config.ProviderConfig{Name: "azuredevops", Type: config.ProviderTypeAzureDevOps, Host: "dev.azure.com"})
+	return options
+}
+
+func (m *Model) authenticatedProviderOptions() []config.ProviderConfig {
+	if m.authService == nil {
+		return nil
+	}
+	statuses, err := m.authService.GetAllStatus()
+	if err != nil {
+		return nil
+	}
+	options := make([]config.ProviderConfig, 0, len(statuses))
+	for _, status := range statuses {
+		if !status.Authenticated {
+			continue
+		}
+		options = append(options, config.ProviderConfig{
+			Name: string(status.ProviderType),
+			Type: status.ProviderType,
+			Host: status.Host,
+		})
+	}
+	return options
+}
+
+func (m *Model) isProviderAuthenticated(providerType config.ProviderType, host string) bool {
+	if m.authService == nil {
+		return false
+	}
+	return m.authService.IsAuthenticated(providerType, host)
+}
+
+func (m *Model) switchProvider(providerType config.ProviderType, host string) error {
+	if m.authService == nil {
+		return fmt.Errorf("auth service unavailable")
+	}
+	cfg := config.ProviderConfig{
+		Name: string(providerType),
+		Type: providerType,
+		Host: host,
+	}
+	cred, err := m.authService.GetCredential(providerType, cfg.GetHost())
+	if err != nil {
+		return err
+	}
+	provider, err := providers.Create(cfg)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := provider.Authenticate(ctx, cred.Token); err != nil {
+		return err
+	}
+	m.provider = provider
+	m.aggregator = services.NewAggregator(provider)
+	m.repoSelector = views.NewRepoSelector(provider, m.storage, "", m.contentWidth(), m.contentHeight())
+	m.prListCache.Clear()
+	m.prDetailCache.Clear()
+	m.prFilesCache.Clear()
+	m.prDiffCache.Clear()
+	m.prCommentsCache.Clear()
+	return nil
+}
+
+func (m *Model) aiKeyStore() (*keyring.Store, error) {
+	return keyring.NewDefaultStore()
+}
+
+func (m *Model) aiKeyStorageKey() string {
+	name := strings.TrimSpace(m.aiProviderName)
+	if name == "" {
+		name = "openai"
+	}
+	return fmt.Sprintf("ai:%s:token", name)
+}
+
+func (m *Model) hasAIKey() bool {
+	store, err := m.aiKeyStore()
+	if err != nil {
+		return false
+	}
+	_, err = store.Get(m.aiKeyStorageKey())
+	return err == nil
+}
+
+func (m *Model) setAIProvider(name string) error {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		name = "none"
+	}
+	if m.storage != nil {
+		_ = m.storage.SetSetting("ai.provider", name)
+	}
+	m.aiProviderName = name
+	return m.reloadAIProvider()
+}
+
+func (m *Model) setAIKey(value string) error {
+	store, err := m.aiKeyStore()
+	if err != nil {
+		return err
+	}
+	if err := store.Set(m.aiKeyStorageKey(), strings.TrimSpace(value)); err != nil {
+		return err
+	}
+	return m.reloadAIProvider()
+}
+
+func (m *Model) clearAIKey() error {
+	store, err := m.aiKeyStore()
+	if err != nil {
+		return err
+	}
+	if err := store.Delete(m.aiKeyStorageKey()); err != nil && err != keyring.ErrNotFound {
+		return err
+	}
+	return m.reloadAIProvider()
+}
+
+func (m *Model) reloadAIProvider() error {
+	if m.aiProviderName == "" || m.aiProviderName == "none" {
+		m.aiProvider = nil
+		m.aiError = fmt.Errorf("AI provider disabled")
+		return nil
+	}
+	store, err := m.aiKeyStore()
+	if err != nil {
+		m.aiProvider = nil
+		m.aiError = err
+		return err
+	}
+	apiKey, err := store.Get(m.aiKeyStorageKey())
+	if err != nil {
+		m.aiProvider = nil
+		m.aiError = fmt.Errorf("AI API key not configured")
+		return m.aiError
+	}
+	provider, err := ai.NewProviderFromConfig(m.aiProviderName, apiKey, m.aiModel, "")
+	if err != nil {
+		m.aiProvider = nil
+		m.aiError = err
+		return err
+	}
+	m.aiProvider = provider
+	m.aiError = nil
+	return nil
+}
+
+func (m *Model) loadPersistedAISettings() {
+	if m.storage != nil {
+		if provider, err := m.storage.GetSetting("ai.provider"); err == nil && strings.TrimSpace(provider) != "" {
+			m.aiProviderName = strings.TrimSpace(provider)
+		}
+		if model, err := m.storage.GetSetting("ai.model"); err == nil && strings.TrimSpace(model) != "" {
+			m.aiModel = strings.TrimSpace(model)
+		}
+	}
+	if strings.TrimSpace(m.aiProviderName) == "" {
+		m.aiProviderName = "none"
+	}
+	_ = m.reloadAIProvider()
 }
 
 func (m *Model) sidebarLabel(label, key string) string {

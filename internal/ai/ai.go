@@ -47,3 +47,16 @@ func NewProviderFromEnv() (Provider, error) {
 		return nil, errors.New("unsupported AI provider: " + provider)
 	}
 }
+
+// NewProviderFromConfig creates a provider from explicit runtime config.
+func NewProviderFromConfig(providerName, apiKey, model, baseURL string) (Provider, error) {
+	provider := strings.ToLower(strings.TrimSpace(providerName))
+	switch provider {
+	case "", "none", "disabled":
+		return nil, errors.New("AI provider not configured")
+	case "openai":
+		return NewOpenAIProvider(apiKey, model, baseURL)
+	default:
+		return nil, errors.New("unsupported AI provider: " + provider)
+	}
+}

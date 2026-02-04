@@ -14,7 +14,11 @@ import (
 	"lazyreview/internal/storage"
 	"lazyreview/internal/updater"
 	"lazyreview/pkg/git"
+	"lazyreview/pkg/providers"
+	_ "lazyreview/pkg/providers/azuredevops"
+	_ "lazyreview/pkg/providers/bitbucket"
 	"lazyreview/pkg/providers/github"
+	_ "lazyreview/pkg/providers/gitlab"
 
 	"github.com/urfave/cli"
 )
@@ -212,10 +216,19 @@ func startTUI() error {
 
 	// If no provider configured, create default GitHub config
 	if providerCfg == nil {
-		providerCfg = &config.ProviderConfig{
-			Name: "github",
-			Type: config.ProviderTypeGitHub,
-			Host: "github.com",
+		if statuses, err := authService.GetAllStatus(); err == nil && len(statuses) > 0 {
+			status := statuses[0]
+			providerCfg = &config.ProviderConfig{
+				Name: string(status.ProviderType),
+				Type: status.ProviderType,
+				Host: status.Host,
+			}
+		} else {
+			providerCfg = &config.ProviderConfig{
+				Name: "github",
+				Type: config.ProviderTypeGitHub,
+				Host: "github.com",
+			}
 		}
 	}
 
@@ -230,7 +243,7 @@ func startTUI() error {
 	}
 
 	// Create provider instance
-	provider, err := github.New(*providerCfg)
+	provider, err := providers.Create(*providerCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create provider: %w", err)
 	}
@@ -271,10 +284,19 @@ func queueSyncAction() error {
 		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
 	}
 	if providerCfg == nil {
-		providerCfg = &config.ProviderConfig{
-			Name: "github",
-			Type: config.ProviderTypeGitHub,
-			Host: "github.com",
+		if statuses, statusErr := authService.GetAllStatus(); statusErr == nil && len(statuses) > 0 {
+			status := statuses[0]
+			providerCfg = &config.ProviderConfig{
+				Name: string(status.ProviderType),
+				Type: status.ProviderType,
+				Host: status.Host,
+			}
+		} else {
+			providerCfg = &config.ProviderConfig{
+				Name: "github",
+				Type: config.ProviderTypeGitHub,
+				Host: "github.com",
+			}
 		}
 	}
 
@@ -287,7 +309,7 @@ func queueSyncAction() error {
 		return fmt.Errorf("failed to get credentials: %w", err)
 	}
 
-	provider, err := github.New(*providerCfg)
+	provider, err := providers.Create(*providerCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create provider: %w", err)
 	}
