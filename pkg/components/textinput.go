@@ -22,6 +22,8 @@ const (
 	TextInputProviderToken                // Provider auth token input
 	TextInputAIKey                        // AI API key input
 	TextInputEditorCommand                // Preferred editor command
+	TextInputDiffSearch                   // Search query for diff
+	TextInputSaveFilterName               // Saved filter name input
 )
 
 // TextInput is a component for capturing multi-line text input
@@ -214,6 +216,10 @@ func (t *TextInput) placeholderForMode(mode TextInputMode) string {
 		return "Paste AI API key... (Ctrl+S to save, Esc to cancel)"
 	case TextInputEditorCommand:
 		return "Enter editor command (e.g., nvim, code --wait)... (Ctrl+S save)"
+	case TextInputDiffSearch:
+		return "Search diff content... (Ctrl+S to jump, Esc to cancel)"
+	case TextInputSaveFilterName:
+		return "Filter name... (Ctrl+S save, Esc cancel)"
 	default:
 		return "Enter Markdown comment... (Tab indents, Ctrl+S submit, Esc cancel)"
 	}

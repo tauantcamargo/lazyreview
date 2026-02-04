@@ -181,6 +181,7 @@ type DiffViewer struct {
 	currentHunk   int   // Current hunk index
 	highlighter   *Highlighter
 	lineMapping   []lineInfo // Maps viewport line to file/line info
+	searchTexts   []string   // Plain text per rendered line for search/jump
 	maxLines      int
 	filePositions []int // Line offsets where each file starts
 	lineComments  map[string][]models.Comment
@@ -499,6 +500,7 @@ func (d *DiffViewer) render() {
 		d.viewport.SetContent("No diff to display")
 		d.hunkPositions = nil
 		d.lineMapping = nil
+		d.searchTexts = nil
 		d.bumpContentVersion()
 		return
 	}
@@ -515,6 +517,7 @@ func (d *DiffViewer) renderUnifiedView() {
 	var content strings.Builder
 	var hunkPositions []int
 	var lineMapping []lineInfo
+	var searchTexts []string
 	var filePositions []int
 	currentLine := 0
 	truncated := false
@@ -533,6 +536,7 @@ func (d *DiffViewer) renderUnifiedView() {
 		content.WriteString(header)
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
+		searchTexts = append(searchTexts, file.Path)
 		currentLine++
 
 		// Determine filename for syntax highlighting
@@ -548,9 +552,10 @@ func (d *DiffViewer) renderUnifiedView() {
 				break
 			}
 			hunkPositions = append(hunkPositions, currentLine)
-			hunkContent, hunkLineMapping := d.renderHunk(hunk, filename)
+			hunkContent, hunkLineMapping, hunkSearchTexts := d.renderHunk(hunk, filename)
 			content.WriteString(d.applyCursorHighlight(hunkContent, currentLine))
 			lineMapping = append(lineMapping, hunkLineMapping...)
+			searchTexts = append(searchTexts, hunkSearchTexts...)
 			currentLine += len(hunkLineMapping)
 			if currentLine >= d.maxLines {
 				truncated = true
@@ -571,15 +576,17 @@ func (d *DiffViewer) renderUnifiedView() {
 					break
 				}
 				hunkPositions = append(hunkPositions, currentLine)
-				hunkContent, hunkLineMapping := d.renderHunk(hunk, filename)
+				hunkContent, hunkLineMapping, hunkSearchTexts := d.renderHunk(hunk, filename)
 				content.WriteString(d.applyCursorHighlight(hunkContent, currentLine))
 				lineMapping = append(lineMapping, hunkLineMapping...)
+				searchTexts = append(searchTexts, hunkSearchTexts...)
 				currentLine += len(hunkLineMapping)
 			}
 		}
 
 		content.WriteString(d.applyCursorHighlight("\n", currentLine))
 		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
+		searchTexts = append(searchTexts, "")
 		currentLine++
 	}
 
@@ -591,12 +598,14 @@ func (d *DiffViewer) renderUnifiedView() {
 		content.WriteString(notice)
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: "", lineNo: 0, side: "", isCode: false})
+		searchTexts = append(searchTexts, "truncated")
 		currentLine++
 	}
 
 	d.hunkPositions = hunkPositions
 	d.filePositions = filePositions
 	d.lineMapping = lineMapping
+	d.searchTexts = searchTexts
 	d.clampCursor()
 	d.viewport.SetContent(content.String())
 	d.bumpContentVersion()
@@ -606,6 +615,7 @@ func (d *DiffViewer) renderSplitView() {
 	var content strings.Builder
 	var hunkPositions []int
 	var lineMapping []lineInfo
+	var searchTexts []string
 	var filePositions []int
 	currentLine := 0
 	truncated := false
@@ -627,6 +637,7 @@ func (d *DiffViewer) renderSplitView() {
 		content.WriteString(header)
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
+		searchTexts = append(searchTexts, file.Path)
 		currentLine++
 
 		filename := file.Path
@@ -654,6 +665,7 @@ func (d *DiffViewer) renderSplitView() {
 			content.WriteString(header)
 			content.WriteString("\n")
 			lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
+			searchTexts = append(searchTexts, hunk.Header)
 			currentLine++
 
 			// Split lines into old (left) and new (right)
@@ -712,6 +724,7 @@ func (d *DiffViewer) renderSplitView() {
 				content.WriteString(line)
 				content.WriteString("\n")
 				lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: lineNo, side: side, isCode: true})
+				searchTexts = append(searchTexts, strings.TrimSpace(oldLinesText(oldLines, j)+" "+newLinesText(newLines, j)))
 				currentLine++
 				if currentLine >= d.maxLines {
 					truncated = true
@@ -733,6 +746,7 @@ func (d *DiffViewer) renderSplitView() {
 		}
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: file.Path, lineNo: 0, side: "", isCode: false})
+		searchTexts = append(searchTexts, "")
 		currentLine++
 	}
 
@@ -744,12 +758,14 @@ func (d *DiffViewer) renderSplitView() {
 		content.WriteString(notice)
 		content.WriteString("\n")
 		lineMapping = append(lineMapping, lineInfo{filePath: "", lineNo: 0, side: "", isCode: false})
+		searchTexts = append(searchTexts, "truncated")
 		currentLine++
 	}
 
 	d.hunkPositions = hunkPositions
 	d.filePositions = filePositions
 	d.lineMapping = lineMapping
+	d.searchTexts = searchTexts
 	d.clampCursor()
 	d.viewport.SetContent(content.String())
 	d.bumpContentVersion()
@@ -792,6 +808,20 @@ func (d *DiffViewer) renderSplitLine(line models.DiffLine, filename string, widt
 	return contentStyle.Render(content)
 }
 
+func oldLinesText(lines []models.DiffLine, idx int) string {
+	if idx < 0 || idx >= len(lines) {
+		return ""
+	}
+	return lines[idx].Content
+}
+
+func newLinesText(lines []models.DiffLine, idx int) string {
+	if idx < 0 || idx >= len(lines) {
+		return ""
+	}
+	return lines[idx].Content
+}
+
 // renderFileHeader renders a file header
 func (d *DiffViewer) renderFileHeader(file models.FileDiff, selected bool) string {
 	icon := "M"
@@ -820,15 +850,17 @@ func (d *DiffViewer) renderFileHeader(file models.FileDiff, selected bool) strin
 }
 
 // renderHunk renders a diff hunk and returns content and line mapping
-func (d *DiffViewer) renderHunk(hunk models.Hunk, filename string) (string, []lineInfo) {
+func (d *DiffViewer) renderHunk(hunk models.Hunk, filename string) (string, []lineInfo, []string) {
 	var content strings.Builder
 	var lineMapping []lineInfo
+	var searchTexts []string
 
 	// Hunk header
 	header := d.hunkStyle.Render(hunk.Header)
 	content.WriteString(header)
 	content.WriteString("\n")
 	lineMapping = append(lineMapping, lineInfo{filePath: filename, lineNo: 0, side: "", isCode: false})
+	searchTexts = append(searchTexts, hunk.Header)
 
 	// Lines
 	for _, line := range hunk.Lines {
@@ -848,6 +880,7 @@ func (d *DiffViewer) renderHunk(hunk models.Hunk, filename string) (string, []li
 			side:     side,
 			isCode:   true,
 		})
+		searchTexts = append(searchTexts, line.Content)
 
 		comments := d.lineComments[commentKey(filename, side, lineNo)]
 		for _, comment := range comments {
@@ -862,10 +895,11 @@ func (d *DiffViewer) renderHunk(hunk models.Hunk, filename string) (string, []li
 				commentID: comment.ID,
 				isComment: true,
 			})
+			searchTexts = append(searchTexts, comment.Body)
 		}
 	}
 
-	return content.String(), lineMapping
+	return content.String(), lineMapping, searchTexts
 }
 
 func (d *DiffViewer) renderCommentLine(comment models.Comment) string {
@@ -1326,6 +1360,41 @@ func (d *DiffViewer) JumpToLine(path string, line int, side models.DiffSide) boo
 	d.ensureCursorVisible()
 	d.render()
 	return true
+}
+
+// FindNext moves cursor to the next line containing query.
+func (d *DiffViewer) FindNext(query string) bool {
+	return d.find(query, true)
+}
+
+// FindPrev moves cursor to the previous line containing query.
+func (d *DiffViewer) FindPrev(query string) bool {
+	return d.find(query, false)
+}
+
+func (d *DiffViewer) find(query string, forward bool) bool {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" || len(d.searchTexts) == 0 {
+		return false
+	}
+
+	n := len(d.searchTexts)
+	start := d.cursor
+	for step := 1; step <= n; step++ {
+		idx := 0
+		if forward {
+			idx = (start + step) % n
+		} else {
+			idx = (start - step + n) % n
+		}
+		if strings.Contains(strings.ToLower(d.searchTexts[idx]), q) {
+			d.cursor = idx
+			d.ensureCursorVisible()
+			d.render()
+			return true
+		}
+	}
+	return false
 }
 
 // EnsureCursorOnCodeLine moves the cursor to the nearest code line if needed.

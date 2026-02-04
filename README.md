@@ -102,7 +102,10 @@ lazyreview start
 | `gg` | Go to top |
 | `G` | Go to bottom |
 | `Ctrl+d` / `Ctrl+u` | Half page down / up |
-| `n` / `N` | Next / previous file |
+| `/` | Filter PR list or search inside diff |
+| `S` | Save current PR list filter |
+| `F` | Open saved filters palette |
+| `n` / `N` | Next / previous file (or next/prev diff match) |
 | `{` / `}` | Previous / next hunk |
 | `a` | Approve PR |
 | `r` | Request changes |
@@ -110,7 +113,7 @@ lazyreview start
 | `C` | General PR comment |
 | `v` | Review comment |
 | `s` | Generate PR summary draft |
-| `t` | Toggle comments panel |
+| `t` | Cycle files, comments, and timeline sidebars |
 | `y` | Reply to selected comment |
 | `e` | Edit selected inline comment |
 | `x` | Delete selected inline comment |

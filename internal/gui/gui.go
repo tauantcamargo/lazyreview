@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -66,6 +67,7 @@ type DetailSidebarMode int
 const (
 	DetailSidebarFiles DetailSidebarMode = iota
 	DetailSidebarComments
+	DetailSidebarTimeline
 )
 
 // ViewMode represents the current sidebar view mode
@@ -107,6 +109,11 @@ type prDiffMsg struct {
 type prCommentsMsg struct {
 	comments []models.Comment
 	err      error
+}
+
+type prReviewsMsg struct {
+	reviews []models.Review
+	err     error
 }
 
 type errMsg struct {
@@ -225,6 +232,17 @@ type checkoutResultMsg struct {
 	err    error
 }
 
+type savedFilter struct {
+	Name  string `json:"name"`
+	Query string `json:"query"`
+}
+
+type timelineJumpTarget struct {
+	Path string
+	Line int
+	Side models.DiffSide
+}
+
 type queuedCommentPayload struct {
 	Body      string `json:"body"`
 	FilePath  string `json:"file_path,omitempty"`
@@ -277,6 +295,7 @@ type Model struct {
 	prFilesCache        *services.Cache[[]models.FileChange]
 	prDiffCache         *services.Cache[*models.Diff]
 	prCommentsCache     *services.Cache[[]models.Comment]
+	prReviewsCache      *services.Cache[[]models.Review]
 
 	// Provider and auth
 	provider       providers.Provider
@@ -315,9 +334,16 @@ type Model struct {
 	currentFiles           []models.FileChange
 	prList                 []models.PullRequest
 	comments               []models.Comment
+	reviews                []models.Review
 	commentsList           components.List
+	timelineList           components.List
+	timelineTargets        map[string]timelineJumpTarget
 	reviewDraft            string
+	diffSearchQuery        string
 	commentPreviewExpanded bool
+	savedFilters           []savedFilter
+	filterPalette          components.List
+	filterPaletteVisible   bool
 
 	// Loading states
 	isLoading      bool
@@ -352,6 +378,8 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 
 	// Create comments list (for PR detail view)
 	commentsList := components.NewList("Comments", []list.Item{}, 30, 20)
+	timelineList := components.NewList("Timeline", []list.Item{}, 30, 20)
+	filterPalette := components.NewList("Saved Filters", []list.Item{}, 50, 20)
 
 	// Create text input component
 	textInput := components.NewTextInput()
@@ -374,6 +402,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	prFilesCache := services.NewCache[[]models.FileChange](2 * time.Minute)
 	prDiffCache := services.NewCache[*models.Diff](2 * time.Minute)
 	prCommentsCache := services.NewCache[[]models.Comment](20 * time.Second)
+	prReviewsCache := services.NewCache[[]models.Review](20 * time.Second)
 	aiProvider, aiErr := ai.NewProviderFromEnv()
 	aiProviderName := strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_PROVIDER"))
 	aiModel := strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_MODEL"))
@@ -405,6 +434,9 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		fileTree:               fileTree,
 		diffViewer:             diffViewer,
 		commentsList:           commentsList,
+		timelineList:           timelineList,
+		timelineTargets:        map[string]timelineJumpTarget{},
+		filterPalette:          filterPalette,
 		textInput:              textInput,
 		help:                   components.NewHelp(),
 		keyMap:                 DefaultKeyMap(cfg.UI.VimMode),
@@ -420,6 +452,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		prFilesCache:           prFilesCache,
 		prDiffCache:            prDiffCache,
 		prCommentsCache:        prCommentsCache,
+		prReviewsCache:         prReviewsCache,
 		isLoading:              true,
 		loadingMessage:         "Loading your pull requests...",
 		spinner:                s,
@@ -459,6 +492,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.filterPaletteVisible {
+			switch msg.String() {
+			case "esc", "q":
+				m.filterPaletteVisible = false
+				m.statusMsg = "Saved filters closed"
+				return m, nil
+			case "enter":
+				selected := m.filterPalette.SelectedItem()
+				item, ok := selected.(components.SimpleItem)
+				if !ok {
+					m.filterPaletteVisible = false
+					return m, nil
+				}
+				m.filterPaletteVisible = false
+				if item.ID() == "saved_filter:clear" {
+					m.content.ResetFilter()
+					m.statusMsg = "Filter cleared"
+					return m, nil
+				}
+				name := strings.TrimPrefix(item.ID(), "saved_filter:")
+				for _, filter := range m.savedFilters {
+					if filter.Name == name {
+						_ = m.content.SetFilterText(filter.Query)
+						m.statusMsg = fmt.Sprintf("Filter applied: %s", filter.Name)
+						return m, nil
+					}
+				}
+				return m, nil
+			default:
+				var cmd tea.Cmd
+				m.filterPalette, cmd = m.filterPalette.Update(msg)
+				return m, cmd
+			}
+		}
+
 		// If text input is visible, handle its keys first
 		if m.textInput.IsVisible() {
 			switch msg.String() {
@@ -613,6 +681,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 								m.diffViewer.JumpToLine(comment.Path, comment.Line, comment.Side)
 							}
 						}
+					} else if m.detailSidebarMode == DetailSidebarTimeline {
+						if target, ok := m.selectedTimelineTarget(); ok {
+							if target.Path != "" {
+								m.diffViewer.SetCurrentFileByPath(target.Path)
+							}
+							if target.Path != "" && target.Line > 0 {
+								m.diffViewer.JumpToLine(target.Path, target.Line, target.Side)
+							}
+						}
 					}
 					m.activePanel = PanelDiff
 					m.diffViewer.Focus()
@@ -654,15 +731,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keyMap.ToggleComments):
 			if m.viewState == ViewDetail {
-				if m.detailSidebarMode == DetailSidebarComments {
-					m.detailSidebarMode = DetailSidebarFiles
-					m.statusMsg = "Files panel"
-				} else {
+				if m.detailSidebarMode == DetailSidebarFiles {
 					m.detailSidebarMode = DetailSidebarComments
 					m.statusMsg = "Comments panel"
 					if len(m.comments) == 0 {
 						return m, m.refreshComments()
 					}
+				} else if m.detailSidebarMode == DetailSidebarComments {
+					m.detailSidebarMode = DetailSidebarTimeline
+					m.statusMsg = "Timeline panel"
+				} else {
+					m.detailSidebarMode = DetailSidebarFiles
+					m.statusMsg = "Files panel"
 				}
 				if m.activePanel == PanelFiles {
 					m.focusDetailSidebar()
@@ -969,9 +1049,57 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
+		case key.Matches(msg, m.keyMap.NextMatch):
+			if m.viewState == ViewDetail && strings.TrimSpace(m.diffSearchQuery) != "" {
+				if m.diffViewer.FindNext(m.diffSearchQuery) {
+					m.statusMsg = fmt.Sprintf("Match next: %q", m.diffSearchQuery)
+				} else {
+					m.statusMsg = fmt.Sprintf("No match for %q", m.diffSearchQuery)
+				}
+				return m, nil
+			}
+
+		case key.Matches(msg, m.keyMap.PrevMatch):
+			if m.viewState == ViewDetail && strings.TrimSpace(m.diffSearchQuery) != "" {
+				if m.diffViewer.FindPrev(m.diffSearchQuery) {
+					m.statusMsg = fmt.Sprintf("Match previous: %q", m.diffSearchQuery)
+				} else {
+					m.statusMsg = fmt.Sprintf("No match for %q", m.diffSearchQuery)
+				}
+				return m, nil
+			}
+
 		case key.Matches(msg, m.keyMap.Search):
+			if m.viewState == ViewDetail {
+				m.textInput.Show(components.TextInputDiffSearch, "Diff Search", "")
+				m.textInput.SetValue(m.diffSearchQuery)
+				m.textInput.SetSize(m.width-20, m.height-10)
+				return m, nil
+			}
 			m.statusMsg = "Search: Type to filter"
-			// Let the list handle the search
+
+		case key.Matches(msg, m.keyMap.SaveFilter):
+			if m.viewState == ViewList && m.activePanel == PanelContent {
+				query := strings.TrimSpace(m.content.FilterValue())
+				if query == "" {
+					m.statusMsg = "Save filter: create a list filter first with /"
+					return m, nil
+				}
+				m.textInput.Show(components.TextInputSaveFilterName, "Save Current Filter", query)
+				m.textInput.SetValue("")
+				m.textInput.SetSize(m.width-20, m.height-10)
+				return m, nil
+			}
+
+		case key.Matches(msg, m.keyMap.FilterPalette):
+			if m.viewState == ViewList && m.activePanel == PanelContent {
+				if len(m.savedFilters) == 0 {
+					m.statusMsg = "No saved filters yet (press S after filtering)"
+					return m, nil
+				}
+				cmd := m.openSavedFilterPalette()
+				return m, cmd
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -1070,6 +1198,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.currentPR = msg.pr
 		m.isLoading = false
 		m.statusMsg = fmt.Sprintf("Loaded PR #%d details", msg.pr.Number)
+		m.rebuildTimeline()
 		return m, nil
 
 	case prFilesMsg:
@@ -1100,7 +1229,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.diffViewer.SetComments(msg.comments)
 		cmd := m.commentsList.SetItems(buildCommentItems(msg.comments))
 		m.updateFileCommentCounts()
+		m.rebuildTimeline()
 		return m, cmd
+
+	case prReviewsMsg:
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("Failed to load reviews: %s", msg.err.Error())
+			return m, nil
+		}
+		m.reviews = msg.reviews
+		if m.currentPR != nil {
+			owner, repo := m.resolvePRRepo()
+			m.prReviewsCache.Set(m.reviewsCacheKey(owner, repo, m.currentPR.Number), msg.reviews)
+		}
+		m.rebuildTimeline()
+		return m, nil
 
 	case errMsg:
 		m.isLoading = false
@@ -1166,6 +1309,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.statusMsg = "Review comment submitted!"
 			default:
 				m.statusMsg = "Review action completed"
+			}
+			if m.currentPR != nil {
+				owner, repo := m.resolvePRRepo()
+				return m, tea.Batch(
+					m.fetchPRReviewsCached(owner, repo, m.currentPR.Number),
+					m.fetchPRCommentsCached(owner, repo, m.currentPR.Number),
+				)
 			}
 		}
 		return m, nil
@@ -1461,6 +1611,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activePanel == PanelFiles {
 				if m.detailSidebarMode == DetailSidebarComments {
 					m.commentsList, cmd = m.commentsList.Update(msg)
+				} else if m.detailSidebarMode == DetailSidebarTimeline {
+					m.timelineList, cmd = m.timelineList.Update(msg)
 				} else {
 					m.fileTree, cmd = m.fileTree.Update(msg)
 				}
@@ -1642,6 +1794,8 @@ func (m Model) View() string {
 			} else {
 				sidebarContent = m.commentsList.View()
 			}
+		} else if m.detailSidebarMode == DetailSidebarTimeline {
+			sidebarContent = m.timelineList.View()
 		}
 		if m.activePanel == PanelFiles {
 			fileTreeView = focusedStyle.Render(sidebarContent)
@@ -1682,9 +1836,9 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  V:select range  a:approve  r:request changes  v:review comment  s:draft summary  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  i:preview  enter:jump  O:open editor  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  /:search  n/N:next/prev match  V:select range  a:approve  r:request changes  v:review comment  s:draft summary  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  i:preview  enter:jump  O:open editor  t:files/comments/timeline  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  /:filter  S:save filter  F:saved filters  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
 
 	// Combine all
@@ -1700,6 +1854,11 @@ func (m Model) View() string {
 		inputView := m.textInput.View()
 		// Layer the input on top of the main view (centered)
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, inputView)
+	}
+
+	if m.filterPaletteVisible {
+		palette := m.filterPalette.View()
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, palette)
 	}
 
 	if m.showHelp {
@@ -1741,15 +1900,22 @@ func (m *Model) focusDetailSidebar() {
 	if m.detailSidebarMode == DetailSidebarComments {
 		m.commentsList.Focus()
 		m.fileTree.Blur()
+		m.timelineList.Blur()
+	} else if m.detailSidebarMode == DetailSidebarTimeline {
+		m.timelineList.Focus()
+		m.fileTree.Blur()
+		m.commentsList.Blur()
 	} else {
 		m.fileTree.Focus()
 		m.commentsList.Blur()
+		m.timelineList.Blur()
 	}
 }
 
 func (m *Model) blurDetailSidebar() {
 	m.fileTree.Blur()
 	m.commentsList.Blur()
+	m.timelineList.Blur()
 }
 
 func (m *Model) renderHelpOverlay() string {
@@ -1777,7 +1943,8 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "Detail View")
 		lines = append(lines, "  j/k: move cursor")
 		lines = append(lines, "  h/l: switch panels")
-		lines = append(lines, "  n/N: next/prev file")
+		lines = append(lines, "  /: search in diff")
+		lines = append(lines, "  n/N: next/prev search match (or next/prev file when search is empty)")
 		lines = append(lines, "  { / }: prev/next hunk")
 		lines = append(lines, "  b/pgup, f/pgdn: page up/down")
 		lines = append(lines, "  ctrl+u / ctrl+d: half page up/down")
@@ -1798,7 +1965,7 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "")
 
 		lines = append(lines, "Comments Panel")
-		lines = append(lines, "  t: toggle comments panel")
+		lines = append(lines, "  t: cycle files/comments/timeline panel")
 		lines = append(lines, "  y: reply to selected comment")
 		lines = append(lines, "  e: edit selected comment")
 		lines = append(lines, "  x: delete selected comment")
@@ -1835,6 +2002,8 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "  m: My PRs")
 		lines = append(lines, "  R: Review requests")
 		lines = append(lines, "  /: filter")
+		lines = append(lines, "  S: save current filter")
+		lines = append(lines, "  F: quick switch saved filters")
 		lines = append(lines, "  n/N: next/prev filter match")
 		lines = append(lines, "  esc: clear filter")
 		lines = append(lines, "  r: refresh")
@@ -1920,9 +2089,12 @@ func (m *Model) enterDetailViewFromPR(selectedPR models.PullRequest) tea.Cmd {
 	m.isLoading = true
 	m.loadingMessage = fmt.Sprintf("Loading PR #%d...", prNumber)
 	m.comments = nil
+	m.reviews = nil
 	m.reviewDraft = ""
 	m.diffViewer.SetComments(nil)
 	m.commentsList.SetItems(nil)
+	m.timelineList.SetItems(nil)
+	m.timelineTargets = map[string]timelineJumpTarget{}
 	m.applyLayout(m.width, m.height)
 
 	// Use owner/repo from the selected PR (for cross-repo views)
@@ -1949,6 +2121,7 @@ func (m *Model) enterDetailViewFromPR(selectedPR models.PullRequest) tea.Cmd {
 		m.fetchPRFilesCached(owner, repo, prNumber),
 		m.fetchPRDiffCached(owner, repo, prNumber),
 		m.fetchPRCommentsCached(owner, repo, prNumber),
+		m.fetchPRReviewsCached(owner, repo, prNumber),
 	)
 }
 
@@ -1959,9 +2132,12 @@ func (m *Model) exitDetailView() {
 	m.currentDiff = nil
 	m.currentFiles = nil
 	m.comments = nil
+	m.reviews = nil
 	m.reviewDraft = ""
 	m.diffViewer.SetComments(nil)
 	m.commentsList.SetItems(nil)
+	m.timelineList.SetItems(nil)
+	m.timelineTargets = map[string]timelineJumpTarget{}
 	m.statusMsg = ""
 	m.applyLayout(m.width, m.height)
 }
@@ -1998,6 +2174,47 @@ func (m *Model) pageDown() {
 
 func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 	body := m.textInput.Value()
+	mode := m.textInput.Mode()
+	if mode == components.TextInputDiffSearch {
+		m.diffSearchQuery = strings.TrimSpace(body)
+		m.textInput.Hide()
+		m.isLoading = false
+		if m.diffSearchQuery == "" {
+			m.statusMsg = "Diff search cleared"
+			return *m, nil
+		}
+		if m.diffViewer.FindNext(m.diffSearchQuery) {
+			m.statusMsg = fmt.Sprintf("Found: %q", m.diffSearchQuery)
+		} else {
+			m.statusMsg = fmt.Sprintf("No match for %q", m.diffSearchQuery)
+		}
+		return *m, nil
+	}
+	if mode == components.TextInputSaveFilterName {
+		name := strings.TrimSpace(body)
+		if name == "" {
+			m.statusMsg = "Save filter: name cannot be empty"
+			return *m, nil
+		}
+		query := strings.TrimSpace(m.textInput.Context())
+		if query == "" {
+			query = strings.TrimSpace(m.content.FilterValue())
+		}
+		if query == "" {
+			m.statusMsg = "Save filter: empty query"
+			m.textInput.Hide()
+			return *m, nil
+		}
+		m.upsertSavedFilter(savedFilter{Name: name, Query: query})
+		if err := m.persistSavedFilters(); err != nil {
+			m.statusMsg = fmt.Sprintf("Saved locally, but failed to persist filters: %s", err.Error())
+		} else {
+			m.statusMsg = fmt.Sprintf("Saved filter %q", name)
+		}
+		m.textInput.Hide()
+		return *m, nil
+	}
+
 	if strings.TrimSpace(body) == "" &&
 		m.textInput.Mode() != components.TextInputApprove &&
 		m.textInput.Mode() != components.TextInputEditorCommand {
@@ -2013,7 +2230,6 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 
 	owner, repo := m.resolvePRRepo()
 
-	mode := m.textInput.Mode()
 	m.isLoading = true
 	switch mode {
 	case components.TextInputApprove:
@@ -2220,7 +2436,10 @@ func (m *Model) refreshComments() tea.Cmd {
 		return nil
 	}
 	owner, repo := m.resolvePRRepo()
-	return m.fetchPRCommentsCached(owner, repo, m.currentPR.Number)
+	return tea.Batch(
+		m.fetchPRCommentsCached(owner, repo, m.currentPR.Number),
+		m.fetchPRReviewsCached(owner, repo, m.currentPR.Number),
+	)
 }
 
 func (m *Model) startAIReview() tea.Cmd {
@@ -2519,6 +2738,28 @@ func (m *Model) selectedComment() *models.Comment {
 	return m.findCommentByID(id)
 }
 
+func (m *Model) selectedTimelineTarget() (timelineJumpTarget, bool) {
+	if m.detailSidebarMode != DetailSidebarTimeline {
+		return timelineJumpTarget{}, false
+	}
+	selected := m.timelineList.SelectedItem()
+	if selected == nil {
+		return timelineJumpTarget{}, false
+	}
+	item, ok := selected.(components.SimpleItem)
+	if !ok {
+		return timelineJumpTarget{}, false
+	}
+	target, found := m.timelineTargets[item.ID()]
+	return target, found
+}
+
+func (m *Model) rebuildTimeline() {
+	items, targets := buildTimelineItems(m.currentPR, m.reviews, m.comments)
+	m.timelineTargets = targets
+	_ = m.timelineList.SetItems(items)
+}
+
 func findCommentInThread(comment *models.Comment, id string) *models.Comment {
 	if comment == nil || id == "" {
 		return nil
@@ -2551,6 +2792,209 @@ func sanitizeInlineText(s string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+type timelineEvent struct {
+	ID     string
+	At     time.Time
+	Title  string
+	Detail string
+	Jump   *timelineJumpTarget
+}
+
+func buildTimelineItems(pr *models.PullRequest, reviews []models.Review, comments []models.Comment) ([]list.Item, map[string]timelineJumpTarget) {
+	if pr == nil {
+		return []list.Item{}, map[string]timelineJumpTarget{}
+	}
+
+	events := make([]timelineEvent, 0, 64)
+	targets := map[string]timelineJumpTarget{}
+
+	openTime := pr.CreatedAt
+	if openTime.IsZero() {
+		openTime = pr.UpdatedAt
+	}
+	events = append(events, timelineEvent{
+		ID:     fmt.Sprintf("pr-open-%d", pr.Number),
+		At:     openTime,
+		Title:  fmt.Sprintf("PR opened by @%s", sanitizeInlineText(pr.Author.Login)),
+		Detail: fmt.Sprintf("%d files • +%d -%d", pr.ChangedFiles, pr.Additions, pr.Deletions),
+	})
+	if pr.CommitCount > 0 {
+		commitTime := pr.UpdatedAt
+		if commitTime.IsZero() {
+			commitTime = openTime
+		}
+		events = append(events, timelineEvent{
+			ID:     fmt.Sprintf("pr-commits-%d", pr.Number),
+			At:     commitTime,
+			Title:  fmt.Sprintf("%d commits in this PR", pr.CommitCount),
+			Detail: fmt.Sprintf("%s → %s", pr.SourceBranch, pr.TargetBranch),
+		})
+	}
+
+	for _, review := range reviews {
+		at := review.SubmittedAt
+		if at.IsZero() {
+			continue
+		}
+		state := strings.ReplaceAll(string(review.State), "_", " ")
+		state = strings.TrimSpace(state)
+		if state == "" {
+			state = "reviewed"
+		}
+		events = append(events, timelineEvent{
+			ID:     "review-" + review.ID,
+			At:     at,
+			Title:  fmt.Sprintf("@%s %s", sanitizeInlineText(review.Author.Login), state),
+			Detail: summarizeText(review.Body, 72),
+		})
+	}
+
+	var addCommentEvents func(comment models.Comment)
+	addCommentEvents = func(comment models.Comment) {
+		at := comment.UpdatedAt
+		if at.IsZero() {
+			at = comment.CreatedAt
+		}
+		if at.IsZero() {
+			at = time.Now()
+		}
+
+		location := "general comment"
+		if comment.Path != "" && comment.Line > 0 {
+			location = fmt.Sprintf("%s:%d", comment.Path, comment.Line)
+		}
+		id := "comment-" + comment.ID
+		events = append(events, timelineEvent{
+			ID:     id,
+			At:     at,
+			Title:  fmt.Sprintf("@%s commented", sanitizeInlineText(comment.Author.Login)),
+			Detail: fmt.Sprintf("%s • %s", location, summarizeText(comment.Body, 72)),
+			Jump: &timelineJumpTarget{
+				Path: comment.Path,
+				Line: comment.Line,
+				Side: comment.Side,
+			},
+		})
+		if comment.Path != "" && comment.Line > 0 {
+			targets[id] = timelineJumpTarget{
+				Path: comment.Path,
+				Line: comment.Line,
+				Side: comment.Side,
+			}
+		}
+		for _, reply := range comment.Replies {
+			replyAt := reply.UpdatedAt
+			if replyAt.IsZero() {
+				replyAt = reply.CreatedAt
+			}
+			if replyAt.IsZero() {
+				replyAt = at
+			}
+			replyID := "comment-" + reply.ID
+			events = append(events, timelineEvent{
+				ID:     replyID,
+				At:     replyAt,
+				Title:  fmt.Sprintf("@%s replied", sanitizeInlineText(reply.Author.Login)),
+				Detail: fmt.Sprintf("%s • %s", location, summarizeText(reply.Body, 72)),
+				Jump: &timelineJumpTarget{
+					Path: comment.Path,
+					Line: comment.Line,
+					Side: comment.Side,
+				},
+			})
+			if comment.Path != "" && comment.Line > 0 {
+				targets[replyID] = timelineJumpTarget{
+					Path: comment.Path,
+					Line: comment.Line,
+					Side: comment.Side,
+				}
+			}
+		}
+	}
+	for _, comment := range comments {
+		addCommentEvents(comment)
+	}
+
+	sort.SliceStable(events, func(i, j int) bool {
+		if events[i].At.Equal(events[j].At) {
+			return events[i].Title < events[j].Title
+		}
+		return events[i].At.After(events[j].At)
+	})
+	if len(events) > 200 {
+		events = events[:200]
+	}
+
+	items := make([]list.Item, 0, len(events))
+	for _, event := range events {
+		desc := event.Detail
+		if !event.At.IsZero() {
+			desc = fmt.Sprintf("%s • %s", event.At.Local().Format("Jan 2 15:04"), event.Detail)
+		}
+		items = append(items, components.NewSimpleItem(event.ID, event.Title, desc))
+	}
+	return items, targets
+}
+
+func sanitizeSavedFilters(filters []savedFilter) []savedFilter {
+	out := make([]savedFilter, 0, len(filters))
+	seen := map[string]struct{}{}
+	for _, filter := range filters {
+		name := strings.TrimSpace(filter.Name)
+		query := strings.TrimSpace(filter.Query)
+		if name == "" || query == "" {
+			continue
+		}
+		key := strings.ToLower(name)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, savedFilter{Name: name, Query: query})
+	}
+	return out
+}
+
+func (m *Model) upsertSavedFilter(filter savedFilter) {
+	filter.Name = strings.TrimSpace(filter.Name)
+	filter.Query = strings.TrimSpace(filter.Query)
+	for i := range m.savedFilters {
+		if strings.EqualFold(m.savedFilters[i].Name, filter.Name) {
+			m.savedFilters[i].Query = filter.Query
+			return
+		}
+	}
+	m.savedFilters = append(m.savedFilters, filter)
+}
+
+func (m *Model) persistSavedFilters() error {
+	if m.storage == nil {
+		return nil
+	}
+	m.savedFilters = sanitizeSavedFilters(m.savedFilters)
+	raw, err := json.Marshal(m.savedFilters)
+	if err != nil {
+		return err
+	}
+	return m.storage.SetSetting("ui.saved_filters", string(raw))
+}
+
+func (m *Model) openSavedFilterPalette() tea.Cmd {
+	items := make([]list.Item, 0, len(m.savedFilters)+1)
+	items = append(items, components.NewSimpleItem("saved_filter:clear", "Clear filter", "Show all pull requests"))
+	for _, filter := range m.savedFilters {
+		items = append(items, components.NewSimpleItem(
+			"saved_filter:"+filter.Name,
+			filter.Name,
+			summarizeText(filter.Query, 90),
+		))
+	}
+	m.filterPaletteVisible = true
+	m.filterPalette.SetTitle("Saved Filters")
+	m.filterPalette.Select(0)
+	return m.filterPalette.SetItems(items)
 }
 
 func (m *Model) addOptimisticComment(comment models.Comment) string {
@@ -2628,6 +3072,7 @@ func (m *Model) refreshCommentUI() {
 	m.commentsList.SetItems(buildCommentItems(m.comments))
 	m.updateFileCommentCounts()
 	m.diffViewer.SetComments(m.comments)
+	m.rebuildTimeline()
 }
 
 func (m *Model) invalidateCommentsCache() {
@@ -2905,6 +3350,16 @@ func fetchPRComments(provider providers.Provider, owner, repo string, number int
 	}
 }
 
+func fetchPRReviews(provider providers.Provider, owner, repo string, number int) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		reviews, err := provider.ListReviews(ctx, owner, repo, number)
+		return prReviewsMsg{reviews: reviews, err: err}
+	}
+}
+
 func approveReview(provider providers.Provider, owner, repo string, number int, body string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -3174,7 +3629,9 @@ func (m *Model) applyLayout(width, height int) {
 		commentsHeight = max(8, panelHeight/2)
 	}
 	m.commentsList.SetSize(fileTreeWidth, commentsHeight)
+	m.timelineList.SetSize(fileTreeWidth, panelHeight)
 	m.diffViewer.SetSize(diffWidth, panelHeight)
+	m.filterPalette.SetSize(min(width-20, 80), min(height-10, 28))
 
 	// Text input takes a centered portion of the screen
 	m.textInput.SetSize(width-20, height-10)
@@ -3344,6 +3801,10 @@ func (m *Model) commentsCacheKey(owner, repo string, number int) string {
 	return fmt.Sprintf("pr_comments:%s/%s:%d:%s", owner, repo, number, m.provider.Host())
 }
 
+func (m *Model) reviewsCacheKey(owner, repo string, number int) string {
+	return fmt.Sprintf("pr_reviews:%s/%s:%d:%s", owner, repo, number, m.provider.Host())
+}
+
 func (m *Model) fetchPRCommentsCached(owner, repo string, number int) tea.Cmd {
 	key := m.commentsCacheKey(owner, repo, number)
 	if cached, ok := m.prCommentsCache.Get(key); ok {
@@ -3353,6 +3814,17 @@ func (m *Model) fetchPRCommentsCached(owner, repo string, number int) tea.Cmd {
 		)
 	}
 	return fetchPRComments(m.provider, owner, repo, number)
+}
+
+func (m *Model) fetchPRReviewsCached(owner, repo string, number int) tea.Cmd {
+	key := m.reviewsCacheKey(owner, repo, number)
+	if cached, ok := m.prReviewsCache.Get(key); ok {
+		return tea.Batch(
+			func() tea.Msg { return prReviewsMsg{reviews: cached, err: nil} },
+			fetchPRReviews(m.provider, owner, repo, number),
+		)
+	}
+	return fetchPRReviews(m.provider, owner, repo, number)
 }
 
 func (m *Model) switchSidebarView(itemID string) tea.Cmd {
@@ -3642,6 +4114,8 @@ func (m *Model) applyVimMode(enabled bool) {
 	m.sidebar.SetVimMode(enabled)
 	m.content.SetVimMode(enabled)
 	m.commentsList.SetVimMode(enabled)
+	m.timelineList.SetVimMode(enabled)
+	m.filterPalette.SetVimMode(enabled)
 	m.fileTree.SetVimMode(enabled)
 	m.diffViewer.SetVimMode(enabled)
 	if m.config != nil {
@@ -3736,6 +4210,7 @@ func (m *Model) switchProvider(providerType config.ProviderType, host string) er
 	m.prFilesCache.Clear()
 	m.prDiffCache.Clear()
 	m.prCommentsCache.Clear()
+	m.prReviewsCache.Clear()
 	return nil
 }
 
@@ -3753,6 +4228,10 @@ func (m *Model) aiProviderKeyStorageKey() string {
 		name = "openai"
 	}
 	return fmt.Sprintf("ai:%s:token", name)
+}
+
+func (m *Model) aiProviderNameStorageKey() string {
+	return "ai:provider"
 }
 
 func (m *Model) hasAIKey() bool {
@@ -3774,6 +4253,9 @@ func (m *Model) setAIProvider(name string) error {
 	}
 	if m.storage != nil {
 		_ = m.storage.SetSetting("ai.provider", name)
+	}
+	if store, err := m.aiKeyStore(); err == nil {
+		_ = store.Set(m.aiProviderNameStorageKey(), name)
 	}
 	m.aiProviderName = name
 	return m.reloadAIProvider()
@@ -3797,6 +4279,7 @@ func (m *Model) setAIKey(value string) error {
 	if err := store.Set(m.aiProviderKeyStorageKey(), clean); err != nil {
 		return err
 	}
+	_ = store.Set(m.aiProviderNameStorageKey(), m.aiProviderName)
 	return m.reloadAIProvider()
 }
 
@@ -3811,10 +4294,20 @@ func (m *Model) clearAIKey() error {
 	if err := store.Delete(m.aiProviderKeyStorageKey()); err != nil && err != keyring.ErrNotFound {
 		return err
 	}
+	if err := store.Delete(m.aiProviderNameStorageKey()); err != nil && err != keyring.ErrNotFound {
+		return err
+	}
 	return m.reloadAIProvider()
 }
 
 func (m *Model) reloadAIProvider() error {
+	if m.aiProviderName == "" || m.aiProviderName == "none" {
+		if store, err := m.aiKeyStore(); err == nil {
+			if providerName, providerErr := store.Get(m.aiProviderNameStorageKey()); providerErr == nil && strings.TrimSpace(providerName) != "" && strings.TrimSpace(providerName) != "none" {
+				m.aiProviderName = strings.TrimSpace(providerName)
+			}
+		}
+	}
 	if m.aiProviderName == "" || m.aiProviderName == "none" {
 		m.aiProvider = nil
 		m.aiError = fmt.Errorf("AI provider disabled")
@@ -3826,9 +4319,9 @@ func (m *Model) reloadAIProvider() error {
 		m.aiError = err
 		return err
 	}
-	apiKey, err := store.Get(m.aiKeyStorageKey())
+	apiKey, err := store.Get(m.aiProviderKeyStorageKey())
 	if err != nil {
-		apiKey, err = store.Get(m.aiProviderKeyStorageKey())
+		apiKey, err = store.Get(m.aiKeyStorageKey())
 	}
 	if err != nil {
 		m.aiProvider = nil
@@ -3856,6 +4349,15 @@ func (m *Model) loadPersistedAISettings() {
 		}
 	}
 	if strings.TrimSpace(m.aiProviderName) == "" {
+		if store, err := m.aiKeyStore(); err == nil {
+			if provider, providerErr := store.Get(m.aiProviderNameStorageKey()); providerErr == nil && strings.TrimSpace(provider) != "" {
+				m.aiProviderName = strings.TrimSpace(provider)
+			} else if _, keyErr := store.Get(m.aiKeyStorageKey()); keyErr == nil {
+				m.aiProviderName = "openai"
+			}
+		}
+	}
+	if strings.TrimSpace(m.aiProviderName) == "" {
 		m.aiProviderName = "none"
 	}
 	_ = m.reloadAIProvider()
@@ -3864,6 +4366,12 @@ func (m *Model) loadPersistedAISettings() {
 func (m *Model) loadPersistedUISettings() {
 	if m.storage == nil {
 		return
+	}
+	if rawFilters, err := m.storage.GetSetting("ui.saved_filters"); err == nil && strings.TrimSpace(rawFilters) != "" {
+		var filters []savedFilter
+		if err := json.Unmarshal([]byte(rawFilters), &filters); err == nil {
+			m.savedFilters = sanitizeSavedFilters(filters)
+		}
 	}
 	if editor, err := m.storage.GetSetting("ui.editor"); err == nil {
 		m.editorCommand = strings.TrimSpace(editor)
@@ -4118,6 +4626,7 @@ func (m *Model) selectWorkspaceTab(index int) tea.Cmd {
 		}
 		return tea.Batch(m.spinner.Tick, fetchUserPRs(m.provider, opts))
 	case models.WorkspaceKindToReview:
+		m.currentViewMode = ViewModeReviewRequests
 		m.currentViewMode = ViewModeReviewRequests
 		m.loadingMessage = "Loading PRs that need your review..."
 		opts := providers.UserPROptions{

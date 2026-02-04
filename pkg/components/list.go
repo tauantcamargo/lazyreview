@@ -227,6 +227,22 @@ func (l *List) SetItems(items []list.Item) tea.Cmd {
 	return l.list.SetItems(items)
 }
 
+// SetFilterText applies a filter query to the list.
+func (l *List) SetFilterText(query string) tea.Cmd {
+	l.list.SetFilterText(query)
+	return nil
+}
+
+// ResetFilter clears the active filter query.
+func (l *List) ResetFilter() {
+	l.list.ResetFilter()
+}
+
+// FilterValue returns the current filter query.
+func (l *List) FilterValue() string {
+	return l.list.FilterValue()
+}
+
 // Items returns all list items.
 func (l *List) Items() []list.Item {
 	return l.list.Items()

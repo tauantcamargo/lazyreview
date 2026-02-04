@@ -50,10 +50,12 @@ type KeyMap struct {
 	Merge                key.Binding
 
 	// Search
-	Search      key.Binding
-	NextMatch   key.Binding
-	PrevMatch   key.Binding
-	ClearSearch key.Binding
+	Search        key.Binding
+	NextMatch     key.Binding
+	PrevMatch     key.Binding
+	ClearSearch   key.Binding
+	SaveFilter    key.Binding
+	FilterPalette key.Binding
 
 	// Global
 	Help key.Binding
@@ -132,6 +134,8 @@ func DefaultKeyMap(vimMode bool) KeyMap {
 			NextMatch:            key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match")),
 			PrevMatch:            key.NewBinding(key.WithKeys("N"), key.WithHelp("N", "prev match")),
 			ClearSearch:          key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear search")),
+			SaveFilter:           key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "save filter")),
+			FilterPalette:        key.NewBinding(key.WithKeys("F"), key.WithHelp("F", "saved filters")),
 			Help:                 key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
 			Quit:                 key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 		}
@@ -295,6 +299,14 @@ func DefaultKeyMap(vimMode bool) KeyMap {
 		ClearSearch: key.NewBinding(
 			key.WithKeys("esc"),
 			key.WithHelp("esc", "clear search"),
+		),
+		SaveFilter: key.NewBinding(
+			key.WithKeys("S"),
+			key.WithHelp("S", "save filter"),
+		),
+		FilterPalette: key.NewBinding(
+			key.WithKeys("F"),
+			key.WithHelp("F", "saved filters"),
 		),
 
 		// Global

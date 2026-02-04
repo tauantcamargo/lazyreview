@@ -14,6 +14,7 @@ import (
 	"lazyreview/internal/storage"
 	"lazyreview/internal/updater"
 	"lazyreview/pkg/git"
+	"lazyreview/pkg/keyring"
 	"lazyreview/pkg/providers"
 	_ "lazyreview/pkg/providers/azuredevops"
 	_ "lazyreview/pkg/providers/bitbucket"
@@ -110,6 +111,45 @@ func CommandStart() *cli.App {
 					Usage: "Show authentication status",
 					Action: func(c *cli.Context) error {
 						return authStatusAction()
+					},
+				},
+			},
+		},
+		{
+			Name:  "ai",
+			Usage: "AI provider configuration",
+			Subcommands: []cli.Command{
+				{
+					Name:  "login",
+					Usage: "Store AI API key and provider",
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "provider, p",
+							Usage: "AI provider (openai)",
+							Value: "openai",
+						},
+						cli.StringFlag{
+							Name:   "key, k",
+							Usage:  "AI API key (or set via environment)",
+							EnvVar: "LAZYREVIEW_AI_API_KEY",
+						},
+					},
+					Action: func(c *cli.Context) error {
+						return aiLoginAction(c.String("provider"), c.String("key"))
+					},
+				},
+				{
+					Name:  "logout",
+					Usage: "Remove stored AI API key",
+					Action: func(c *cli.Context) error {
+						return aiLogoutAction()
+					},
+				},
+				{
+					Name:  "status",
+					Usage: "Show AI provider setup status",
+					Action: func(c *cli.Context) error {
+						return aiStatusAction()
 					},
 				},
 			},
@@ -409,6 +449,111 @@ func loginAction(provider, host, token string) error {
 		fmt.Printf("  Authenticated as: %s\n", cred.Username)
 	}
 
+	return nil
+}
+
+func aiProviderCredentialKey(provider string) string {
+	name := strings.ToLower(strings.TrimSpace(provider))
+	if name == "" || name == "none" {
+		name = "openai"
+	}
+	return fmt.Sprintf("ai:%s:token", name)
+}
+
+func aiLoginAction(providerName, apiKey string) error {
+	providerName = strings.ToLower(strings.TrimSpace(providerName))
+	if providerName == "" {
+		providerName = "openai"
+	}
+	if providerName != "openai" {
+		return fmt.Errorf("unsupported AI provider: %s (currently supported: openai)", providerName)
+	}
+	if strings.TrimSpace(apiKey) == "" {
+		prompter := auth.NewPrompter()
+		fmt.Printf("Configuring AI provider: %s\n\n", providerName)
+		fmt.Println("Enter your API key.")
+		fmt.Println("OpenAI: https://platform.openai.com/api-keys")
+		fmt.Println()
+		var err error
+		apiKey, err = prompter.PromptSecret("API Key: ")
+		if err != nil {
+			return fmt.Errorf("failed to read API key: %w", err)
+		}
+	}
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return fmt.Errorf("API key cannot be empty")
+	}
+
+	store, err := keyring.NewDefaultStore()
+	if err != nil {
+		return fmt.Errorf("failed to initialize credential store: %w", err)
+	}
+	if err := store.Set("ai:api_key", apiKey); err != nil {
+		return fmt.Errorf("failed to store AI API key: %w", err)
+	}
+	if err := store.Set(aiProviderCredentialKey(providerName), apiKey); err != nil {
+		return fmt.Errorf("failed to store provider AI API key: %w", err)
+	}
+	if err := store.Set("ai:provider", providerName); err != nil {
+		return fmt.Errorf("failed to store AI provider: %w", err)
+	}
+
+	sqlStore, err := storage.DefaultStorage()
+	if err == nil {
+		defer sqlStore.Close()
+		_ = sqlStore.SetSetting("ai.provider", providerName)
+	}
+
+	fmt.Printf("✓ AI provider configured: %s\n", providerName)
+	return nil
+}
+
+func aiLogoutAction() error {
+	store, err := keyring.NewDefaultStore()
+	if err != nil {
+		return fmt.Errorf("failed to initialize credential store: %w", err)
+	}
+	_ = store.Delete("ai:api_key")
+	_ = store.Delete("ai:provider")
+	_ = store.Delete(aiProviderCredentialKey("openai"))
+
+	sqlStore, err := storage.DefaultStorage()
+	if err == nil {
+		defer sqlStore.Close()
+		_ = sqlStore.SetSetting("ai.provider", "none")
+	}
+
+	fmt.Println("✓ AI API key removed")
+	return nil
+}
+
+func aiStatusAction() error {
+	store, err := keyring.NewDefaultStore()
+	if err != nil {
+		return fmt.Errorf("failed to initialize credential store: %w", err)
+	}
+	provider := "none"
+	if p, pErr := store.Get("ai:provider"); pErr == nil && strings.TrimSpace(p) != "" {
+		provider = strings.TrimSpace(p)
+	}
+	hasKey := false
+	if _, keyErr := store.Get(aiProviderCredentialKey(provider)); keyErr == nil {
+		hasKey = true
+	} else if _, keyErr := store.Get("ai:api_key"); keyErr == nil {
+		hasKey = true
+	}
+	fmt.Println("AI Configuration")
+	fmt.Println("================")
+	fmt.Printf("Provider: %s\n", provider)
+	if hasKey {
+		fmt.Println("API Key: ✓ configured")
+	} else {
+		fmt.Println("API Key: ✗ not configured")
+	}
+	fmt.Println()
+	fmt.Println("To configure:")
+	fmt.Println("  lazyreview ai login --provider openai")
 	return nil
 }
 
