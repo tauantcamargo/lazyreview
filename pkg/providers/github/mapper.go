@@ -216,7 +216,7 @@ func mapComment(comment *github.PullRequestComment) *models.Comment {
 	}
 
 	result := &models.Comment{
-		ID:        toString(comment.NodeID),
+		ID:        strconv.FormatInt(comment.GetID(), 10),
 		Type:      models.CommentTypeInline,
 		Body:      toString(comment.Body),
 		Path:      toString(comment.Path),
@@ -254,7 +254,7 @@ func mapIssueComment(comment *github.IssueComment) *models.Comment {
 	}
 
 	result := &models.Comment{
-		ID:        toString(comment.NodeID),
+		ID:        strconv.FormatInt(comment.GetID(), 10),
 		Type:      models.CommentTypeGeneral,
 		Body:      toString(comment.Body),
 		CreatedAt: toTime(comment.CreatedAt),

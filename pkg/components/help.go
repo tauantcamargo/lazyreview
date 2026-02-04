@@ -20,6 +20,8 @@ type HelpKeyMap struct {
 	Comment        key.Binding
 	ReviewComment  key.Binding
 	Checkout       key.Binding
+	ToggleComments key.Binding
+	ReplyComment   key.Binding
 	Help           key.Binding
 	Quit           key.Binding
 }
@@ -35,6 +37,7 @@ func (k HelpKeyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.Left, k.Right},
 		{k.Select, k.Back},
 		{k.Approve, k.RequestChanges, k.Comment, k.ReviewComment, k.Checkout},
+		{k.ToggleComments, k.ReplyComment},
 		{k.Help, k.Quit},
 	}
 }
@@ -85,6 +88,14 @@ func DefaultHelpKeyMap() HelpKeyMap {
 		Checkout: key.NewBinding(
 			key.WithKeys("shift+c"),
 			key.WithHelp("shift+c", "checkout"),
+		),
+		ToggleComments: key.NewBinding(
+			key.WithKeys("t"),
+			key.WithHelp("t", "toggle comments"),
+		),
+		ReplyComment: key.NewBinding(
+			key.WithKeys("y"),
+			key.WithHelp("y", "reply"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),

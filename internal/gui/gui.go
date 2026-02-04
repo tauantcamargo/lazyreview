@@ -53,6 +53,14 @@ const (
 	ViewDetail                  // PR detail view (files + diff)
 )
 
+// DetailSidebarMode represents the left panel mode in detail view.
+type DetailSidebarMode int
+
+const (
+	DetailSidebarFiles DetailSidebarMode = iota
+	DetailSidebarComments
+)
+
 // ViewMode represents the current sidebar view mode
 type ViewMode string
 
@@ -89,6 +97,11 @@ type prDiffMsg struct {
 	diff *models.Diff
 }
 
+type prCommentsMsg struct {
+	comments []models.Comment
+	err      error
+}
+
 type errMsg struct {
 	err error
 }
@@ -104,6 +117,11 @@ type reviewResultMsg struct {
 	number int
 	body   string
 	err    error
+}
+
+type replyResultMsg struct {
+	commentID string
+	err       error
 }
 
 type commentSubmitMsg struct {
@@ -213,11 +231,16 @@ type Model struct {
 	// Current view mode
 	currentViewMode ViewMode
 
+	// Detail view sidebar mode
+	detailSidebarMode DetailSidebarMode
+
 	// Current PR state
 	currentPR    *models.PullRequest
 	currentDiff  *models.Diff
 	currentFiles []models.FileChange
 	prList       []models.PullRequest
+	comments     []models.Comment
+	commentsList components.List
 
 	// Loading states
 	isLoading      bool
@@ -249,6 +272,9 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 
 	// Create diff viewer (for PR detail view)
 	diffViewer := components.NewDiffViewer(50, 20)
+
+	// Create comments list (for PR detail view)
+	commentsList := components.NewList("Comments", []list.Item{}, 30, 20)
 
 	// Create text input component
 	textInput := components.NewTextInput()
@@ -286,6 +312,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		content:          content,
 		fileTree:         fileTree,
 		diffViewer:       diffViewer,
+		commentsList:     commentsList,
 		textInput:        textInput,
 		help:             components.NewHelp(),
 		keyMap:           DefaultKeyMap(),
@@ -408,7 +435,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// In detail view, move between diff and file tree, or go back
 				if m.activePanel == PanelDiff {
 					m.activePanel = PanelFiles
-					m.fileTree.Focus()
+					m.focusDetailSidebar()
 					m.diffViewer.Blur()
 				} else {
 					// Go back to list view
@@ -464,12 +491,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				// In detail view, move between file tree and diff
 				if m.activePanel == PanelFiles {
-					if selectedPath := m.fileTree.SelectedPath(); selectedPath != "" {
-						m.diffViewer.SetCurrentFileByPath(selectedPath)
+					if m.detailSidebarMode == DetailSidebarFiles {
+						if selectedPath := m.fileTree.SelectedPath(); selectedPath != "" {
+							m.diffViewer.SetCurrentFileByPath(selectedPath)
+						}
 					}
 					m.activePanel = PanelDiff
 					m.diffViewer.Focus()
-					m.fileTree.Blur()
+					m.blurDetailSidebar()
 				}
 			}
 			return m, nil
@@ -505,7 +534,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pageDown()
 			return m, nil
 
-			// Action keys
+		case key.Matches(msg, m.keyMap.ToggleComments):
+			if m.viewState == ViewDetail {
+				if m.detailSidebarMode == DetailSidebarComments {
+					m.detailSidebarMode = DetailSidebarFiles
+					m.statusMsg = "Files panel"
+				} else {
+					m.detailSidebarMode = DetailSidebarComments
+					m.statusMsg = "Comments panel"
+					if len(m.comments) == 0 {
+						return m, m.refreshComments()
+					}
+				}
+				if m.activePanel == PanelFiles {
+					m.focusDetailSidebar()
+				}
+				return m, nil
+			}
+
+		// Action keys
 		case key.Matches(msg, m.keyMap.Approve):
 			if m.inWorkspaceView() {
 				break
@@ -576,6 +623,39 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.statusMsg = "Review Comment: Enter PR view first"
+			return m, nil
+
+		case key.Matches(msg, m.keyMap.ReplyComment):
+			if m.inWorkspaceView() {
+				break
+			}
+			if m.viewState != ViewDetail || m.detailSidebarMode != DetailSidebarComments || m.currentPR == nil {
+				m.statusMsg = "Reply: Open comments panel in PR view"
+				return m, nil
+			}
+			selected := m.commentsList.SelectedItem()
+			if selected == nil {
+				m.statusMsg = "Reply: Select a comment first"
+				return m, nil
+			}
+			item, ok := selected.(components.SimpleItem)
+			if !ok {
+				m.statusMsg = "Reply: Invalid comment selection"
+				return m, nil
+			}
+			commentID := item.ID()
+			if commentID == "" {
+				m.statusMsg = "Reply: Missing comment ID"
+				return m, nil
+			}
+			if comment := m.findCommentByID(commentID); comment != nil {
+				if comment.Type == models.CommentTypeGeneral {
+					m.statusMsg = "Reply: Provider does not support replies to general comments"
+					return m, nil
+				}
+			}
+			m.textInput.Show(components.TextInputReplyComment, "Reply to Comment", commentID)
+			m.textInput.SetSize(m.width-20, m.height-10)
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.OpenBrowser):
@@ -747,6 +827,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusMsg = fmt.Sprintf("Loaded diff (+%d -%d)", msg.diff.Additions, msg.diff.Deletions)
 		return m, nil
 
+	case prCommentsMsg:
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("Failed to load comments: %s", msg.err.Error())
+			return m, nil
+		}
+		m.comments = msg.comments
+		cmd := m.commentsList.SetItems(buildCommentItems(msg.comments))
+		return m, cmd
+
 	case errMsg:
 		m.isLoading = false
 		m.lastError = msg.err
@@ -814,6 +903,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
+
+	case replyResultMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		m.textInput.Hide()
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.statusMsg = fmt.Sprintf("Reply failed: %s", msg.err.Error())
+			return m, nil
+		}
+		m.statusMsg = "Reply posted"
+		return m, m.refreshComments()
 
 	case commentSubmitMsg:
 		m.isLoading = false
@@ -965,7 +1066,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			// Detail view
 			if m.activePanel == PanelFiles {
-				m.fileTree, cmd = m.fileTree.Update(msg)
+				if m.detailSidebarMode == DetailSidebarComments {
+					m.commentsList, cmd = m.commentsList.Update(msg)
+				} else {
+					m.fileTree, cmd = m.fileTree.Update(msg)
+				}
 				cmds = append(cmds, cmd)
 			} else {
 				m.diffViewer, cmd = m.diffViewer.Update(msg)
@@ -1106,10 +1211,14 @@ func (m Model) View() string {
 	} else {
 		// Detail view: file tree + diff viewer
 		var fileTreeView, diffView string
+		sidebarContent := m.fileTree.View()
+		if m.detailSidebarMode == DetailSidebarComments {
+			sidebarContent = m.commentsList.View()
+		}
 		if m.activePanel == PanelFiles {
-			fileTreeView = focusedStyle.Render(m.fileTree.View())
+			fileTreeView = focusedStyle.Render(sidebarContent)
 		} else {
-			fileTreeView = unfocusedStyle.Render(m.fileTree.View())
+			fileTreeView = unfocusedStyle.Render(sidebarContent)
 		}
 
 		if m.activePanel == PanelDiff {
@@ -1145,7 +1254,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  shift+c:checkout  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  y:reply  t:comments  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1186,13 +1295,28 @@ func (m *Model) switchPanel() {
 		if m.activePanel == PanelFiles {
 			m.activePanel = PanelDiff
 			m.diffViewer.Focus()
-			m.fileTree.Blur()
+			m.blurDetailSidebar()
 		} else {
 			m.activePanel = PanelFiles
-			m.fileTree.Focus()
+			m.focusDetailSidebar()
 			m.diffViewer.Blur()
 		}
 	}
+}
+
+func (m *Model) focusDetailSidebar() {
+	if m.detailSidebarMode == DetailSidebarComments {
+		m.commentsList.Focus()
+		m.fileTree.Blur()
+	} else {
+		m.fileTree.Focus()
+		m.commentsList.Blur()
+	}
+}
+
+func (m *Model) blurDetailSidebar() {
+	m.fileTree.Blur()
+	m.commentsList.Blur()
 }
 
 func (m *Model) enterDetailView() tea.Cmd {
@@ -1255,7 +1379,8 @@ func (m *Model) enterDetailViewFromPR(selectedPR models.PullRequest) tea.Cmd {
 	// Change view state
 	m.viewState = ViewDetail
 	m.activePanel = PanelFiles
-	m.fileTree.Focus()
+	m.detailSidebarMode = DetailSidebarFiles
+	m.focusDetailSidebar()
 	m.isLoading = true
 	m.loadingMessage = fmt.Sprintf("Loading PR #%d...", prNumber)
 	m.applyLayout(m.width, m.height)
@@ -1283,6 +1408,7 @@ func (m *Model) enterDetailViewFromPR(selectedPR models.PullRequest) tea.Cmd {
 		m.fetchPRDetailCached(owner, repo, prNumber),
 		m.fetchPRFilesCached(owner, repo, prNumber),
 		m.fetchPRDiffCached(owner, repo, prNumber),
+		fetchPRComments(m.provider, owner, repo, prNumber),
 	)
 }
 
@@ -1292,6 +1418,8 @@ func (m *Model) exitDetailView() {
 	m.currentPR = nil
 	m.currentDiff = nil
 	m.currentFiles = nil
+	m.comments = nil
+	m.commentsList.SetItems(nil)
 	m.statusMsg = ""
 	m.applyLayout(m.width, m.height)
 }
@@ -1405,6 +1533,15 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 		return *m, submitGeneralComment(m.provider, owner, repo, m.currentPR.Number, body)
 	} else if mode == components.TextInputReviewComment {
 		return *m, submitReviewComment(m.provider, owner, repo, m.currentPR.Number, body)
+	} else if mode == components.TextInputReplyComment {
+		commentID := strings.TrimSpace(m.textInput.Context())
+		if commentID == "" {
+			m.statusMsg = "Reply: Missing comment ID"
+			m.textInput.Hide()
+			m.isLoading = false
+			return *m, nil
+		}
+		return *m, submitReplyComment(m.provider, owner, repo, m.currentPR.Number, commentID, body)
 	} else if mode == components.TextInputApprove {
 		comment := strings.TrimSpace(body)
 		if comment == "" {
@@ -1433,6 +1570,14 @@ func (m Model) fetchGitStatus() tea.Cmd {
 		status, err := git.GetBranchStatus()
 		return gitStatusMsg{status: status, err: err}
 	}
+}
+
+func (m *Model) refreshComments() tea.Cmd {
+	if m.currentPR == nil || m.provider == nil {
+		return nil
+	}
+	owner, repo := m.resolvePRRepo()
+	return fetchPRComments(m.provider, owner, repo, m.currentPR.Number)
 }
 
 func (m *Model) resolvePRRepo() (string, string) {
@@ -1560,6 +1705,46 @@ func formatGitStatus(status *git.BranchStatus) string {
 		return fmt.Sprintf("branch %s (%s ↑%d ↓%d)", status.Branch, state, status.Ahead, status.Behind)
 	}
 	return fmt.Sprintf("branch %s (%s)", status.Branch, state)
+}
+
+func buildCommentItems(comments []models.Comment) []list.Item {
+	items := make([]list.Item, 0, len(comments))
+	for _, comment := range comments {
+		author := comment.Author.Login
+		if author == "" {
+			author = "unknown"
+		}
+		snippet := summarizeText(comment.Body, 60)
+		title := fmt.Sprintf("@%s: %s", author, snippet)
+		desc := "General comment"
+		if comment.Path != "" && comment.Line > 0 {
+			desc = fmt.Sprintf("%s:%d", comment.Path, comment.Line)
+		} else if comment.Type == models.CommentTypeInline {
+			desc = "Inline comment"
+		}
+		items = append(items, components.NewSimpleItem(comment.ID, title, desc))
+	}
+	return items
+}
+
+func summarizeText(text string, max int) string {
+	trimmed := strings.TrimSpace(strings.ReplaceAll(text, "\n", " "))
+	if max <= 0 || len(trimmed) <= max {
+		return trimmed
+	}
+	if max < 3 {
+		return trimmed[:max]
+	}
+	return trimmed[:max-3] + "..."
+}
+
+func (m *Model) findCommentByID(id string) *models.Comment {
+	for i := range m.comments {
+		if m.comments[i].ID == id {
+			return &m.comments[i]
+		}
+	}
+	return nil
 }
 
 // handleSidebarSelection handles when a sidebar item is selected
@@ -1740,6 +1925,16 @@ func fetchPRDiff(provider providers.Provider, owner, repo string, number int) te
 	}
 }
 
+func fetchPRComments(provider providers.Provider, owner, repo string, number int) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		comments, err := provider.ListComments(ctx, owner, repo, number)
+		return prCommentsMsg{comments: comments, err: err}
+	}
+}
+
 func approveReview(provider providers.Provider, owner, repo string, number int, body string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -1823,6 +2018,16 @@ func submitReviewComment(provider providers.Provider, owner, repo string, prNumb
 	}
 }
 
+func submitReplyComment(provider providers.Provider, owner, repo string, prNumber int, commentID, body string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		err := provider.ReplyToComment(ctx, owner, repo, prNumber, commentID, body)
+		return replyResultMsg{commentID: commentID, err: err}
+	}
+}
+
 func checkoutPRBranch(pr *models.PullRequest, owner, repo string) tea.Cmd {
 	return func() tea.Msg {
 		if pr == nil {
@@ -1886,6 +2091,7 @@ func (m *Model) applyLayout(width, height int) {
 	fileTreeWidth := min(40, width/4)
 	diffWidth := width - fileTreeWidth - 4
 	m.fileTree.SetSize(fileTreeWidth, panelHeight)
+	m.commentsList.SetSize(fileTreeWidth, panelHeight)
 	m.diffViewer.SetSize(diffWidth, panelHeight)
 
 	// Text input takes a centered portion of the screen

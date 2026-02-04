@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"lazyreview/internal/models"
 	"lazyreview/pkg/providers"
@@ -197,12 +198,12 @@ func (p *Provider) ReplyToComment(ctx context.Context, owner, repo string, numbe
 		return providers.ErrNotAuthenticated
 	}
 
-	ghComment := &github.PullRequestComment{
-		Body: &body,
+	id, err := strconv.ParseInt(commentID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid comment ID: %w", err)
 	}
 
-	_, _, err := p.client.PullRequests.CreateCommentInReplyTo(ctx, owner, repo, number, body, 0)
-	_ = ghComment // Suppress unused warning
+	_, _, err = p.client.PullRequests.CreateCommentInReplyTo(ctx, owner, repo, number, body, id)
 
 	if err != nil {
 		return fmt.Errorf("failed to reply to comment: %w", err)

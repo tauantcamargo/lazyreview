@@ -17,6 +17,7 @@ const (
 	TextInputReviewComment                // Review summary comment
 	TextInputApprove                      // Approve with optional summary
 	TextInputRequestChanges               // Request changes with optional summary
+	TextInputReplyComment                 // Reply to an existing comment
 )
 
 // TextInput is a component for capturing multi-line text input
@@ -189,6 +190,8 @@ func (t *TextInput) placeholderForMode(mode TextInputMode) string {
 		return "Optional approval summary... (Ctrl+S to submit, Esc to cancel)"
 	case TextInputRequestChanges:
 		return "Describe the requested changes... (Ctrl+S to submit, Esc to cancel)"
+	case TextInputReplyComment:
+		return "Reply to the comment... (Ctrl+S to submit, Esc to cancel)"
 	default:
 		return "Enter your comment... (Ctrl+S to submit, Esc to cancel)"
 	}
