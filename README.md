@@ -19,6 +19,8 @@ LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/l
 - **Workspaces & Dashboard** - Group repos and get a multi-repo overview
 - **Offline Queue** - Automatically retries review actions and comments when you're back online
 - **Local Git Integration** - Auto-detect repo, show branch status, checkout PR branch
+- **Comments Panel** - Browse PR comments and reply inline from the TUI
+- **AI-Assisted Review** - Run AI review on the current file and submit approve/request changes/comment
 - **Secure Authentication** - Tokens stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 - **Cross-Platform** - Linux, macOS, and Windows binaries available
 
@@ -104,6 +106,9 @@ lazyreview start
 | `c` | Line comment |
 | `C` | General PR comment |
 | `v` | Review comment |
+| `t` | Toggle comments panel |
+| `y` | Reply to selected comment |
+| `A` | AI review (current file) |
 | `Shift+c` | Checkout PR branch |
 | `?` | Show help |
 | `q` | Quit / Go back |
@@ -255,6 +260,18 @@ go build
 go test ./...
 ```
 
+## AI Review Setup
+
+Set environment variables before launching:
+
+```bash
+export LAZYREVIEW_AI_PROVIDER=openai
+export LAZYREVIEW_AI_API_KEY=your_key
+# Optional:
+export LAZYREVIEW_AI_MODEL=gpt-4o-mini
+export LAZYREVIEW_AI_BASE_URL=https://api.openai.com/v1
+```
+
 ## Roadmap
 
 - [x] Core TUI with Bubble Tea
@@ -280,6 +297,8 @@ go test ./...
 - [x] Dashboard view (multi-repo)
 - [x] Workspace management UI
 - [x] Offline queue for comments/approvals
+- [x] Comments panel with replies
+- [x] AI-assisted review (OpenAI-compatible)
 - [x] Split/unified diff view toggle (d key)
 - [ ] Custom themes
 
