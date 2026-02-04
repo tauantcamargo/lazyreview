@@ -2466,7 +2466,7 @@ func (m *Model) startAIReview() tea.Cmd {
 	}
 	provider := m.aiProvider
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		resp, err := provider.Review(ctx, req)
 		return aiReviewResultMsg{response: resp, err: err}

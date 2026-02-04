@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/99designs/keyring"
 	"golang.org/x/term"
@@ -12,6 +13,16 @@ import (
 const (
 	// ServiceName is the keyring service name
 	ServiceName = "lazyreview"
+)
+
+var (
+	defaultStoreMu   sync.Mutex
+	defaultStoreInst *Store
+	defaultStoreErr  error
+
+	filePassMu          sync.Mutex
+	cachedFilePassword  string
+	cachedFilePassValid bool
 )
 
 // Store provides secure credential storage
@@ -55,6 +66,16 @@ func DefaultConfig() Config {
 				return pass, nil
 			}
 
+			// Reuse a previously entered password in the same process so users
+			// aren't prompted repeatedly during startup.
+			filePassMu.Lock()
+			if cachedFilePassValid {
+				pass := cachedFilePassword
+				filePassMu.Unlock()
+				return pass, nil
+			}
+			filePassMu.Unlock()
+
 			// Prompt interactively if we have a terminal
 			fd := int(os.Stdin.Fd())
 			if !term.IsTerminal(fd) {
@@ -74,7 +95,13 @@ func DefaultConfig() Config {
 				return "", fmt.Errorf("password cannot be empty")
 			}
 
-			return string(password), nil
+			pass := string(password)
+			filePassMu.Lock()
+			cachedFilePassword = pass
+			cachedFilePassValid = true
+			filePassMu.Unlock()
+
+			return pass, nil
 		},
 	}
 }
@@ -102,7 +129,22 @@ func NewStore(cfg Config) (*Store, error) {
 
 // NewDefaultStore creates a store with default configuration
 func NewDefaultStore() (*Store, error) {
-	return NewStore(DefaultConfig())
+	defaultStoreMu.Lock()
+	defer defaultStoreMu.Unlock()
+
+	if defaultStoreInst != nil {
+		return defaultStoreInst, nil
+	}
+
+	store, err := NewStore(DefaultConfig())
+	if err != nil {
+		defaultStoreErr = err
+		return nil, err
+	}
+
+	defaultStoreInst = store
+	defaultStoreErr = nil
+	return defaultStoreInst, nil
 }
 
 // Set stores a credential

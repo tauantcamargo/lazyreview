@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"lazyreview/internal/models"
 
@@ -193,6 +194,7 @@ type DiffViewer struct {
 	cachedYOffset  int
 	cachedWidth    int
 	cachedHeight   int
+	renderSeq      int
 
 	// Styles
 	addedStyle   lipgloss.Style
@@ -213,6 +215,10 @@ type lineInfo struct {
 	isCode    bool // false for headers, true for actual code lines
 	commentID string
 	isComment bool
+}
+
+type diffRenderMsg struct {
+	seq int
 }
 
 // NewDiffViewer creates a new diff viewer
@@ -358,6 +364,11 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case diffRenderMsg:
+		if msg.seq == d.renderSeq {
+			d.render()
+		}
+		return d, nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, d.keyMap.NextFile):
@@ -379,29 +390,25 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 		case key.Matches(msg, d.keyMap.Top):
 			d.cursor = 0
 			d.ensureCursorVisible()
-			d.render()
-			return d, nil
+			return d, d.queueRender()
 		case key.Matches(msg, d.keyMap.Bottom):
 			if len(d.lineMapping) > 0 {
 				d.cursor = len(d.lineMapping) - 1
 				d.ensureCursorVisible()
-				d.render()
 			}
-			return d, nil
+			return d, d.queueRender()
 		case key.Matches(msg, d.keyMap.Up):
 			if d.cursor > 0 {
 				d.cursor--
 				d.ensureCursorVisible()
-				d.render()
 			}
-			return d, nil
+			return d, d.queueRender()
 		case key.Matches(msg, d.keyMap.Down):
 			if d.cursor < len(d.lineMapping)-1 {
 				d.cursor++
 				d.ensureCursorVisible()
-				d.render()
 			}
-			return d, nil
+			return d, d.queueRender()
 		case key.Matches(msg, d.keyMap.PageUp):
 			step := d.viewport.Height
 			if step <= 0 {
@@ -412,8 +419,7 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 				d.cursor = 0
 			}
 			d.ensureCursorVisible()
-			d.render()
-			return d, nil
+			return d, d.queueRender()
 		case key.Matches(msg, d.keyMap.PageDown):
 			step := d.viewport.Height
 			if step <= 0 {
@@ -424,8 +430,7 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 				d.cursor = len(d.lineMapping) - 1
 			}
 			d.ensureCursorVisible()
-			d.render()
-			return d, nil
+			return d, d.queueRender()
 		case key.Matches(msg, d.keyMap.HalfUp):
 			step := d.viewport.Height / 2
 			if step <= 0 {
@@ -436,8 +441,7 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 				d.cursor = 0
 			}
 			d.ensureCursorVisible()
-			d.render()
-			return d, nil
+			return d, d.queueRender()
 		case key.Matches(msg, d.keyMap.HalfDown):
 			step := d.viewport.Height / 2
 			if step <= 0 {
@@ -448,8 +452,7 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 				d.cursor = len(d.lineMapping) - 1
 			}
 			d.ensureCursorVisible()
-			d.render()
-			return d, nil
+			return d, d.queueRender()
 		case key.Matches(msg, d.keyMap.SelectRange):
 			if !d.selectionOn {
 				d.selectionOn = true
@@ -457,8 +460,7 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 			} else {
 				d.selectionOn = false
 			}
-			d.render()
-			return d, nil
+			return d, d.queueRender()
 		}
 
 	case tea.WindowSizeMsg:
@@ -472,6 +474,14 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 
 	d.viewport, cmd = d.viewport.Update(msg)
 	return d, cmd
+}
+
+func (d *DiffViewer) queueRender() tea.Cmd {
+	d.renderSeq++
+	seq := d.renderSeq
+	return tea.Tick(16*time.Millisecond, func(time.Time) tea.Msg {
+		return diffRenderMsg{seq: seq}
+	})
 }
 
 // View implements tea.Model

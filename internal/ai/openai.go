@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -13,6 +15,9 @@ import (
 )
 
 const defaultOpenAIBaseURL = "https://api.openai.com/v1"
+const defaultOpenAIHTTPTimeout = 90 * time.Second
+const maxAIDiffChars = 45000
+const retryAIDiffChars = 22000
 
 type openAIProvider struct {
 	apiKey  string
@@ -64,7 +69,7 @@ func NewOpenAIProviderFromEnv() (Provider, error) {
 		apiKey:  apiKey,
 		model:   model,
 		baseURL: baseURL,
-		client:  &http.Client{Timeout: 30 * time.Second},
+		client:  &http.Client{Timeout: defaultOpenAIHTTPTimeout},
 	}, nil
 }
 
@@ -87,13 +92,21 @@ func NewOpenAIProvider(apiKey, model, baseURL string) (Provider, error) {
 		apiKey:  apiKey,
 		model:   model,
 		baseURL: baseURL,
-		client:  &http.Client{Timeout: 30 * time.Second},
+		client:  &http.Client{Timeout: defaultOpenAIHTTPTimeout},
 	}, nil
 }
 
 func (p *openAIProvider) Review(ctx context.Context, req ReviewRequest) (ReviewResponse, error) {
+	return p.reviewWithLimit(ctx, req, maxAIDiffChars)
+}
+
+func (p *openAIProvider) reviewWithLimit(ctx context.Context, req ReviewRequest, maxChars int) (ReviewResponse, error) {
 	systemPrompt := "You are a senior code reviewer. Return only JSON with fields: decision (approve|request_changes|comment) and comment."
-	userPrompt := fmt.Sprintf("Review this diff for %s.\n\n```diff\n%s\n```", req.FilePath, req.Diff)
+	diffText, truncated := truncateForAI(req.Diff, maxChars)
+	userPrompt := fmt.Sprintf("Review this diff for %s.\n\n```diff\n%s\n```", req.FilePath, diffText)
+	if truncated {
+		userPrompt = "Note: diff was truncated for latency/performance.\n\n" + userPrompt
+	}
 
 	payload := openAIRequest{
 		Model: p.model,
@@ -119,12 +132,20 @@ func (p *openAIProvider) Review(ctx context.Context, req ReviewRequest) (ReviewR
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
+		if truncated && maxChars > retryAIDiffChars && isTimeoutError(err) {
+			return p.reviewWithLimit(ctx, req, retryAIDiffChars)
+		}
 		return ReviewResponse{}, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return ReviewResponse{}, fmt.Errorf("AI provider returned %s", resp.Status)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		msg := strings.TrimSpace(string(body))
+		if msg == "" {
+			return ReviewResponse{}, fmt.Errorf("AI provider returned %s", resp.Status)
+		}
+		return ReviewResponse{}, fmt.Errorf("AI provider returned %s: %s", resp.Status, msg)
 	}
 
 	var decoded openAIResponse
@@ -152,4 +173,31 @@ func (p *openAIProvider) Review(ctx context.Context, req ReviewRequest) (ReviewR
 		Decision: decision,
 		Comment:  strings.TrimSpace(envelope.Comment),
 	}, nil
+}
+
+func truncateForAI(diff string, maxChars int) (string, bool) {
+	diff = strings.TrimSpace(diff)
+	if maxChars <= 0 || len(diff) <= maxChars {
+		return diff, false
+	}
+	head := (maxChars * 7) / 10
+	if head < 1 {
+		head = maxChars / 2
+	}
+	tail := maxChars - head
+	if tail < 1 {
+		tail = 1
+	}
+	return diff[:head] + "\n...\n[TRUNCATED]\n...\n" + diff[len(diff)-tail:], true
+}
+
+func isTimeoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
