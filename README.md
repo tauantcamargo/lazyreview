@@ -13,7 +13,7 @@ LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/l
 ## Features
 
 - **Multi-Provider Support** - GitHub, GitLab, Bitbucket, Azure DevOps (cloud & self-hosted)
-- **Vim-Style Navigation** - `j/k`, `h/l`, `gg`, `G`, `Ctrl+d/u` and more
+- **Navigation Modes** - Vim-style by default, with optional arrows-only mode
 - **Inline Diff Viewing** - Syntax-highlighted diffs with file-by-file navigation
 - **Review Actions** - Approve, request changes, line comments, general comments, and review comments
 - **Workspaces & Dashboard** - Group repos and get a multi-repo overview
@@ -125,6 +125,7 @@ lazyreview start
 | `q` | Quit / Go back |
 
 To change themes: open **Settings** from the sidebar, select a theme entry, and press `Enter`.
+To change navigation mode: open **Settings**, select **Navigation Mode**, and press `Enter`.
 
 ## Authentication
 
@@ -198,6 +199,7 @@ default_provider: github
 
 ui:
   theme: auto
+  vim_mode: true
   show_checks: true
 
 keybindings:

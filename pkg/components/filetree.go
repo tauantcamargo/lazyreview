@@ -21,8 +21,28 @@ type FileTreeKeyMap struct {
 	Toggle key.Binding
 }
 
-// DefaultFileTreeKeyMap returns default keybindings
-func DefaultFileTreeKeyMap() FileTreeKeyMap {
+// DefaultFileTreeKeyMap returns keybindings for file tree navigation.
+func DefaultFileTreeKeyMap(vimMode bool) FileTreeKeyMap {
+	if !vimMode {
+		return FileTreeKeyMap{
+			Up: key.NewBinding(
+				key.WithKeys("up"),
+				key.WithHelp("↑", "up"),
+			),
+			Down: key.NewBinding(
+				key.WithKeys("down"),
+				key.WithHelp("↓", "down"),
+			),
+			Select: key.NewBinding(
+				key.WithKeys("enter"),
+				key.WithHelp("enter", "view file"),
+			),
+			Toggle: key.NewBinding(
+				key.WithKeys("space"),
+				key.WithHelp("space", "toggle folder"),
+			),
+		}
+	}
 	return FileTreeKeyMap{
 		Up: key.NewBinding(
 			key.WithKeys("k", "up"),
@@ -81,7 +101,7 @@ type FileTree struct {
 // NewFileTree creates a new file tree
 func NewFileTree(width, height int) FileTree {
 	return FileTree{
-		keyMap:        DefaultFileTreeKeyMap(),
+		keyMap:        DefaultFileTreeKeyMap(true),
 		width:         width,
 		height:        height,
 		focused:       true,
@@ -94,6 +114,11 @@ func NewFileTree(width, height int) FileTree {
 		dirStyle:      lipgloss.NewStyle().Foreground(lipgloss.Color("75")).Bold(true),
 		commentStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true),
 	}
+}
+
+// SetVimMode toggles vim-style navigation keys.
+func (f *FileTree) SetVimMode(enabled bool) {
+	f.keyMap = DefaultFileTreeKeyMap(enabled)
 }
 
 // SetFiles sets the files to display

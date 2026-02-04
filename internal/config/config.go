@@ -22,6 +22,7 @@ type UIConfig struct {
 	Theme      string `mapstructure:"theme"`
 	Paging     bool   `mapstructure:"paging"`
 	ShowChecks bool   `mapstructure:"show_checks"`
+	VimMode    bool   `mapstructure:"vim_mode"`
 }
 
 // Default returns a Config with sensible defaults
@@ -33,6 +34,7 @@ func Default() *Config {
 			Theme:      "auto",
 			Paging:     true,
 			ShowChecks: true,
+			VimMode:    true,
 		},
 		Keybindings: DefaultKeybindings(),
 		Providers:   []ProviderConfig{},
@@ -94,6 +96,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("ui.theme", "auto")
 	v.SetDefault("ui.paging", true)
 	v.SetDefault("ui.show_checks", true)
+	v.SetDefault("ui.vim_mode", true)
 
 	// Navigation keybindings
 	v.SetDefault("keybindings.navigation.up", "k")

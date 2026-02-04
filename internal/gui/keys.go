@@ -60,8 +60,82 @@ type KeyMap struct {
 	Quit key.Binding
 }
 
-// DefaultKeyMap returns the default vim-style keybindings
-func DefaultKeyMap() KeyMap {
+// DefaultKeyMap returns keybindings for navigation/actions.
+func DefaultKeyMap(vimMode bool) KeyMap {
+	if !vimMode {
+		return KeyMap{
+			Up: key.NewBinding(
+				key.WithKeys("up"),
+				key.WithHelp("↑", "up"),
+			),
+			Down: key.NewBinding(
+				key.WithKeys("down"),
+				key.WithHelp("↓", "down"),
+			),
+			Left: key.NewBinding(
+				key.WithKeys("left"),
+				key.WithHelp("←", "left/back"),
+			),
+			Right: key.NewBinding(
+				key.WithKeys("right"),
+				key.WithHelp("→", "right/enter"),
+			),
+			Top: key.NewBinding(
+				key.WithKeys("home"),
+				key.WithHelp("home", "top"),
+			),
+			Bottom: key.NewBinding(
+				key.WithKeys("end"),
+				key.WithHelp("end", "bottom"),
+			),
+			PageUp: key.NewBinding(
+				key.WithKeys("pgup"),
+				key.WithHelp("pgup", "page up"),
+			),
+			PageDown: key.NewBinding(
+				key.WithKeys("pgdown"),
+				key.WithHelp("pgdn", "page down"),
+			),
+			HalfUp: key.NewBinding(
+				key.WithKeys("ctrl+u"),
+				key.WithHelp("ctrl+u", "half page up"),
+			),
+			HalfDown: key.NewBinding(
+				key.WithKeys("ctrl+d"),
+				key.WithHelp("ctrl+d", "half page down"),
+			),
+			Select:               key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
+			Back:                 key.NewBinding(key.WithKeys("esc", "backspace"), key.WithHelp("esc", "back")),
+			Cancel:               key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+			NextPanel:            key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next panel")),
+			PrevPanel:            key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("shift+tab", "prev panel")),
+			Approve:              key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "approve")),
+			RequestChanges:       key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "request changes")),
+			Comment:              key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "comment on line")),
+			GeneralComment:       key.NewBinding(key.WithKeys("C"), key.WithHelp("C", "general comment")),
+			ReviewComment:        key.NewBinding(key.WithKeys("v"), key.WithHelp("v", "review comment")),
+			ToggleComments:       key.NewBinding(key.WithKeys("t"), key.WithHelp("t", "toggle comments")),
+			ReplyComment:         key.NewBinding(key.WithKeys("y"), key.WithHelp("y", "reply")),
+			EditComment:          key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit comment")),
+			DeleteComment:        key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "delete comment")),
+			ResolveComment:       key.NewBinding(key.WithKeys("z"), key.WithHelp("z", "resolve thread")),
+			ToggleCommentPreview: key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "toggle comment preview")),
+			DraftSummary:         key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "draft summary")),
+			AIReview:             key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "ai review")),
+			Update:               key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "update")),
+			OpenBrowser:          key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open in browser")),
+			OpenEditor:           key.NewBinding(key.WithKeys("O"), key.WithHelp("O", "open in editor")),
+			Checkout:             key.NewBinding(key.WithKeys("shift+c"), key.WithHelp("shift+c", "checkout branch")),
+			Refresh:              key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "refresh")),
+			Merge:                key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "merge")),
+			Search:               key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
+			NextMatch:            key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match")),
+			PrevMatch:            key.NewBinding(key.WithKeys("N"), key.WithHelp("N", "prev match")),
+			ClearSearch:          key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear search")),
+			Help:                 key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
+			Quit:                 key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+		}
+	}
 	return KeyMap{
 		// Navigation
 		Up: key.NewBinding(

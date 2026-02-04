@@ -32,8 +32,72 @@ type DiffKeyMap struct {
 	SelectRange key.Binding
 }
 
-// DefaultDiffKeyMap returns default keybindings
-func DefaultDiffKeyMap() DiffKeyMap {
+// DefaultDiffKeyMap returns keybindings for diff navigation.
+func DefaultDiffKeyMap(vimMode bool) DiffKeyMap {
+	if !vimMode {
+		return DiffKeyMap{
+			Up: key.NewBinding(
+				key.WithKeys("up"),
+				key.WithHelp("↑", "up"),
+			),
+			Down: key.NewBinding(
+				key.WithKeys("down"),
+				key.WithHelp("↓", "down"),
+			),
+			PageUp: key.NewBinding(
+				key.WithKeys("pgup"),
+				key.WithHelp("pgup", "page up"),
+			),
+			PageDown: key.NewBinding(
+				key.WithKeys("pgdown"),
+				key.WithHelp("pgdn", "page down"),
+			),
+			HalfUp: key.NewBinding(
+				key.WithKeys("ctrl+u"),
+				key.WithHelp("ctrl+u", "half up"),
+			),
+			HalfDown: key.NewBinding(
+				key.WithKeys("ctrl+d"),
+				key.WithHelp("ctrl+d", "half down"),
+			),
+			Top: key.NewBinding(
+				key.WithKeys("home"),
+				key.WithHelp("home", "top"),
+			),
+			Bottom: key.NewBinding(
+				key.WithKeys("end"),
+				key.WithHelp("end", "bottom"),
+			),
+			NextFile: key.NewBinding(
+				key.WithKeys("n", "]"),
+				key.WithHelp("n/]", "next file"),
+			),
+			PrevFile: key.NewBinding(
+				key.WithKeys("N", "["),
+				key.WithHelp("N/[", "prev file"),
+			),
+			NextHunk: key.NewBinding(
+				key.WithKeys("}"),
+				key.WithHelp("}", "next hunk"),
+			),
+			PrevHunk: key.NewBinding(
+				key.WithKeys("{"),
+				key.WithHelp("{", "prev hunk"),
+			),
+			ToggleView: key.NewBinding(
+				key.WithKeys("d"),
+				key.WithHelp("d", "toggle unified/split"),
+			),
+			Comment: key.NewBinding(
+				key.WithKeys("c"),
+				key.WithHelp("c", "comment on line"),
+			),
+			SelectRange: key.NewBinding(
+				key.WithKeys("V"),
+				key.WithHelp("V", "select range"),
+			),
+		}
+	}
 	return DiffKeyMap{
 		Up: key.NewBinding(
 			key.WithKeys("k", "up"),
@@ -157,7 +221,7 @@ func NewDiffViewer(width, height int) DiffViewer {
 
 	return DiffViewer{
 		viewport:     vp,
-		keyMap:       DefaultDiffKeyMap(),
+		keyMap:       DefaultDiffKeyMap(true),
 		width:        width,
 		height:       height,
 		focused:      true,
@@ -174,6 +238,11 @@ func NewDiffViewer(width, height int) DiffViewer {
 		cursorStyle:  lipgloss.NewStyle().Background(lipgloss.Color("236")),
 		selectStyle:  lipgloss.NewStyle().Background(lipgloss.Color("235")),
 	}
+}
+
+// SetVimMode toggles vim-style navigation keys.
+func (d *DiffViewer) SetVimMode(enabled bool) {
+	d.keyMap = DefaultDiffKeyMap(enabled)
 }
 
 func commentKey(path string, side models.DiffSide, line int) string {

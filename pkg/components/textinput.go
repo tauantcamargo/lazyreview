@@ -64,6 +64,7 @@ func NewTextInput() TextInput {
 	ta := textarea.New()
 	ta.Placeholder = "Enter your comment... (Ctrl+S to submit, Esc to cancel)"
 	ta.ShowLineNumbers = false
+	ta.Prompt = ""
 	ta.CharLimit = 10000
 	ta.SetHeight(5)
 	ta.Focus()
@@ -144,6 +145,10 @@ func (t TextInput) Update(msg tea.Msg) (TextInput, tea.Cmd) {
 	if !t.visible {
 		return t, nil
 	}
+	if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.String() == "tab" {
+		t.textarea.InsertRune('\t')
+		return t, nil
+	}
 
 	var cmd tea.Cmd
 	t.textarea, cmd = t.textarea.Update(msg)
@@ -207,6 +212,6 @@ func (t *TextInput) placeholderForMode(mode TextInputMode) string {
 	case TextInputAIKey:
 		return "Paste AI API key... (Ctrl+S to save, Esc to cancel)"
 	default:
-		return "Enter your comment... (Ctrl+S to submit, Esc to cancel)"
+		return "Enter Markdown comment... (Tab indents, Ctrl+S submit, Esc cancel)"
 	}
 }

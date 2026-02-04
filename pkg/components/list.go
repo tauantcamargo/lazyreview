@@ -50,8 +50,52 @@ type ListKeyMap struct {
 	Quit     key.Binding
 }
 
-// DefaultListKeyMap returns the default keybindings
-func DefaultListKeyMap() ListKeyMap {
+// DefaultListKeyMap returns list keybindings.
+func DefaultListKeyMap(vimMode bool) ListKeyMap {
+	if !vimMode {
+		return ListKeyMap{
+			Up: key.NewBinding(
+				key.WithKeys("up"),
+				key.WithHelp("↑", "up"),
+			),
+			Down: key.NewBinding(
+				key.WithKeys("down"),
+				key.WithHelp("↓", "down"),
+			),
+			Top: key.NewBinding(
+				key.WithKeys("home"),
+				key.WithHelp("home", "top"),
+			),
+			Bottom: key.NewBinding(
+				key.WithKeys("end"),
+				key.WithHelp("end", "bottom"),
+			),
+			PageUp: key.NewBinding(
+				key.WithKeys("pgup"),
+				key.WithHelp("pgup", "page up"),
+			),
+			PageDown: key.NewBinding(
+				key.WithKeys("pgdown"),
+				key.WithHelp("pgdn", "page down"),
+			),
+			Select: key.NewBinding(
+				key.WithKeys("enter"),
+				key.WithHelp("enter", "select"),
+			),
+			Back: key.NewBinding(
+				key.WithKeys("esc"),
+				key.WithHelp("esc", "back"),
+			),
+			Filter: key.NewBinding(
+				key.WithKeys("/"),
+				key.WithHelp("/", "filter"),
+			),
+			Quit: key.NewBinding(
+				key.WithKeys("ctrl+c"),
+				key.WithHelp("ctrl+c", "quit"),
+			),
+		}
+	}
 	return ListKeyMap{
 		Up: key.NewBinding(
 			key.WithKeys("k", "up"),
@@ -131,10 +175,15 @@ func NewList(title string, items []list.Item, width, height int) List {
 
 	return List{
 		list:    l,
-		keyMap:  DefaultListKeyMap(),
+		keyMap:  DefaultListKeyMap(true),
 		title:   title,
 		focused: true,
 	}
+}
+
+// SetVimMode toggles vim-style navigation keys.
+func (l *List) SetVimMode(enabled bool) {
+	l.keyMap = DefaultListKeyMap(enabled)
 }
 
 // Init implements tea.Model

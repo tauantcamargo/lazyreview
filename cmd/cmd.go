@@ -589,6 +589,7 @@ ui:
   theme: auto
   paging: true
   show_checks: true
+  vim_mode: true
 
 # Providers (uncomment and configure)
 # providers:

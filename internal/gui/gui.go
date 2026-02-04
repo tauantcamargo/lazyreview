@@ -295,6 +295,7 @@ type Model struct {
 	// Current view mode
 	currentViewMode ViewMode
 	currentTheme    string
+	vimMode         bool
 	updateAvailable bool
 	updateVersion   string
 
@@ -389,6 +390,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		viewState:              ViewList,
 		currentViewMode:        initialViewMode,
 		currentTheme:           cfg.UI.Theme,
+		vimMode:                cfg.UI.VimMode,
 		commentPreviewExpanded: true,
 		sidebar:                sidebar,
 		content:                content,
@@ -397,7 +399,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		commentsList:           commentsList,
 		textInput:              textInput,
 		help:                   components.NewHelp(),
-		keyMap:                 DefaultKeyMap(),
+		keyMap:                 DefaultKeyMap(cfg.UI.VimMode),
 		keySeq:                 NewKeySequence(),
 		workspaceManager:       workspaceManager,
 		repoSelector:           repoSelector,
@@ -415,6 +417,8 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		spinner:                s,
 	}
 	model.applyTheme(cfg.UI.Theme)
+	model.applyVimMode(cfg.UI.VimMode)
+	model.loadPersistedUISettings()
 	model.loadPersistedAISettings()
 	return model
 }
@@ -470,8 +474,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		keyStr := msg.String()
 		m.keySeq.Add(keyStr)
 
-		// Check for "gg" sequence (go to top)
-		if m.keySeq.IsSequence("g", "g") {
+		// Check for "gg" sequence (go to top) in vim mode
+		if m.vimMode && m.keySeq.IsSequence("g", "g") {
 			m.keySeq.Reset()
 			m.goToTop()
 			return m, nil
@@ -3349,6 +3353,11 @@ func (m *Model) buildSettingsItems() []list.Item {
 	items = append(items, components.NewSimpleItem("ai:key:clear", "Clear AI API key", "Remove stored key"))
 
 	items = append(items, components.NewSimpleItem("section:theme", "Themes", "Visual presets"))
+	navDesc := "Current: arrows only"
+	if m.vimMode {
+		navDesc = "Current: vim + arrows"
+	}
+	items = append(items, components.NewSimpleItem("nav:vim_toggle", "Navigation Mode", navDesc))
 	for _, name := range availableThemes() {
 		label := themeDisplayName(name)
 		if name == "auto" {
@@ -3391,6 +3400,16 @@ func (m *Model) handleSettingsSelection() {
 		m.applyTheme(theme)
 		m.content.SetItems(m.buildSettingsItems())
 		m.statusMsg = fmt.Sprintf("Theme switched to %s", theme)
+		return
+	}
+	if id == "nav:vim_toggle" {
+		m.applyVimMode(!m.vimMode)
+		if m.vimMode {
+			m.statusMsg = "Navigation mode: vim + arrows"
+		} else {
+			m.statusMsg = "Navigation mode: arrows only"
+		}
+		m.content.SetItems(m.buildSettingsItems())
 		return
 	}
 	if strings.HasPrefix(id, "provider:login:") {
@@ -3465,6 +3484,26 @@ func (m *Model) applyTheme(themeName string) {
 		theme.CursorBg,
 		theme.SelectionBg,
 	)
+}
+
+func (m *Model) applyVimMode(enabled bool) {
+	m.vimMode = enabled
+	m.keyMap = DefaultKeyMap(enabled)
+	m.sidebar.SetVimMode(enabled)
+	m.content.SetVimMode(enabled)
+	m.commentsList.SetVimMode(enabled)
+	m.fileTree.SetVimMode(enabled)
+	m.diffViewer.SetVimMode(enabled)
+	if m.config != nil {
+		m.config.UI.VimMode = enabled
+	}
+	if m.storage != nil {
+		value := "false"
+		if enabled {
+			value = "true"
+		}
+		_ = m.storage.SetSetting("ui.vim_mode", value)
+	}
 }
 
 func (m *Model) configuredProviderOptions() []config.ProviderConfig {
@@ -3647,6 +3686,23 @@ func (m *Model) loadPersistedAISettings() {
 		m.aiProviderName = "none"
 	}
 	_ = m.reloadAIProvider()
+}
+
+func (m *Model) loadPersistedUISettings() {
+	if m.storage == nil {
+		return
+	}
+	v, err := m.storage.GetSetting("ui.vim_mode")
+	if err != nil {
+		return
+	}
+	normalized := strings.ToLower(strings.TrimSpace(v))
+	switch normalized {
+	case "true", "1", "yes", "on":
+		m.applyVimMode(true)
+	case "false", "0", "no", "off":
+		m.applyVimMode(false)
+	}
 }
 
 func (m *Model) sidebarLabel(label, key string) string {
