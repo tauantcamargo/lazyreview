@@ -13,6 +13,7 @@ type Config struct {
 	Version         string            `mapstructure:"version"`
 	DefaultProvider string            `mapstructure:"default_provider"`
 	UI              UIConfig          `mapstructure:"ui"`
+	Performance     PerformanceConfig `mapstructure:"performance"`
 	Keybindings     KeybindingsConfig `mapstructure:"keybindings"`
 	Providers       []ProviderConfig  `mapstructure:"providers"`
 }
@@ -26,6 +27,18 @@ type UIConfig struct {
 	Editor     string `mapstructure:"editor"`
 }
 
+// PerformanceConfig holds performance-related settings
+type PerformanceConfig struct {
+	// CacheTTL is the time-to-live for cached PR data in seconds (default: 120)
+	CacheTTL int `mapstructure:"cache_ttl"`
+	// CommentCacheTTL is the TTL for comment/review cache in seconds (default: 20)
+	CommentCacheTTL int `mapstructure:"comment_cache_ttl"`
+	// MaxConcurrency is the max concurrent API requests (default: 6)
+	MaxConcurrency int `mapstructure:"max_concurrency"`
+	// RateLimitPerSecond is the max API requests per second (default: 10, 0 = no limit)
+	RateLimitPerSecond int `mapstructure:"rate_limit_per_second"`
+}
+
 // Default returns a Config with sensible defaults
 func Default() *Config {
 	return &Config{
@@ -37,6 +50,12 @@ func Default() *Config {
 			ShowChecks: true,
 			VimMode:    true,
 			Editor:     "",
+		},
+		Performance: PerformanceConfig{
+			CacheTTL:           120,
+			CommentCacheTTL:    20,
+			MaxConcurrency:     6,
+			RateLimitPerSecond: 10,
 		},
 		Keybindings: DefaultKeybindings(),
 		Providers:   []ProviderConfig{},
@@ -100,6 +119,12 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("ui.show_checks", true)
 	v.SetDefault("ui.vim_mode", true)
 	v.SetDefault("ui.editor", "")
+
+	// Performance defaults
+	v.SetDefault("performance.cache_ttl", 120)
+	v.SetDefault("performance.comment_cache_ttl", 20)
+	v.SetDefault("performance.max_concurrency", 6)
+	v.SetDefault("performance.rate_limit_per_second", 10)
 
 	// Navigation keybindings
 	v.SetDefault("keybindings.navigation.up", "k")

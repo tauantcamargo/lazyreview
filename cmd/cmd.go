@@ -211,6 +211,25 @@ func CommandStart() *cli.App {
 				return nil
 			},
 		},
+		{
+			Name:    "keys",
+			Aliases: []string{"k"},
+			Usage:   "Display keyboard shortcuts cheatsheet",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "vim",
+					Usage: "Show vim-style keybindings (default: true)",
+				},
+				cli.BoolFlag{
+					Name:  "standard",
+					Usage: "Show standard keybindings",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				vimMode := !c.Bool("standard")
+				return showKeybindingsAction(vimMode)
+			},
+		},
 	}
 
 	return app
@@ -384,7 +403,15 @@ func loginAction(provider, host, token string) error {
 		config.ProviderTypeBitbucket, config.ProviderTypeAzureDevOps:
 		// Valid
 	default:
-		return fmt.Errorf("invalid provider: %s (use: github, gitlab, bitbucket, azuredevops)", provider)
+		fmt.Printf("Error: Invalid provider '%s'\n\n", provider)
+		fmt.Println("Supported providers:")
+		fmt.Println("  • github     - GitHub.com or GitHub Enterprise")
+		fmt.Println("  • gitlab     - GitLab.com or self-hosted GitLab")
+		fmt.Println("  • bitbucket  - Bitbucket.org or Bitbucket Server")
+		fmt.Println("  • azuredevops - Azure DevOps Services")
+		fmt.Println()
+		fmt.Println("Example: lazyreview auth login --provider github")
+		return fmt.Errorf("invalid provider: %s", provider)
 	}
 
 	// Set default host if not provided
@@ -440,7 +467,15 @@ func loginAction(provider, host, token string) error {
 
 	cred, err := authService.Login(ctx, providerType, host, token)
 	if err != nil {
-		return fmt.Errorf("login failed: %w", err)
+		fmt.Printf("\n✗ Login failed: %v\n\n", err)
+		fmt.Println("Possible solutions:")
+		fmt.Println("  1. Verify your token is correct (no extra spaces)")
+		fmt.Println("  2. Check if your token has expired")
+		fmt.Println("  3. Ensure your token has the required scopes:")
+		printRequiredScopes(providerType)
+		fmt.Println()
+		fmt.Println("  4. For self-hosted instances, verify the --host flag is correct")
+		return fmt.Errorf("authentication failed")
 	}
 
 	fmt.Println()
@@ -625,6 +660,22 @@ func printTokenURL(providerType config.ProviderType, host string) {
 	case config.ProviderTypeAzureDevOps:
 		fmt.Println("  https://dev.azure.com/{organization}/_usersSettings/tokens")
 		fmt.Println("  Required scope: Code (Read & Write)")
+	}
+}
+
+func printRequiredScopes(providerType config.ProviderType) {
+	switch providerType {
+	case config.ProviderTypeGitHub:
+		fmt.Println("     - repo (Full control of private repositories)")
+		fmt.Println("     - read:org (Read org and team membership)")
+	case config.ProviderTypeGitLab:
+		fmt.Println("     - api (Full API access)")
+	case config.ProviderTypeBitbucket:
+		fmt.Println("     - pullrequest:read")
+		fmt.Println("     - pullrequest:write")
+		fmt.Println("     - repository:read")
+	case config.ProviderTypeAzureDevOps:
+		fmt.Println("     - Code (Read & Write)")
 	}
 }
 
@@ -817,6 +868,122 @@ func showConfigPathAction() error {
 		return err
 	}
 	fmt.Printf("%s/config.yaml\n", configDir)
+	return nil
+}
+
+// showKeybindingsAction displays the keyboard shortcuts cheatsheet
+func showKeybindingsAction(vimMode bool) error {
+	mode := "Vim-style"
+	if !vimMode {
+		mode = "Standard"
+	}
+
+	fmt.Printf("LazyReview Keyboard Shortcuts (%s mode)\n", mode)
+	fmt.Println(strings.Repeat("=", 50))
+	fmt.Println()
+
+	// Navigation section
+	fmt.Println("NAVIGATION")
+	fmt.Println(strings.Repeat("-", 50))
+	if vimMode {
+		fmt.Println("  j / ↓           Move down")
+		fmt.Println("  k / ↑           Move up")
+		fmt.Println("  h / ←           Move left / go back")
+		fmt.Println("  l / →           Move right / enter")
+		fmt.Println("  gg              Go to top")
+		fmt.Println("  G               Go to bottom")
+		fmt.Println("  ctrl+u          Half page up")
+		fmt.Println("  ctrl+d          Half page down")
+		fmt.Println("  b / pgup        Full page up")
+		fmt.Println("  f / pgdn        Full page down")
+	} else {
+		fmt.Println("  ↑               Move up")
+		fmt.Println("  ↓               Move down")
+		fmt.Println("  ←               Move left / go back")
+		fmt.Println("  →               Move right / enter")
+		fmt.Println("  home            Go to top")
+		fmt.Println("  end             Go to bottom")
+		fmt.Println("  ctrl+u          Half page up")
+		fmt.Println("  ctrl+d          Half page down")
+		fmt.Println("  pgup            Full page up")
+		fmt.Println("  pgdn            Full page down")
+	}
+	fmt.Println()
+
+	// Panel navigation
+	fmt.Println("PANEL NAVIGATION")
+	fmt.Println(strings.Repeat("-", 50))
+	fmt.Println("  tab             Next panel")
+	fmt.Println("  shift+tab       Previous panel")
+	fmt.Println("  enter           Select item")
+	fmt.Println("  esc             Go back / cancel")
+	fmt.Println()
+
+	// PR list view
+	fmt.Println("PR LIST VIEW")
+	fmt.Println(strings.Repeat("-", 50))
+	fmt.Println("  m               Switch to My PRs")
+	fmt.Println("  R               Switch to Review Requests")
+	fmt.Println("  /               Search / filter")
+	fmt.Println("  S               Save current filter")
+	fmt.Println("  F               Open saved filters")
+	fmt.Println("  1-9             Quick switch workspace tabs")
+	fmt.Println()
+
+	// Review actions
+	fmt.Println("REVIEW ACTIONS (Detail View)")
+	fmt.Println(strings.Repeat("-", 50))
+	fmt.Println("  a               Approve PR")
+	fmt.Println("  r               Request changes")
+	fmt.Println("  c               Comment on current line")
+	fmt.Println("  C               General comment on PR")
+	fmt.Println("  v               Add review comment")
+	fmt.Println("  y               Reply to comment")
+	fmt.Println("  e               Edit comment")
+	fmt.Println("  x               Delete comment")
+	fmt.Println("  z               Resolve thread")
+	fmt.Println("  s               Draft summary")
+	fmt.Println("  A / ctrl+a      AI-assisted review")
+	fmt.Println()
+
+	// Diff navigation
+	fmt.Println("DIFF NAVIGATION")
+	fmt.Println(strings.Repeat("-", 50))
+	fmt.Println("  n / ]           Next file")
+	fmt.Println("  N / [           Previous file")
+	fmt.Println("  {               Previous hunk")
+	fmt.Println("  }               Next hunk")
+	fmt.Println("  t               Toggle comments sidebar")
+	fmt.Println("  i               Toggle comment preview")
+	fmt.Println()
+
+	// Other actions
+	fmt.Println("OTHER ACTIONS")
+	fmt.Println(strings.Repeat("-", 50))
+	fmt.Println("  o               Open PR in browser")
+	fmt.Println("  O               Open file in editor")
+	fmt.Println("  shift+c         Checkout PR branch")
+	fmt.Println("  R               Refresh data")
+	fmt.Println("  U               Update LazyReview")
+	fmt.Println("  m               Merge PR")
+	fmt.Println()
+
+	// Global
+	fmt.Println("GLOBAL")
+	fmt.Println(strings.Repeat("-", 50))
+	fmt.Println("  ?               Toggle help panel")
+	fmt.Println("  q               Quit / go back")
+	fmt.Println("  ctrl+c          Force quit")
+	fmt.Println()
+
+	// Text input
+	fmt.Println("TEXT INPUT (when composing)")
+	fmt.Println(strings.Repeat("-", 50))
+	fmt.Println("  ctrl+s          Submit comment")
+	fmt.Println("  esc             Cancel input")
+	fmt.Println()
+
+	fmt.Println("Tip: Toggle vim mode in config.yaml (ui.vim_mode: true/false)")
 	return nil
 }
 

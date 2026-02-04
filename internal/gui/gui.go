@@ -402,12 +402,28 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	workspaceTabs := components.NewTabs(nil)
 	dashboard := views.NewDashboard(50, 20)
 	aggregator := services.NewAggregator(provider)
-	prListCache := services.NewCache[[]models.PullRequest](2 * time.Minute)
-	prDetailCache := services.NewCache[*models.PullRequest](2 * time.Minute)
-	prFilesCache := services.NewCache[[]models.FileChange](2 * time.Minute)
-	prDiffCache := services.NewCache[*models.Diff](2 * time.Minute)
-	prCommentsCache := services.NewCache[[]models.Comment](20 * time.Second)
-	prReviewsCache := services.NewCache[[]models.Review](20 * time.Second)
+
+	// Apply configurable concurrency from config
+	if cfg.Performance.MaxConcurrency > 0 {
+		aggregator.SetConcurrency(cfg.Performance.MaxConcurrency)
+	}
+
+	// Use configurable cache TTL from config (defaults: 120s for PR data, 20s for comments)
+	cacheTTL := time.Duration(cfg.Performance.CacheTTL) * time.Second
+	if cacheTTL == 0 {
+		cacheTTL = 2 * time.Minute
+	}
+	commentCacheTTL := time.Duration(cfg.Performance.CommentCacheTTL) * time.Second
+	if commentCacheTTL == 0 {
+		commentCacheTTL = 20 * time.Second
+	}
+
+	prListCache := services.NewCache[[]models.PullRequest](cacheTTL)
+	prDetailCache := services.NewCache[*models.PullRequest](cacheTTL)
+	prFilesCache := services.NewCache[[]models.FileChange](cacheTTL)
+	prDiffCache := services.NewCache[*models.Diff](cacheTTL)
+	prCommentsCache := services.NewCache[[]models.Comment](commentCacheTTL)
+	prReviewsCache := services.NewCache[[]models.Review](commentCacheTTL)
 	aiProvider, aiErr := ai.NewProviderFromEnv()
 	aiProviderName := strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_PROVIDER"))
 	aiModel := strings.TrimSpace(os.Getenv("LAZYREVIEW_AI_MODEL"))
