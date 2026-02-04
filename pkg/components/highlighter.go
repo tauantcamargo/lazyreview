@@ -2,6 +2,7 @@ package components
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 
 	"github.com/alecthomas/chroma/v2"
@@ -12,13 +13,19 @@ import (
 
 // Highlighter provides syntax highlighting for code
 type Highlighter struct {
-	style *chroma.Style
+	style      *chroma.Style
+	lineCache  map[string]string
+	lexerCache map[string]chroma.Lexer
+	styleCache map[chroma.TokenType]lipgloss.Style
 }
 
 // NewHighlighter creates a new highlighter
 func NewHighlighter() *Highlighter {
 	return &Highlighter{
-		style: styles.Get("monokai"), // Good for dark terminals
+		style:      styles.Get("monokai"), // Good for dark terminals
+		lineCache:  map[string]string{},
+		lexerCache: map[string]chroma.Lexer{},
+		styleCache: map[chroma.TokenType]lipgloss.Style{},
 	}
 }
 
@@ -26,6 +33,10 @@ func NewHighlighter() *Highlighter {
 func (h *Highlighter) HighlightLine(line string, filename string) string {
 	if line == "" {
 		return ""
+	}
+	cacheKey := filename + "\x00" + line
+	if highlighted, ok := h.lineCache[cacheKey]; ok {
+		return highlighted
 	}
 
 	// Get lexer based on filename extension
@@ -44,31 +55,51 @@ func (h *Highlighter) HighlightLine(line string, filename string) string {
 		result.WriteString(style.Render(token.Value))
 	}
 
-	return result.String()
+	highlighted := result.String()
+	if len(h.lineCache) > 8192 {
+		h.lineCache = map[string]string{}
+	}
+	h.lineCache[cacheKey] = highlighted
+	return highlighted
 }
 
 // GetLexerForFile returns the appropriate lexer for a file
 func (h *Highlighter) GetLexerForFile(filename string) chroma.Lexer {
+	cacheKey := strings.ToLower(strings.TrimSpace(filename))
+	ext := strings.ToLower(filepath.Ext(cacheKey))
+	if ext != "" {
+		cacheKey = ext
+	}
+	if lexer, ok := h.lexerCache[cacheKey]; ok {
+		return lexer
+	}
+
 	lexer := lexers.Match(filename)
 	if lexer == nil {
 		// Try to analyze the content for better detection
 		lexer = lexers.Analyse(filename)
 	}
 	if lexer == nil {
-		return lexers.Fallback
+		lexer = lexers.Fallback
 	}
-	return chroma.Coalesce(lexer)
+	lexer = chroma.Coalesce(lexer)
+	h.lexerCache[cacheKey] = lexer
+	return lexer
 }
 
 // tokenToStyle maps chroma token types to lipgloss styles
 func (h *Highlighter) tokenToStyle(tokenType chroma.TokenType) lipgloss.Style {
+	if style, ok := h.styleCache[tokenType]; ok {
+		return style
+	}
+	var style lipgloss.Style
 	// Use 256-color palette for better terminal compatibility
 	switch tokenType {
 	// Keywords
 	case chroma.Keyword, chroma.KeywordConstant, chroma.KeywordDeclaration,
 		chroma.KeywordNamespace, chroma.KeywordPseudo, chroma.KeywordReserved,
 		chroma.KeywordType:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("204")) // Pink/Magenta
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("204")) // Pink/Magenta
 
 	// Strings
 	case chroma.String, chroma.StringAffix, chroma.StringBacktick,
@@ -76,72 +107,74 @@ func (h *Highlighter) tokenToStyle(tokenType chroma.TokenType) lipgloss.Style {
 		chroma.StringDouble, chroma.StringEscape, chroma.StringHeredoc,
 		chroma.StringInterpol, chroma.StringOther, chroma.StringRegex,
 		chroma.StringSingle, chroma.StringSymbol:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("228")) // Yellow
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("228")) // Yellow
 
 	// Comments
 	case chroma.Comment, chroma.CommentHashbang, chroma.CommentMultiline,
 		chroma.CommentSingle, chroma.CommentSpecial, chroma.CommentPreproc,
 		chroma.CommentPreprocFile:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Italic(true) // Gray
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Italic(true) // Gray
 
 	// Numbers
 	case chroma.Number, chroma.NumberBin, chroma.NumberFloat,
 		chroma.NumberHex, chroma.NumberInteger, chroma.NumberIntegerLong,
 		chroma.NumberOct:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("141")) // Purple
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("141")) // Purple
 
 	// Functions
 	case chroma.Name, chroma.NameFunction, chroma.NameBuiltin,
 		chroma.NameBuiltinPseudo:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("81")) // Cyan/Blue
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("81")) // Cyan/Blue
 
 	// Classes and types
 	case chroma.NameClass, chroma.NameException:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("117")) // Light blue
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("117")) // Light blue
 
 	// Variables and attributes
 	case chroma.NameAttribute, chroma.NameVariable, chroma.NameVariableClass,
 		chroma.NameVariableGlobal, chroma.NameVariableInstance:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("117")) // Light blue
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("117")) // Light blue
 
 	// Operators
 	case chroma.Operator, chroma.OperatorWord:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("197")) // Red
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("197")) // Red
 
 	// Punctuation
 	case chroma.Punctuation:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("252")) // Light gray
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("252")) // Light gray
 
 	// Constants
 	case chroma.NameConstant:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("141")) // Purple
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("141")) // Purple
 
 	// Decorators
 	case chroma.NameDecorator:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("117")) // Light blue
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("117")) // Light blue
 
 	// Labels and tags
 	case chroma.NameLabel, chroma.NameTag:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("204")) // Pink
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("204")) // Pink
 
 	// Errors
 	case chroma.Error:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true) // Bright red
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true) // Bright red
 
 	// Generic (diff-specific)
 	case chroma.GenericDeleted:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("196")) // Red
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("196")) // Red
 	case chroma.GenericInserted:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("42")) // Green
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("42")) // Green
 	case chroma.GenericHeading:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true) // Blue
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true) // Blue
 	case chroma.GenericSubheading:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("81")) // Cyan
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("81")) // Cyan
 
 	// Default - plain text
 	default:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("252")) // Light gray
+		style = lipgloss.NewStyle().Foreground(lipgloss.Color("252")) // Light gray
 	}
+	h.styleCache[tokenType] = style
+	return style
 }
 
 // HighlightCode highlights an entire code block (for future use)

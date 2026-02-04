@@ -227,7 +227,7 @@ func NewDiffViewer(width, height int) DiffViewer {
 		height:       height,
 		focused:      true,
 		splitView:    false,
-		maxLines:     2000,
+		maxLines:     1200,
 		lineComments: map[string][]models.Comment{},
 		highlighter:  NewHighlighter(),
 		addedStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color("42")),  // Green

@@ -576,6 +576,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		if m.viewState == ViewDetail && (keyStr == "A" || keyStr == "shift+a" || keyStr == "ctrl+a") {
+			return m.handleAIReviewShortcut()
+		}
+
 		// Handle single key bindings
 		switch {
 		case key.Matches(msg, m.keyMap.Quit):
@@ -946,24 +950,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.generateSummaryDraft()
 
 		case key.Matches(msg, m.keyMap.AIReview):
-			if m.inWorkspaceView() {
-				break
-			}
-			if m.viewState != ViewDetail || m.currentDiff == nil || m.currentPR == nil {
-				m.statusMsg = "AI Review: Open a PR diff first"
-				return m, nil
-			}
-			if m.aiProvider == nil {
-				if m.aiError != nil {
-					m.statusMsg = fmt.Sprintf("AI Review unavailable: %s", m.aiError.Error())
-				} else {
-					m.statusMsg = "AI Review unavailable: configure AI in Settings"
-				}
-				return m, nil
-			}
-			m.isLoading = true
-			m.loadingMessage = "Running AI review..."
-			return m, m.startAIReview()
+			return m.handleAIReviewShortcut()
 
 		case key.Matches(msg, m.keyMap.Update):
 			if m.inWorkspaceView() {
@@ -2440,6 +2427,34 @@ func (m *Model) refreshComments() tea.Cmd {
 		m.fetchPRCommentsCached(owner, repo, m.currentPR.Number),
 		m.fetchPRReviewsCached(owner, repo, m.currentPR.Number),
 	)
+}
+
+func (m *Model) handleAIReviewShortcut() (tea.Model, tea.Cmd) {
+	if m.inWorkspaceView() {
+		return *m, nil
+	}
+	if m.viewState != ViewDetail || m.currentDiff == nil || m.currentPR == nil {
+		m.statusMsg = "AI Review: Open a PR diff first"
+		return *m, nil
+	}
+	if m.aiProvider == nil {
+		if m.aiError != nil {
+			errText := strings.ToLower(strings.TrimSpace(m.aiError.Error()))
+			if strings.Contains(errText, "api key") || strings.Contains(errText, "not configured") {
+				m.textInput.Show(components.TextInputAIKey, "Set AI API Key", "")
+				m.textInput.SetSize(m.width-20, m.height-10)
+				m.statusMsg = "AI key required: paste key and press Ctrl+S"
+				return *m, nil
+			}
+			m.statusMsg = fmt.Sprintf("AI Review unavailable: %s", m.aiError.Error())
+			return *m, nil
+		}
+		m.statusMsg = "AI Review unavailable: configure AI in Settings"
+		return *m, nil
+	}
+	m.isLoading = true
+	m.loadingMessage = "Running AI review..."
+	return *m, m.startAIReview()
 }
 
 func (m *Model) startAIReview() tea.Cmd {

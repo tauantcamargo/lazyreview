@@ -123,7 +123,7 @@ func DefaultKeyMap(vimMode bool) KeyMap {
 			ResolveComment:       key.NewBinding(key.WithKeys("z"), key.WithHelp("z", "resolve thread")),
 			ToggleCommentPreview: key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "toggle comment preview")),
 			DraftSummary:         key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "draft summary")),
-			AIReview:             key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "ai review")),
+			AIReview:             key.NewBinding(key.WithKeys("A", "ctrl+a"), key.WithHelp("A/ctrl+a", "ai review")),
 			Update:               key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "update")),
 			OpenBrowser:          key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open in browser")),
 			OpenEditor:           key.NewBinding(key.WithKeys("O"), key.WithHelp("O", "open in editor")),
@@ -255,8 +255,8 @@ func DefaultKeyMap(vimMode bool) KeyMap {
 			key.WithHelp("s", "draft summary"),
 		),
 		AIReview: key.NewBinding(
-			key.WithKeys("A"),
-			key.WithHelp("A", "ai review"),
+			key.WithKeys("A", "ctrl+a"),
+			key.WithHelp("A/ctrl+a", "ai review"),
 		),
 		Update: key.NewBinding(
 			key.WithKeys("U"),
