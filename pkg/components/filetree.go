@@ -348,3 +348,14 @@ func (f *FileTree) SelectedPath() string {
 	}
 	return ""
 }
+
+// SetThemeColors applies file tree colors at runtime.
+func (f *FileTree) SetThemeColors(selectedBg, added, deleted, modified, renamed, dir, comment string) {
+	f.selectedStyle = lipgloss.NewStyle().Background(lipgloss.Color(selectedBg)).Bold(true)
+	f.addedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(added))
+	f.deletedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(deleted))
+	f.modifiedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(modified))
+	f.renamedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(renamed))
+	f.dirStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(dir)).Bold(true)
+	f.commentStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(comment)).Bold(true)
+}

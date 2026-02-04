@@ -265,6 +265,7 @@ type Model struct {
 
 	// Current view mode
 	currentViewMode ViewMode
+	currentTheme    string
 
 	// Detail view sidebar mode
 	detailSidebarMode DetailSidebarMode
@@ -334,7 +335,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	prCommentsCache := services.NewCache[[]models.Comment](20 * time.Second)
 	aiProvider, aiErr := ai.NewProviderFromEnv()
 
-	return Model{
+	model := Model{
 		config:           cfg,
 		provider:         provider,
 		authService:      authService,
@@ -347,6 +348,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		mode:             ModeNormal,
 		viewState:        ViewList,
 		currentViewMode:  initialViewMode,
+		currentTheme:     cfg.UI.Theme,
 		sidebar:          sidebar,
 		content:          content,
 		fileTree:         fileTree,
@@ -371,6 +373,8 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		loadingMessage:   "Loading your pull requests...",
 		spinner:          s,
 	}
+	model.applyTheme(cfg.UI.Theme)
+	return model
 }
 
 // Init implements tea.Model
@@ -491,6 +495,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keyMap.Right), key.Matches(msg, m.keyMap.Select):
 			if m.viewState == ViewList && m.currentViewMode == ViewModeDashboard && m.activePanel == PanelContent {
 				return m.enterDetailViewFromDashboard()
+			}
+			if m.viewState == ViewList && m.currentViewMode == ViewModeSettings && m.activePanel == PanelContent {
+				m.handleSettingsSelection()
+				return m, nil
 			}
 			if (m.currentViewMode == ViewModeWorkspaces || m.currentViewMode == ViewModeRepoSelector) && m.activePanel == PanelContent {
 				break
@@ -2470,7 +2478,11 @@ func (m *Model) handleSidebarSelection(itemID string) tea.Cmd {
 	case "settings":
 		m.currentViewMode = ViewModeSettings
 		m.isLoading = false
-		m.statusMsg = "Settings view not yet implemented"
+		m.statusMsg = "Settings"
+		m.content.SetItems(m.buildSettingsItems())
+		m.activePanel = PanelContent
+		m.content.Focus()
+		m.sidebar.Blur()
 		m.applyLayout(m.width, m.height)
 		return nil
 
@@ -2990,6 +3002,78 @@ func (m *Model) refreshSidebarItems() {
 			}
 		}
 	}
+}
+
+func (m *Model) buildSettingsItems() []list.Item {
+	items := make([]list.Item, 0, len(availableThemes()))
+	for _, name := range availableThemes() {
+		label := themeDisplayName(name)
+		if name == "auto" {
+			label = "Auto"
+		}
+		desc := "Theme preset"
+		if strings.EqualFold(name, m.currentTheme) {
+			desc = "Current theme"
+		}
+		items = append(items, components.NewSimpleItem("theme:"+name, "Theme: "+label, desc))
+	}
+	return items
+}
+
+func themeDisplayName(name string) string {
+	if name == "" {
+		return ""
+	}
+	return strings.ToUpper(name[:1]) + name[1:]
+}
+
+func (m *Model) handleSettingsSelection() {
+	if m.currentViewMode != ViewModeSettings {
+		return
+	}
+	selected := m.content.SelectedItem()
+	if selected == nil {
+		return
+	}
+	item, ok := selected.(components.SimpleItem)
+	if !ok {
+		return
+	}
+	id := item.ID()
+	if !strings.HasPrefix(id, "theme:") {
+		return
+	}
+	theme := strings.TrimPrefix(id, "theme:")
+	m.applyTheme(theme)
+	m.content.SetItems(m.buildSettingsItems())
+	m.statusMsg = fmt.Sprintf("Theme switched to %s", theme)
+}
+
+func (m *Model) applyTheme(themeName string) {
+	theme := resolveTheme(themeName)
+	m.currentTheme = theme.Name
+	if m.config != nil {
+		m.config.UI.Theme = theme.Name
+	}
+	m.fileTree.SetThemeColors(
+		theme.TreeSelectedBg,
+		theme.TreeAdded,
+		theme.TreeDeleted,
+		theme.TreeModified,
+		theme.TreeRenamed,
+		theme.TreeDir,
+		theme.TreeComment,
+	)
+	m.diffViewer.SetThemeColors(
+		theme.Added,
+		theme.Deleted,
+		theme.Context,
+		theme.Hunk,
+		theme.LineNo,
+		theme.File,
+		theme.CursorBg,
+		theme.SelectionBg,
+	)
 }
 
 func (m *Model) sidebarLabel(label, key string) string {

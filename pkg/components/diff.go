@@ -1272,3 +1272,16 @@ func (d *DiffViewer) GetLineInfoAt(offset int) (filePath string, lineNo int, sid
 	info := d.lineMapping[offset]
 	return info.filePath, info.lineNo, info.side, info.isCode
 }
+
+// SetThemeColors applies diff colors at runtime.
+func (d *DiffViewer) SetThemeColors(added, deleted, context, hunk, lineNo, file, cursorBg, selectBg string) {
+	d.addedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(added))
+	d.deletedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(deleted))
+	d.contextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(context))
+	d.hunkStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(hunk))
+	d.lineNoStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(lineNo))
+	d.fileStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(file))
+	d.cursorStyle = lipgloss.NewStyle().Background(lipgloss.Color(cursorBg))
+	d.selectStyle = lipgloss.NewStyle().Background(lipgloss.Color(selectBg))
+	d.render()
+}
