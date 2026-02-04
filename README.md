@@ -39,6 +39,24 @@ LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/l
 brew install tauantcamargo/tap/lazyreview
 ```
 
+### Linux (APT)
+
+```bash
+# Install latest release (Debian/Ubuntu)
+VERSION=$(curl -fsSL https://api.github.com/repos/tauantcamargo/lazyreview/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+ARCH=$(dpkg --print-architecture)
+curl -fLO "https://github.com/tauantcamargo/lazyreview/releases/download/v${VERSION}/lazyreview_${VERSION}_linux_${ARCH}.deb"
+sudo apt-get install -y "./lazyreview_${VERSION}_linux_${ARCH}.deb"
+```
+
+Supported Debian package architectures: `amd64`, `arm64`.
+
+Or with installer script:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh -s -- --method apt
+```
+
 ### Download Binary
 
 Download the latest release for your platform from [GitHub Releases](https://github.com/tauantcamargo/lazyreview/releases).
@@ -54,6 +72,17 @@ sudo mv lazyreview /usr/local/bin/
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh
+```
+
+Installer options:
+
+```bash
+# Force package manager method
+curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh -s -- --method apt
+curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh -s -- --method rpm
+
+# Pin a release tag
+curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh -s -- --version v0.45.0
 ```
 
 ### Build from Source
