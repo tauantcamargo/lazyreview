@@ -58,14 +58,15 @@ type FileTreeItem struct {
 
 // FileTree is a component for displaying changed files
 type FileTree struct {
-	items     []*FileTreeItem
-	flatItems []*FileTreeItem
-	selected  int
-	keyMap    FileTreeKeyMap
-	width     int
-	height    int
-	focused   bool
-	offset    int
+	items         []*FileTreeItem
+	flatItems     []*FileTreeItem
+	selected      int
+	keyMap        FileTreeKeyMap
+	width         int
+	height        int
+	focused       bool
+	offset        int
+	commentCounts map[string]int
 
 	// Styles
 	selectedStyle lipgloss.Style
@@ -74,6 +75,7 @@ type FileTree struct {
 	modifiedStyle lipgloss.Style
 	renamedStyle  lipgloss.Style
 	dirStyle      lipgloss.Style
+	commentStyle  lipgloss.Style
 }
 
 // NewFileTree creates a new file tree
@@ -83,12 +85,14 @@ func NewFileTree(width, height int) FileTree {
 		width:         width,
 		height:        height,
 		focused:       true,
+		commentCounts: map[string]int{},
 		selectedStyle: lipgloss.NewStyle().Background(lipgloss.Color("237")).Bold(true),
 		addedStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("42")),
 		deletedStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("196")),
 		modifiedStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("214")),
 		renamedStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("39")),
 		dirStyle:      lipgloss.NewStyle().Foreground(lipgloss.Color("75")).Bold(true),
+		commentStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true),
 	}
 }
 
@@ -98,6 +102,15 @@ func (f *FileTree) SetFiles(files []models.FileChange) {
 	f.flatItems = f.flatten(f.items)
 	f.selected = 0
 	f.offset = 0
+}
+
+// SetCommentCounts sets the number of comments per file path.
+func (f *FileTree) SetCommentCounts(counts map[string]int) {
+	if counts == nil {
+		f.commentCounts = map[string]int{}
+		return
+	}
+	f.commentCounts = counts
 }
 
 // buildTree builds a tree structure from flat file list
@@ -271,7 +284,14 @@ func (f *FileTree) renderItem(item *FileTreeItem, selected bool) string {
 		stats = fmt.Sprintf(" +%d -%d", item.Additions, item.Deletions)
 	}
 
-	line := indent + icon + item.Name + stats
+	commentBadge := ""
+	if !item.IsDir && f.commentCounts != nil {
+		if count := f.commentCounts[item.Path]; count > 0 {
+			commentBadge = f.commentStyle.Render(fmt.Sprintf("  c%d", count))
+		}
+	}
+
+	line := indent + icon + item.Name + stats + commentBadge
 
 	if selected {
 		line = f.selectedStyle.Render(line)

@@ -861,6 +861,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case prFilesMsg:
 		m.currentFiles = msg.files
 		m.fileTree.SetFiles(msg.files)
+		m.updateFileCommentCounts()
 		m.isLoading = false
 		m.statusMsg = fmt.Sprintf("Loaded %d files", len(msg.files))
 		return m, nil
@@ -879,6 +880,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.comments = msg.comments
 		cmd := m.commentsList.SetItems(buildCommentItems(msg.comments))
+		m.updateFileCommentCounts()
 		return m, cmd
 
 	case errMsg:
@@ -1976,6 +1978,27 @@ func (m *Model) findCommentByID(id string) *models.Comment {
 		}
 	}
 	return nil
+}
+
+func (m *Model) updateFileCommentCounts() {
+	if m.currentFiles == nil {
+		return
+	}
+	counts := map[string]int{}
+	for _, comment := range m.comments {
+		applyCommentCount(counts, comment)
+		for _, reply := range comment.Replies {
+			applyCommentCount(counts, reply)
+		}
+	}
+	m.fileTree.SetCommentCounts(counts)
+}
+
+func applyCommentCount(counts map[string]int, comment models.Comment) {
+	if comment.Path == "" {
+		return
+	}
+	counts[comment.Path]++
 }
 
 func findFileDiff(diff *models.Diff, path string, fallbackIndex int) (*models.FileDiff, error) {
