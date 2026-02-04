@@ -465,7 +465,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.viewState == ViewList && m.currentViewMode == ViewModeDashboard && m.activePanel == PanelContent {
 				return m.enterDetailViewFromDashboard()
 			}
-			if m.currentViewMode == ViewModeWorkspaces || m.currentViewMode == ViewModeRepoSelector {
+			if (m.currentViewMode == ViewModeWorkspaces || m.currentViewMode == ViewModeRepoSelector) && m.activePanel == PanelContent {
 				break
 			}
 			if m.viewState == ViewList {
