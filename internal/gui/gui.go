@@ -507,6 +507,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.showHelp = false
 				return m, nil
 			}
+			// In PR detail view, `q` should go back to PR list instead of quitting.
+			if m.viewState == ViewDetail {
+				m.exitDetailView()
+				m.statusMsg = "Back to pull requests"
+				return m, nil
+			}
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keyMap.Help):
