@@ -1332,6 +1332,11 @@ func (m Model) View() string {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, inputView)
 	}
 
+	if m.showHelp {
+		helpView := m.renderHelpOverlay()
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, helpView)
+	}
+
 	return view
 }
 
@@ -1375,6 +1380,90 @@ func (m *Model) focusDetailSidebar() {
 func (m *Model) blurDetailSidebar() {
 	m.fileTree.Blur()
 	m.commentsList.Blur()
+}
+
+func (m *Model) renderHelpOverlay() string {
+	title := "LazyReview Help"
+	if m.viewState == ViewDetail {
+		title = "LazyReview Help - PR Detail"
+	}
+	if m.currentViewMode == ViewModeWorkspaces {
+		title = "LazyReview Help - Workspaces"
+	} else if m.currentViewMode == ViewModeRepoSelector {
+		title = "LazyReview Help - Repo Selector"
+	} else if m.currentViewMode == ViewModeDashboard {
+		title = "LazyReview Help - Dashboard"
+	}
+
+	lines := []string{title, strings.Repeat("─", len(title)), ""}
+	lines = append(lines, "Global")
+	lines = append(lines, "  ?: toggle help")
+	lines = append(lines, "  q/esc: back or quit")
+	lines = append(lines, "")
+
+	if m.viewState == ViewDetail {
+		lines = append(lines, "Navigation")
+		lines = append(lines, "  j/k: move cursor")
+		lines = append(lines, "  h/l or tab: switch panels")
+		lines = append(lines, "  n/N: next/prev file")
+		lines = append(lines, "  { / }: prev/next hunk")
+		lines = append(lines, "  d: toggle unified/split")
+		lines = append(lines, "  V: select range for multi-line comment")
+		lines = append(lines, "")
+
+		lines = append(lines, "Review Actions")
+		lines = append(lines, "  c: line or range comment")
+		lines = append(lines, "  C: general PR comment")
+		lines = append(lines, "  v: review comment")
+		lines = append(lines, "  a: approve")
+		lines = append(lines, "  r: request changes")
+		lines = append(lines, "  A: AI review (current file)")
+		lines = append(lines, "  shift+c: checkout PR branch")
+		lines = append(lines, "")
+
+		lines = append(lines, "Comments Panel")
+		lines = append(lines, "  t: toggle comments panel")
+		lines = append(lines, "  y: reply to selected comment")
+	} else if m.currentViewMode == ViewModeWorkspaces {
+		lines = append(lines, "Workspace Manager")
+		lines = append(lines, "  n: new workspace")
+		lines = append(lines, "  e: edit workspace")
+		lines = append(lines, "  d: delete workspace")
+		lines = append(lines, "  a/enter: add repos")
+		lines = append(lines, "  x: remove repo")
+		lines = append(lines, "  J/K: reorder")
+		lines = append(lines, "  tab: switch panel")
+		lines = append(lines, "  r: refresh")
+	} else if m.currentViewMode == ViewModeRepoSelector {
+		lines = append(lines, "Repo Selector")
+		lines = append(lines, "  enter/a: add selected repo")
+		lines = append(lines, "  tab: switch panel")
+		lines = append(lines, "  /: filter")
+		lines = append(lines, "  r: refresh")
+	} else if m.currentViewMode == ViewModeDashboard {
+		lines = append(lines, "Dashboard")
+		lines = append(lines, "  tab: switch section")
+		lines = append(lines, "  enter: view PR")
+		lines = append(lines, "  /: filter")
+		lines = append(lines, "  r: refresh")
+	} else {
+		lines = append(lines, "PR List")
+		lines = append(lines, "  j/k: move selection")
+		lines = append(lines, "  enter: view PR")
+		lines = append(lines, "  m: My PRs")
+		lines = append(lines, "  R: Review requests")
+		lines = append(lines, "  /: filter")
+		lines = append(lines, "  r: refresh")
+		lines = append(lines, "  1-9: switch workspace tab")
+	}
+
+	content := strings.Join(lines, "\n")
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("170")).
+		Padding(1, 2).
+		Width(min(80, m.width-4))
+	return boxStyle.Render(content)
 }
 
 func (m *Model) enterDetailView() tea.Cmd {
