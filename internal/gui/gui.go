@@ -298,6 +298,12 @@ type Model struct {
 	vimMode         bool
 	updateAvailable bool
 	updateVersion   string
+	accentColor     string
+	headerBgColor   string
+	footerBgColor   string
+	focusedBorder   string
+	unfocusedBorder string
+	mutedColor      string
 
 	// Detail view sidebar mode
 	detailSidebarMode DetailSidebarMode
@@ -1497,26 +1503,51 @@ func (m Model) View() string {
 	}
 
 	// Styles
+	accent := m.accentColor
+	if accent == "" {
+		accent = "170"
+	}
+	headerBg := m.headerBgColor
+	if headerBg == "" {
+		headerBg = "235"
+	}
+	footerBg := m.footerBgColor
+	if footerBg == "" {
+		footerBg = "235"
+	}
+	focusedBorder := m.focusedBorder
+	if focusedBorder == "" {
+		focusedBorder = "170"
+	}
+	unfocusedBorder := m.unfocusedBorder
+	if unfocusedBorder == "" {
+		unfocusedBorder = "240"
+	}
+	muted := m.mutedColor
+	if muted == "" {
+		muted = "240"
+	}
+
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("170")).
-		Background(lipgloss.Color("235")).
+		Foreground(lipgloss.Color(accent)).
+		Background(lipgloss.Color(headerBg)).
 		Padding(0, 1).
 		Width(m.width)
 
 	footerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Background(lipgloss.Color("235")).
+		Foreground(lipgloss.Color(muted)).
+		Background(lipgloss.Color(footerBg)).
 		Padding(0, 1).
 		Width(m.width)
 
 	focusedStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("170"))
+		BorderForeground(lipgloss.Color(focusedBorder))
 
 	unfocusedStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("240"))
+		BorderForeground(lipgloss.Color(unfocusedBorder))
 
 	// Header
 	var headerText string
@@ -3468,6 +3499,13 @@ func (m *Model) handleSettingsSelection() {
 func (m *Model) applyTheme(themeName string) {
 	theme := resolveTheme(themeName)
 	m.currentTheme = theme.Name
+	m.accentColor = theme.Accent
+	m.headerBgColor = theme.HeaderBg
+	m.footerBgColor = theme.FooterBg
+	m.focusedBorder = theme.BorderFocused
+	m.unfocusedBorder = theme.BorderUnfocused
+	m.mutedColor = theme.Muted
+	m.spinner.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Accent))
 	if m.config != nil {
 		m.config.UI.Theme = theme.Name
 	}
