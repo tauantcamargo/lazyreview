@@ -598,6 +598,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
 				if m.activePanel != PanelDiff {
+					if m.detailSidebarMode == DetailSidebarFiles {
+						if selectedPath := m.fileTree.SelectedPath(); selectedPath != "" {
+							m.diffViewer.SetCurrentFileByPath(selectedPath)
+						}
+					}
 					m.activePanel = PanelDiff
 					m.diffViewer.Focus()
 					m.blurDetailSidebar()
