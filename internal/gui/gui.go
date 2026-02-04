@@ -131,15 +131,16 @@ type aiReviewResultMsg struct {
 }
 
 type commentSubmitMsg struct {
-	body     string
-	filePath string // empty for general comment
-	line     int    // 0 for general comment
-	side     models.DiffSide
-	commitID string
-	owner    string
-	repo     string
-	number   int
-	err      error
+	body      string
+	filePath  string // empty for general comment
+	line      int    // 0 for general comment
+	startLine int
+	side      models.DiffSide
+	commitID  string
+	owner     string
+	repo      string
+	number    int
+	err       error
 }
 
 type workspaceTabsMsg struct {
@@ -174,11 +175,12 @@ type checkoutResultMsg struct {
 }
 
 type queuedCommentPayload struct {
-	Body     string `json:"body"`
-	FilePath string `json:"file_path,omitempty"`
-	Line     int    `json:"line,omitempty"`
-	Side     string `json:"side,omitempty"`
-	CommitID string `json:"commit_id,omitempty"`
+	Body      string `json:"body"`
+	FilePath  string `json:"file_path,omitempty"`
+	Line      int    `json:"line,omitempty"`
+	StartLine int    `json:"start_line,omitempty"`
+	Side      string `json:"side,omitempty"`
+	CommitID  string `json:"commit_id,omitempty"`
 }
 
 type queuedReviewPayload struct {
@@ -1310,7 +1312,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  y:reply  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  n/N:next/prev file  V:select range  a:approve  r:request changes  v:review comment  c:line comment  C:PR comment  y:reply  t:comments  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1579,12 +1581,27 @@ func (m *Model) submitComment() (tea.Model, tea.Cmd) {
 			side = models.DiffSideRight
 		}
 
+		startLine := 0
+		if selPath, start, end, selectedSide, isCode, ok := m.diffViewer.SelectedRange(); ok && isCode {
+			if selPath != "" {
+				filePath = selPath
+			}
+			if selectedSide != "" {
+				side = selectedSide
+			}
+			if start < end {
+				startLine = start
+				line = end
+			}
+		}
+
 		commitID := ""
 		if m.currentPR != nil {
 			commitID = m.currentPR.HeadSHA
 		}
 
-		return *m, submitLineComment(m.provider, owner, repo, m.currentPR.Number, body, filePath, line, side, commitID)
+		m.diffViewer.ClearSelection()
+		return *m, submitLineComment(m.provider, owner, repo, m.currentPR.Number, body, filePath, line, startLine, side, commitID)
 	} else if mode == components.TextInputGeneralComment {
 		return *m, submitGeneralComment(m.provider, owner, repo, m.currentPR.Number, body)
 	} else if mode == components.TextInputReviewComment {
@@ -1750,11 +1767,12 @@ func (m *Model) enqueueQueueAction(action storage.QueueAction) error {
 
 func (m *Model) enqueueCommentAction(msg commentSubmitMsg) error {
 	payload, err := json.Marshal(queuedCommentPayload{
-		Body:     msg.body,
-		FilePath: msg.filePath,
-		Line:     msg.line,
-		Side:     string(msg.side),
-		CommitID: msg.commitID,
+		Body:      msg.body,
+		FilePath:  msg.filePath,
+		Line:      msg.line,
+		StartLine: msg.startLine,
+		Side:      string(msg.side),
+		CommitID:  msg.commitID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to encode comment payload: %w", err)
@@ -2098,30 +2116,32 @@ func requestChanges(provider providers.Provider, owner, repo string, number int,
 	}
 }
 
-func submitLineComment(provider providers.Provider, owner, repo string, prNumber int, body, path string, line int, side models.DiffSide, commitID string) tea.Cmd {
+func submitLineComment(provider providers.Provider, owner, repo string, prNumber int, body, path string, line int, startLine int, side models.DiffSide, commitID string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		comment := models.CommentInput{
-			Body:     body,
-			Path:     path,
-			Line:     line,
-			Side:     side,
-			CommitID: commitID,
+			Body:      body,
+			Path:      path,
+			Line:      line,
+			StartLine: startLine,
+			Side:      side,
+			CommitID:  commitID,
 		}
 
 		err := provider.CreateComment(ctx, owner, repo, prNumber, comment)
 		return commentSubmitMsg{
-			body:     body,
-			filePath: path,
-			line:     line,
-			side:     side,
-			commitID: commitID,
-			owner:    owner,
-			repo:     repo,
-			number:   prNumber,
-			err:      err,
+			body:      body,
+			filePath:  path,
+			line:      line,
+			startLine: startLine,
+			side:      side,
+			commitID:  commitID,
+			owner:     owner,
+			repo:      repo,
+			number:    prNumber,
+			err:       err,
 		}
 	}
 }

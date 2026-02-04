@@ -169,6 +169,14 @@ func (p *Provider) CreateComment(ctx context.Context, owner, repo string, number
 			side := string(comment.Side)
 			ghComment.Side = &side
 		}
+		if comment.StartLine > 0 {
+			start := comment.StartLine
+			ghComment.StartLine = &start
+			if comment.Side != "" {
+				startSide := string(comment.Side)
+				ghComment.StartSide = &startSide
+			}
+		}
 		if comment.CommitID != "" {
 			ghComment.CommitID = &comment.CommitID
 		}

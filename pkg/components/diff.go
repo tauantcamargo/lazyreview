@@ -14,20 +14,21 @@ import (
 
 // DiffKeyMap defines keybindings for the diff viewer
 type DiffKeyMap struct {
-	Up         key.Binding
-	Down       key.Binding
-	PageUp     key.Binding
-	PageDown   key.Binding
-	HalfUp     key.Binding
-	HalfDown   key.Binding
-	Top        key.Binding
-	Bottom     key.Binding
-	NextFile   key.Binding
-	PrevFile   key.Binding
-	NextHunk   key.Binding
-	PrevHunk   key.Binding
-	ToggleView key.Binding
-	Comment    key.Binding
+	Up          key.Binding
+	Down        key.Binding
+	PageUp      key.Binding
+	PageDown    key.Binding
+	HalfUp      key.Binding
+	HalfDown    key.Binding
+	Top         key.Binding
+	Bottom      key.Binding
+	NextFile    key.Binding
+	PrevFile    key.Binding
+	NextHunk    key.Binding
+	PrevHunk    key.Binding
+	ToggleView  key.Binding
+	Comment     key.Binding
+	SelectRange key.Binding
 }
 
 // DefaultDiffKeyMap returns default keybindings
@@ -89,6 +90,10 @@ func DefaultDiffKeyMap() DiffKeyMap {
 			key.WithKeys("c"),
 			key.WithHelp("c", "comment on line"),
 		),
+		SelectRange: key.NewBinding(
+			key.WithKeys("V"),
+			key.WithHelp("V", "select range"),
+		),
 	}
 }
 
@@ -100,6 +105,8 @@ type DiffViewer struct {
 	currentFile   int
 	currentLine   int
 	cursor        int
+	selectionOn   bool
+	selectionFrom int
 	keyMap        DiffKeyMap
 	width         int
 	height        int
@@ -120,6 +127,7 @@ type DiffViewer struct {
 	lineNoStyle  lipgloss.Style
 	fileStyle    lipgloss.Style
 	cursorStyle  lipgloss.Style
+	selectStyle  lipgloss.Style
 }
 
 // lineInfo stores information about a line in the viewport
@@ -151,6 +159,7 @@ func NewDiffViewer(width, height int) DiffViewer {
 		lineNoStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")), // Dark gray
 		fileStyle:    lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("170")),
 		cursorStyle:  lipgloss.NewStyle().Background(lipgloss.Color("236")),
+		selectStyle:  lipgloss.NewStyle().Background(lipgloss.Color("235")),
 	}
 }
 
@@ -165,6 +174,8 @@ func (d *DiffViewer) SetDiff(diff *models.Diff) {
 	d.currentFile = 0
 	d.currentLine = 0
 	d.cursor = 0
+	d.selectionOn = false
+	d.selectionFrom = 0
 	d.render()
 	d.scrollToFile(d.currentFile)
 }
@@ -186,6 +197,39 @@ func (d *DiffViewer) SetCurrentFileByPath(path string) bool {
 		}
 	}
 	return false
+}
+
+// SelectedRange returns the selected line range if selection is active.
+func (d *DiffViewer) SelectedRange() (filePath string, startLine int, endLine int, side models.DiffSide, isCode bool, ok bool) {
+	if !d.selectionOn || len(d.lineMapping) == 0 {
+		return "", 0, 0, "", false, false
+	}
+	start := d.selectionFrom
+	end := d.cursor
+	if start > end {
+		start, end = end, start
+	}
+	if start < 0 || end >= len(d.lineMapping) {
+		return "", 0, 0, "", false, false
+	}
+	startInfo := d.lineMapping[start]
+	endInfo := d.lineMapping[end]
+	if startInfo.filePath == "" || endInfo.filePath == "" || startInfo.filePath != endInfo.filePath {
+		return "", 0, 0, "", false, false
+	}
+	if startInfo.lineNo == 0 || endInfo.lineNo == 0 {
+		return "", 0, 0, "", false, false
+	}
+	side = startInfo.side
+	if side == "" {
+		side = endInfo.side
+	}
+	return startInfo.filePath, startInfo.lineNo, endInfo.lineNo, side, startInfo.isCode && endInfo.isCode, true
+}
+
+// ClearSelection clears any active range selection.
+func (d *DiffViewer) ClearSelection() {
+	d.selectionOn = false
 }
 
 // Init implements tea.Model
@@ -288,6 +332,15 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 				d.cursor = len(d.lineMapping) - 1
 			}
 			d.ensureCursorVisible()
+			d.render()
+			return d, nil
+		case key.Matches(msg, d.keyMap.SelectRange):
+			if !d.selectionOn {
+				d.selectionOn = true
+				d.selectionFrom = d.cursor
+			} else {
+				d.selectionOn = false
+			}
 			d.render()
 			return d, nil
 		}
@@ -822,7 +875,18 @@ func (d *DiffViewer) applyCursorHighlight(content string, startLine int) string 
 		if line == "" && i == len(lines)-1 {
 			continue
 		}
-		if startLine+i == d.cursor {
+		lineIndex := startLine + i
+		if d.selectionOn {
+			selectionStart := d.selectionFrom
+			selectionEnd := d.cursor
+			if selectionStart > selectionEnd {
+				selectionStart, selectionEnd = selectionEnd, selectionStart
+			}
+			if lineIndex >= selectionStart && lineIndex <= selectionEnd {
+				lines[i] = d.selectStyle.Render(line)
+			}
+		}
+		if lineIndex == d.cursor {
 			lines[i] = d.cursorStyle.Render(line)
 		}
 	}

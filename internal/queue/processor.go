@@ -17,11 +17,12 @@ const (
 )
 
 type commentPayload struct {
-	Body     string `json:"body"`
-	FilePath string `json:"file_path,omitempty"`
-	Line     int    `json:"line,omitempty"`
-	Side     string `json:"side,omitempty"`
-	CommitID string `json:"commit_id,omitempty"`
+	Body      string `json:"body"`
+	FilePath  string `json:"file_path,omitempty"`
+	Line      int    `json:"line,omitempty"`
+	StartLine int    `json:"start_line,omitempty"`
+	Side      string `json:"side,omitempty"`
+	CommitID  string `json:"commit_id,omitempty"`
 }
 
 type reviewPayload struct {
@@ -70,6 +71,7 @@ func executeAction(ctx context.Context, provider providers.Provider, action stor
 		if payload.FilePath != "" && payload.Line > 0 {
 			comment.Path = payload.FilePath
 			comment.Line = payload.Line
+			comment.StartLine = payload.StartLine
 			if payload.Side != "" {
 				comment.Side = models.DiffSide(payload.Side)
 			} else {
