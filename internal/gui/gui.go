@@ -29,6 +29,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
@@ -68,6 +69,7 @@ const (
 	DetailSidebarFiles DetailSidebarMode = iota
 	DetailSidebarComments
 	DetailSidebarTimeline
+	DetailSidebarDescription
 )
 
 // ViewMode represents the current sidebar view mode
@@ -337,6 +339,7 @@ type Model struct {
 	reviews                []models.Review
 	commentsList           components.List
 	timelineList           components.List
+	descriptionView        viewport.Model
 	timelineTargets        map[string]timelineJumpTarget
 	reviewDraft            string
 	diffSearchQuery        string
@@ -379,6 +382,8 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	// Create comments list (for PR detail view)
 	commentsList := components.NewList("Comments", []list.Item{}, 30, 20)
 	timelineList := components.NewList("Timeline", []list.Item{}, 30, 20)
+	descriptionView := viewport.New(30, 20)
+	descriptionView.SetContent("PR Description\n\nNo description available.")
 	filterPalette := components.NewList("Saved Filters", []list.Item{}, 50, 20)
 
 	// Create text input component
@@ -435,6 +440,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		diffViewer:             diffViewer,
 		commentsList:           commentsList,
 		timelineList:           timelineList,
+		descriptionView:        descriptionView,
 		timelineTargets:        map[string]timelineJumpTarget{},
 		filterPalette:          filterPalette,
 		textInput:              textInput,
@@ -744,6 +750,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else if m.detailSidebarMode == DetailSidebarComments {
 					m.detailSidebarMode = DetailSidebarTimeline
 					m.statusMsg = "Timeline panel"
+				} else if m.detailSidebarMode == DetailSidebarTimeline {
+					m.detailSidebarMode = DetailSidebarDescription
+					m.statusMsg = "Description panel"
 				} else {
 					m.detailSidebarMode = DetailSidebarFiles
 					m.statusMsg = "Files panel"
@@ -1184,7 +1193,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case prDetailMsg:
 		m.currentPR = msg.pr
 		m.isLoading = false
-		m.statusMsg = fmt.Sprintf("Loaded PR #%d details", msg.pr.Number)
+		if msg.pr != nil {
+			m.statusMsg = fmt.Sprintf("Loaded PR #%d details", msg.pr.Number)
+		}
+		m.setPRDescriptionContent(msg.pr)
 		m.rebuildTimeline()
 		return m, nil
 
@@ -1390,13 +1402,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		owner, repo := m.resolvePRRepo()
 		switch msg.response.Decision {
 		case ai.DecisionApprove:
-			m.statusMsg = "AI recommends approval. Submitting..."
+			m.isLoading = true
+			m.loadingMessage = "Submitting AI approval..."
 			return m, approveReview(m.provider, owner, repo, m.currentPR.Number, comment)
 		case ai.DecisionRequestChanges:
-			m.statusMsg = "AI recommends changes. Submitting..."
+			m.isLoading = true
+			m.loadingMessage = "Submitting AI change request..."
 			return m, requestChanges(m.provider, owner, repo, m.currentPR.Number, comment)
 		default:
-			m.statusMsg = "AI review comment submitted"
+			m.isLoading = true
+			m.loadingMessage = "Submitting AI review comment..."
 			return m, submitReviewComment(m.provider, owner, repo, m.currentPR.Number, comment)
 		}
 
@@ -1600,6 +1615,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.commentsList, cmd = m.commentsList.Update(msg)
 				} else if m.detailSidebarMode == DetailSidebarTimeline {
 					m.timelineList, cmd = m.timelineList.Update(msg)
+				} else if m.detailSidebarMode == DetailSidebarDescription {
+					m.descriptionView, cmd = m.descriptionView.Update(msg)
 				} else {
 					m.fileTree, cmd = m.fileTree.Update(msg)
 				}
@@ -1783,6 +1800,8 @@ func (m Model) View() string {
 			}
 		} else if m.detailSidebarMode == DetailSidebarTimeline {
 			sidebarContent = m.timelineList.View()
+		} else if m.detailSidebarMode == DetailSidebarDescription {
+			sidebarContent = m.descriptionView.View()
 		}
 		if m.activePanel == PanelFiles {
 			fileTreeView = focusedStyle.Render(sidebarContent)
@@ -1823,7 +1842,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  /:search  n/N:next/prev match  V:select range  a:approve  r:request changes  v:review comment  s:draft summary  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  i:preview  enter:jump  O:open editor  t:files/comments/timeline  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  /:search  n/N:next/prev match  V:select range  a:approve  r:request changes  v:review comment  s:draft summary  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  i:preview  enter:jump  O:open editor  t:files/comments/timeline/description  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  /:filter  S:save filter  F:saved filters  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1888,6 +1907,10 @@ func (m *Model) focusDetailSidebar() {
 		m.commentsList.Focus()
 		m.fileTree.Blur()
 		m.timelineList.Blur()
+	} else if m.detailSidebarMode == DetailSidebarDescription {
+		m.fileTree.Blur()
+		m.commentsList.Blur()
+		m.timelineList.Blur()
 	} else if m.detailSidebarMode == DetailSidebarTimeline {
 		m.timelineList.Focus()
 		m.fileTree.Blur()
@@ -1951,8 +1974,8 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "  shift+c: checkout PR branch")
 		lines = append(lines, "")
 
-		lines = append(lines, "Comments Panel")
-		lines = append(lines, "  t: cycle files/comments/timeline panel")
+		lines = append(lines, "Sidebar Panels")
+		lines = append(lines, "  t: cycle files/comments/timeline/description")
 		lines = append(lines, "  y: reply to selected comment")
 		lines = append(lines, "  e: edit selected comment")
 		lines = append(lines, "  x: delete selected comment")
@@ -2081,6 +2104,8 @@ func (m *Model) enterDetailViewFromPR(selectedPR models.PullRequest) tea.Cmd {
 	m.diffViewer.SetComments(nil)
 	m.commentsList.SetItems(nil)
 	m.timelineList.SetItems(nil)
+	m.descriptionView.SetContent("PR Description\n\nLoading...")
+	m.descriptionView.GotoTop()
 	m.timelineTargets = map[string]timelineJumpTarget{}
 	m.applyLayout(m.width, m.height)
 
@@ -2124,6 +2149,8 @@ func (m *Model) exitDetailView() {
 	m.diffViewer.SetComments(nil)
 	m.commentsList.SetItems(nil)
 	m.timelineList.SetItems(nil)
+	m.descriptionView.SetContent("PR Description\n\nNo description available.")
+	m.descriptionView.GotoTop()
 	m.timelineTargets = map[string]timelineJumpTarget{}
 	m.statusMsg = ""
 	m.applyLayout(m.width, m.height)
@@ -2427,6 +2454,26 @@ func (m *Model) refreshComments() tea.Cmd {
 		m.fetchPRCommentsCached(owner, repo, m.currentPR.Number),
 		m.fetchPRReviewsCached(owner, repo, m.currentPR.Number),
 	)
+}
+
+func (m *Model) setPRDescriptionContent(pr *models.PullRequest) {
+	if pr == nil {
+		m.descriptionView.SetContent("PR Description\n\nNo description available.")
+		m.descriptionView.GotoTop()
+		return
+	}
+	body := strings.TrimSpace(pr.Body)
+	if body == "" {
+		body = "_No description provided._"
+	}
+	var b strings.Builder
+	b.WriteString("PR Description\n\n")
+	b.WriteString(fmt.Sprintf("#%d %s\n", pr.Number, strings.TrimSpace(pr.Title)))
+	b.WriteString(fmt.Sprintf("Author: @%s\n", sanitizeInlineText(pr.Author.Login)))
+	b.WriteString(fmt.Sprintf("Branches: %s -> %s\n\n", strings.TrimSpace(pr.SourceBranch), strings.TrimSpace(pr.TargetBranch)))
+	b.WriteString(body)
+	m.descriptionView.SetContent(b.String())
+	m.descriptionView.GotoTop()
 }
 
 func (m *Model) handleAIReviewShortcut() (tea.Model, tea.Cmd) {
@@ -3645,6 +3692,8 @@ func (m *Model) applyLayout(width, height int) {
 	}
 	m.commentsList.SetSize(fileTreeWidth, commentsHeight)
 	m.timelineList.SetSize(fileTreeWidth, panelHeight)
+	m.descriptionView.Width = fileTreeWidth
+	m.descriptionView.Height = panelHeight
 	m.diffViewer.SetSize(diffWidth, panelHeight)
 	m.filterPalette.SetSize(min(width-20, 80), min(height-10, 28))
 
