@@ -996,6 +996,37 @@ func (d *DiffViewer) CurrentLineInfo() (filePath string, lineNo int, side models
 	return info.filePath, info.lineNo, info.side, info.isCode
 }
 
+// EnsureCursorOnCodeLine moves the cursor to the nearest code line if needed.
+func (d *DiffViewer) EnsureCursorOnCodeLine() bool {
+	if len(d.lineMapping) == 0 {
+		return false
+	}
+	if _, _, _, isCode := d.CurrentLineInfo(); isCode {
+		return true
+	}
+
+	// Search forward
+	for i := d.cursor + 1; i < len(d.lineMapping); i++ {
+		if d.lineMapping[i].isCode {
+			d.cursor = i
+			d.ensureCursorVisible()
+			d.render()
+			return true
+		}
+	}
+	// Search backward
+	for i := d.cursor - 1; i >= 0; i-- {
+		if d.lineMapping[i].isCode {
+			d.cursor = i
+			d.ensureCursorVisible()
+			d.render()
+			return true
+		}
+	}
+
+	return false
+}
+
 // GetLineInfoAt returns information about a specific line in the viewport
 func (d *DiffViewer) GetLineInfoAt(offset int) (filePath string, lineNo int, side models.DiffSide, isCode bool) {
 	if offset < 0 || offset >= len(d.lineMapping) {

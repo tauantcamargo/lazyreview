@@ -597,6 +597,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 			if m.viewState == ViewDetail && m.currentPR != nil {
+				if m.activePanel != PanelDiff {
+					m.activePanel = PanelDiff
+					m.diffViewer.Focus()
+					m.blurDetailSidebar()
+				}
+				if !m.diffViewer.EnsureCursorOnCodeLine() {
+					m.statusMsg = "Comment: Position cursor on a code line first"
+					return m, nil
+				}
 				// Line comment - get current line from diff viewer
 				filePath, lineNo, side, isCode := m.diffViewer.CurrentLineInfo()
 				if isCode && lineNo > 0 {
@@ -604,8 +613,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.textInput.Show(components.TextInputLineComment, "Comment on line", context)
 					m.textInput.SetSize(m.width-20, m.height-10)
 					return m, nil
-				} else {
-					m.statusMsg = "Comment: Position cursor on a code line first"
 				}
 			} else {
 				m.statusMsg = "Comment: Enter PR view first"
