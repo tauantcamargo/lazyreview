@@ -1464,11 +1464,15 @@ func (m *Model) renderHelpOverlay() string {
 	}
 
 	content := strings.Join(lines, "\n")
+	boxWidth := min(96, m.width-4)
+	if boxWidth < 40 {
+		boxWidth = m.width - 2
+	}
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("170")).
 		Padding(1, 2).
-		Width(min(80, m.width-4))
+		Width(boxWidth)
 	return boxStyle.Render(content)
 }
 
