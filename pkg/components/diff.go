@@ -1595,12 +1595,27 @@ func (d *DiffViewer) Status() string {
 		return ""
 	}
 
+	// Current file name (truncated if too long)
+	currentFileName := ""
+	if d.currentFile < len(d.files) {
+		name := d.files[d.currentFile].Path
+		// Get just the filename for brevity
+		if idx := strings.LastIndex(name, "/"); idx >= 0 {
+			name = name[idx+1:]
+		}
+		if len(name) > 25 {
+			name = "..." + name[len(name)-22:]
+		}
+		currentFileName = name + " | "
+	}
+
 	// File position
 	filePos := fmt.Sprintf("File %d/%d", d.currentFile+1, len(d.files))
 
 	// Count total hunks and find current hunk position
 	totalHunks := 0
 	currentHunkGlobal := 0
+	largestChange := 0
 	for i, file := range d.files {
 		if i < d.currentFile {
 			currentHunkGlobal += len(file.Hunks)
@@ -1608,6 +1623,10 @@ func (d *DiffViewer) Status() string {
 			currentHunkGlobal += d.currentHunk + 1
 		}
 		totalHunks += len(file.Hunks)
+		fileChanges := file.Additions + file.Deletions
+		if fileChanges > largestChange {
+			largestChange = fileChanges
+		}
 	}
 
 	hunkPos := ""
@@ -1618,7 +1637,13 @@ func (d *DiffViewer) Status() string {
 	// Total additions/deletions
 	changes := fmt.Sprintf(" | +%d -%d", d.diff.Additions, d.diff.Deletions)
 
-	return filePos + hunkPos + changes
+	// Largest file indicator (if significant)
+	largestInfo := ""
+	if largestChange > 100 {
+		largestInfo = fmt.Sprintf(" | max: %d", largestChange)
+	}
+
+	return currentFileName + filePos + hunkPos + changes + largestInfo
 }
 
 // CurrentHunk returns the current hunk index within the current file

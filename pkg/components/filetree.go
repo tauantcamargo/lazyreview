@@ -88,6 +88,10 @@ type FileTree struct {
 	offset        int
 	commentCounts map[string]int
 
+	// Search
+	searchMode  bool
+	searchQuery string
+
 	// Styles
 	selectedStyle lipgloss.Style
 	addedStyle    lipgloss.Style
@@ -96,6 +100,8 @@ type FileTree struct {
 	renamedStyle  lipgloss.Style
 	dirStyle      lipgloss.Style
 	commentStyle  lipgloss.Style
+	searchStyle   lipgloss.Style
+	matchStyle    lipgloss.Style
 }
 
 // NewFileTree creates a new file tree
@@ -113,6 +119,8 @@ func NewFileTree(width, height int) FileTree {
 		renamedStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("39")),
 		dirStyle:      lipgloss.NewStyle().Foreground(lipgloss.Color("75")).Bold(true),
 		commentStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true),
+		searchStyle:   lipgloss.NewStyle().Background(lipgloss.Color("235")).Foreground(lipgloss.Color("252")),
+		matchStyle:    lipgloss.NewStyle().Background(lipgloss.Color("58")).Bold(true),
 	}
 }
 
@@ -205,7 +213,40 @@ func (f FileTree) Init() tea.Cmd {
 func (f FileTree) Update(msg tea.Msg) (FileTree, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle search mode
+		if f.searchMode {
+			switch msg.Type {
+			case tea.KeyEsc:
+				f.searchMode = false
+				f.searchQuery = ""
+				return f, nil
+			case tea.KeyEnter:
+				// Jump to first match and exit search
+				f.jumpToMatch()
+				f.searchMode = false
+				f.searchQuery = ""
+				return f, nil
+			case tea.KeyBackspace:
+				if len(f.searchQuery) > 0 {
+					f.searchQuery = f.searchQuery[:len(f.searchQuery)-1]
+					f.jumpToMatch()
+				}
+				return f, nil
+			default:
+				if msg.Type == tea.KeyRunes {
+					f.searchQuery += string(msg.Runes)
+					f.jumpToMatch()
+				}
+				return f, nil
+			}
+		}
+
+		// Normal mode keybindings
 		switch {
+		case msg.String() == "/":
+			f.searchMode = true
+			f.searchQuery = ""
+			return f, nil
 		case key.Matches(msg, f.keyMap.Up):
 			if f.selected > 0 {
 				f.selected--
@@ -234,6 +275,29 @@ func (f FileTree) Update(msg tea.Msg) (FileTree, tea.Cmd) {
 	return f, nil
 }
 
+// jumpToMatch jumps to the first file matching the search query
+func (f *FileTree) jumpToMatch() {
+	if f.searchQuery == "" {
+		return
+	}
+	query := strings.ToLower(f.searchQuery)
+	for i, item := range f.flatItems {
+		if !item.IsDir && strings.Contains(strings.ToLower(item.Name), query) {
+			f.selected = i
+			f.ensureVisible()
+			return
+		}
+	}
+}
+
+// matchesSearch checks if an item matches the current search query
+func (f *FileTree) matchesSearch(item *FileTreeItem) bool {
+	if f.searchQuery == "" {
+		return false
+	}
+	return strings.Contains(strings.ToLower(item.Name), strings.ToLower(f.searchQuery))
+}
+
 // View implements tea.Model
 func (f FileTree) View() string {
 	if len(f.flatItems) == 0 {
@@ -242,8 +306,11 @@ func (f FileTree) View() string {
 
 	var content strings.Builder
 
-	// Calculate visible range
+	// Calculate visible range - leave extra room for search bar
 	visibleHeight := f.height - 2 // Leave room for header
+	if f.searchMode {
+		visibleHeight -= 2 // Extra room for search bar
+	}
 	start := f.offset
 	end := start + visibleHeight
 	if end > len(f.flatItems) {
@@ -254,12 +321,21 @@ func (f FileTree) View() string {
 	content.WriteString(lipgloss.NewStyle().Bold(true).Render(
 		fmt.Sprintf("Files (%d)", len(f.flatItems)),
 	))
-	content.WriteString("\n\n")
+	content.WriteString("\n")
+
+	// Search bar
+	if f.searchMode {
+		searchBar := f.searchStyle.Render(fmt.Sprintf("🔍 /%s_", f.searchQuery))
+		content.WriteString(searchBar)
+		content.WriteString("\n")
+	}
+	content.WriteString("\n")
 
 	// Items
 	for i := start; i < end; i++ {
 		item := f.flatItems[i]
-		line := f.renderItem(item, i == f.selected)
+		isMatch := f.matchesSearch(item)
+		line := f.renderItem(item, i == f.selected, isMatch)
 		content.WriteString(line)
 		content.WriteString("\n")
 	}
@@ -268,7 +344,7 @@ func (f FileTree) View() string {
 }
 
 // renderItem renders a single item
-func (f *FileTree) renderItem(item *FileTreeItem, selected bool) string {
+func (f *FileTree) renderItem(item *FileTreeItem, selected bool, isMatch bool) string {
 	// Indent
 	indent := strings.Repeat("  ", item.Depth)
 
@@ -318,7 +394,10 @@ func (f *FileTree) renderItem(item *FileTreeItem, selected bool) string {
 
 	line := indent + icon + item.Name + stats + commentBadge
 
-	if selected {
+	// Apply styling: match > selected > normal
+	if isMatch && !selected {
+		line = f.matchStyle.Render(line)
+	} else if selected {
 		line = f.selectedStyle.Render(line)
 	} else {
 		line = style.Render(line)
