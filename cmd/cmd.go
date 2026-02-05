@@ -32,7 +32,7 @@ func CommandStart() *cli.App {
 	app := cli.NewApp()
 	app.Name = "LazyReview"
 	app.Usage = "A terminal UI for code review across multiple Git providers"
-	app.Version = "0.53.0"
+	app.Version = "0.54.0"
 
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{

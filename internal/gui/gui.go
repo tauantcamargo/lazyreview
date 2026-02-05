@@ -1755,7 +1755,27 @@ func (m Model) View() string {
 			headerText = "LazyReview - Code Review TUI"
 		}
 	} else if m.currentPR != nil {
-		headerText = fmt.Sprintf("LazyReview - PR #%d: %s", m.currentPR.Number, m.currentPR.Title)
+		// Build review status indicator
+		reviewStatus := ""
+		switch m.currentPR.ReviewDecision {
+		case models.ReviewDecisionApproved:
+			reviewStatus = " ✓"
+		case models.ReviewDecisionChangesRequsted:
+			reviewStatus = " ⚠"
+		case models.ReviewDecisionPending, models.ReviewDecisionReviewRequired:
+			reviewStatus = " ⏳"
+		}
+
+		// Build stats summary
+		stats := ""
+		if m.currentPR.ChangedFiles > 0 {
+			stats = fmt.Sprintf(" | %d files", m.currentPR.ChangedFiles)
+		}
+		if m.currentPR.Additions > 0 || m.currentPR.Deletions > 0 {
+			stats += fmt.Sprintf(" +%d/-%d", m.currentPR.Additions, m.currentPR.Deletions)
+		}
+
+		headerText = fmt.Sprintf("LazyReview - PR #%d%s: %s%s", m.currentPR.Number, reviewStatus, m.currentPR.Title, stats)
 	} else {
 		headerText = "LazyReview - PR Details"
 	}
@@ -1984,12 +2004,13 @@ func (m *Model) renderHelpOverlay() string {
 	lines = append(lines, "")
 
 	if m.viewState == ViewDetail {
-		lines = append(lines, "Detail View")
+		lines = append(lines, "Detail View - Navigation")
 		lines = append(lines, "  j/k: move cursor")
 		lines = append(lines, "  h/l: switch panels")
-		lines = append(lines, "  /: search in diff")
-		lines = append(lines, "  n/N: next/prev search match (or next/prev file when search is empty)")
+		lines = append(lines, "  /: search in diff (or filter files in file tree)")
+		lines = append(lines, "  n/N: next/prev file")
 		lines = append(lines, "  { / }: prev/next hunk")
+		lines = append(lines, "  ]c / [c: next/prev commented line")
 		lines = append(lines, "  b/pgup, f/pgdn: page up/down")
 		lines = append(lines, "  ctrl+u / ctrl+d: half page up/down")
 		lines = append(lines, "  d: toggle unified/split")
