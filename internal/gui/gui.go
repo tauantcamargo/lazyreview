@@ -1175,7 +1175,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			title := fmt.Sprintf("#%d: %s", pr.Number, pr.Title)
 			labels := formatLabels(pr.Labels, 2)
-			desc := fmt.Sprintf("%sby %s • %s%s", statusIcons, pr.Author.Login, pr.State, labels)
+			relTime := formatRelativeTime(pr.UpdatedAt)
+			desc := fmt.Sprintf("%sby %s • %s • %s%s", statusIcons, pr.Author.Login, relTime, pr.State, labels)
 			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
 		}
 		contentWidth := m.width - 44
@@ -1252,8 +1253,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			title := fmt.Sprintf("#%d %s", pr.Number, pr.Title)
 			labels := formatLabels(pr.Labels, 2)
+			relTime := formatRelativeTime(pr.UpdatedAt)
 			// Include repo name since these are from multiple repos
-			desc := fmt.Sprintf("%s%s/%s • by %s • %s%s", statusIcons, pr.Repository.Owner, pr.Repository.Name, pr.Author.Login, pr.State, labels)
+			desc := fmt.Sprintf("%s%s/%s • by %s • %s • %s%s", statusIcons, pr.Repository.Owner, pr.Repository.Name, pr.Author.Login, relTime, pr.State, labels)
 			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
 		}
 		contentWidth := m.width - 44
@@ -1846,7 +1848,21 @@ func (m Model) View() string {
 			draftIndicator = " [DRAFT]"
 		}
 
-		headerText = fmt.Sprintf("LazyReview - PR #%d%s%s: %s%s", m.currentPR.Number, reviewStatus, draftIndicator, m.currentPR.Title, stats)
+		// Add assignees info
+		assignees := ""
+		if len(m.currentPR.Assignees) > 0 {
+			names := make([]string, 0, len(m.currentPR.Assignees))
+			for i, a := range m.currentPR.Assignees {
+				if i >= 2 {
+					names = append(names, fmt.Sprintf("+%d", len(m.currentPR.Assignees)-2))
+					break
+				}
+				names = append(names, a.Login)
+			}
+			assignees = fmt.Sprintf(" | @%s", strings.Join(names, ", @"))
+		}
+
+		headerText = fmt.Sprintf("LazyReview - PR #%d%s%s: %s%s%s", m.currentPR.Number, reviewStatus, draftIndicator, m.currentPR.Title, stats, assignees)
 	} else {
 		headerText = "LazyReview - PR Details"
 	}
@@ -5168,6 +5184,55 @@ func formatLabels(labels []models.Label, maxLabels int) string {
 		labelNames = append(labelNames, label.Name)
 	}
 	return " [" + strings.Join(labelNames, ", ") + "]"
+}
+
+// formatRelativeTime returns a human-readable relative time string
+func formatRelativeTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	diff := time.Since(t)
+	switch {
+	case diff < time.Minute:
+		return "just now"
+	case diff < time.Hour:
+		mins := int(diff.Minutes())
+		if mins == 1 {
+			return "1m ago"
+		}
+		return fmt.Sprintf("%dm ago", mins)
+	case diff < 24*time.Hour:
+		hours := int(diff.Hours())
+		if hours == 1 {
+			return "1h ago"
+		}
+		return fmt.Sprintf("%dh ago", hours)
+	case diff < 7*24*time.Hour:
+		days := int(diff.Hours() / 24)
+		if days == 1 {
+			return "1d ago"
+		}
+		return fmt.Sprintf("%dd ago", days)
+	case diff < 30*24*time.Hour:
+		weeks := int(diff.Hours() / (24 * 7))
+		if weeks == 1 {
+			return "1w ago"
+		}
+		return fmt.Sprintf("%dw ago", weeks)
+	default:
+		months := int(diff.Hours() / (24 * 30))
+		if months == 1 {
+			return "1mo ago"
+		}
+		if months < 12 {
+			return fmt.Sprintf("%dmo ago", months)
+		}
+		years := months / 12
+		if years == 1 {
+			return "1y ago"
+		}
+		return fmt.Sprintf("%dy ago", years)
+	}
 }
 
 func filterPRsByRepos(prs []models.PullRequest, repos []storage.RepoRef) []models.PullRequest {
