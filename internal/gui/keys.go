@@ -48,6 +48,7 @@ type KeyMap struct {
 	Checkout             key.Binding
 	Refresh              key.Binding
 	Merge                key.Binding
+	MarkReviewed         key.Binding
 
 	// Search
 	Search        key.Binding
@@ -130,6 +131,7 @@ func DefaultKeyMap(vimMode bool) KeyMap {
 			Checkout:             key.NewBinding(key.WithKeys("shift+c"), key.WithHelp("shift+c", "checkout branch")),
 			Refresh:              key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "refresh")),
 			Merge:                key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "merge")),
+			MarkReviewed:         key.NewBinding(key.WithKeys("M"), key.WithHelp("M", "mark reviewed")),
 			Search:               key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 			NextMatch:            key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next match")),
 			PrevMatch:            key.NewBinding(key.WithKeys("N"), key.WithHelp("N", "prev match")),
@@ -281,6 +283,10 @@ func DefaultKeyMap(vimMode bool) KeyMap {
 		Merge: key.NewBinding(
 			key.WithKeys("m"),
 			key.WithHelp("m", "merge"),
+		),
+		MarkReviewed: key.NewBinding(
+			key.WithKeys("M"),
+			key.WithHelp("M", "mark reviewed"),
 		),
 
 		// Search

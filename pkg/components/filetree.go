@@ -87,6 +87,7 @@ type FileTree struct {
 	focused       bool
 	offset        int
 	commentCounts map[string]int
+	reviewedFiles map[string]bool
 
 	// Search
 	searchMode  bool
@@ -100,6 +101,7 @@ type FileTree struct {
 	renamedStyle  lipgloss.Style
 	dirStyle      lipgloss.Style
 	commentStyle  lipgloss.Style
+	reviewedStyle lipgloss.Style
 	searchStyle   lipgloss.Style
 	matchStyle    lipgloss.Style
 }
@@ -112,6 +114,7 @@ func NewFileTree(width, height int) FileTree {
 		height:        height,
 		focused:       true,
 		commentCounts: map[string]int{},
+		reviewedFiles: map[string]bool{},
 		selectedStyle: lipgloss.NewStyle().Background(lipgloss.Color("237")).Bold(true),
 		addedStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("42")),
 		deletedStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("196")),
@@ -119,6 +122,7 @@ func NewFileTree(width, height int) FileTree {
 		renamedStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("39")),
 		dirStyle:      lipgloss.NewStyle().Foreground(lipgloss.Color("75")).Bold(true),
 		commentStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Bold(true),
+		reviewedStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("76")).Bold(true),
 		searchStyle:   lipgloss.NewStyle().Background(lipgloss.Color("235")).Foreground(lipgloss.Color("252")),
 		matchStyle:    lipgloss.NewStyle().Background(lipgloss.Color("58")).Bold(true),
 	}
@@ -144,6 +148,20 @@ func (f *FileTree) SetCommentCounts(counts map[string]int) {
 		return
 	}
 	f.commentCounts = counts
+}
+
+// SetReviewedFiles sets which files have been marked as reviewed.
+func (f *FileTree) SetReviewedFiles(reviewed map[string]bool) {
+	if reviewed == nil {
+		f.reviewedFiles = map[string]bool{}
+		return
+	}
+	f.reviewedFiles = reviewed
+}
+
+// IsFileReviewed checks if a file has been marked as reviewed.
+func (f *FileTree) IsFileReviewed(path string) bool {
+	return f.reviewedFiles[path]
 }
 
 // buildTree builds a tree structure from flat file list
@@ -392,7 +410,14 @@ func (f *FileTree) renderItem(item *FileTreeItem, selected bool, isMatch bool) s
 		}
 	}
 
-	line := indent + icon + item.Name + stats + commentBadge
+	reviewedBadge := ""
+	if !item.IsDir && f.reviewedFiles != nil {
+		if f.reviewedFiles[item.Path] {
+			reviewedBadge = f.reviewedStyle.Render(" ✓")
+		}
+	}
+
+	line := indent + icon + item.Name + stats + commentBadge + reviewedBadge
 
 	// Apply styling: match > selected > normal
 	if isMatch && !selected {

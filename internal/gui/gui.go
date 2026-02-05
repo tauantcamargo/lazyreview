@@ -348,6 +348,9 @@ type Model struct {
 	filterPalette          components.List
 	filterPaletteVisible   bool
 
+	// File review tracking (keyed by "owner/repo#number:filepath")
+	reviewedFiles map[string]bool
+
 	// Loading states
 	isLoading      bool
 	loadingMessage string
@@ -475,6 +478,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		prDiffCache:            prDiffCache,
 		prCommentsCache:        prCommentsCache,
 		prReviewsCache:         prReviewsCache,
+		reviewedFiles:          make(map[string]bool),
 		isLoading:              true,
 		loadingMessage:         "Loading your pull requests...",
 		spinner:                s,
@@ -1020,6 +1024,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, openFileInEditor(m.resolveEditorCommand(), path, line)
 
+		case key.Matches(msg, m.keyMap.MarkReviewed):
+			if m.viewState != ViewDetail {
+				m.statusMsg = "Mark reviewed: Open a PR first"
+				return m, nil
+			}
+			if m.detailSidebarMode != DetailSidebarFiles {
+				m.statusMsg = "Mark reviewed: Switch to files panel first (press t)"
+				return m, nil
+			}
+			path := m.fileTree.SelectedPath()
+			if path == "" {
+				m.statusMsg = "Mark reviewed: Select a file first"
+				return m, nil
+			}
+			m.toggleFileReviewed(path)
+			if m.isFileReviewed(path) {
+				m.statusMsg = fmt.Sprintf("Marked '%s' as reviewed ✓", filepath.Base(path))
+			} else {
+				m.statusMsg = fmt.Sprintf("Unmarked '%s' as reviewed", filepath.Base(path))
+			}
+			return m, nil
+
 		case key.Matches(msg, m.keyMap.Checkout):
 			if m.inWorkspaceView() {
 				break
@@ -1136,8 +1162,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Convert PRs to list items
 		items := make([]list.Item, len(msg.prs))
 		for i, pr := range msg.prs {
+			// Build status indicators
+			statusIcons := ""
+			if ci := checksStatusIcon(pr.ChecksStatus); ci != "" {
+				statusIcons += ci + " "
+			}
+			if rv := reviewDecisionIcon(pr.ReviewDecision); rv != "" {
+				statusIcons += rv + " "
+			}
+			if pr.IsDraft {
+				statusIcons += "◌ "
+			}
 			title := fmt.Sprintf("#%d: %s", pr.Number, pr.Title)
-			desc := fmt.Sprintf("by %s • %s", pr.Author.Login, pr.State)
+			desc := fmt.Sprintf("%sby %s • %s", statusIcons, pr.Author.Login, pr.State)
 			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
 		}
 		contentWidth := m.width - 44
@@ -1195,9 +1232,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Convert PRs to list items
 		items := make([]list.Item, len(prs))
 		for i, pr := range prs {
+			// Build status indicators
+			statusIcons := ""
+			if ci := checksStatusIcon(pr.ChecksStatus); ci != "" {
+				statusIcons += ci + " "
+			}
+			if rv := reviewDecisionIcon(pr.ReviewDecision); rv != "" {
+				statusIcons += rv + " "
+			}
+			if pr.IsDraft {
+				statusIcons += "◌ "
+			}
 			title := fmt.Sprintf("#%d %s", pr.Number, pr.Title)
 			// Include repo name since these are from multiple repos
-			desc := fmt.Sprintf("%s/%s • by %s • %s", pr.Repository.Owner, pr.Repository.Name, pr.Author.Login, pr.State)
+			desc := fmt.Sprintf("%s%s/%s • by %s • %s", statusIcons, pr.Repository.Owner, pr.Repository.Name, pr.Author.Login, pr.State)
 			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
 		}
 		contentWidth := m.width - 44
@@ -2031,6 +2079,7 @@ func (m *Model) renderHelpOverlay() string {
 
 		lines = append(lines, "Sidebar Panels")
 		lines = append(lines, "  t: cycle files/comments/timeline/description")
+		lines = append(lines, "  M: mark file as reviewed")
 		lines = append(lines, "  y: reply to selected comment")
 		lines = append(lines, "  e: edit selected comment")
 		lines = append(lines, "  x: delete selected comment")
@@ -3219,6 +3268,42 @@ func applyCommentCount(counts map[string]int, comment models.Comment) {
 		return
 	}
 	counts[comment.Path]++
+}
+
+// reviewedFileKey generates a unique key for tracking reviewed files
+func (m *Model) reviewedFileKey(filepath string) string {
+	if m.currentPR == nil {
+		return filepath
+	}
+	owner, repo := m.resolvePRRepo()
+	return fmt.Sprintf("%s/%s#%d:%s", owner, repo, m.currentPR.Number, filepath)
+}
+
+// isFileReviewed checks if a file has been marked as reviewed
+func (m *Model) isFileReviewed(filepath string) bool {
+	key := m.reviewedFileKey(filepath)
+	return m.reviewedFiles[key]
+}
+
+// toggleFileReviewed toggles the reviewed status of a file
+func (m *Model) toggleFileReviewed(filepath string) {
+	key := m.reviewedFileKey(filepath)
+	m.reviewedFiles[key] = !m.reviewedFiles[key]
+	m.updateFileTreeReviewedStatus()
+}
+
+// updateFileTreeReviewedStatus updates the file tree with current reviewed files
+func (m *Model) updateFileTreeReviewedStatus() {
+	if m.currentFiles == nil {
+		return
+	}
+	reviewed := make(map[string]bool)
+	for _, file := range m.currentFiles {
+		if m.isFileReviewed(file.Filename) {
+			reviewed[file.Filename] = true
+		}
+	}
+	m.fileTree.SetReviewedFiles(reviewed)
 }
 
 func findFileDiff(diff *models.Diff, path string, fallbackIndex int) (*models.FileDiff, error) {
@@ -4999,6 +5084,34 @@ func defaultWorkspaceOrder(workspaces []storage.Workspace) []string {
 		order = append(order, ws.ID)
 	}
 	return order
+}
+
+// checksStatusIcon returns an icon representing the CI/check status
+func checksStatusIcon(status models.ChecksStatus) string {
+	switch status {
+	case models.ChecksStatusPassing:
+		return "✓"
+	case models.ChecksStatusFailing:
+		return "✗"
+	case models.ChecksStatusPending:
+		return "○"
+	default:
+		return ""
+	}
+}
+
+// reviewDecisionIcon returns an icon representing the review decision
+func reviewDecisionIcon(decision models.ReviewDecision) string {
+	switch decision {
+	case models.ReviewDecisionApproved:
+		return "👍"
+	case models.ReviewDecisionChangesRequsted:
+		return "⚠"
+	case models.ReviewDecisionReviewRequired:
+		return "👀"
+	default:
+		return ""
+	}
 }
 
 func filterPRsByRepos(prs []models.PullRequest, repos []storage.RepoRef) []models.PullRequest {

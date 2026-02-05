@@ -74,7 +74,75 @@ func (p *Provider) GetPullRequest(ctx context.Context, owner, repo string, numbe
 		return nil, fmt.Errorf("failed to get pull request: %w", err)
 	}
 
-	return mapPullRequest(pr), nil
+	result := mapPullRequest(pr)
+
+	// Fetch check status for the head commit
+	if result != nil && result.HeadSHA != "" {
+		result.ChecksStatus = p.getChecksStatus(ctx, owner, repo, result.HeadSHA)
+	}
+
+	return result, nil
+}
+
+// getChecksStatus fetches the combined status for a commit
+func (p *Provider) getChecksStatus(ctx context.Context, owner, repo, ref string) models.ChecksStatus {
+	// Get combined status
+	status, _, err := p.client.Repositories.GetCombinedStatus(ctx, owner, repo, ref, nil)
+	if err != nil {
+		return models.ChecksStatusNone
+	}
+
+	// Map GitHub state to our model
+	switch status.GetState() {
+	case "success":
+		return models.ChecksStatusPassing
+	case "failure", "error":
+		return models.ChecksStatusFailing
+	case "pending":
+		return models.ChecksStatusPending
+	default:
+		// Also check for check runs if no statuses exist
+		if status.GetTotalCount() == 0 {
+			return p.getCheckRunsStatus(ctx, owner, repo, ref)
+		}
+		return models.ChecksStatusNone
+	}
+}
+
+// getCheckRunsStatus fetches the check runs status (GitHub Actions)
+func (p *Provider) getCheckRunsStatus(ctx context.Context, owner, repo, ref string) models.ChecksStatus {
+	checks, _, err := p.client.Checks.ListCheckRunsForRef(ctx, owner, repo, ref, nil)
+	if err != nil || checks.GetTotal() == 0 {
+		return models.ChecksStatusNone
+	}
+
+	// Count conclusions
+	hasFailure := false
+	hasPending := false
+	hasSuccess := false
+
+	for _, run := range checks.CheckRuns {
+		switch run.GetConclusion() {
+		case "success":
+			hasSuccess = true
+		case "failure", "cancelled", "timed_out", "action_required":
+			hasFailure = true
+		case "":
+			// Empty conclusion means in progress
+			hasPending = true
+		}
+	}
+
+	if hasFailure {
+		return models.ChecksStatusFailing
+	}
+	if hasPending {
+		return models.ChecksStatusPending
+	}
+	if hasSuccess {
+		return models.ChecksStatusPassing
+	}
+	return models.ChecksStatusNone
 }
 
 // GetPullRequestDiff returns the diff for a pull request
