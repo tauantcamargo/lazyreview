@@ -1816,14 +1816,29 @@ func (m Model) View() string {
 
 		// Build stats summary
 		stats := ""
-		if m.currentPR.ChangedFiles > 0 {
-			stats = fmt.Sprintf(" | %d files", m.currentPR.ChangedFiles)
+		totalFiles := len(m.currentFiles)
+		if totalFiles == 0 && m.currentPR.ChangedFiles > 0 {
+			totalFiles = m.currentPR.ChangedFiles
+		}
+		if totalFiles > 0 {
+			reviewedCount := m.countReviewedFiles()
+			if reviewedCount > 0 {
+				stats = fmt.Sprintf(" | %d/%d reviewed", reviewedCount, totalFiles)
+			} else {
+				stats = fmt.Sprintf(" | %d files", totalFiles)
+			}
 		}
 		if m.currentPR.Additions > 0 || m.currentPR.Deletions > 0 {
 			stats += fmt.Sprintf(" +%d/-%d", m.currentPR.Additions, m.currentPR.Deletions)
 		}
 
-		headerText = fmt.Sprintf("LazyReview - PR #%d%s: %s%s", m.currentPR.Number, reviewStatus, m.currentPR.Title, stats)
+		// Add draft indicator
+		draftIndicator := ""
+		if m.currentPR.IsDraft {
+			draftIndicator = " [DRAFT]"
+		}
+
+		headerText = fmt.Sprintf("LazyReview - PR #%d%s%s: %s%s", m.currentPR.Number, reviewStatus, draftIndicator, m.currentPR.Title, stats)
 	} else {
 		headerText = "LazyReview - PR Details"
 	}
@@ -3283,6 +3298,20 @@ func (m *Model) reviewedFileKey(filepath string) string {
 func (m *Model) isFileReviewed(filepath string) bool {
 	key := m.reviewedFileKey(filepath)
 	return m.reviewedFiles[key]
+}
+
+// countReviewedFiles returns the number of reviewed files for the current PR
+func (m *Model) countReviewedFiles() int {
+	if m.currentFiles == nil {
+		return 0
+	}
+	count := 0
+	for _, file := range m.currentFiles {
+		if m.isFileReviewed(file.Filename) {
+			count++
+		}
+	}
+	return count
 }
 
 // toggleFileReviewed toggles the reviewed status of a file
