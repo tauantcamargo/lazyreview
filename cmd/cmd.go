@@ -32,7 +32,7 @@ func CommandStart() *cli.App {
 	app := cli.NewApp()
 	app.Name = "LazyReview"
 	app.Usage = "A terminal UI for code review across multiple Git providers"
-	app.Version = "0.49.0"
+	app.Version = "0.50.0"
 
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
@@ -320,6 +320,74 @@ func CommandStart() *cli.App {
 					return fmt.Errorf("PR number is required")
 				}
 				return approvePRAction(prNumber, c.String("repo"), c.String("message"))
+			},
+		},
+		{
+			Name:      "request-changes",
+			Aliases:   []string{"rc"},
+			Usage:     "Request changes on a PR",
+			ArgsUsage: "PR_NUMBER",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "repo, r",
+					Usage: "Repository in owner/repo format",
+				},
+				cli.StringFlag{
+					Name:  "message, m",
+					Usage: "Review comment (required)",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				prNumber := c.Args().First()
+				if prNumber == "" {
+					return fmt.Errorf("PR number is required")
+				}
+				message := c.String("message")
+				if message == "" {
+					return fmt.Errorf("message is required when requesting changes")
+				}
+				return requestChangesAction(prNumber, c.String("repo"), message)
+			},
+		},
+		{
+			Name:      "checkout",
+			Aliases:   []string{"co"},
+			Usage:     "Checkout a PR branch locally",
+			ArgsUsage: "PR_NUMBER",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "repo, r",
+					Usage: "Repository in owner/repo format",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				prNumber := c.Args().First()
+				if prNumber == "" {
+					return fmt.Errorf("PR number is required")
+				}
+				return checkoutPRAction(prNumber, c.String("repo"))
+			},
+		},
+		{
+			Name:      "diff",
+			Usage:     "View PR diff in terminal",
+			ArgsUsage: "PR_NUMBER",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "repo, r",
+					Usage: "Repository in owner/repo format",
+				},
+				cli.BoolFlag{
+					Name:  "stat",
+					Usage: "Show diff stats only",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				prNumber := c.Args().First()
+				if prNumber == "" {
+					return fmt.Errorf("PR number is required")
+				}
+				return diffPRAction(prNumber, c.String("repo"), c.Bool("stat"))
 			},
 		},
 	}
@@ -1640,6 +1708,335 @@ func approvePRAction(prNumber, repo, message string) error {
 	}
 
 	fmt.Printf("✓ PR #%d approved!\n", prNum)
+	return nil
+}
+
+// requestChangesAction requests changes on a PR
+func requestChangesAction(prNumber, repo, message string) error {
+	// Detect git context if repo not specified
+	var owner, repoName string
+	if repo != "" {
+		parts := strings.Split(repo, "/")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid repo format, expected owner/repo")
+		}
+		owner, repoName = parts[0], parts[1]
+	} else {
+		gitCtx, err := git.DetectGitContext()
+		if err != nil || !gitCtx.IsGitRepo {
+			return fmt.Errorf("not in a git repository, use --repo flag")
+		}
+		remote := gitCtx.GetPrimaryRemote()
+		if remote == nil || !remote.IsValid() {
+			return fmt.Errorf("could not detect repository, use --repo flag")
+		}
+		owner, repoName = remote.Owner, remote.Repo
+	}
+
+	// Parse PR number
+	var prNum int
+	if _, err := fmt.Sscanf(prNumber, "%d", &prNum); err != nil {
+		return fmt.Errorf("invalid PR number: %s", prNumber)
+	}
+
+	// Initialize auth and provider
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	authService, err := auth.NewService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth: %w", err)
+	}
+
+	statuses, err := authService.GetAllStatus()
+	if err != nil || len(statuses) == 0 {
+		return fmt.Errorf("not authenticated. Run: lazyreview auth login --provider github")
+	}
+
+	var providerCfg *config.ProviderConfig
+	if cfg.DefaultProvider != "" {
+		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
+	}
+	if providerCfg == nil {
+		status := statuses[0]
+		providerCfg = &config.ProviderConfig{
+			Name: string(status.ProviderType),
+			Type: status.ProviderType,
+			Host: status.Host,
+		}
+	}
+
+	cred, err := authService.GetCredential(providerCfg.Type, providerCfg.GetHost())
+	if err != nil {
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	provider, err := providers.Create(*providerCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create provider: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := provider.Authenticate(ctx, cred.Token); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	// Submit request changes
+	fmt.Printf("Requesting changes on PR #%d in %s/%s...\n", prNum, owner, repoName)
+
+	review := models.ReviewInput{
+		Body:  message,
+		Event: models.ReviewEventRequestChanges,
+	}
+
+	if err := provider.CreateReview(ctx, owner, repoName, prNum, review); err != nil {
+		return fmt.Errorf("failed to request changes: %w", err)
+	}
+
+	fmt.Printf("✓ Changes requested on PR #%d\n", prNum)
+	return nil
+}
+
+// checkoutPRAction checks out a PR branch locally
+func checkoutPRAction(prNumber, repo string) error {
+	// Detect git context if repo not specified
+	var owner, repoName string
+	if repo != "" {
+		parts := strings.Split(repo, "/")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid repo format, expected owner/repo")
+		}
+		owner, repoName = parts[0], parts[1]
+	} else {
+		gitCtx, err := git.DetectGitContext()
+		if err != nil || !gitCtx.IsGitRepo {
+			return fmt.Errorf("not in a git repository")
+		}
+		remote := gitCtx.GetPrimaryRemote()
+		if remote == nil || !remote.IsValid() {
+			return fmt.Errorf("could not detect repository")
+		}
+		owner, repoName = remote.Owner, remote.Repo
+	}
+
+	// Parse PR number
+	var prNum int
+	if _, err := fmt.Sscanf(prNumber, "%d", &prNum); err != nil {
+		return fmt.Errorf("invalid PR number: %s", prNumber)
+	}
+
+	// Initialize auth and provider to get PR details
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	authService, err := auth.NewService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth: %w", err)
+	}
+
+	statuses, err := authService.GetAllStatus()
+	if err != nil || len(statuses) == 0 {
+		return fmt.Errorf("not authenticated. Run: lazyreview auth login --provider github")
+	}
+
+	var providerCfg *config.ProviderConfig
+	if cfg.DefaultProvider != "" {
+		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
+	}
+	if providerCfg == nil {
+		status := statuses[0]
+		providerCfg = &config.ProviderConfig{
+			Name: string(status.ProviderType),
+			Type: status.ProviderType,
+			Host: status.Host,
+		}
+	}
+
+	cred, err := authService.GetCredential(providerCfg.Type, providerCfg.GetHost())
+	if err != nil {
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	provider, err := providers.Create(*providerCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create provider: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := provider.Authenticate(ctx, cred.Token); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	// Get PR details to get branch name
+	pr, err := provider.GetPullRequest(ctx, owner, repoName, prNum)
+	if err != nil {
+		return fmt.Errorf("failed to get PR: %w", err)
+	}
+
+	branchName := pr.SourceBranch
+	fmt.Printf("Checking out PR #%d branch: %s\n", prNum, branchName)
+
+	// Fetch and checkout
+	fetchCmd := exec.Command("git", "fetch", "origin", fmt.Sprintf("pull/%d/head:%s", prNum, branchName))
+	fetchCmd.Stdout = os.Stdout
+	fetchCmd.Stderr = os.Stderr
+	if err := fetchCmd.Run(); err != nil {
+		// Try alternative: fetch the branch directly
+		fetchCmd = exec.Command("git", "fetch", "origin", branchName)
+		fetchCmd.Stdout = os.Stdout
+		fetchCmd.Stderr = os.Stderr
+		if err := fetchCmd.Run(); err != nil {
+			return fmt.Errorf("failed to fetch branch: %w", err)
+		}
+	}
+
+	checkoutCmd := exec.Command("git", "checkout", branchName)
+	checkoutCmd.Stdout = os.Stdout
+	checkoutCmd.Stderr = os.Stderr
+	if err := checkoutCmd.Run(); err != nil {
+		return fmt.Errorf("failed to checkout branch: %w", err)
+	}
+
+	fmt.Printf("✓ Checked out branch: %s\n", branchName)
+	return nil
+}
+
+// diffPRAction shows PR diff in terminal
+func diffPRAction(prNumber, repo string, statOnly bool) error {
+	// Detect git context if repo not specified
+	var owner, repoName string
+	if repo != "" {
+		parts := strings.Split(repo, "/")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid repo format, expected owner/repo")
+		}
+		owner, repoName = parts[0], parts[1]
+	} else {
+		gitCtx, err := git.DetectGitContext()
+		if err != nil || !gitCtx.IsGitRepo {
+			return fmt.Errorf("not in a git repository, use --repo flag")
+		}
+		remote := gitCtx.GetPrimaryRemote()
+		if remote == nil || !remote.IsValid() {
+			return fmt.Errorf("could not detect repository, use --repo flag")
+		}
+		owner, repoName = remote.Owner, remote.Repo
+	}
+
+	// Parse PR number
+	var prNum int
+	if _, err := fmt.Sscanf(prNumber, "%d", &prNum); err != nil {
+		return fmt.Errorf("invalid PR number: %s", prNumber)
+	}
+
+	// Initialize auth and provider
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	authService, err := auth.NewService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth: %w", err)
+	}
+
+	statuses, err := authService.GetAllStatus()
+	if err != nil || len(statuses) == 0 {
+		return fmt.Errorf("not authenticated. Run: lazyreview auth login --provider github")
+	}
+
+	var providerCfg *config.ProviderConfig
+	if cfg.DefaultProvider != "" {
+		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
+	}
+	if providerCfg == nil {
+		status := statuses[0]
+		providerCfg = &config.ProviderConfig{
+			Name: string(status.ProviderType),
+			Type: status.ProviderType,
+			Host: status.Host,
+		}
+	}
+
+	cred, err := authService.GetCredential(providerCfg.Type, providerCfg.GetHost())
+	if err != nil {
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	provider, err := providers.Create(*providerCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create provider: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	if err := provider.Authenticate(ctx, cred.Token); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	// Get PR details
+	pr, err := provider.GetPullRequest(ctx, owner, repoName, prNum)
+	if err != nil {
+		return fmt.Errorf("failed to get PR: %w", err)
+	}
+
+	fmt.Printf("PR #%d: %s\n", pr.Number, pr.Title)
+	fmt.Printf("Author: %s | %s -> %s\n", pr.Author.Login, pr.SourceBranch, pr.TargetBranch)
+	fmt.Println(strings.Repeat("-", 60))
+
+	if statOnly {
+		// Get files for stats only
+		files, err := provider.GetPullRequestFiles(ctx, owner, repoName, prNum)
+		if err != nil {
+			return fmt.Errorf("failed to get PR files: %w", err)
+		}
+
+		var totalAdditions, totalDeletions int
+		for _, f := range files {
+			fmt.Printf(" %s | +%d -%d\n", f.Filename, f.Additions, f.Deletions)
+			totalAdditions += f.Additions
+			totalDeletions += f.Deletions
+		}
+		fmt.Println(strings.Repeat("-", 60))
+		fmt.Printf("%d files changed, +%d insertions, -%d deletions\n", len(files), totalAdditions, totalDeletions)
+		return nil
+	}
+
+	// Get full diff
+	diff, err := provider.GetPullRequestDiff(ctx, owner, repoName, prNum)
+	if err != nil {
+		return fmt.Errorf("failed to get PR diff: %w", err)
+	}
+
+	// Print diff with basic coloring
+	for _, file := range diff.Files {
+		fmt.Printf("\n\033[1m%s\033[0m (+%d -%d)\n", file.Path, file.Additions, file.Deletions)
+		fmt.Println(strings.Repeat("─", 60))
+
+		for _, hunk := range file.Hunks {
+			fmt.Printf("\033[36m%s\033[0m\n", hunk.Header)
+			for _, line := range hunk.Lines {
+				switch line.Type {
+				case models.DiffLineAdded:
+					fmt.Printf("\033[32m+%s\033[0m\n", line.Content)
+				case models.DiffLineDeleted:
+					fmt.Printf("\033[31m-%s\033[0m\n", line.Content)
+				default:
+					fmt.Printf(" %s\n", line.Content)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

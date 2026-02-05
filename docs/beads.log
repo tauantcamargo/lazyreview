@@ -1,0 +1,46 @@
+✓ lazyreview-58b [P1] [bug] [ai auth] - Fix AI key persistence and fallback loading
+✓ lazyreview-1jv [P1] [task] - Neovim-friendly markdown comment editor and configurable vim navigation mode
+✓ lazyreview-yb0 [P1] [task] - Improve comment thread UX with expandable full preview and jump-to-line
+✓ lazyreview-xcv [P1] [task] - Inline comment keybind not working
+✓ lazyreview-sa2 [P1] [task] - 1.4: Bubble Tea TUI Shell
+✓ lazyreview-t90 [P1] [task] - 1.3: Provider Interface
+✓ lazyreview-i5e [P1] [task] - 1.2: Core Models
+✓ lazyreview-47q [P1] [task] - 1.1: Configuration System
+✓ lazyreview-0h3 [P1] [task] - Phase 3: GitHub Provider Implementation
+✓ lazyreview-0bm [P1] [task] - Phase 2: Authentication & Credential Storage
+✓ lazyreview-nas [P1] [task] - Phase 1: Foundation - Config, Models, Provider Interface, TUI Shell
+✓ lazyreview-okb [P2] [task] - In-app AI provider and token setup
+✓ lazyreview-gr3 [P2] [task] - Settings theme presets (Darcula, Tokyonight, Gruvbox, Catppuccin)
+✓ lazyreview-hfz [P2] [task] - Inline comment thread management
+✓ lazyreview-wct [P2] [task] - Inline comment threads in diff
+✓ lazyreview-3kz [P2] [task] - Improve in-app help overlay
+✓ lazyreview-qgv [P2] [task] - Fix workspace navigation lock
+✓ lazyreview-i18 [P2] [task] - Fix comment flow
+✓ lazyreview-1pl [P2] [task] - PR Review Actions
+✓ lazyreview-kzf [P2] [task] - PR Comments
+✓ lazyreview-8c5 [P2] [task] - Phase 16: Advanced Filtering
+✓ lazyreview-cop [P2] [task] - Phase 15: Workspace Management
+✓ lazyreview-wrk [P2] [task] - Phase 14: Dashboard View (Big Picture)
+✓ lazyreview-6sy [P2] [task] - Phase 13: Provider Org/Repo Extensions
+✓ lazyreview-sk2 [P2] [task] - Phase 12: Data Storage Layer (SQLite)
+✓ lazyreview-p5h [P2] [task] - Phase 11: Local Git Detection
+✓ lazyreview-2l8 [P2] [task] - Phase 9: Distribution & Packaging
+✓ lazyreview-8g6 [P2] [task] - Phase 6: Additional Providers - GitLab, Bitbucket, Azure DevOps
+✓ lazyreview-z78 [P2] [task] - Phase 5: Diff Viewing & Review UI
+✓ lazyreview-p3k [P2] [task] - Phase 4: Vim-Style Navigation & Keybindings
+✓ lazyreview-7g5 [P3] [task] - Theme packs (Darcula, Tokyonight, Gruvbox)
+✓ lazyreview-zz3 [P3] [task] - AI PR summary
+✓ lazyreview-ngm [P3] [task] - Diff search and jump
+✓ lazyreview-v78 [P3] [task] - New updates badge
+✓ lazyreview-5db [P3] [task] - Multi-provider session switcher
+✓ lazyreview-axs [P3] [task] - PR timeline view
+✓ lazyreview-e3e [P3] [task] - Saved filters and quick switch
+✓ lazyreview-4ri [P3] [task] - Review summary drafts
+✓ lazyreview-lk4 [P3] [task] - Open file in editor from diff
+✓ lazyreview-0mn [P3] [task] - Highlight selected file in detail view
+✓ lazyreview-7ev [P3] [task] - Reply to PR comments from LazyReview
+✓ lazyreview-06k [P3] [task] - AI-assisted review actions
+✓ lazyreview-78p [P3] [task] - Phase 17: My PRs & Review Requests Views
+✓ lazyreview-pyg [P3] [task] - Phase 10: Polish & Performance
+✓ lazyreview-4mn [P3] [task] - Phase 8: Offline Queue
+✓ lazyreview-65r [P3] [task] - Phase 7: Local Git Integration
