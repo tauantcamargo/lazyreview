@@ -1,0 +1,35 @@
+[
+  {
+    "description": "Provide a LazyGit-inspired theme that improves panel contrast, accent colors, and selection styling",
+    "steps": [
+      "Open Settings",
+      "Select Theme: LazyGit",
+      "Verify list titles and selected items use the accent color",
+      "Verify focused panels use the focused border color",
+      "Verify diff and file tree colors update with the theme"
+    ],
+    "passes": true
+  },
+  {
+    "description": "AI review never auto-approves or requests changes and requires explicit user approval to post",
+    "steps": [
+      "Open a PR diff",
+      "Trigger AI review",
+      "Verify a preview is shown instead of posting a review",
+      "Choose to post or discard the AI review",
+      "Verify no approvals or change requests are sent automatically"
+    ],
+    "passes": true
+  },
+  {
+    "description": "AI review preview allows editing before posting a review comment",
+    "steps": [
+      "Trigger AI review",
+      "Select edit on the preview",
+      "Modify the AI comment",
+      "Submit the edited review comment",
+      "Verify the edited comment is posted"
+    ],
+    "passes": true
+  }
+]

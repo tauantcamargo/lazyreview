@@ -171,6 +171,20 @@ func NewHelp() Help {
 	}
 }
 
+// SetThemeColors updates help styling.
+func (h *Help) SetThemeColors(accent, muted string) {
+	if accent == "" {
+		accent = "170"
+	}
+	if muted == "" {
+		muted = "240"
+	}
+	h.help.Styles.ShortKey = lipgloss.NewStyle().Foreground(lipgloss.Color(accent))
+	h.help.Styles.ShortDesc = lipgloss.NewStyle().Foreground(lipgloss.Color(muted))
+	h.help.Styles.FullKey = lipgloss.NewStyle().Foreground(lipgloss.Color(accent))
+	h.help.Styles.FullDesc = lipgloss.NewStyle().Foreground(lipgloss.Color(muted))
+}
+
 // Init implements tea.Model
 func (h Help) Init() tea.Cmd {
 	return nil

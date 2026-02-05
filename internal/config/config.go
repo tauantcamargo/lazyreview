@@ -45,7 +45,7 @@ func Default() *Config {
 		Version:         "0.1",
 		DefaultProvider: "",
 		UI: UIConfig{
-			Theme:      "auto",
+			Theme:      "lazygit",
 			Paging:     true,
 			ShowChecks: true,
 			VimMode:    true,
@@ -114,7 +114,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("default_provider", "")
 
 	// UI defaults
-	v.SetDefault("ui.theme", "auto")
+	v.SetDefault("ui.theme", "lazygit")
 	v.SetDefault("ui.paging", true)
 	v.SetDefault("ui.show_checks", true)
 	v.SetDefault("ui.vim_mode", true)

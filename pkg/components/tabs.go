@@ -44,6 +44,32 @@ func NewTabs(tabs []Tab) Tabs {
 	}
 }
 
+// SetThemeColors updates tab styling.
+func (t *Tabs) SetThemeColors(accent, muted, selectedBg, idleBg string) {
+	if accent == "" {
+		accent = "170"
+	}
+	if muted == "" {
+		muted = "245"
+	}
+	if selectedBg == "" {
+		selectedBg = "235"
+	}
+	if idleBg == "" {
+		idleBg = "236"
+	}
+	t.selectedStyle = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color(accent)).
+		Background(lipgloss.Color(selectedBg)).
+		Padding(0, 1)
+	t.idleStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(muted)).
+		Background(lipgloss.Color(idleBg)).
+		Padding(0, 1)
+	t.dividerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+}
+
 func max(a, b int) int {
 	if a > b {
 		return a

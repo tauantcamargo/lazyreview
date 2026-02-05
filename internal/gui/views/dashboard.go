@@ -20,11 +20,17 @@ type DashboardSection struct {
 
 // Dashboard renders grouped PRs.
 type Dashboard struct {
-	sections      []DashboardSection
-	activeSection int
-	width         int
-	height        int
-	status        string
+	sections        []DashboardSection
+	activeSection   int
+	width           int
+	height          int
+	status          string
+	focusedBorder   string
+	unfocusedBorder string
+	accent          string
+	muted           string
+	selectedBg      string
+	titleBg         string
 }
 
 // NewDashboard creates a new dashboard view.
@@ -44,6 +50,19 @@ func (d *Dashboard) SetSize(width, height int) {
 	sectionHeight := max(5, height/len(d.sections))
 	for i := range d.sections {
 		d.sections[i].Items.SetSize(width, sectionHeight-1)
+	}
+}
+
+// SetThemeColors updates dashboard styling.
+func (d *Dashboard) SetThemeColors(focused, unfocused, accent, muted, selectedBg, titleBg string) {
+	d.focusedBorder = focused
+	d.unfocusedBorder = unfocused
+	d.accent = accent
+	d.muted = muted
+	d.selectedBg = selectedBg
+	d.titleBg = titleBg
+	for i := range d.sections {
+		d.sections[i].Items.SetThemeColors(accent, muted, selectedBg, titleBg)
 	}
 }
 
@@ -121,11 +140,18 @@ func (d Dashboard) View() string {
 	for i, section := range d.sections {
 		section.Items.SetSize(d.width, sectionHeight-1)
 		borderColor := lipgloss.Color("240")
+		if d.unfocusedBorder != "" {
+			borderColor = lipgloss.Color(d.unfocusedBorder)
+		}
 		if i == d.activeSection {
-			borderColor = lipgloss.Color("170")
+			if d.focusedBorder != "" {
+				borderColor = lipgloss.Color(d.focusedBorder)
+			} else {
+				borderColor = lipgloss.Color("170")
+			}
 		}
 		box := lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
+			Border(lipgloss.NormalBorder()).
 			BorderForeground(borderColor).
 			Width(d.width).
 			Height(sectionHeight)

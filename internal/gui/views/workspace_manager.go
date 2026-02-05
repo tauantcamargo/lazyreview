@@ -47,14 +47,20 @@ type WorkspaceManager struct {
 	workspaces []storage.Workspace
 	order      []string
 
-	workspaceList components.List
-	repoList      components.List
-	activePanel   workspacePanel
-	mode          workspaceManagerMode
-	form          workspaceForm
-	status        string
-	width         int
-	height        int
+	workspaceList   components.List
+	repoList        components.List
+	activePanel     workspacePanel
+	mode            workspaceManagerMode
+	form            workspaceForm
+	status          string
+	width           int
+	height          int
+	focusedBorder   string
+	unfocusedBorder string
+	accent          string
+	muted           string
+	selectedBg      string
+	titleBg         string
 }
 
 type workspaceForm struct {
@@ -135,9 +141,9 @@ func NewWorkspaceManager(store storage.Storage, width, height int) WorkspaceMana
 	repoList := components.NewList("Repositories", []list.Item{}, width/2, height)
 
 	wm := WorkspaceManager{
-		storage:        store,
-		workspaceList:  workspaceList,
-		repoList:       repoList,
+		storage:       store,
+		workspaceList: workspaceList,
+		repoList:      repoList,
 		activePanel:   workspacePanelList,
 		mode:          workspaceModeList,
 		form:          newWorkspaceForm(),
@@ -147,6 +153,18 @@ func NewWorkspaceManager(store storage.Storage, width, height int) WorkspaceMana
 
 	wm.refresh()
 	return wm
+}
+
+// SetThemeColors updates workspace manager styling.
+func (w *WorkspaceManager) SetThemeColors(focused, unfocused, accent, muted, selectedBg, titleBg string) {
+	w.focusedBorder = focused
+	w.unfocusedBorder = unfocused
+	w.accent = accent
+	w.muted = muted
+	w.selectedBg = selectedBg
+	w.titleBg = titleBg
+	w.workspaceList.SetThemeColors(accent, muted, selectedBg, titleBg)
+	w.repoList.SetThemeColors(accent, muted, selectedBg, titleBg)
 }
 
 // Refresh reloads workspaces from storage.
@@ -544,16 +562,24 @@ func (w WorkspaceManager) View() string {
 	listWidth := max(30, (w.width/2)-2)
 	leftStyle := lipgloss.NewStyle()
 	rightStyle := lipgloss.NewStyle()
+	focusedBorder := "170"
+	unfocusedBorder := "240"
+	if w.focusedBorder != "" {
+		focusedBorder = w.focusedBorder
+	}
+	if w.unfocusedBorder != "" {
+		unfocusedBorder = w.unfocusedBorder
+	}
 	if w.activePanel == workspacePanelList {
-		leftStyle = leftStyle.Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("170"))
-		rightStyle = rightStyle.Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("240"))
+		leftStyle = leftStyle.Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(focusedBorder))
+		rightStyle = rightStyle.Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(unfocusedBorder))
 	} else {
-		leftStyle = leftStyle.Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("240"))
-		rightStyle = rightStyle.Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("170"))
+		leftStyle = leftStyle.Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(unfocusedBorder))
+		rightStyle = rightStyle.Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(focusedBorder))
 	}
 
 	left := leftStyle.Width(listWidth + 2).Render(w.workspaceList.View())
-	right := rightStyle.Width(w.width-listWidth-2).Render(w.repoList.View())
+	right := rightStyle.Width(w.width - listWidth - 2).Render(w.repoList.View())
 	main := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 
 	if w.form.visible {
@@ -563,9 +589,13 @@ func (w WorkspaceManager) View() string {
 }
 
 func (w WorkspaceManager) formView() string {
+	accent := "170"
+	if w.accent != "" {
+		accent = w.accent
+	}
 	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("170")).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color(accent)).
 		Padding(1, 2)
 
 	footer := "Ctrl+S: Save • Esc: Cancel"

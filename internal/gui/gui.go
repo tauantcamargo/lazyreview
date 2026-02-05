@@ -347,6 +347,8 @@ type Model struct {
 	savedFilters           []savedFilter
 	filterPalette          components.List
 	filterPaletteVisible   bool
+	pendingAIReview        *ai.ReviewResponse
+	pendingAIReviewPath    string
 
 	// File review tracking (keyed by "owner/repo#number:filepath")
 	reviewedFiles map[string]bool
@@ -570,6 +572,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.textInput, cmd = m.textInput.Update(msg)
 				return m, cmd
 			}
+		}
+
+		if m.pendingAIReview != nil {
+			switch msg.String() {
+			case "p", "enter":
+				if m.currentPR == nil || m.provider == nil {
+					m.clearPendingAIReview()
+					m.statusMsg = "AI review discarded: PR not loaded"
+					return m, nil
+				}
+				comment := strings.TrimSpace(m.pendingAIReview.Comment)
+				if comment == "" {
+					comment = "AI review via LazyReview"
+				}
+				owner, repo := m.resolvePRRepo()
+				m.clearPendingAIReview()
+				m.isLoading = true
+				m.loadingMessage = "Submitting AI review comment..."
+				return m, submitReviewComment(m.provider, owner, repo, m.currentPR.Number, comment)
+			case "e":
+				comment := strings.TrimSpace(m.pendingAIReview.Comment)
+				if comment == "" {
+					comment = "AI review via LazyReview"
+				}
+				m.clearPendingAIReview()
+				m.textInput.Show(components.TextInputReviewComment, "AI Review Comment", "")
+				m.textInput.SetValue(comment)
+				m.textInput.SetSize(m.width-20, m.height-10)
+				return m, nil
+			case "esc":
+				m.clearPendingAIReview()
+				m.statusMsg = "AI review discarded"
+				return m, nil
+			}
+			return m, nil
 		}
 
 		// Track key sequence for multi-key bindings like "gg"
@@ -1140,6 +1177,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case tea.MouseMsg:
+		if m.viewState == ViewDetail && m.detailSidebarMode == DetailSidebarFiles && !m.textInput.IsVisible() && m.pendingAIReview == nil {
+			if msg.Type == tea.MouseLeft && msg.Action == tea.MouseActionPress {
+				if m.handleFileTreeMouseClick(msg) {
+					return m, nil
+				}
+			}
+		}
+
 	case tea.WindowSizeMsg:
 		m.applyLayout(msg.Width, msg.Height)
 		return m, nil
@@ -1473,21 +1519,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if comment == "" {
 			comment = "AI review via LazyReview"
 		}
-		owner, repo := m.resolvePRRepo()
-		switch msg.response.Decision {
-		case ai.DecisionApprove:
-			m.isLoading = true
-			m.loadingMessage = "Submitting AI approval..."
-			return m, approveReview(m.provider, owner, repo, m.currentPR.Number, comment)
-		case ai.DecisionRequestChanges:
-			m.isLoading = true
-			m.loadingMessage = "Submitting AI change request..."
-			return m, requestChanges(m.provider, owner, repo, m.currentPR.Number, comment)
-		default:
-			m.isLoading = true
-			m.loadingMessage = "Submitting AI review comment..."
-			return m, submitReviewComment(m.provider, owner, repo, m.currentPR.Number, comment)
-		}
+		pending := msg.response
+		pending.Comment = comment
+		m.pendingAIReview = &pending
+		m.statusMsg = "AI review ready. Press p to post, e to edit, esc to discard"
+		return m, nil
 
 	case updateResultMsg:
 		m.isLoading = false
@@ -1693,6 +1729,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.descriptionView, cmd = m.descriptionView.Update(msg)
 				} else {
 					m.fileTree, cmd = m.fileTree.Update(msg)
+					if selectedPath := m.fileTree.SelectedPath(); selectedPath != "" {
+						m.diffViewer.SetCurrentFileByPath(selectedPath)
+					}
 				}
 				cmds = append(cmds, cmd)
 			} else {
@@ -1774,11 +1813,11 @@ func (m Model) View() string {
 		Width(m.width)
 
 	focusedStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
+		Border(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color(focusedBorder))
 
 	unfocusedStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
+		Border(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color(unfocusedBorder))
 
 	// Header
@@ -1965,7 +2004,7 @@ func (m Model) View() string {
 	} else if m.currentViewMode == ViewModeRepoSelector {
 		footer = footerStyle.Render("enter:add repo  a:add repo  tab:switch panel  /:filter  r:refresh  esc:back  ?:help")
 	} else if m.viewState == ViewDetail {
-		footer = footerStyle.Render("j/k:navigate  h/l:panels  /:search  n/N:next/prev match  V:select range  a:approve  r:request changes  v:review comment  s:draft summary  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  i:preview  enter:jump  O:open editor  t:files/comments/timeline/description  A:ai review  shift+c:checkout  d:toggle view  esc:back  ?:help")
+		footer = footerStyle.Render("j/k:navigate  h/l:panels  /:search  n/N:next/prev match  V:select range  a:approve  r:request changes  v:review comment  s:draft summary  c:line comment  C:PR comment  y:reply  e:edit  x:delete  z:resolve  i:preview  enter:jump  O:open editor  t:files/comments/timeline/description  A:ai review (preview)  shift+c:checkout  d:toggle view  esc:back  ?:help")
 	} else {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  /:filter  S:save filter  F:saved filters  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
@@ -1976,8 +2015,8 @@ func (m Model) View() string {
 		diffStatus := m.diffViewer.Status()
 		if diffStatus != "" {
 			statusBarStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("252")).
-				Background(lipgloss.Color("237")).
+				Foreground(lipgloss.Color(muted)).
+				Background(lipgloss.Color(footerBg)).
 				Padding(0, 1).
 				Width(m.width)
 			statusBar = statusBarStyle.Render(diffStatus)
@@ -2001,6 +2040,11 @@ func (m Model) View() string {
 		inputView := m.textInput.View()
 		// Layer the input on top of the main view (centered)
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, inputView)
+	}
+
+	if m.pendingAIReview != nil {
+		preview := m.renderAIReviewPreview()
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, preview)
 	}
 
 	if m.filterPaletteVisible {
@@ -2111,7 +2155,7 @@ func (m *Model) renderHelpOverlay() string {
 		lines = append(lines, "  s: generate review summary draft")
 		lines = append(lines, "  a: approve")
 		lines = append(lines, "  r: request changes")
-		lines = append(lines, "  A: AI review (current file)")
+		lines = append(lines, "  A: AI review (preview only)")
 		lines = append(lines, "  U: update LazyReview")
 		lines = append(lines, "  shift+c: checkout PR branch")
 		lines = append(lines, "")
@@ -2623,6 +2667,10 @@ func (m *Model) handleAIReviewShortcut() (tea.Model, tea.Cmd) {
 	if m.inWorkspaceView() {
 		return *m, nil
 	}
+	if m.pendingAIReview != nil {
+		m.statusMsg = "AI review pending. Press p to post, e to edit, esc to discard"
+		return *m, nil
+	}
 	if m.viewState != ViewDetail || m.currentDiff == nil || m.currentPR == nil {
 		m.statusMsg = "AI Review: Open a PR diff first"
 		return *m, nil
@@ -2654,6 +2702,7 @@ func (m *Model) startAIReview() tea.Cmd {
 			return aiReviewResultMsg{err: err}
 		}
 	}
+	m.pendingAIReviewPath = req.FilePath
 	provider := m.aiProvider
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -2661,6 +2710,11 @@ func (m *Model) startAIReview() tea.Cmd {
 		resp, err := provider.Review(ctx, req)
 		return aiReviewResultMsg{response: resp, err: err}
 	}
+}
+
+func (m *Model) clearPendingAIReview() {
+	m.pendingAIReview = nil
+	m.pendingAIReviewPath = ""
 }
 
 func (m *Model) generateSummaryDraft() tea.Cmd {
@@ -3896,6 +3950,38 @@ func (m *Model) applyLayout(width, height int) {
 	m.help.SetWidth(width)
 }
 
+func (m *Model) handleFileTreeMouseClick(msg tea.MouseMsg) bool {
+	leftX := 0
+	topY := 1 + m.tabsHeight()
+	paneHeight := m.height - 1 - m.tabsHeight() - 1
+	fileTreeWidth := min(40, m.width/4)
+	paneWidth := fileTreeWidth + 2
+
+	if msg.X < leftX || msg.X >= leftX+paneWidth {
+		return false
+	}
+	if msg.Y < topY || msg.Y >= topY+paneHeight {
+		return false
+	}
+
+	row := msg.Y - topY - 1
+	if row < 0 {
+		return false
+	}
+
+	m.activePanel = PanelFiles
+	m.focusDetailSidebar()
+	m.diffViewer.Blur()
+
+	if path, ok := m.fileTree.SelectByRow(row); ok {
+		if path != "" {
+			m.diffViewer.SetCurrentFileByPath(path)
+		}
+		return true
+	}
+	return false
+}
+
 func (m *Model) tabsVisible() bool {
 	if m.viewState != ViewList {
 		return false
@@ -4224,6 +4310,9 @@ func themeDisplayName(name string) string {
 	if name == "" {
 		return ""
 	}
+	if strings.EqualFold(name, "lazygit") {
+		return "LazyGit"
+	}
 	return strings.ToUpper(name[:1]) + name[1:]
 }
 
@@ -4344,6 +4433,17 @@ func (m *Model) applyTheme(themeName string) {
 	if m.config != nil {
 		m.config.UI.Theme = theme.Name
 	}
+	m.sidebar.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
+	m.content.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
+	m.commentsList.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
+	m.timelineList.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
+	m.filterPalette.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
+	m.textInput.SetThemeColors(theme.Accent, theme.Muted, theme.BorderFocused)
+	m.help.SetThemeColors(theme.Accent, theme.Muted)
+	m.workspaceTabs.SetThemeColors(theme.Accent, theme.Muted, theme.HeaderBg, theme.FooterBg)
+	m.dashboard.SetThemeColors(theme.BorderFocused, theme.BorderUnfocused, theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
+	m.workspaceManager.SetThemeColors(theme.BorderFocused, theme.BorderUnfocused, theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
+	m.repoSelector.SetThemeColors(theme.BorderFocused, theme.BorderUnfocused, theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
 	m.fileTree.SetThemeColors(
 		theme.TreeSelectedBg,
 		theme.TreeAdded,
@@ -4926,6 +5026,76 @@ func (m *Model) renderCommentPreview() string {
 		}
 	}
 	return b.String()
+}
+
+func (m *Model) renderAIReviewPreview() string {
+	if m.pendingAIReview == nil {
+		return ""
+	}
+	theme := resolveTheme(m.currentTheme)
+	accent := theme.Accent
+	if accent == "" {
+		accent = "170"
+	}
+	muted := theme.Muted
+	if muted == "" {
+		muted = "240"
+	}
+	border := theme.BorderFocused
+	if border == "" {
+		border = accent
+	}
+
+	decision := string(m.pendingAIReview.Decision)
+	if decision == "" {
+		decision = string(ai.DecisionComment)
+	}
+	decisionLabel := strings.ReplaceAll(decision, "_", " ")
+	decisionColor := accent
+	switch m.pendingAIReview.Decision {
+	case ai.DecisionApprove:
+		decisionColor = theme.Added
+	case ai.DecisionRequestChanges:
+		decisionColor = theme.Deleted
+	default:
+		decisionColor = accent
+	}
+
+	comment := strings.TrimSpace(m.pendingAIReview.Comment)
+	if comment == "" {
+		comment = "AI review via LazyReview"
+	}
+
+	width := min(110, m.width-8)
+	if width < 60 {
+		width = max(40, m.width-6)
+	}
+	contentWidth := max(30, width-4)
+
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(accent))
+	metaStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(muted))
+	decisionStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(decisionColor))
+	bodyStyle := lipgloss.NewStyle().Width(contentWidth)
+	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(muted))
+
+	lines := []string{
+		titleStyle.Render("AI Review Preview"),
+	}
+	if m.pendingAIReviewPath != "" {
+		lines = append(lines, metaStyle.Render(fmt.Sprintf("File: %s", m.pendingAIReviewPath)))
+	}
+	lines = append(lines, decisionStyle.Render(fmt.Sprintf("Suggested: %s", decisionLabel)))
+	lines = append(lines, "")
+	lines = append(lines, bodyStyle.Render(comment))
+	lines = append(lines, "")
+	lines = append(lines, helpStyle.Render("p/enter: post comment  e: edit  esc: discard"))
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color(border)).
+		Padding(1).
+		Width(width)
+	return box.Render(strings.Join(lines, "\n"))
 }
 
 func formatCommentBlock(comment models.Comment, depth int) string {
