@@ -1863,12 +1863,30 @@ func (m Model) View() string {
 		footer = footerStyle.Render("j/k:navigate  h/l:panels  /:filter  S:save filter  F:saved filters  enter:view PR  m:my PRs  R:review requests  ?:help  q:quit")
 	}
 
+	// Status bar for diff view (shows file/hunk position)
+	var statusBar string
+	if m.viewState == ViewDetail && m.activePanel == PanelDiff {
+		diffStatus := m.diffViewer.Status()
+		if diffStatus != "" {
+			statusBarStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("252")).
+				Background(lipgloss.Color("237")).
+				Padding(0, 1).
+				Width(m.width)
+			statusBar = statusBarStyle.Render(diffStatus)
+		}
+	}
+
 	// Combine all
 	sections := []string{header}
 	if tabsView != "" {
 		sections = append(sections, tabsView)
 	}
-	sections = append(sections, mainArea, footer)
+	sections = append(sections, mainArea)
+	if statusBar != "" {
+		sections = append(sections, statusBar)
+	}
+	sections = append(sections, footer)
 	view := lipgloss.JoinVertical(lipgloss.Left, sections...)
 
 	// Show text input overlay if visible

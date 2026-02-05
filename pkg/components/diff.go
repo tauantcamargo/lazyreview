@@ -28,6 +28,8 @@ type DiffKeyMap struct {
 	PrevFile    key.Binding
 	NextHunk    key.Binding
 	PrevHunk    key.Binding
+	NextComment key.Binding
+	PrevComment key.Binding
 	ToggleView  key.Binding
 	Comment     key.Binding
 	SelectRange key.Binding
@@ -84,6 +86,14 @@ func DefaultDiffKeyMap(vimMode bool) DiffKeyMap {
 			PrevHunk: key.NewBinding(
 				key.WithKeys("{"),
 				key.WithHelp("{", "prev hunk"),
+			),
+			NextComment: key.NewBinding(
+				key.WithKeys("]c"),
+				key.WithHelp("]c", "next comment"),
+			),
+			PrevComment: key.NewBinding(
+				key.WithKeys("[c"),
+				key.WithHelp("[c", "prev comment"),
 			),
 			ToggleView: key.NewBinding(
 				key.WithKeys("d"),
@@ -147,6 +157,14 @@ func DefaultDiffKeyMap(vimMode bool) DiffKeyMap {
 		PrevHunk: key.NewBinding(
 			key.WithKeys("{"),
 			key.WithHelp("{", "prev hunk"),
+		),
+		NextComment: key.NewBinding(
+			key.WithKeys("]c"),
+			key.WithHelp("]c", "next comment"),
+		),
+		PrevComment: key.NewBinding(
+			key.WithKeys("[c"),
+			key.WithHelp("[c", "prev comment"),
 		),
 		ToggleView: key.NewBinding(
 			key.WithKeys("d"),
@@ -382,6 +400,12 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 			return d, nil
 		case key.Matches(msg, d.keyMap.PrevHunk):
 			d.prevHunk()
+			return d, nil
+		case key.Matches(msg, d.keyMap.NextComment):
+			d.nextComment()
+			return d, nil
+		case key.Matches(msg, d.keyMap.PrevComment):
+			d.prevComment()
 			return d, nil
 		case key.Matches(msg, d.keyMap.ToggleView):
 			d.splitView = !d.splitView
@@ -928,6 +952,30 @@ func (d *DiffViewer) renderCommentLine(comment models.Comment) string {
 // renderLine renders a single diff line with syntax highlighting
 func (d *DiffViewer) renderLine(line models.DiffLine, filename string) string {
 	lineNo := ""
+	commentIndicator := " " // Default no indicator
+
+	// Check for comments on this line
+	if filename != "" && len(d.lineComments) > 0 {
+		// Check both sides for comments
+		hasComment := false
+		if line.OldLineNo > 0 {
+			key := commentKey(filename, models.DiffSideLeft, line.OldLineNo)
+			if _, ok := d.lineComments[key]; ok {
+				hasComment = true
+			}
+		}
+		if line.NewLineNo > 0 {
+			key := commentKey(filename, models.DiffSideRight, line.NewLineNo)
+			if _, ok := d.lineComments[key]; ok {
+				hasComment = true
+			}
+		}
+		if hasComment {
+			// Yellow dot indicator for lines with comments
+			commentIndicator = lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render("●")
+		}
+	}
+
 	if line.OldLineNo > 0 || line.NewLineNo > 0 {
 		old := "   "
 		new := "   "
@@ -937,7 +985,7 @@ func (d *DiffViewer) renderLine(line models.DiffLine, filename string) string {
 		if line.NewLineNo > 0 {
 			new = fmt.Sprintf("%3d", line.NewLineNo)
 		}
-		lineNo = d.lineNoStyle.Render(fmt.Sprintf("%s %s │ ", old, new))
+		lineNo = d.lineNoStyle.Render(fmt.Sprintf("%s %s ", old, new)) + commentIndicator + d.lineNoStyle.Render("│ ")
 	}
 
 	var prefixStyle lipgloss.Style
@@ -1286,6 +1334,86 @@ func (d *DiffViewer) prevHunk() {
 	}
 }
 
+// nextComment moves cursor to the next line that has comments
+func (d *DiffViewer) nextComment() {
+	if len(d.lineComments) == 0 || len(d.lineMapping) == 0 {
+		return
+	}
+
+	// Search from cursor+1 to end, then wrap to beginning
+	for i := d.cursor + 1; i < len(d.lineMapping); i++ {
+		if d.lineHasComment(i) {
+			d.cursor = i
+			d.ensureCursorVisible()
+			d.render()
+			return
+		}
+	}
+
+	// Wrap around to beginning
+	for i := 0; i < d.cursor; i++ {
+		if d.lineHasComment(i) {
+			d.cursor = i
+			d.ensureCursorVisible()
+			d.render()
+			return
+		}
+	}
+}
+
+// prevComment moves cursor to the previous line that has comments
+func (d *DiffViewer) prevComment() {
+	if len(d.lineComments) == 0 || len(d.lineMapping) == 0 {
+		return
+	}
+
+	// Search from cursor-1 to beginning, then wrap to end
+	for i := d.cursor - 1; i >= 0; i-- {
+		if d.lineHasComment(i) {
+			d.cursor = i
+			d.ensureCursorVisible()
+			d.render()
+			return
+		}
+	}
+
+	// Wrap around to end
+	for i := len(d.lineMapping) - 1; i > d.cursor; i-- {
+		if d.lineHasComment(i) {
+			d.cursor = i
+			d.ensureCursorVisible()
+			d.render()
+			return
+		}
+	}
+}
+
+// lineHasComment checks if a line at the given index has comments
+func (d *DiffViewer) lineHasComment(index int) bool {
+	if index < 0 || index >= len(d.lineMapping) {
+		return false
+	}
+
+	info := d.lineMapping[index]
+	if !info.isCode || info.filePath == "" {
+		return false
+	}
+
+	// Check both sides for comments
+	if info.lineNo > 0 {
+		leftKey := commentKey(info.filePath, models.DiffSideLeft, info.lineNo)
+		if _, ok := d.lineComments[leftKey]; ok {
+			return true
+		}
+		rightKey := commentKey(info.filePath, models.DiffSideRight, info.lineNo)
+		if _, ok := d.lineComments[rightKey]; ok {
+			return true
+		}
+	}
+
+	return false
+}
+
 // SetSize sets the viewer size
 func (d *DiffViewer) SetSize(width, height int) {
 	d.width = width
@@ -1459,4 +1587,49 @@ func (d *DiffViewer) SetThemeColors(added, deleted, context, hunk, lineNo, file,
 	d.cursorStyle = lipgloss.NewStyle().Background(lipgloss.Color(cursorBg))
 	d.selectStyle = lipgloss.NewStyle().Background(lipgloss.Color(selectBg))
 	d.render()
+}
+
+// Status returns a formatted status string showing current position
+func (d *DiffViewer) Status() string {
+	if d.diff == nil || len(d.files) == 0 {
+		return ""
+	}
+
+	// File position
+	filePos := fmt.Sprintf("File %d/%d", d.currentFile+1, len(d.files))
+
+	// Count total hunks and find current hunk position
+	totalHunks := 0
+	currentHunkGlobal := 0
+	for i, file := range d.files {
+		if i < d.currentFile {
+			currentHunkGlobal += len(file.Hunks)
+		} else if i == d.currentFile {
+			currentHunkGlobal += d.currentHunk + 1
+		}
+		totalHunks += len(file.Hunks)
+	}
+
+	hunkPos := ""
+	if totalHunks > 0 {
+		hunkPos = fmt.Sprintf(" | Hunk %d/%d", currentHunkGlobal, totalHunks)
+	}
+
+	// Total additions/deletions
+	changes := fmt.Sprintf(" | +%d -%d", d.diff.Additions, d.diff.Deletions)
+
+	return filePos + hunkPos + changes
+}
+
+// CurrentHunk returns the current hunk index within the current file
+func (d *DiffViewer) CurrentHunk() int {
+	return d.currentHunk
+}
+
+// HunkCount returns the total number of hunks in the current file
+func (d *DiffViewer) HunkCount() int {
+	if d.currentFile < len(d.files) {
+		return len(d.files[d.currentFile].Hunks)
+	}
+	return 0
 }
