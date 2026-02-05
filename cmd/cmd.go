@@ -12,6 +12,7 @@ import (
 	"lazyreview/internal/auth"
 	"lazyreview/internal/config"
 	"lazyreview/internal/gui"
+	"lazyreview/internal/models"
 	"lazyreview/internal/queue"
 	"lazyreview/internal/storage"
 	"lazyreview/internal/updater"
@@ -251,6 +252,74 @@ func CommandStart() *cli.App {
 			Usage: "Show quick overview of PRs and auth status",
 			Action: func(c *cli.Context) error {
 				return statusAction()
+			},
+		},
+		{
+			Name:      "open",
+			Aliases:   []string{"o"},
+			Usage:     "Open a PR in browser",
+			ArgsUsage: "[PR_NUMBER]",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "repo, r",
+					Usage: "Repository in owner/repo format",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				prNumber := c.Args().First()
+				repo := c.String("repo")
+				return openPRAction(prNumber, repo)
+			},
+		},
+		{
+			Name:    "list",
+			Aliases: []string{"ls"},
+			Usage:   "List PRs in terminal",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "mine, m",
+					Usage: "Show only my PRs",
+				},
+				cli.BoolFlag{
+					Name:  "review, r",
+					Usage: "Show PRs needing my review",
+				},
+				cli.IntFlag{
+					Name:  "limit, n",
+					Usage: "Limit number of results",
+					Value: 10,
+				},
+				cli.StringFlag{
+					Name:  "state, s",
+					Usage: "Filter by state (open, closed, all)",
+					Value: "open",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return listPRsAction(c.Bool("mine"), c.Bool("review"), c.Int("limit"), c.String("state"))
+			},
+		},
+		{
+			Name:      "approve",
+			Usage:     "Approve a PR",
+			ArgsUsage: "PR_NUMBER",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "repo, r",
+					Usage: "Repository in owner/repo format",
+				},
+				cli.StringFlag{
+					Name:  "message, m",
+					Usage: "Approval message",
+					Value: "LGTM!",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				prNumber := c.Args().First()
+				if prNumber == "" {
+					return fmt.Errorf("PR number is required")
+				}
+				return approvePRAction(prNumber, c.String("repo"), c.String("message"))
 			},
 		},
 	}
@@ -1298,6 +1367,280 @@ func valueOrDefaultInt(value, defaultValue int) int {
 		return defaultValue
 	}
 	return value
+}
+
+// openPRAction opens a PR in the browser
+func openPRAction(prNumber, repo string) error {
+	// Detect git context if repo not specified
+	var owner, repoName string
+	if repo != "" {
+		parts := strings.Split(repo, "/")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid repo format, expected owner/repo")
+		}
+		owner, repoName = parts[0], parts[1]
+	} else {
+		gitCtx, err := git.DetectGitContext()
+		if err != nil || !gitCtx.IsGitRepo {
+			return fmt.Errorf("not in a git repository, use --repo flag")
+		}
+		remote := gitCtx.GetPrimaryRemote()
+		if remote == nil || !remote.IsValid() {
+			return fmt.Errorf("could not detect repository, use --repo flag")
+		}
+		owner, repoName = remote.Owner, remote.Repo
+	}
+
+	// Build URL
+	var url string
+	if prNumber != "" {
+		url = fmt.Sprintf("https://github.com/%s/%s/pull/%s", owner, repoName, prNumber)
+	} else {
+		url = fmt.Sprintf("https://github.com/%s/%s/pulls", owner, repoName)
+	}
+
+	fmt.Printf("Opening: %s\n", url)
+
+	// Open in browser
+	var cmd *exec.Cmd
+	switch {
+	case isCommandAvailable("open"):
+		cmd = exec.Command("open", url)
+	case isCommandAvailable("xdg-open"):
+		cmd = exec.Command("xdg-open", url)
+	case isCommandAvailable("start"):
+		cmd = exec.Command("cmd", "/c", "start", url)
+	default:
+		fmt.Println("Could not detect browser opener, please open manually:")
+		fmt.Println(url)
+		return nil
+	}
+
+	return cmd.Run()
+}
+
+func isCommandAvailable(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
+// listPRsAction lists PRs in terminal
+func listPRsAction(mine, review bool, limit int, state string) error {
+	// Initialize auth and provider
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	authService, err := auth.NewService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth: %w", err)
+	}
+
+	statuses, err := authService.GetAllStatus()
+	if err != nil || len(statuses) == 0 {
+		return fmt.Errorf("not authenticated. Run: lazyreview auth login --provider github")
+	}
+
+	// Get provider config
+	var providerCfg *config.ProviderConfig
+	if cfg.DefaultProvider != "" {
+		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
+	}
+	if providerCfg == nil {
+		status := statuses[0]
+		providerCfg = &config.ProviderConfig{
+			Name: string(status.ProviderType),
+			Type: status.ProviderType,
+			Host: status.Host,
+		}
+	}
+
+	cred, err := authService.GetCredential(providerCfg.Type, providerCfg.GetHost())
+	if err != nil {
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	provider, err := providers.Create(*providerCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create provider: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := provider.Authenticate(ctx, cred.Token); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	// Determine PR state
+	var prState models.PullRequestState
+	switch state {
+	case "open":
+		prState = models.PRStateOpen
+	case "closed":
+		prState = models.PRStateClosed
+	default:
+		prState = models.PRStateOpen
+	}
+
+	// Fetch PRs
+	var prs []models.PullRequest
+	if mine {
+		prs, err = provider.ListUserPullRequests(ctx, providers.UserPROptions{
+			Involvement: "authored",
+			State:       prState,
+			PerPage:     limit,
+		})
+	} else if review {
+		prs, err = provider.ListUserPullRequests(ctx, providers.UserPROptions{
+			Involvement: "review-requested",
+			State:       prState,
+			PerPage:     limit,
+		})
+	} else {
+		// Try to detect repo
+		gitCtx, _ := git.DetectGitContext()
+		if gitCtx != nil && gitCtx.IsGitRepo {
+			remote := gitCtx.GetPrimaryRemote()
+			if remote != nil && remote.IsValid() {
+				opts := providers.ListOptions{
+					State:   prState,
+					PerPage: limit,
+				}
+				prs, err = provider.ListPullRequests(ctx, remote.Owner, remote.Repo, opts)
+			}
+		}
+		if prs == nil {
+			// Fall back to user's PRs
+			prs, err = provider.ListUserPullRequests(ctx, providers.UserPROptions{
+				Involvement: "authored",
+				State:       prState,
+				PerPage:     limit,
+			})
+		}
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to fetch PRs: %w", err)
+	}
+
+	if len(prs) == 0 {
+		fmt.Println("No pull requests found.")
+		return nil
+	}
+
+	// Display PRs
+	fmt.Printf("Pull Requests (%d):\n", len(prs))
+	fmt.Println(strings.Repeat("-", 70))
+	for _, pr := range prs {
+		status := "○"
+		if pr.State == models.PRStateClosed || pr.State == models.PRStateMerged {
+			status = "●"
+		}
+		if pr.IsDraft {
+			status = "◌"
+		}
+
+		title := pr.Title
+		if len(title) > 50 {
+			title = title[:47] + "..."
+		}
+
+		fmt.Printf("%s #%-5d %-50s %s\n", status, pr.Number, title, pr.Author.Login)
+	}
+
+	return nil
+}
+
+// approvePRAction approves a PR
+func approvePRAction(prNumber, repo, message string) error {
+	// Detect git context if repo not specified
+	var owner, repoName string
+	if repo != "" {
+		parts := strings.Split(repo, "/")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid repo format, expected owner/repo")
+		}
+		owner, repoName = parts[0], parts[1]
+	} else {
+		gitCtx, err := git.DetectGitContext()
+		if err != nil || !gitCtx.IsGitRepo {
+			return fmt.Errorf("not in a git repository, use --repo flag")
+		}
+		remote := gitCtx.GetPrimaryRemote()
+		if remote == nil || !remote.IsValid() {
+			return fmt.Errorf("could not detect repository, use --repo flag")
+		}
+		owner, repoName = remote.Owner, remote.Repo
+	}
+
+	// Parse PR number
+	var prNum int
+	if _, err := fmt.Sscanf(prNumber, "%d", &prNum); err != nil {
+		return fmt.Errorf("invalid PR number: %s", prNumber)
+	}
+
+	// Initialize auth and provider
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	authService, err := auth.NewService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth: %w", err)
+	}
+
+	statuses, err := authService.GetAllStatus()
+	if err != nil || len(statuses) == 0 {
+		return fmt.Errorf("not authenticated. Run: lazyreview auth login --provider github")
+	}
+
+	var providerCfg *config.ProviderConfig
+	if cfg.DefaultProvider != "" {
+		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
+	}
+	if providerCfg == nil {
+		status := statuses[0]
+		providerCfg = &config.ProviderConfig{
+			Name: string(status.ProviderType),
+			Type: status.ProviderType,
+			Host: status.Host,
+		}
+	}
+
+	cred, err := authService.GetCredential(providerCfg.Type, providerCfg.GetHost())
+	if err != nil {
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	provider, err := providers.Create(*providerCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create provider: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := provider.Authenticate(ctx, cred.Token); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	// Submit approval
+	fmt.Printf("Approving PR #%d in %s/%s...\n", prNum, owner, repoName)
+
+	review := models.ReviewInput{
+		Body:  message,
+		Event: models.ReviewEventApprove,
+	}
+
+	if err := provider.CreateReview(ctx, owner, repoName, prNum, review); err != nil {
+		return fmt.Errorf("failed to approve PR: %w", err)
+	}
+
+	fmt.Printf("✓ PR #%d approved!\n", prNum)
+	return nil
 }
 
 func init() {
