@@ -32,7 +32,7 @@ func CommandStart() *cli.App {
 	app := cli.NewApp()
 	app.Name = "LazyReview"
 	app.Usage = "A terminal UI for code review across multiple Git providers"
-	app.Version = "0.50.0"
+	app.Version = "0.51.0"
 
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
@@ -388,6 +388,94 @@ func CommandStart() *cli.App {
 					return fmt.Errorf("PR number is required")
 				}
 				return diffPRAction(prNumber, c.String("repo"), c.Bool("stat"))
+			},
+		},
+		{
+			Name:  "completion",
+			Usage: "Generate shell completion scripts",
+			Subcommands: []cli.Command{
+				{
+					Name:  "bash",
+					Usage: "Generate bash completion script",
+					Action: func(c *cli.Context) error {
+						fmt.Print(bashCompletion)
+						return nil
+					},
+				},
+				{
+					Name:  "zsh",
+					Usage: "Generate zsh completion script",
+					Action: func(c *cli.Context) error {
+						fmt.Print(zshCompletion)
+						return nil
+					},
+				},
+				{
+					Name:  "fish",
+					Usage: "Generate fish completion script",
+					Action: func(c *cli.Context) error {
+						fmt.Print(fishCompletion)
+						return nil
+					},
+				},
+			},
+		},
+		{
+			Name:      "merge",
+			Aliases:   []string{"m"},
+			Usage:     "Merge a pull request",
+			ArgsUsage: "PR_NUMBER",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "repo, r",
+					Usage: "Repository in owner/repo format",
+				},
+				cli.StringFlag{
+					Name:  "method",
+					Usage: "Merge method: merge, squash, rebase (default: merge)",
+					Value: "merge",
+				},
+				cli.StringFlag{
+					Name:  "message, m",
+					Usage: "Commit message for merge (optional)",
+				},
+				cli.BoolFlag{
+					Name:  "delete-branch",
+					Usage: "Delete source branch after merge",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				prNumber := c.Args().First()
+				if prNumber == "" {
+					return fmt.Errorf("PR number is required")
+				}
+				return mergeAction(prNumber, c.String("repo"), c.String("method"), c.String("message"), c.Bool("delete-branch"))
+			},
+		},
+		{
+			Name:      "comment",
+			Usage:     "Add a comment to a pull request",
+			ArgsUsage: "PR_NUMBER",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "repo, r",
+					Usage: "Repository in owner/repo format",
+				},
+				cli.StringFlag{
+					Name:  "message, m",
+					Usage: "Comment message (required)",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				prNumber := c.Args().First()
+				if prNumber == "" {
+					return fmt.Errorf("PR number is required")
+				}
+				message := c.String("message")
+				if message == "" {
+					return fmt.Errorf("message is required (use --message or -m)")
+				}
+				return commentAction(prNumber, c.String("repo"), message)
 			},
 		},
 	}
@@ -2044,3 +2132,408 @@ func init() {
 	// Suppress unused import warning
 	_ = strings.TrimSpace
 }
+
+// mergeAction merges a PR
+func mergeAction(prNumberStr, repoFlag, method, message string, deleteBranch bool) error {
+	// Detect git context if repo not specified
+	var owner, repoName string
+	if repoFlag != "" {
+		parts := strings.Split(repoFlag, "/")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid repo format, expected owner/repo")
+		}
+		owner, repoName = parts[0], parts[1]
+	} else {
+		gitCtx, err := git.DetectGitContext()
+		if err != nil || !gitCtx.IsGitRepo {
+			return fmt.Errorf("not in a git repository, use --repo flag")
+		}
+		remote := gitCtx.GetPrimaryRemote()
+		if remote == nil || !remote.IsValid() {
+			return fmt.Errorf("could not detect repository, use --repo flag")
+		}
+		owner, repoName = remote.Owner, remote.Repo
+	}
+
+	// Parse PR number
+	var prNum int
+	if _, err := fmt.Sscanf(prNumberStr, "%d", &prNum); err != nil {
+		return fmt.Errorf("invalid PR number: %s", prNumberStr)
+	}
+
+	// Initialize auth and provider
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	authService, err := auth.NewService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth: %w", err)
+	}
+
+	statuses, err := authService.GetAllStatus()
+	if err != nil || len(statuses) == 0 {
+		return fmt.Errorf("not authenticated. Run: lazyreview auth login --provider github")
+	}
+
+	var providerCfg *config.ProviderConfig
+	if cfg.DefaultProvider != "" {
+		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
+	}
+	if providerCfg == nil {
+		status := statuses[0]
+		providerCfg = &config.ProviderConfig{
+			Name: string(status.ProviderType),
+			Type: status.ProviderType,
+			Host: status.Host,
+		}
+	}
+
+	cred, err := authService.GetCredential(providerCfg.Type, providerCfg.GetHost())
+	if err != nil {
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	provider, err := providers.Create(*providerCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create provider: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := provider.Authenticate(ctx, cred.Token); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	// Validate merge method
+	var mergeMethod providers.MergeMethod
+	switch method {
+	case "merge":
+		mergeMethod = providers.MergeMethodMerge
+	case "squash":
+		mergeMethod = providers.MergeMethodSquash
+	case "rebase":
+		mergeMethod = providers.MergeMethodRebase
+	default:
+		return fmt.Errorf("invalid merge method: %s (use: merge, squash, rebase)", method)
+	}
+
+	// Get PR to verify it exists and is mergeable
+	pr, err := provider.GetPullRequest(ctx, owner, repoName, prNum)
+	if err != nil {
+		return fmt.Errorf("failed to get PR: %w", err)
+	}
+
+	if pr.State != models.PRStateOpen {
+		return fmt.Errorf("PR #%d is not open (state: %s)", prNum, pr.State)
+	}
+
+	// Merge the PR
+	opts := providers.MergeOptions{
+		Method:       mergeMethod,
+		DeleteBranch: deleteBranch,
+	}
+	if message != "" {
+		opts.CommitMessage = message
+	}
+
+	err = provider.MergePullRequest(ctx, owner, repoName, prNum, opts)
+	if err != nil {
+		return fmt.Errorf("failed to merge PR: %w", err)
+	}
+
+	fmt.Printf("✓ Successfully merged PR #%d using %s method\n", prNum, method)
+	if deleteBranch {
+		fmt.Printf("  Branch '%s' has been deleted\n", pr.SourceBranch)
+	}
+
+	return nil
+}
+
+// commentAction adds a comment to a PR
+func commentAction(prNumberStr, repoFlag, message string) error {
+	// Detect git context if repo not specified
+	var owner, repoName string
+	if repoFlag != "" {
+		parts := strings.Split(repoFlag, "/")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid repo format, expected owner/repo")
+		}
+		owner, repoName = parts[0], parts[1]
+	} else {
+		gitCtx, err := git.DetectGitContext()
+		if err != nil || !gitCtx.IsGitRepo {
+			return fmt.Errorf("not in a git repository, use --repo flag")
+		}
+		remote := gitCtx.GetPrimaryRemote()
+		if remote == nil || !remote.IsValid() {
+			return fmt.Errorf("could not detect repository, use --repo flag")
+		}
+		owner, repoName = remote.Owner, remote.Repo
+	}
+
+	// Parse PR number
+	var prNum int
+	if _, err := fmt.Sscanf(prNumberStr, "%d", &prNum); err != nil {
+		return fmt.Errorf("invalid PR number: %s", prNumberStr)
+	}
+
+	// Initialize auth and provider
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	authService, err := auth.NewService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth: %w", err)
+	}
+
+	statuses, err := authService.GetAllStatus()
+	if err != nil || len(statuses) == 0 {
+		return fmt.Errorf("not authenticated. Run: lazyreview auth login --provider github")
+	}
+
+	var providerCfg *config.ProviderConfig
+	if cfg.DefaultProvider != "" {
+		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
+	}
+	if providerCfg == nil {
+		status := statuses[0]
+		providerCfg = &config.ProviderConfig{
+			Name: string(status.ProviderType),
+			Type: status.ProviderType,
+			Host: status.Host,
+		}
+	}
+
+	cred, err := authService.GetCredential(providerCfg.Type, providerCfg.GetHost())
+	if err != nil {
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	provider, err := providers.Create(*providerCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create provider: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := provider.Authenticate(ctx, cred.Token); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	// Create the comment
+	input := models.CommentInput{
+		Body: message,
+	}
+
+	err = provider.CreateComment(ctx, owner, repoName, prNum, input)
+	if err != nil {
+		return fmt.Errorf("failed to add comment: %w", err)
+	}
+
+	fmt.Printf("✓ Comment added to PR #%d\n", prNum)
+	return nil
+}
+
+// Shell completion scripts
+
+var bashCompletion = `#!/bin/bash
+
+_lazyreview_completions() {
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    local commands="start auth config version keys doctor status open list approve request-changes checkout diff completion merge comment help"
+
+    case "${prev}" in
+        auth)
+            COMPREPLY=( $(compgen -W "login logout status" -- ${cur}) )
+            return 0
+            ;;
+        config)
+            COMPREPLY=( $(compgen -W "path edit show" -- ${cur}) )
+            return 0
+            ;;
+        completion)
+            COMPREPLY=( $(compgen -W "bash zsh fish" -- ${cur}) )
+            return 0
+            ;;
+        --provider|-p)
+            COMPREPLY=( $(compgen -W "github gitlab bitbucket azuredevops" -- ${cur}) )
+            return 0
+            ;;
+        --method)
+            COMPREPLY=( $(compgen -W "merge squash rebase" -- ${cur}) )
+            return 0
+            ;;
+        --state)
+            COMPREPLY=( $(compgen -W "open closed all" -- ${cur}) )
+            return 0
+            ;;
+        lazyreview)
+            COMPREPLY=( $(compgen -W "${commands}" -- ${cur}) )
+            return 0
+            ;;
+    esac
+
+    if [[ ${cur} == -* ]] ; then
+        local flags="--help --version --debug"
+        COMPREPLY=( $(compgen -W "${flags}" -- ${cur}) )
+        return 0
+    fi
+
+    COMPREPLY=( $(compgen -W "${commands}" -- ${cur}) )
+}
+
+complete -F _lazyreview_completions lazyreview
+`
+
+var zshCompletion = `#compdef lazyreview
+
+_lazyreview() {
+    local -a commands
+    commands=(
+        'start:Start the LazyReview TUI'
+        'auth:Authentication commands'
+        'config:Configuration commands'
+        'version:Show version'
+        'keys:Show keyboard shortcuts'
+        'doctor:Run system diagnostics'
+        'status:Show quick status overview'
+        'open:Open PR in browser'
+        'list:List pull requests'
+        'approve:Approve a pull request'
+        'request-changes:Request changes on a PR'
+        'checkout:Checkout a PR branch locally'
+        'diff:View PR diff in terminal'
+        'completion:Generate shell completion scripts'
+        'merge:Merge a pull request'
+        'comment:Add a comment to a PR'
+        'help:Show help'
+    )
+
+    local -a auth_commands
+    auth_commands=(
+        'login:Login to a Git provider'
+        'logout:Logout from a Git provider'
+        'status:Show authentication status'
+    )
+
+    local -a config_commands
+    config_commands=(
+        'path:Show config file path'
+        'edit:Edit config file'
+        'show:Show current configuration'
+    )
+
+    local -a completion_commands
+    completion_commands=(
+        'bash:Generate bash completion script'
+        'zsh:Generate zsh completion script'
+        'fish:Generate fish completion script'
+    )
+
+    _arguments -C \
+        '1: :->command' \
+        '*: :->args'
+
+    case $state in
+        command)
+            _describe -t commands 'lazyreview commands' commands
+            ;;
+        args)
+            case $words[2] in
+                auth)
+                    _describe -t auth_commands 'auth commands' auth_commands
+                    ;;
+                config)
+                    _describe -t config_commands 'config commands' config_commands
+                    ;;
+                completion)
+                    _describe -t completion_commands 'completion commands' completion_commands
+                    ;;
+                merge)
+                    _arguments \
+                        '--repo[Repository]:repo:' \
+                        '--method[Merge method]:method:(merge squash rebase)' \
+                        '--message[Commit message]:message:' \
+                        '--delete-branch[Delete source branch]' \
+                        '*:PR number:'
+                    ;;
+                approve|request-changes|checkout|diff|open|comment)
+                    _arguments \
+                        '--repo[Repository]:repo:' \
+                        '--message[Message]:message:' \
+                        '*:PR number:'
+                    ;;
+                list)
+                    _arguments \
+                        '--mine[Show only my PRs]' \
+                        '--review[Show PRs needing review]' \
+                        '--limit[Limit results]:limit:' \
+                        '--state[PR state]:state:(open closed all)' \
+                        '--repo[Repository]:repo:'
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_lazyreview "$@"
+`
+
+var fishCompletion = `# Fish completion for lazyreview
+
+complete -c lazyreview -f
+
+complete -c lazyreview -n "__fish_use_subcommand" -a "start" -d "Start the LazyReview TUI"
+complete -c lazyreview -n "__fish_use_subcommand" -a "auth" -d "Authentication commands"
+complete -c lazyreview -n "__fish_use_subcommand" -a "config" -d "Configuration commands"
+complete -c lazyreview -n "__fish_use_subcommand" -a "version" -d "Show version"
+complete -c lazyreview -n "__fish_use_subcommand" -a "keys" -d "Show keyboard shortcuts"
+complete -c lazyreview -n "__fish_use_subcommand" -a "doctor" -d "Run system diagnostics"
+complete -c lazyreview -n "__fish_use_subcommand" -a "status" -d "Show quick status overview"
+complete -c lazyreview -n "__fish_use_subcommand" -a "open" -d "Open PR in browser"
+complete -c lazyreview -n "__fish_use_subcommand" -a "list" -d "List pull requests"
+complete -c lazyreview -n "__fish_use_subcommand" -a "approve" -d "Approve a pull request"
+complete -c lazyreview -n "__fish_use_subcommand" -a "request-changes" -d "Request changes on a PR"
+complete -c lazyreview -n "__fish_use_subcommand" -a "checkout" -d "Checkout a PR branch locally"
+complete -c lazyreview -n "__fish_use_subcommand" -a "diff" -d "View PR diff in terminal"
+complete -c lazyreview -n "__fish_use_subcommand" -a "completion" -d "Generate shell completions"
+complete -c lazyreview -n "__fish_use_subcommand" -a "merge" -d "Merge a pull request"
+complete -c lazyreview -n "__fish_use_subcommand" -a "comment" -d "Add a comment to a PR"
+complete -c lazyreview -n "__fish_use_subcommand" -a "help" -d "Show help"
+
+complete -c lazyreview -n "__fish_seen_subcommand_from auth" -a "login" -d "Login to a Git provider"
+complete -c lazyreview -n "__fish_seen_subcommand_from auth" -a "logout" -d "Logout from a Git provider"
+complete -c lazyreview -n "__fish_seen_subcommand_from auth" -a "status" -d "Show authentication status"
+
+complete -c lazyreview -n "__fish_seen_subcommand_from config" -a "path" -d "Show config file path"
+complete -c lazyreview -n "__fish_seen_subcommand_from config" -a "edit" -d "Edit config file"
+complete -c lazyreview -n "__fish_seen_subcommand_from config" -a "show" -d "Show current configuration"
+
+complete -c lazyreview -n "__fish_seen_subcommand_from completion" -a "bash" -d "Generate bash completion"
+complete -c lazyreview -n "__fish_seen_subcommand_from completion" -a "zsh" -d "Generate zsh completion"
+complete -c lazyreview -n "__fish_seen_subcommand_from completion" -a "fish" -d "Generate fish completion"
+
+complete -c lazyreview -n "__fish_seen_subcommand_from auth" -l provider -s p -d "Provider type" -a "github gitlab bitbucket azuredevops"
+complete -c lazyreview -n "__fish_seen_subcommand_from merge" -l repo -s r -d "Repository"
+complete -c lazyreview -n "__fish_seen_subcommand_from merge" -l method -d "Merge method" -a "merge squash rebase"
+complete -c lazyreview -n "__fish_seen_subcommand_from merge" -l message -s m -d "Commit message"
+complete -c lazyreview -n "__fish_seen_subcommand_from merge" -l delete-branch -d "Delete source branch"
+complete -c lazyreview -n "__fish_seen_subcommand_from list" -l mine -d "Show only my PRs"
+complete -c lazyreview -n "__fish_seen_subcommand_from list" -l review -d "Show PRs needing review"
+complete -c lazyreview -n "__fish_seen_subcommand_from list" -l limit -d "Limit results"
+complete -c lazyreview -n "__fish_seen_subcommand_from list" -l state -d "PR state" -a "open closed all"
+
+complete -c lazyreview -l help -s h -d "Show help"
+complete -c lazyreview -l version -s v -d "Show version"
+complete -c lazyreview -l debug -s d -d "Enable debug mode"
+`
