@@ -1174,7 +1174,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				statusIcons += "◌ "
 			}
 			title := fmt.Sprintf("#%d: %s", pr.Number, pr.Title)
-			desc := fmt.Sprintf("%sby %s • %s", statusIcons, pr.Author.Login, pr.State)
+			labels := formatLabels(pr.Labels, 2)
+			desc := fmt.Sprintf("%sby %s • %s%s", statusIcons, pr.Author.Login, pr.State, labels)
 			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
 		}
 		contentWidth := m.width - 44
@@ -1202,26 +1203,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshSidebarItems()
 
 		if len(prs) == 0 {
-			var emptyMsg string
+			var emptyMsg, helpTip string
 			switch m.currentViewMode {
 			case ViewModeMyPRs:
-				emptyMsg = "You have no open PRs across all repositories"
+				emptyMsg = "You have no open PRs"
+				helpTip = "Create a PR on GitHub to see it here • Press 'R' to refresh"
 			case ViewModeReviewRequests:
-				emptyMsg = "No PRs currently requesting your review"
+				emptyMsg = "No PRs need your review"
+				helpTip = "You're all caught up! • Press 'R' to check for new requests"
 			case ViewModeAssignedToMe:
-				emptyMsg = "No PRs currently assigned to you"
+				emptyMsg = "No PRs assigned to you"
+				helpTip = "Ask teammates to assign you to PRs • Press 'R' to refresh"
 			case ViewModeWorkspace:
 				if m.currentWorkspace.Name != "" {
-					emptyMsg = fmt.Sprintf("No PRs found for %s", m.currentWorkspace.Name)
+					emptyMsg = fmt.Sprintf("No PRs in %s", m.currentWorkspace.Name)
+					helpTip = "Add repos to this workspace or check repo permissions"
 				} else {
-					emptyMsg = "No PRs found for this workspace"
+					emptyMsg = "No PRs in workspace"
+					helpTip = "Select a workspace from the sidebar"
 				}
 			default:
 				emptyMsg = "No pull requests found"
+				helpTip = "Try a different view or press 'R' to refresh"
 			}
 			m.statusMsg = emptyMsg
 			items := []list.Item{
-				components.NewSimpleItem("empty", emptyMsg, "PRs will appear here when available"),
+				components.NewSimpleItem("empty", emptyMsg, helpTip),
 			}
 			contentWidth := m.width - 44
 			contentHeight := m.height - 6
@@ -1244,8 +1251,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				statusIcons += "◌ "
 			}
 			title := fmt.Sprintf("#%d %s", pr.Number, pr.Title)
+			labels := formatLabels(pr.Labels, 2)
 			// Include repo name since these are from multiple repos
-			desc := fmt.Sprintf("%s%s/%s • by %s • %s", statusIcons, pr.Repository.Owner, pr.Repository.Name, pr.Author.Login, pr.State)
+			desc := fmt.Sprintf("%s%s/%s • by %s • %s%s", statusIcons, pr.Repository.Owner, pr.Repository.Name, pr.Author.Login, pr.State, labels)
 			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
 		}
 		contentWidth := m.width - 44
@@ -5141,6 +5149,25 @@ func reviewDecisionIcon(decision models.ReviewDecision) string {
 	default:
 		return ""
 	}
+}
+
+// formatLabels returns a compact string of PR labels (max 3)
+func formatLabels(labels []models.Label, maxLabels int) string {
+	if len(labels) == 0 {
+		return ""
+	}
+	if maxLabels <= 0 {
+		maxLabels = 3
+	}
+	var labelNames []string
+	for i, label := range labels {
+		if i >= maxLabels {
+			labelNames = append(labelNames, fmt.Sprintf("+%d", len(labels)-maxLabels))
+			break
+		}
+		labelNames = append(labelNames, label.Name)
+	}
+	return " [" + strings.Join(labelNames, ", ") + "]"
 }
 
 func filterPRsByRepos(prs []models.PullRequest, repos []storage.RepoRef) []models.PullRequest {
