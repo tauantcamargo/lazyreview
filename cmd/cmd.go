@@ -3,7 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -172,6 +174,13 @@ func CommandStart() *cli.App {
 						return showConfigPathAction()
 					},
 				},
+				{
+					Name:  "show",
+					Usage: "Display current configuration",
+					Action: func(c *cli.Context) error {
+						return showConfigAction()
+					},
+				},
 			},
 		},
 		{
@@ -228,6 +237,20 @@ func CommandStart() *cli.App {
 			Action: func(c *cli.Context) error {
 				vimMode := !c.Bool("standard")
 				return showKeybindingsAction(vimMode)
+			},
+		},
+		{
+			Name:  "doctor",
+			Usage: "Check system health and diagnose issues",
+			Action: func(c *cli.Context) error {
+				return doctorAction()
+			},
+		},
+		{
+			Name:  "status",
+			Usage: "Show quick overview of PRs and auth status",
+			Action: func(c *cli.Context) error {
+				return statusAction()
 			},
 		},
 	}
@@ -985,6 +1008,296 @@ func showKeybindingsAction(vimMode bool) error {
 
 	fmt.Println("Tip: Toggle vim mode in config.yaml (ui.vim_mode: true/false)")
 	return nil
+}
+
+// doctorAction checks system health and diagnoses issues
+func doctorAction() error {
+	fmt.Println("LazyReview Doctor")
+	fmt.Println(strings.Repeat("=", 50))
+	fmt.Println()
+
+	allOk := true
+
+	// Check 1: Git installation
+	fmt.Print("Checking Git installation... ")
+	if output, err := exec.Command("git", "--version").Output(); err != nil {
+		fmt.Println("✗ FAIL")
+		fmt.Println("  Git is not installed or not in PATH")
+		fmt.Println("  Install: https://git-scm.com/downloads")
+		allOk = false
+	} else {
+		version := strings.TrimSpace(string(output))
+		fmt.Printf("✓ OK (%s)\n", version)
+	}
+
+	// Check 2: Git repository context
+	fmt.Print("Checking Git repository... ")
+	gitCtx, err := git.DetectGitContext()
+	if err != nil || !gitCtx.IsGitRepo {
+		fmt.Println("⚠ Not in a Git repository")
+		fmt.Println("  LazyReview works best when run from a Git repo")
+	} else {
+		remote := gitCtx.GetPrimaryRemote()
+		if remote != nil && remote.IsValid() {
+			fmt.Printf("✓ OK (%s/%s)\n", remote.Owner, remote.Repo)
+		} else {
+			fmt.Println("✓ OK (no remote detected)")
+		}
+	}
+
+	// Check 3: Config file
+	fmt.Print("Checking configuration... ")
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Println("✗ FAIL")
+		fmt.Printf("  Error: %v\n", err)
+		fmt.Println("  Run: lazyreview config edit")
+		allOk = false
+	} else {
+		configDir, _ := config.ConfigDir()
+		fmt.Printf("✓ OK (%s/config.yaml)\n", configDir)
+		if cfg.UI.VimMode {
+			fmt.Println("  Mode: vim-style keybindings")
+		} else {
+			fmt.Println("  Mode: standard keybindings")
+		}
+	}
+
+	// Check 4: Authentication
+	fmt.Print("Checking authentication... ")
+	authService, err := auth.NewService()
+	if err != nil {
+		fmt.Println("✗ FAIL")
+		fmt.Printf("  Error: %v\n", err)
+		allOk = false
+	} else {
+		statuses, err := authService.GetAllStatus()
+		if err != nil {
+			fmt.Println("✗ FAIL")
+			fmt.Printf("  Error: %v\n", err)
+			allOk = false
+		} else if len(statuses) == 0 {
+			fmt.Println("⚠ No providers authenticated")
+			fmt.Println("  Run: lazyreview auth login --provider github")
+		} else {
+			fmt.Printf("✓ OK (%d provider(s))\n", len(statuses))
+			for _, s := range statuses {
+				status := "✓"
+				if !s.Authenticated {
+					status = "✗"
+				}
+				fmt.Printf("  %s %s (%s) as %s\n", status, s.ProviderType, s.Host, s.Username)
+			}
+		}
+	}
+
+	// Check 5: AI provider (optional)
+	fmt.Print("Checking AI provider... ")
+	aiKey := os.Getenv("LAZYREVIEW_AI_API_KEY")
+	if aiKey == "" {
+		if store, err := keyring.NewDefaultStore(); err == nil {
+			aiKey, _ = store.Get("ai:api_key")
+		}
+	}
+	if aiKey != "" {
+		fmt.Println("✓ OK (configured)")
+	} else {
+		fmt.Println("⚠ Not configured (optional)")
+		fmt.Println("  For AI reviews: lazyreview ai login")
+	}
+
+	// Check 6: Network connectivity
+	fmt.Print("Checking network (github.com)... ")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "HEAD", "https://api.github.com", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println("✗ FAIL")
+		fmt.Printf("  Cannot reach GitHub API: %v\n", err)
+		allOk = false
+	} else {
+		resp.Body.Close()
+		fmt.Printf("✓ OK (status %d)\n", resp.StatusCode)
+	}
+
+	fmt.Println()
+	if allOk {
+		fmt.Println("All checks passed! LazyReview is ready to use.")
+	} else {
+		fmt.Println("Some checks failed. Please resolve the issues above.")
+	}
+
+	return nil
+}
+
+// statusAction shows a quick overview of PRs and auth status
+func statusAction() error {
+	// Load config
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Initialize auth service
+	authService, err := auth.NewService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth service: %w", err)
+	}
+
+	// Show Git context
+	gitCtx, _ := git.DetectGitContext()
+	if gitCtx != nil && gitCtx.IsGitRepo {
+		remote := gitCtx.GetPrimaryRemote()
+		if remote != nil && remote.IsValid() {
+			fmt.Printf("Repository: %s/%s (%s)\n", remote.Owner, remote.Repo, remote.Provider)
+			if gitCtx.CurrentBranch != "" {
+				fmt.Printf("Branch: %s\n", gitCtx.CurrentBranch)
+			}
+		}
+	} else {
+		fmt.Println("Repository: (not in a git repo)")
+	}
+	fmt.Println()
+
+	// Show auth status
+	statuses, err := authService.GetAllStatus()
+	if err != nil {
+		return err
+	}
+
+	if len(statuses) == 0 {
+		fmt.Println("Authentication: Not logged in")
+		fmt.Println("  Run: lazyreview auth login --provider github")
+		return nil
+	}
+
+	fmt.Println("Authentication:")
+	for _, s := range statuses {
+		if s.Authenticated {
+			fmt.Printf("  ✓ %s (%s) as %s\n", s.ProviderType, s.Host, s.Username)
+		}
+	}
+	fmt.Println()
+
+	// Try to get PR counts
+	var providerCfg *config.ProviderConfig
+	if cfg.DefaultProvider != "" {
+		providerCfg = cfg.GetProviderByName(cfg.DefaultProvider)
+	}
+	if providerCfg == nil && len(statuses) > 0 {
+		status := statuses[0]
+		providerCfg = &config.ProviderConfig{
+			Name: string(status.ProviderType),
+			Type: status.ProviderType,
+			Host: status.Host,
+		}
+	}
+
+	if providerCfg != nil {
+		cred, err := authService.GetCredential(providerCfg.Type, providerCfg.GetHost())
+		if err == nil {
+			provider, err := providers.Create(*providerCfg)
+			if err == nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+
+				if err := provider.Authenticate(ctx, cred.Token); err == nil {
+					fmt.Println("Pull Requests:")
+
+					// Get user's PRs
+					myPRs, err := provider.ListUserPullRequests(ctx, providers.UserPROptions{
+						Involvement: "authored",
+						State:       "open",
+						PerPage:     100,
+					})
+					if err == nil {
+						fmt.Printf("  My open PRs: %d\n", len(myPRs))
+					}
+
+					// Get review requests
+					reviewPRs, err := provider.ListUserPullRequests(ctx, providers.UserPROptions{
+						Involvement: "review-requested",
+						State:       "open",
+						PerPage:     100,
+					})
+					if err == nil {
+						fmt.Printf("  Needs my review: %d\n", len(reviewPRs))
+					}
+				}
+			}
+		}
+	}
+
+	fmt.Println()
+	fmt.Println("Run 'lazyreview' to open the TUI")
+	return nil
+}
+
+// showConfigAction displays the current configuration
+func showConfigAction() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	fmt.Println("LazyReview Configuration")
+	fmt.Println(strings.Repeat("=", 50))
+	fmt.Println()
+
+	// Version
+	fmt.Printf("Version: %s\n", cfg.Version)
+	fmt.Printf("Default Provider: %s\n", valueOrDefault(cfg.DefaultProvider, "(none)"))
+	fmt.Println()
+
+	// UI Settings
+	fmt.Println("UI Settings:")
+	fmt.Printf("  Theme: %s\n", valueOrDefault(cfg.UI.Theme, "auto"))
+	fmt.Printf("  Vim Mode: %v\n", cfg.UI.VimMode)
+	fmt.Printf("  Show Checks: %v\n", cfg.UI.ShowChecks)
+	fmt.Printf("  Paging: %v\n", cfg.UI.Paging)
+	fmt.Printf("  Editor: %s\n", valueOrDefault(cfg.UI.Editor, "$EDITOR"))
+	fmt.Println()
+
+	// Performance Settings
+	fmt.Println("Performance Settings:")
+	fmt.Printf("  Cache TTL: %ds\n", valueOrDefaultInt(cfg.Performance.CacheTTL, 120))
+	fmt.Printf("  Comment Cache TTL: %ds\n", valueOrDefaultInt(cfg.Performance.CommentCacheTTL, 20))
+	fmt.Printf("  Max Concurrency: %d\n", valueOrDefaultInt(cfg.Performance.MaxConcurrency, 6))
+	fmt.Printf("  Rate Limit: %d req/sec\n", valueOrDefaultInt(cfg.Performance.RateLimitPerSecond, 10))
+	fmt.Println()
+
+	// Providers
+	fmt.Println("Configured Providers:")
+	if len(cfg.Providers) == 0 {
+		fmt.Println("  (none configured)")
+	} else {
+		for _, p := range cfg.Providers {
+			fmt.Printf("  • %s (%s @ %s)\n", p.Name, p.Type, p.GetHost())
+		}
+	}
+	fmt.Println()
+
+	// Config file location
+	configDir, _ := config.ConfigDir()
+	fmt.Printf("Config file: %s/config.yaml\n", configDir)
+	fmt.Println("Run 'lazyreview config edit' to modify")
+
+	return nil
+}
+
+func valueOrDefault(value, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+func valueOrDefaultInt(value, defaultValue int) int {
+	if value == 0 {
+		return defaultValue
+	}
+	return value
 }
 
 func init() {
