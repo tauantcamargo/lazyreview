@@ -7,13 +7,30 @@ import { login, logout, status as authStatus } from './commands/auth';
 import { configPath, editConfig, showConfig } from './commands/config';
 import { aiLogin, aiLogout, aiStatus } from './commands/ai';
 import { prApprove, prComment, prRequestChanges } from './commands/prActions';
+import { showKeys } from './commands/keys';
+import { runDoctor } from './commands/doctor';
+import { enableDebug, debug } from './utils/debug';
+
+// Get version from package.json
+const VERSION = '0.1.0-alpha.1';
 
 const program = new Command();
 
 program
   .name('lazyreview')
   .description('A terminal UI for code review across multiple Git providers')
-  .version('0.0.0');
+  .version(VERSION)
+  .option('-d, --debug', 'Enable debug output')
+  .hook('preAction', (thisCommand) => {
+    const opts = thisCommand.opts();
+    if (opts.debug) {
+      enableDebug();
+      debug('Debug mode enabled');
+      debug(`Version: ${VERSION}`);
+      debug(`Node version: ${process.version}`);
+      debug(`Platform: ${process.platform} ${process.arch}`);
+    }
+  });
 
 program
   .command('start')
@@ -21,7 +38,26 @@ program
   .option('-p, --provider <provider>', 'Provider type')
   .option('-r, --repo <owner/name>', 'Repository for initial PR list')
   .action(async (options: { provider?: string; repo?: string }) => {
+    debug('Starting TUI', options);
     await runTui({ provider: options.provider, repo: options.repo });
+  });
+
+program
+  .command('doctor')
+  .description('Check system health and diagnose issues')
+  .action(async () => {
+    debug('Running doctor checks');
+    await runDoctor();
+  });
+
+program
+  .command('keys')
+  .description('Show keyboard shortcuts')
+  .option('--vim', 'Show vim-style keybindings (default)')
+  .option('--standard', 'Show standard keybindings')
+  .action((options: { vim?: boolean; standard?: boolean }) => {
+    debug('Showing keybindings', options);
+    showKeys(options);
   });
 
 const prCommand = program.command('pr').description('Pull request commands');
@@ -36,6 +72,7 @@ prCommand
   .option('--json', 'Output JSON', false)
   .action(async (options: { repo: string; provider?: string; limit: string; json: boolean; state?: 'open' | 'closed' | 'all' }) => {
     try {
+      debug('Listing PRs', options);
       await listPullRequests({
         repo: options.repo,
         provider: options.provider,
@@ -59,6 +96,7 @@ prCommand
   .option('-b, --body <body>', 'Optional review body')
   .action(async (options: { repo: string; number: string; provider?: string; body?: string }) => {
     try {
+      debug('Approving PR', options);
       await prApprove({
         repo: options.repo,
         number: Number(options.number),
@@ -81,6 +119,7 @@ prCommand
   .option('-b, --body <body>', 'Optional review body')
   .action(async (options: { repo: string; number: string; provider?: string; body?: string }) => {
     try {
+      debug('Requesting changes', options);
       await prRequestChanges({
         repo: options.repo,
         number: Number(options.number),
@@ -115,6 +154,7 @@ prCommand
       side?: 'LEFT' | 'RIGHT';
     }) => {
       try {
+        debug('Adding comment', options);
         await prComment({
           repo: options.repo,
           number: Number(options.number),
@@ -139,6 +179,7 @@ queueCommand
   .description('List queued offline actions')
   .option('-l, --limit <number>', 'Max number of actions to show', '50')
   .action((options: { limit: string }) => {
+    debug('Listing queue', options);
     listQueue({ limit: Number(options.limit) });
   });
 
@@ -153,6 +194,7 @@ queueCommand
   .requiredOption('--pr <number>', 'Pull request number')
   .option('--payload <json>', 'JSON payload')
   .action((options: { type: string; provider: string; host: string; owner: string; repo: string; pr: string; payload?: string }) => {
+    debug('Enqueuing action', options);
     enqueueAction({
       type: options.type,
       providerType: options.provider,
@@ -170,6 +212,7 @@ queueCommand
   .option('-l, --limit <number>', 'Max number of actions to process', '50')
   .action(async (options: { limit: string }) => {
     try {
+      debug('Syncing queue', options);
       await syncQueue({ limit: Number(options.limit) });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -188,6 +231,7 @@ authCommand
   .option('-t, --token <token>', 'Token (or set LAZYREVIEW_TOKEN)')
   .action(async (options: { provider?: string; host?: string; token?: string }) => {
     try {
+      debug('Auth login', options);
       await login(options.provider, options.host, options.token);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -201,8 +245,10 @@ authCommand
   .description('Remove stored provider token')
   .option('-p, --provider <provider>', 'Provider type (github, gitlab, bitbucket, azuredevops)')
   .option('--host <host>', 'Provider host override')
-  .action(async (options: { provider?: string; host?: string }) => {
+  .option('--all', 'Remove all stored credentials')
+  .action(async (options: { provider?: string; host?: string; all?: boolean }) => {
     try {
+      debug('Auth logout', options);
       await logout(options.provider, options.host);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -218,6 +264,7 @@ authCommand
   .option('--host <host>', 'Provider host override')
   .action(async (options: { provider?: string; host?: string }) => {
     try {
+      debug('Auth status', options);
       await authStatus(options.provider, options.host);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -232,6 +279,7 @@ configCommand
   .command('show')
   .description('Show current configuration')
   .action(() => {
+    debug('Showing config');
     showConfig();
   });
 
@@ -239,6 +287,7 @@ configCommand
   .command('path')
   .description('Show config path')
   .action(() => {
+    debug('Showing config path');
     configPath();
   });
 
@@ -246,6 +295,7 @@ configCommand
   .command('edit')
   .description('Edit config file')
   .action(() => {
+    debug('Editing config');
     editConfig();
   });
 
@@ -258,6 +308,7 @@ aiCommand
   .option('-k, --key <key>', 'API key (or set LAZYREVIEW_AI_API_KEY)')
   .action(async (options: { provider?: string; key?: string }) => {
     try {
+      debug('AI login', options);
       await aiLogin(options.provider, options.key);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -272,6 +323,7 @@ aiCommand
   .option('-p, --provider <provider>', 'AI provider (openai, anthropic, ollama)')
   .action(async (options: { provider?: string }) => {
     try {
+      debug('AI logout', options);
       await aiLogout(options.provider);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -286,6 +338,7 @@ aiCommand
   .option('-p, --provider <provider>', 'AI provider (openai, anthropic, ollama)')
   .action(async (options: { provider?: string }) => {
     try {
+      debug('AI status', options);
       await aiStatus(options.provider);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -294,7 +347,9 @@ aiCommand
     }
   });
 
+// Default action: start TUI
 program.action(async () => {
+  debug('Starting TUI (default action)');
   await runTui();
 });
 
