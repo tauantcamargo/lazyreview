@@ -40,6 +40,10 @@ export { SearchInput } from './components/SearchInput';
 export type { SearchInputProps } from './components/SearchInput';
 export { Breadcrumb } from './components/Breadcrumb';
 export type { BreadcrumbItem, BreadcrumbProps } from './components/Breadcrumb';
+export { Layout } from './components/Layout';
+export type { LayoutProps } from './components/Layout';
+export { SplitPane } from './components/SplitPane';
+export type { SplitDirection, SplitPaneProps } from './components/SplitPane';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
