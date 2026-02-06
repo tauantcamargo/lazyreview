@@ -2,32 +2,14 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { PullRequest } from '@lazyreview/core';
 
-// View types
-export type ViewType = 'list' | 'detail' | 'dashboard' | 'settings' | 'workspaces' | 'ai';
+export type ViewType = 'list' | 'detail' | 'dashboard' | 'settings' | 'files' | 'ai';
 export type PanelType = 'sidebar' | 'content' | 'detail';
-export type SidebarMode = 'repos' | 'filters' | 'workspaces';
-export type DetailTab = 'files' | 'comments' | 'timeline' | 'description';
+export type SidebarMode = 'repos' | 'filters';
 
 export interface PRFilter {
-  state?: 'open' | 'closed' | 'merged' | 'all';
+  state?: 'open' | 'closed' | 'all';
   author?: string;
-  assignee?: string;
-  reviewRequested?: string;
-  labels?: string[];
-  searchQuery?: string;
-}
-
-export interface User {
-  id: string;
-  login: string;
-  name?: string;
-  avatarUrl?: string;
-}
-
-export interface RepoRef {
-  provider: string;
-  owner: string;
-  repo: string;
+  search?: string;
 }
 
 interface AppState {
@@ -35,48 +17,46 @@ interface AppState {
   currentView: ViewType;
   currentPanel: PanelType;
   sidebarMode: SidebarMode;
-  detailTab: DetailTab;
 
   // Selection
-  selectedRepo: RepoRef | null;
+  selectedRepo: { owner: string; repo: string; provider: string } | null;
   selectedPRNumber: number | null;
   selectedFileIndex: number;
-  selectedCommentId: string | null;
+  selectedListIndex: number;
+
+  // Data
+  pullRequests: PullRequest[];
+  currentDiff: string;
 
   // UI State
   searchQuery: string;
   filters: PRFilter;
   isCommandPaletteOpen: boolean;
   isHelpOpen: boolean;
-  isLoading: boolean;
+  isSidebarVisible: boolean;
+
+  // Status
+  status: 'idle' | 'loading' | 'ready' | 'error';
   errorMessage: string | null;
-
-  // User
-  currentUser: User | null;
-
-  // Keyboard
-  chordBuffer: string;
-  chordTimeout: NodeJS.Timeout | null;
+  demoMode: boolean;
 
   // Actions
   setView: (view: ViewType) => void;
   setPanel: (panel: PanelType) => void;
   setSidebarMode: (mode: SidebarMode) => void;
-  setDetailTab: (tab: DetailTab) => void;
-  selectRepo: (repo: RepoRef | null) => void;
-  selectPR: (number: number | null) => void;
-  selectFile: (index: number) => void;
-  selectComment: (id: string | null) => void;
+  selectRepo: (owner: string, repo: string, provider: string) => void;
+  selectPR: (number: number) => void;
+  setSelectedListIndex: (index: number) => void;
   setSearchQuery: (query: string) => void;
   setFilters: (filters: Partial<PRFilter>) => void;
-  clearFilters: () => void;
   toggleCommandPalette: () => void;
   toggleHelp: () => void;
-  setLoading: (loading: boolean) => void;
-  setError: (message: string | null) => void;
-  setCurrentUser: (user: User | null) => void;
-  setChordBuffer: (buffer: string, timeout: NodeJS.Timeout | null) => void;
-  clearChordBuffer: () => void;
+  toggleSidebar: () => void;
+  setPullRequests: (prs: PullRequest[]) => void;
+  setCurrentDiff: (diff: string) => void;
+  setStatus: (status: 'idle' | 'loading' | 'ready' | 'error') => void;
+  setErrorMessage: (message: string | null) => void;
+  setDemoMode: (demo: boolean) => void;
   reset: () => void;
 }
 
@@ -84,63 +64,46 @@ const initialState = {
   currentView: 'list' as ViewType,
   currentPanel: 'content' as PanelType,
   sidebarMode: 'repos' as SidebarMode,
-  detailTab: 'files' as DetailTab,
   selectedRepo: null,
   selectedPRNumber: null,
   selectedFileIndex: 0,
-  selectedCommentId: null,
+  selectedListIndex: 0,
+  pullRequests: [],
+  currentDiff: '',
   searchQuery: '',
   filters: {},
   isCommandPaletteOpen: false,
   isHelpOpen: false,
-  isLoading: false,
+  isSidebarVisible: true,
+  status: 'idle' as const,
   errorMessage: null,
-  currentUser: null,
-  chordBuffer: '',
-  chordTimeout: null,
+  demoMode: true,
 };
 
 export const useAppStore = create<AppState>()(
-  subscribeWithSelector((set, get) => ({
+  subscribeWithSelector((set) => ({
     ...initialState,
 
-    setView: (view) =>
-      set({
-        currentView: view,
-        // Reset some state when changing views
-        selectedFileIndex: 0,
-        selectedCommentId: null,
-      }),
+    setView: (view) => set({ currentView: view }),
 
     setPanel: (panel) => set({ currentPanel: panel }),
 
     setSidebarMode: (mode) => set({ sidebarMode: mode }),
 
-    setDetailTab: (tab) =>
+    selectRepo: (owner, repo, provider) =>
       set({
-        detailTab: tab,
-        selectedFileIndex: 0,
-        selectedCommentId: null,
-      }),
-
-    selectRepo: (repo) =>
-      set({
-        selectedRepo: repo,
-        selectedPRNumber: null, // Reset PR selection when changing repo
-        currentView: 'list',
+        selectedRepo: { owner, repo, provider },
+        selectedPRNumber: null,
+        selectedListIndex: 0,
       }),
 
     selectPR: (number) =>
       set({
         selectedPRNumber: number,
-        currentView: number ? 'detail' : 'list',
-        detailTab: 'files',
-        selectedFileIndex: 0,
+        currentView: 'detail',
       }),
 
-    selectFile: (index) => set({ selectedFileIndex: index }),
-
-    selectComment: (id) => set({ selectedCommentId: id }),
+    setSelectedListIndex: (index) => set({ selectedListIndex: index }),
 
     setSearchQuery: (query) => set({ searchQuery: query }),
 
@@ -148,8 +111,6 @@ export const useAppStore = create<AppState>()(
       set((state) => ({
         filters: { ...state.filters, ...filters },
       })),
-
-    clearFilters: () => set({ filters: {}, searchQuery: '' }),
 
     toggleCommandPalette: () =>
       set((state) => ({
@@ -161,35 +122,22 @@ export const useAppStore = create<AppState>()(
         isHelpOpen: !state.isHelpOpen,
       })),
 
-    setLoading: (loading) => set({ isLoading: loading }),
+    toggleSidebar: () =>
+      set((state) => ({
+        isSidebarVisible: !state.isSidebarVisible,
+      })),
 
-    setError: (message) => set({ errorMessage: message }),
+    setPullRequests: (prs) => set({ pullRequests: prs }),
 
-    setCurrentUser: (user) => set({ currentUser: user }),
+    setCurrentDiff: (diff) => set({ currentDiff: diff }),
 
-    setChordBuffer: (buffer, timeout) => {
-      const current = get().chordTimeout;
-      if (current) {
-        clearTimeout(current);
-      }
-      set({ chordBuffer: buffer, chordTimeout: timeout });
-    },
+    setStatus: (status) => set({ status }),
 
-    clearChordBuffer: () => {
-      const current = get().chordTimeout;
-      if (current) {
-        clearTimeout(current);
-      }
-      set({ chordBuffer: '', chordTimeout: null });
-    },
+    setErrorMessage: (message) => set({ errorMessage: message }),
 
-    reset: () => {
-      const current = get().chordTimeout;
-      if (current) {
-        clearTimeout(current);
-      }
-      set(initialState);
-    },
+    setDemoMode: (demo) => set({ demoMode: demo }),
+
+    reset: () => set(initialState),
   }))
 );
 
@@ -198,7 +146,7 @@ export const useCurrentView = () => useAppStore((s) => s.currentView);
 export const useSelectedRepo = () => useAppStore((s) => s.selectedRepo);
 export const useSelectedPR = () => useAppStore((s) => s.selectedPRNumber);
 export const useFilters = () => useAppStore((s) => s.filters);
-export const useIsLoading = () => useAppStore((s) => s.isLoading);
-export const useErrorMessage = () => useAppStore((s) => s.errorMessage);
-export const useCurrentUser = () => useAppStore((s) => s.currentUser);
-export const useChordBuffer = () => useAppStore((s) => s.chordBuffer);
+export const usePullRequests = () => useAppStore((s) => s.pullRequests);
+export const useStatus = () => useAppStore((s) => s.status);
+export const useIsSidebarVisible = () => useAppStore((s) => s.isSidebarVisible);
+export const useIsCommandPaletteOpen = () => useAppStore((s) => s.isCommandPaletteOpen);

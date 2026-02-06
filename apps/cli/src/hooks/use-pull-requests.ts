@@ -1,40 +1,50 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createProvider,
+  readToken,
   buildProviderBaseUrl,
   defaultProviderHost,
-  readToken,
   loadConfig,
   type ProviderType,
   type PullRequest,
-  type ReviewInput,
-  type CommentInput,
 } from '@lazyreview/core';
-import { useAppStore } from '../stores/app-store';
+import type { PRFilter } from '../stores/app-store';
 
-// Query key factory for type safety
+// Query keys factory for type safety and consistency
 export const pullRequestKeys = {
   all: ['pull-requests'] as const,
   lists: () => [...pullRequestKeys.all, 'list'] as const,
-  list: (provider: string, owner: string, repo: string, filters?: Record<string, unknown>) =>
-    [...pullRequestKeys.lists(), provider, owner, repo, filters] as const,
+  list: (owner: string, repo: string, provider: string, filters?: PRFilter) =>
+    [...pullRequestKeys.lists(), owner, repo, provider, filters] as const,
   details: () => [...pullRequestKeys.all, 'detail'] as const,
-  detail: (provider: string, owner: string, repo: string, number: number) =>
-    [...pullRequestKeys.details(), provider, owner, repo, number] as const,
-  diff: (provider: string, owner: string, repo: string, number: number) =>
-    [...pullRequestKeys.detail(provider, owner, repo, number), 'diff'] as const,
+  detail: (owner: string, repo: string, provider: string, number: number) =>
+    [...pullRequestKeys.details(), owner, repo, provider, number] as const,
+  diffs: () => [...pullRequestKeys.all, 'diff'] as const,
+  diff: (owner: string, repo: string, provider: string, number: number) =>
+    [...pullRequestKeys.diffs(), owner, repo, provider, number] as const,
 };
 
-async function getProviderClient(providerType: ProviderType, owner: string, repo: string) {
+interface UseListPullRequestsOptions {
+  owner: string;
+  repo: string;
+  provider: ProviderType;
+  filters?: PRFilter;
+  enabled?: boolean;
+}
+
+async function getProviderClient(providerType: ProviderType) {
   const config = loadConfig();
   const providerConfig = config.providers?.find((p) => p.type === providerType);
   const host = providerConfig?.host ?? defaultProviderHost(providerType);
   const envToken = providerConfig?.tokenEnv ? process.env[providerConfig.tokenEnv] : undefined;
-  let token = (await readToken(providerType, host)) ?? envToken ?? process.env.LAZYREVIEW_TOKEN;
+  let token: string | undefined = (await readToken(providerType, host)) ?? envToken ?? process.env.LAZYREVIEW_TOKEN ?? undefined;
 
-  // Fallback for github.com to api.github.com
+  // Fallback to alternate hosts for common providers
   if (!token && providerType === 'github' && host === 'github.com') {
     token = (await readToken(providerType, 'api.github.com')) ?? undefined;
+  }
+  if (!token && providerType === 'bitbucket' && host === 'bitbucket.org') {
+    token = (await readToken(providerType, 'api.bitbucket.org')) ?? undefined;
   }
 
   if (!token) {
@@ -45,151 +55,109 @@ async function getProviderClient(providerType: ProviderType, owner: string, repo
   return createProvider({ type: providerType, token, baseUrl });
 }
 
-// Hook: List pull requests
-export function usePullRequests(provider: ProviderType, owner: string, repo: string, options?: { limit?: number }) {
+export function useListPullRequests({ owner, repo, provider, filters, enabled = true }: UseListPullRequestsOptions) {
   return useQuery({
-    queryKey: pullRequestKeys.list(provider, owner, repo, options),
-    queryFn: async () => {
-      const client = await getProviderClient(provider, owner, repo);
-      return client.listPullRequests(owner, repo, { limit: options?.limit ?? 50 });
+    queryKey: pullRequestKeys.list(owner, repo, provider, filters),
+    queryFn: async (): Promise<PullRequest[]> => {
+      const client = await getProviderClient(provider);
+      return client.listPullRequests(owner, repo, {
+        limit: 50,
+        state: filters?.state,
+      });
     },
-    enabled: Boolean(owner && repo),
     staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    enabled: enabled && !!owner && !!repo,
   });
 }
 
-// Hook: Get PR diff
-export function usePullRequestDiff(provider: ProviderType, owner: string, repo: string, number: number) {
+interface UsePullRequestDiffOptions {
+  owner: string;
+  repo: string;
+  provider: ProviderType;
+  number: number;
+  enabled?: boolean;
+}
+
+export function usePullRequestDiff({ owner, repo, provider, number, enabled = true }: UsePullRequestDiffOptions) {
   return useQuery({
-    queryKey: pullRequestKeys.diff(provider, owner, repo, number),
-    queryFn: async () => {
-      const client = await getProviderClient(provider, owner, repo);
+    queryKey: pullRequestKeys.diff(owner, repo, provider, number),
+    queryFn: async (): Promise<string> => {
+      const client = await getProviderClient(provider);
       return client.getPullRequestDiff(owner, repo, number);
     },
-    enabled: Boolean(owner && repo && number),
-    staleTime: 30 * 1000, // 30 seconds for diff
+    staleTime: 30 * 1000, // 30 seconds for detail view
+    enabled: enabled && !!owner && !!repo && !!number,
   });
 }
 
-// Hook: Approve PR
+interface ApproveInput {
+  owner: string;
+  repo: string;
+  provider: ProviderType;
+  number: number;
+  body?: string;
+}
+
 export function useApprovePR() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      provider,
-      owner,
-      repo,
-      number,
-      body,
-    }: {
-      provider: ProviderType;
-      owner: string;
-      repo: string;
-      number: number;
-      body?: string;
-    }) => {
-      const client = await getProviderClient(provider, owner, repo);
+    mutationFn: async ({ owner, repo, provider, number, body }: ApproveInput) => {
+      const client = await getProviderClient(provider);
       await client.approveReview(owner, repo, number, body);
     },
-    onSuccess: (_, { provider, owner, repo, number }) => {
-      // Invalidate related queries
-      queryClient.invalidateQueries({
-        queryKey: pullRequestKeys.detail(provider, owner, repo, number),
-      });
-      queryClient.invalidateQueries({
-        queryKey: pullRequestKeys.list(provider, owner, repo),
-      });
+    onSuccess: (_, { owner, repo, provider, number }) => {
+      // Invalidate the PR list and detail
+      queryClient.invalidateQueries({ queryKey: pullRequestKeys.list(owner, repo, provider) });
+      queryClient.invalidateQueries({ queryKey: pullRequestKeys.detail(owner, repo, provider, number) });
     },
   });
 }
 
-// Hook: Request changes
+interface RequestChangesInput {
+  owner: string;
+  repo: string;
+  provider: ProviderType;
+  number: number;
+  body: string;
+}
+
 export function useRequestChanges() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      provider,
-      owner,
-      repo,
-      number,
-      body,
-    }: {
-      provider: ProviderType;
-      owner: string;
-      repo: string;
-      number: number;
-      body?: string;
-    }) => {
-      const client = await getProviderClient(provider, owner, repo);
+    mutationFn: async ({ owner, repo, provider, number, body }: RequestChangesInput) => {
+      const client = await getProviderClient(provider);
       await client.requestChanges(owner, repo, number, body);
     },
-    onSuccess: (_, { provider, owner, repo, number }) => {
-      queryClient.invalidateQueries({
-        queryKey: pullRequestKeys.detail(provider, owner, repo, number),
-      });
+    onSuccess: (_, { owner, repo, provider, number }) => {
+      queryClient.invalidateQueries({ queryKey: pullRequestKeys.list(owner, repo, provider) });
+      queryClient.invalidateQueries({ queryKey: pullRequestKeys.detail(owner, repo, provider, number) });
     },
   });
 }
 
-// Hook: Create comment
+interface CommentInput {
+  owner: string;
+  repo: string;
+  provider: ProviderType;
+  number: number;
+  body: string;
+  path?: string;
+  line?: number;
+}
+
 export function useCreateComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      provider,
-      owner,
-      repo,
-      number,
-      comment,
-    }: {
-      provider: ProviderType;
-      owner: string;
-      repo: string;
-      number: number;
-      comment: CommentInput;
-    }) => {
-      const client = await getProviderClient(provider, owner, repo);
-      await client.createComment(owner, repo, number, comment);
+    mutationFn: async ({ owner, repo, provider, number, body, path, line }: CommentInput) => {
+      const client = await getProviderClient(provider);
+      await client.createComment(owner, repo, number, { body, path, line });
     },
-    onSuccess: (_, { provider, owner, repo, number }) => {
-      queryClient.invalidateQueries({
-        queryKey: pullRequestKeys.detail(provider, owner, repo, number),
-      });
-    },
-  });
-}
-
-// Hook: Create review
-export function useCreateReview() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      provider,
-      owner,
-      repo,
-      number,
-      review,
-    }: {
-      provider: ProviderType;
-      owner: string;
-      repo: string;
-      number: number;
-      review: ReviewInput;
-    }) => {
-      const client = await getProviderClient(provider, owner, repo);
-      await client.createReview(owner, repo, number, review);
-    },
-    onSuccess: (_, { provider, owner, repo, number }) => {
-      queryClient.invalidateQueries({
-        queryKey: pullRequestKeys.detail(provider, owner, repo, number),
-      });
-      queryClient.invalidateQueries({
-        queryKey: pullRequestKeys.list(provider, owner, repo),
-      });
+    onSuccess: (_, { owner, repo, provider, number }) => {
+      queryClient.invalidateQueries({ queryKey: pullRequestKeys.detail(owner, repo, provider, number) });
     },
   });
 }
