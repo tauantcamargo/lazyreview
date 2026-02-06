@@ -76,6 +76,8 @@ export { Shortcuts, KeyLegend, ChordIndicator, ModeIndicator, QuickActions, VimK
 export type { ShortcutsProps, ShortcutDef, KeyLegendProps, ChordIndicatorProps, ModeIndicatorProps, QuickActionsProps, VimKeysProps, CommandHintProps, ShortcutOverlayProps } from './components/Shortcuts';
 export { Panel, CollapsiblePanel, Section, Card, InfoPanel, StatsRow, HeaderBar, FooterBar, Divider } from './components/Panel';
 export type { PanelProps, CollapsiblePanelProps, SectionProps, CardProps, InfoPanelProps, StatsRowProps, HeaderBarProps, FooterBarProps, DividerProps } from './components/Panel';
+export { FilterBar, FilterChips, QuickFilter, FilterGroup, ActiveFilters, SortSelect, FilterSummary, SearchFilter, PresetFilter } from './components/Filter';
+export type { FilterBarProps, FilterOption, FilterChipsProps, QuickFilterProps, FilterGroupProps, ActiveFiltersProps, SortOption, SortSelectProps, FilterSummaryProps, SearchFilterProps, PresetFilterProps } from './components/Filter';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
