@@ -17,3 +17,4 @@ export * from './use-pagination';
 export * from './use-history';
 export * from './use-window';
 export * from './use-storage';
+export * from './use-git';
