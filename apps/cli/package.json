@@ -1,13 +1,45 @@
 {
-  "name": "@lazyreview/cli",
-  "version": "0.0.0",
-  "private": true,
+  "name": "lazyreview",
+  "version": "0.1.0-alpha.1",
+  "description": "A terminal UI for code review across multiple Git providers",
   "type": "module",
   "bin": {
     "lazyreview": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup"
+  },
+  "keywords": [
+    "code-review",
+    "pull-request",
+    "github",
+    "gitlab",
+    "bitbucket",
+    "azure-devops",
+    "tui",
+    "terminal",
+    "cli"
+  ],
+  "author": "Tauan Camargo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tauantcamargo/lazyreview.git",
+    "directory": "apps/cli"
+  },
+  "homepage": "https://github.com/tauantcamargo/lazyreview",
+  "bugs": {
+    "url": "https://github.com/tauantcamargo/lazyreview/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@lazyreview/core": "workspace:*",
@@ -23,5 +55,18 @@
   "devDependencies": {
     "@testing-library/react": "^15.0.0",
     "ink-testing-library": "^4.0.0"
+  },
+  "pkg": {
+    "assets": [
+      "node_modules/better-sqlite3/build/Release/*.node",
+      "node_modules/keytar/build/Release/*.node"
+    ],
+    "targets": [
+      "node20-macos-x64",
+      "node20-macos-arm64",
+      "node20-linux-x64",
+      "node20-linux-arm64",
+      "node20-win-x64"
+    ]
   }
 }

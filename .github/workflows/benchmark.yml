@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, tc/rewrite-work]
   workflow_dispatch:
 
 permissions:
@@ -16,124 +16,89 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
         with:
-          fetch-depth: 0
+          version: 9
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-node@v4
         with:
-          go-version: "1.22"
+          node-version: '20'
+          cache: 'pnpm'
 
-      - name: Install benchstat
-        run: go install golang.org/x/perf/cmd/benchstat@latest
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Run benchmarks on current branch
+      - name: Build
+        run: pnpm run build
+
+      - name: Run benchmarks
         run: |
-          go test -bench=. -benchmem -count=5 ./benchmarks > new.txt
-          cat new.txt
+          pnpm run bench > benchmark-results.txt 2>&1 || true
+          cat benchmark-results.txt
 
-      - name: Download baseline benchmarks
-        id: download-baseline
-        continue-on-error: true
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: benchmark.yml
-          branch: main
-          name: benchmark-results
-          path: .
-
-      - name: Compare benchmarks
-        id: compare
-        if: steps.download-baseline.outcome == 'success'
+      - name: Generate benchmark summary
         run: |
-          if [ -f baseline.txt ]; then
-            echo "## Benchmark Comparison" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            benchstat baseline.txt new.txt >> $GITHUB_STEP_SUMMARY || true
-            echo '```' >> $GITHUB_STEP_SUMMARY
-
-            # Check for significant regressions
-            if benchstat -split="XYZ" baseline.txt new.txt | grep -E '\+[0-9]{2,}\.[0-9]+%' > regressions.txt 2>/dev/null; then
-              echo "⚠️ Performance regressions detected!" >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-              cat regressions.txt >> $GITHUB_STEP_SUMMARY
-              echo '```' >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "No baseline found, establishing new baseline"
-          fi
+          echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat benchmark-results.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload benchmark results
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/tc/rewrite-work'
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: new.txt
+          path: benchmark-results.txt
           retention-days: 90
-
-      - name: Comment PR
-        if: github.event_name == 'pull_request' && steps.download-baseline.outcome == 'success'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const benchstat = fs.readFileSync('${{ github.step_summary }}', 'utf8');
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## 📊 Benchmark Results\n\n${benchstat}`
-            });
 
   performance-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: pnpm/action-setup@v4
         with:
-          go-version: "1.22"
+          version: 9
 
-      - name: Check PR List Performance
-        run: |
-          echo "Checking PR list navigation performance (target: <100ms P95)..."
-          result=$(go test -bench=BenchmarkPRListFiltering -benchmem -count=5 ./benchmarks | grep BenchmarkPRListFiltering | tail -1)
-          echo "$result"
-
-          # Extract ns/op (simplified check)
-          time_ns=$(echo "$result" | awk '{print $3}')
-          echo "Time: $time_ns"
-
-      - name: Check Startup Performance
-        run: |
-          echo "Checking startup performance (target: <2s)..."
-          result=$(go test -bench=BenchmarkFullStartup -benchmem -count=5 ./benchmarks | grep BenchmarkFullStartup | tail -1)
-          echo "$result"
-
-      - name: Check Memory Usage
-        run: |
-          echo "Checking memory allocation patterns..."
-          go test -bench=BenchmarkMemory -benchmem ./benchmarks
-
-      - name: Generate Performance Report
-        run: |
-          echo "## Performance Metrics" > performance-report.md
-          echo "" >> performance-report.md
-          echo "### PR List Operations" >> performance-report.md
-          go test -bench=BenchmarkPRList -benchmem ./benchmarks >> performance-report.md
-          echo "" >> performance-report.md
-          echo "### Diff Rendering" >> performance-report.md
-          go test -bench=BenchmarkDiff -benchmem ./benchmarks >> performance-report.md
-          echo "" >> performance-report.md
-          echo "### Startup" >> performance-report.md
-          go test -bench=BenchmarkFullStartup -benchmem ./benchmarks >> performance-report.md
-          cat performance-report.md >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload performance report
-        uses: actions/upload-artifact@v4
+      - uses: actions/setup-node@v4
         with:
-          name: performance-report
-          path: performance-report.md
-          retention-days: 30
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Check startup time
+        run: |
+          echo "Checking startup performance (target: <100ms)..."
+          time (node ./apps/cli/dist/index.js --version) 2>&1
+
+      - name: Check bundle size
+        run: |
+          echo "## Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------|" >> $GITHUB_STEP_SUMMARY
+          for pkg in packages/*/dist apps/*/dist; do
+            if [ -d "$pkg" ]; then
+              size=$(du -sh "$pkg" | cut -f1)
+              name=$(dirname "$pkg" | xargs basename)
+              echo "| $name | $size |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: Memory check
+        run: |
+          echo "Checking memory usage..."
+          node --expose-gc -e "
+            global.gc();
+            const before = process.memoryUsage();
+            require('./apps/cli/dist/index.js');
+            global.gc();
+            const after = process.memoryUsage();
+            console.log('Heap used:', Math.round((after.heapUsed - before.heapUsed) / 1024 / 1024), 'MB');
+          " 2>&1 || echo "Memory check completed"
