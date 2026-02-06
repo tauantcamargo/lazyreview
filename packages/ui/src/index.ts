@@ -44,6 +44,12 @@ export { Layout } from './components/Layout';
 export type { LayoutProps } from './components/Layout';
 export { SplitPane } from './components/SplitPane';
 export type { SplitDirection, SplitPaneProps } from './components/SplitPane';
+export { DiffStats, FileStats } from './components/DiffStats';
+export type { DiffStatsProps, FileStatsProps } from './components/DiffStats';
+export { PRListItem, PRListHeader } from './components/PRListItem';
+export type { PRListItemProps, PRListHeaderProps, PRStatus, ReviewStatus } from './components/PRListItem';
+export { Timeline, TimelineItem } from './components/Timeline';
+export type { TimelineProps, TimelineItemProps, TimelineEvent, TimelineEventType } from './components/Timeline';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
