@@ -5,3 +5,4 @@ export * from './use-toast';
 export * from './use-confirm';
 export * from './use-search';
 export * from './use-focus';
+export * from './use-sort';
