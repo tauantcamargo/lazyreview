@@ -12,3 +12,4 @@ export * from './use-pr-actions';
 export * from './use-theme';
 export * from './use-debounce';
 export * from './use-async';
+export * from './use-key-handler';
