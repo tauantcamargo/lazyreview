@@ -101,9 +101,17 @@ func (p *openAIProvider) Review(ctx context.Context, req ReviewRequest) (ReviewR
 }
 
 func (p *openAIProvider) reviewWithLimit(ctx context.Context, req ReviewRequest, maxChars int) (ReviewResponse, error) {
-	systemPrompt := "You are a senior code reviewer. Return only JSON with fields: decision (approve|request_changes|comment) and comment."
+	// Use strictness level to generate appropriate system prompt
+	strictness := req.Strictness
+	if !strictness.IsValid() {
+		strictness = StrictnessStandard
+	}
+	systemPrompt := strictness.GetSystemPrompt()
+
+	// Build user prompt with strictness context
 	diffText, truncated := truncateForAI(req.Diff, maxChars)
-	userPrompt := fmt.Sprintf("Review this diff for %s.\n\n```diff\n%s\n```", req.FilePath, diffText)
+	userPrompt := strictness.GetUserPromptPrefix() +
+		fmt.Sprintf("Review this diff for %s.\n\n```diff\n%s\n```", req.FilePath, diffText)
 	if truncated {
 		userPrompt = "Note: diff was truncated for latency/performance.\n\n" + userPrompt
 	}

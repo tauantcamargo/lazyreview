@@ -18,8 +18,9 @@ const (
 
 // ReviewRequest represents input to the AI reviewer.
 type ReviewRequest struct {
-	FilePath string
-	Diff     string
+	FilePath   string
+	Diff       string
+	Strictness StrictnessLevel
 }
 
 // ReviewResponse represents the AI review output.
@@ -43,6 +44,10 @@ func NewProviderFromEnv() (Provider, error) {
 	switch provider {
 	case "openai":
 		return NewOpenAIProviderFromEnv()
+	case "anthropic":
+		return NewAnthropicProviderFromEnv()
+	case "ollama":
+		return NewOllamaProviderFromEnv()
 	default:
 		return nil, errors.New("unsupported AI provider: " + provider)
 	}
@@ -56,6 +61,11 @@ func NewProviderFromConfig(providerName, apiKey, model, baseURL string) (Provide
 		return nil, errors.New("AI provider not configured")
 	case "openai":
 		return NewOpenAIProvider(apiKey, model, baseURL)
+	case "anthropic":
+		return NewAnthropicProvider(apiKey, model)
+	case "ollama":
+		// For Ollama, baseURL is the host, apiKey is unused
+		return NewOllamaProvider(baseURL, model)
 	default:
 		return nil, errors.New("unsupported AI provider: " + provider)
 	}

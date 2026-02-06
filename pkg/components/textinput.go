@@ -76,10 +76,29 @@ func NewTextInput() TextInput {
 		textarea:       ta,
 		mode:           TextInputHidden,
 		visible:        false,
-		containerStyle: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("170")).Padding(1),
+		containerStyle: lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("170")).Padding(1),
 		titleStyle:     lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("170")),
 		contextStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 	}
+}
+
+// SetThemeColors updates text input styling.
+func (t *TextInput) SetThemeColors(accent, muted, border string) {
+	if accent == "" {
+		accent = "170"
+	}
+	if muted == "" {
+		muted = "240"
+	}
+	if border == "" {
+		border = accent
+	}
+	t.containerStyle = lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color(border)).
+		Padding(1)
+	t.titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(accent))
+	t.contextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(muted))
 }
 
 // Show displays the text input with the given mode and context

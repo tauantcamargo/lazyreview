@@ -14,17 +14,20 @@ type Config struct {
 	DefaultProvider string            `mapstructure:"default_provider"`
 	UI              UIConfig          `mapstructure:"ui"`
 	Performance     PerformanceConfig `mapstructure:"performance"`
+	AI              AIConfig          `mapstructure:"ai"`
+	Analytics       AnalyticsConfig   `mapstructure:"analytics"`
 	Keybindings     KeybindingsConfig `mapstructure:"keybindings"`
 	Providers       []ProviderConfig  `mapstructure:"providers"`
 }
 
 // UIConfig holds UI-related settings
 type UIConfig struct {
-	Theme      string `mapstructure:"theme"`
-	Paging     bool   `mapstructure:"paging"`
-	ShowChecks bool   `mapstructure:"show_checks"`
-	VimMode    bool   `mapstructure:"vim_mode"`
-	Editor     string `mapstructure:"editor"`
+	Theme       string `mapstructure:"theme"`
+	Paging      bool   `mapstructure:"paging"`
+	ShowChecks  bool   `mapstructure:"show_checks"`
+	VimMode     bool   `mapstructure:"vim_mode"`
+	Editor      string `mapstructure:"editor"`
+	UnicodeMode string `mapstructure:"unicode_mode"` // auto|on|off (default: auto)
 }
 
 // PerformanceConfig holds performance-related settings
@@ -39,23 +42,78 @@ type PerformanceConfig struct {
 	RateLimitPerSecond int `mapstructure:"rate_limit_per_second"`
 }
 
+// AIConfig holds AI provider settings
+type AIConfig struct {
+	// Provider is the AI provider to use (openai, anthropic, ollama)
+	Provider string `mapstructure:"provider"`
+	// Model is the AI model to use (provider-specific)
+	Model string `mapstructure:"model"`
+	// APIKey is the API key for the provider (not used for Ollama)
+	APIKey string `mapstructure:"api_key"`
+	// BaseURL is the base URL for the provider (OpenAI or Ollama host)
+	BaseURL string `mapstructure:"base_url"`
+	// Enabled controls whether AI review is enabled
+	Enabled bool `mapstructure:"enabled"`
+	// FallbackChain is the list of providers to try in order if primary fails
+	FallbackChain []string `mapstructure:"fallback_chain"`
+	// CostWarningThreshold is the monthly cost warning threshold in USD (default: 10.0)
+	CostWarningThreshold float64 `mapstructure:"cost_warning_threshold"`
+	// CostMonthlyLimit is the monthly cost hard limit in USD (default: 50.0, 0 = no limit)
+	CostMonthlyLimit float64 `mapstructure:"cost_monthly_limit"`
+	// ShowCostEstimate controls whether to show cost estimate before AI review (default: true)
+	ShowCostEstimate bool `mapstructure:"show_cost_estimate"`
+	// Strictness is the default review strictness level (relaxed, standard, strict)
+	Strictness string `mapstructure:"strictness"`
+	// RepositoryStrictness holds per-repository strictness overrides
+	RepositoryStrictness map[string]string `mapstructure:"repository_strictness"`
+}
+
+// AnalyticsConfig holds analytics-related settings
+type AnalyticsConfig struct {
+	// Enabled controls whether analytics tracking is enabled (default: true)
+	Enabled bool `mapstructure:"enabled"`
+	// RetentionDays is the number of days to retain event data (default: 90)
+	RetentionDays int `mapstructure:"retention_days"`
+	// AutoCleanup enables automatic cleanup of old events (default: true)
+	AutoCleanup bool `mapstructure:"auto_cleanup"`
+}
+
 // Default returns a Config with sensible defaults
 func Default() *Config {
 	return &Config{
 		Version:         "0.1",
 		DefaultProvider: "",
 		UI: UIConfig{
-			Theme:      "auto",
-			Paging:     true,
-			ShowChecks: true,
-			VimMode:    true,
-			Editor:     "",
+			Theme:       "lazygit",
+			Paging:      true,
+			ShowChecks:  true,
+			VimMode:     true,
+			Editor:      "",
+			UnicodeMode: "auto",
 		},
 		Performance: PerformanceConfig{
 			CacheTTL:           120,
 			CommentCacheTTL:    20,
 			MaxConcurrency:     6,
 			RateLimitPerSecond: 10,
+		},
+		AI: AIConfig{
+			Provider:             "",
+			Model:                "",
+			APIKey:               "",
+			BaseURL:              "",
+			Enabled:              false,
+			FallbackChain:        []string{"openai", "anthropic", "ollama"},
+			CostWarningThreshold: 10.0,
+			CostMonthlyLimit:     50.0,
+			ShowCostEstimate:     true,
+			Strictness:           "standard",
+			RepositoryStrictness: make(map[string]string),
+		},
+		Analytics: AnalyticsConfig{
+			Enabled:       true,
+			RetentionDays: 90,
+			AutoCleanup:   true,
 		},
 		Keybindings: DefaultKeybindings(),
 		Providers:   []ProviderConfig{},
@@ -114,17 +172,36 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("default_provider", "")
 
 	// UI defaults
-	v.SetDefault("ui.theme", "auto")
+	v.SetDefault("ui.theme", "lazygit")
 	v.SetDefault("ui.paging", true)
 	v.SetDefault("ui.show_checks", true)
 	v.SetDefault("ui.vim_mode", true)
 	v.SetDefault("ui.editor", "")
+	v.SetDefault("ui.unicode_mode", "auto")
 
 	// Performance defaults
 	v.SetDefault("performance.cache_ttl", 120)
 	v.SetDefault("performance.comment_cache_ttl", 20)
 	v.SetDefault("performance.max_concurrency", 6)
 	v.SetDefault("performance.rate_limit_per_second", 10)
+
+	// AI defaults
+	v.SetDefault("ai.provider", "")
+	v.SetDefault("ai.model", "")
+	v.SetDefault("ai.api_key", "")
+	v.SetDefault("ai.base_url", "")
+	v.SetDefault("ai.enabled", false)
+	v.SetDefault("ai.fallback_chain", []string{"openai", "anthropic", "ollama"})
+	v.SetDefault("ai.cost_warning_threshold", 10.0)
+	v.SetDefault("ai.cost_monthly_limit", 50.0)
+	v.SetDefault("ai.show_cost_estimate", true)
+	v.SetDefault("ai.strictness", "standard")
+	v.SetDefault("ai.repository_strictness", make(map[string]string))
+
+	// Analytics defaults
+	v.SetDefault("analytics.enabled", true)
+	v.SetDefault("analytics.retention_days", 90)
+	v.SetDefault("analytics.auto_cleanup", true)
 
 	// Navigation keybindings
 	v.SetDefault("keybindings.navigation.up", "k")
@@ -151,6 +228,27 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("keybindings.global.confirm", "enter")
 	v.SetDefault("keybindings.global.next_panel", "tab")
 	v.SetDefault("keybindings.global.prev_panel", "shift+tab")
+
+	// Chord keybindings
+	v.SetDefault("keybindings.chords.enabled", true)
+	v.SetDefault("keybindings.chords.timeout", 500)
+	v.SetDefault("keybindings.chords.sequences", []map[string]interface{}{
+		{
+			"keys":        []string{"g", "g"},
+			"action":      "goto_top",
+			"description": "Go to top",
+		},
+		{
+			"keys":        []string{"g", "c"},
+			"action":      "general_comment",
+			"description": "Add general comment",
+		},
+		{
+			"keys":        []string{"g", "r"},
+			"action":      "refresh",
+			"description": "Refresh current view",
+		},
+	})
 }
 
 // ConfigDir returns the directory where config files are stored

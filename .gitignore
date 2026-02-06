@@ -5,3 +5,8 @@ lazyreview
 CLAUDE.md
 AGENTS.md
 MANUAL_TESTING.md
+# Performance profiling
+profiles/
+*.prof
+*.out
+benchmark-*.txt

@@ -478,6 +478,41 @@ func (f *FileTree) SelectedPath() string {
 	return ""
 }
 
+// SelectByRow selects an item by its rendered row (0-based) within the file tree view.
+// Returns the selected file path (if any) and whether a selection occurred.
+func (f *FileTree) SelectByRow(row int) (string, bool) {
+	if row < 0 {
+		return "", false
+	}
+	topOffset := 3
+	if f.searchMode {
+		topOffset += 2
+	}
+	if row < topOffset {
+		return "", false
+	}
+	visibleHeight := f.height - 2
+	if f.searchMode {
+		visibleHeight -= 2
+	}
+	itemRow := row - topOffset
+	if itemRow < 0 || itemRow >= visibleHeight {
+		return "", false
+	}
+	index := f.offset + itemRow
+	if index < 0 || index >= len(f.flatItems) {
+		return "", false
+	}
+	item := f.flatItems[index]
+	f.selected = index
+	if item.IsDir {
+		item.Expanded = !item.Expanded
+		f.flatItems = f.flatten(f.items)
+		return "", true
+	}
+	return item.Path, true
+}
+
 // SetThemeColors applies file tree colors at runtime.
 func (f *FileTree) SetThemeColors(selectedBg, added, deleted, modified, renamed, dir, comment string) {
 	f.selectedStyle = lipgloss.NewStyle().Background(lipgloss.Color(selectedBg)).Bold(true)

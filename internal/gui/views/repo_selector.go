@@ -32,12 +32,18 @@ type RepoSelector struct {
 	storage     storage.Storage
 	workspaceID string
 
-	orgList    components.List
-	repoList   components.List
-	activePane repoSelectorPanel
-	status     string
-	width      int
-	height     int
+	orgList         components.List
+	repoList        components.List
+	activePane      repoSelectorPanel
+	status          string
+	width           int
+	height          int
+	focusedBorder   string
+	unfocusedBorder string
+	accent          string
+	muted           string
+	selectedBg      string
+	titleBg         string
 }
 
 // orgListMsg is emitted after loading orgs.
@@ -64,10 +70,22 @@ func NewRepoSelector(provider providers.Provider, store storage.Storage, workspa
 		workspaceID: workspaceID,
 		orgList:     orgList,
 		repoList:    repoList,
-		activePane: repoSelectorPanelOrgs,
+		activePane:  repoSelectorPanelOrgs,
 		width:       width,
 		height:      height,
 	}
+}
+
+// SetThemeColors updates repo selector styling.
+func (r *RepoSelector) SetThemeColors(focused, unfocused, accent, muted, selectedBg, titleBg string) {
+	r.focusedBorder = focused
+	r.unfocusedBorder = unfocused
+	r.accent = accent
+	r.muted = muted
+	r.selectedBg = selectedBg
+	r.titleBg = titleBg
+	r.orgList.SetThemeColors(accent, muted, selectedBg, titleBg)
+	r.repoList.SetThemeColors(accent, muted, selectedBg, titleBg)
 }
 
 // SetSize sets the view size.
@@ -252,16 +270,24 @@ func (r RepoSelector) View() string {
 	leftWidth := max(30, (r.width/2)-2)
 	leftStyle := lipgloss.NewStyle()
 	rightStyle := lipgloss.NewStyle()
+	focusedBorder := "170"
+	unfocusedBorder := "240"
+	if r.focusedBorder != "" {
+		focusedBorder = r.focusedBorder
+	}
+	if r.unfocusedBorder != "" {
+		unfocusedBorder = r.unfocusedBorder
+	}
 	if r.activePane == repoSelectorPanelOrgs {
-		leftStyle = leftStyle.Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("170"))
-		rightStyle = rightStyle.Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("240"))
+		leftStyle = leftStyle.Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(focusedBorder))
+		rightStyle = rightStyle.Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(unfocusedBorder))
 	} else {
-		leftStyle = leftStyle.Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("240"))
-		rightStyle = rightStyle.Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("170"))
+		leftStyle = leftStyle.Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(unfocusedBorder))
+		rightStyle = rightStyle.Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color(focusedBorder))
 	}
 
 	left := leftStyle.Width(leftWidth + 2).Render(r.orgList.View())
-	right := rightStyle.Width(r.width-leftWidth-2).Render(r.repoList.View())
+	right := rightStyle.Width(r.width - leftWidth - 2).Render(r.repoList.View())
 	return lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 }
 

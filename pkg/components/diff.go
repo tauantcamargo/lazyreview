@@ -196,8 +196,9 @@ type DiffViewer struct {
 	height        int
 	focused       bool
 	splitView     bool
-	hunkPositions []int // Line offsets where each hunk starts
-	currentHunk   int   // Current hunk index
+	splitViewer   SplitDiffViewer // Split view instance
+	hunkPositions []int           // Line offsets where each hunk starts
+	currentHunk   int             // Current hunk index
 	highlighter   *Highlighter
 	lineMapping   []lineInfo // Maps viewport line to file/line info
 	searchTexts   []string   // Plain text per rendered line for search/jump
@@ -251,6 +252,7 @@ func NewDiffViewer(width, height int) DiffViewer {
 		height:       height,
 		focused:      true,
 		splitView:    false,
+		splitViewer:  NewSplitDiffViewer(width, height),
 		maxLines:     1200,
 		lineComments: map[string][]models.Comment{},
 		highlighter:  NewHighlighter(),
@@ -290,6 +292,9 @@ func (d *DiffViewer) SetDiff(diff *models.Diff) {
 	d.invalidateCache()
 	d.render()
 	d.scrollToFile(d.currentFile)
+
+	// Also update split viewer
+	d.splitViewer.SetDiff(diff)
 }
 
 // SetComments sets line comment threads grouped by file/line.
@@ -409,6 +414,10 @@ func (d DiffViewer) Update(msg tea.Msg) (DiffViewer, tea.Cmd) {
 			return d, nil
 		case key.Matches(msg, d.keyMap.ToggleView):
 			d.splitView = !d.splitView
+			if d.splitView {
+				// Update split viewer size when switching to split mode
+				d.splitViewer.SetSize(d.width, d.height)
+			}
 			d.render()
 			return d, nil
 		case key.Matches(msg, d.keyMap.Top):
@@ -513,6 +522,12 @@ func (d DiffViewer) View() string {
 	if d.diff == nil || len(d.files) == 0 {
 		return "No diff to display"
 	}
+
+	// Use split view if enabled
+	if d.splitView {
+		return d.splitViewer.View()
+	}
+
 	if d.cachedVersion == d.contentVersion &&
 		d.cachedYOffset == d.viewport.YOffset &&
 		d.cachedWidth == d.viewport.Width &&
@@ -1420,6 +1435,7 @@ func (d *DiffViewer) SetSize(width, height int) {
 	d.height = height
 	d.viewport.Width = width
 	d.viewport.Height = height
+	d.splitViewer.SetSize(width, height)
 	d.render()
 }
 

@@ -143,6 +143,7 @@ func DefaultListKeyMap(vimMode bool) ListKeyMap {
 // List is a wrapper around bubbles list with vim keybindings
 type List struct {
 	list     list.Model
+	delegate list.DefaultDelegate
 	keyMap   ListKeyMap
 	title    string
 	focused  bool
@@ -174,16 +175,58 @@ func NewList(title string, items []list.Item, width, height int) List {
 		Padding(0, 1)
 
 	return List{
-		list:    l,
-		keyMap:  DefaultListKeyMap(true),
-		title:   title,
-		focused: true,
+		list:     l,
+		delegate: delegate,
+		keyMap:   DefaultListKeyMap(true),
+		title:    title,
+		focused:  true,
 	}
 }
 
 // SetVimMode toggles vim-style navigation keys.
 func (l *List) SetVimMode(enabled bool) {
 	l.keyMap = DefaultListKeyMap(enabled)
+}
+
+// SetThemeColors updates list styling.
+func (l *List) SetThemeColors(accent, muted, selectedBg, titleBg string) {
+	if accent == "" {
+		accent = "170"
+	}
+	if muted == "" {
+		muted = "240"
+	}
+	if selectedBg == "" {
+		selectedBg = "237"
+	}
+	if titleBg == "" {
+		titleBg = "235"
+	}
+
+	l.delegate.Styles.SelectedTitle = l.delegate.Styles.SelectedTitle.Copy().
+		Foreground(lipgloss.Color(accent)).
+		Background(lipgloss.Color(selectedBg)).
+		BorderForeground(lipgloss.Color(accent))
+	l.delegate.Styles.SelectedDesc = l.delegate.Styles.SelectedDesc.Copy().
+		Foreground(lipgloss.Color(muted)).
+		Background(lipgloss.Color(selectedBg)).
+		BorderForeground(lipgloss.Color(accent))
+	l.delegate.Styles.NormalTitle = l.delegate.Styles.NormalTitle.Copy().
+		Foreground(lipgloss.Color("252"))
+	l.delegate.Styles.NormalDesc = l.delegate.Styles.NormalDesc.Copy().
+		Foreground(lipgloss.Color(muted))
+
+	l.list.SetDelegate(l.delegate)
+	l.list.Styles.Title = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color(accent)).
+		Background(lipgloss.Color(titleBg)).
+		Padding(0, 1)
+	l.list.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(lipgloss.Color(accent))
+	l.list.Styles.FilterCursor = lipgloss.NewStyle().Foreground(lipgloss.Color(accent))
+	l.list.Styles.StatusBar = lipgloss.NewStyle().Foreground(lipgloss.Color(muted))
+	l.list.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(muted))
+	l.list.Styles.HelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(muted))
 }
 
 // Init implements tea.Model

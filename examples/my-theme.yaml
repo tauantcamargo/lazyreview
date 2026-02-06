@@ -1,0 +1,50 @@
+# Example Custom Theme for LazyReview
+# Copy this file to ~/.config/lazyreview/themes/ to use it
+#
+# Run: mkdir -p ~/.config/lazyreview/themes && cp my-theme.yaml ~/.config/lazyreview/themes/
+# Then set in config.yaml: ui.theme: "My Custom Theme"
+
+name: "My Custom Theme"
+
+# Base theme to inherit from: "dark" or "light"
+# All colors not specified below will use the base theme
+base: "dark"
+
+# Color definitions
+# Can use ANSI color codes (0-255) or hex colors (#RRGGBB or #RGB)
+colors:
+  # Diff colors
+  added: "#42ff42"           # Green for added lines
+  deleted: "#ff4242"         # Red for deleted lines
+  context: "252"             # Light gray for context
+  hunk: "#00bfff"           # Bright blue for hunk headers
+  line_no: "240"            # Dark gray for line numbers
+  file: "#ff6b6b"           # Coral for file names
+
+  # UI colors
+  accent: "#ff6b6b"         # Primary accent color (borders, highlights)
+  cursor_bg: "236"          # Background for cursor position
+  selection_bg: "235"       # Background for selected items
+  header_bg: "235"          # Header background
+  footer_bg: "235"          # Footer background
+  muted: "240"              # Muted text color
+
+  # Border colors
+  border_focused: "#ff6b6b"   # Border when panel is focused
+  border_unfocused: "240"     # Border when panel is not focused
+
+  # File tree colors
+  tree_selected_bg: "237"     # Background for selected file
+  tree_added: "#42ff42"       # Added files
+  tree_deleted: "#ff4242"     # Deleted files
+  tree_modified: "#ffaa42"    # Modified files
+  tree_renamed: "#42aaff"     # Renamed files
+  tree_dir: "75"              # Directory names
+  tree_comment: "#ffd700"     # Files with comments
+
+# Notes:
+# - All fields are optional (except name and base)
+# - Unspecified colors will inherit from the base theme
+# - ANSI 256 color reference: https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
+# - Hex colors: #RRGGBB (red, green, blue in hexadecimal)
+# - Short hex: #RGB (expands to #RRGGBB)

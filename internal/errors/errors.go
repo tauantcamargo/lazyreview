@@ -8,14 +8,24 @@ import (
 
 // ActionableError is an error that includes suggestions for how to fix it.
 type ActionableError struct {
+	Code        ErrorCode
 	Err         error
 	Message     string
 	Suggestions []string
 	HelpURL     string
+	Context     map[string]string // Context for dynamic suggestions
 }
 
 func (e *ActionableError) Error() string {
 	var sb strings.Builder
+
+	// Include error code if present
+	if e.Code != "" {
+		sb.WriteString("[")
+		sb.WriteString(string(e.Code))
+		sb.WriteString("] ")
+	}
+
 	sb.WriteString(e.Message)
 
 	if e.Err != nil {
@@ -74,115 +84,187 @@ func Wrap(err error, message string, suggestions ...string) *ActionableError {
 	}
 }
 
-// WithHelp adds a help URL to the error.
+// WithHelp adds a help URL to the error (returns new instance for immutability).
 func (e *ActionableError) WithHelp(url string) *ActionableError {
-	e.HelpURL = url
-	return e
+	return &ActionableError{
+		Code:        e.Code,
+		Err:         e.Err,
+		Message:     e.Message,
+		Suggestions: e.Suggestions,
+		HelpURL:     url,
+		Context:     e.Context,
+	}
+}
+
+// WithContext adds context data for dynamic suggestions (returns new instance for immutability).
+func (e *ActionableError) WithContext(context map[string]string) *ActionableError {
+	// Create a copy of the context map
+	contextCopy := make(map[string]string, len(context))
+	for k, v := range context {
+		contextCopy[k] = v
+	}
+
+	return &ActionableError{
+		Code:        e.Code,
+		Err:         e.Err,
+		Message:     e.Message,
+		Suggestions: e.Suggestions,
+		HelpURL:     e.HelpURL,
+		Context:     contextCopy,
+	}
+}
+
+// GetContextualSuggestions returns suggestions enhanced with context data.
+func (e *ActionableError) GetContextualSuggestions() []string {
+	suggestions := make([]string, len(e.Suggestions))
+	copy(suggestions, e.Suggestions)
+
+	// Add context-aware suggestions from registry
+	if e.Code != "" {
+		entry := GetRegistryEntry(e.Code)
+		if entry != nil && len(entry.ContextActions) > 0 {
+			for key, actionFunc := range entry.ContextActions {
+				if value, ok := e.Context[key]; ok {
+					contextSuggestion := actionFunc(value)
+					if contextSuggestion != "" {
+						// Add to the beginning if it's context-specific
+						suggestions = append([]string{contextSuggestion}, suggestions...)
+					}
+				}
+			}
+		}
+	}
+
+	return suggestions
+}
+
+// NewWithCode creates a new ActionableError with an error code.
+func NewWithCode(code ErrorCode, message string, suggestions ...string) *ActionableError {
+	err := &ActionableError{
+		Code:        code,
+		Message:     message,
+		Suggestions: suggestions,
+		Context:     make(map[string]string),
+	}
+
+	// Populate help URL from registry if available
+	if entry := GetRegistryEntry(code); entry != nil {
+		err.HelpURL = entry.HelpURL
+	}
+
+	return err
+}
+
+// WrapWithCode wraps an existing error with an error code and actionable suggestions.
+func WrapWithCode(originalErr error, code ErrorCode, message string, suggestions ...string) *ActionableError {
+	err := NewWithCode(code, message, suggestions...)
+	err.Err = originalErr
+	return err
 }
 
 // Common error constructors with built-in suggestions
 
 // AuthenticationRequired returns an error for missing authentication.
 func AuthenticationRequired(provider string) *ActionableError {
-	return &ActionableError{
-		Message: fmt.Sprintf("Not authenticated with %s", provider),
-		Suggestions: []string{
-			fmt.Sprintf("Run: lazyreview auth login --provider %s", provider),
-			"Check if your token has expired",
-			"Verify you have the required scopes/permissions",
-		},
-		HelpURL: "https://github.com/tauantcamargo/lazyreview#authentication",
-	}
+	err := NewWithCode(
+		ErrCodeAuthRequired,
+		fmt.Sprintf("Not authenticated with %s", provider),
+		fmt.Sprintf("Run: lazyreview auth login --provider %s", provider),
+		"Check if your token has expired",
+		"Verify you have the required scopes/permissions",
+	)
+	return err.WithContext(map[string]string{"provider": provider})
 }
 
 // TokenExpired returns an error for expired tokens.
 func TokenExpired(provider string) *ActionableError {
-	return &ActionableError{
-		Message: fmt.Sprintf("Token for %s has expired", provider),
-		Suggestions: []string{
-			"Generate a new personal access token",
-			fmt.Sprintf("Run: lazyreview auth login --provider %s", provider),
-			"Consider using a token with no expiration for CI/CD",
-		},
-	}
+	err := NewWithCode(
+		ErrCodeAuthTokenExpired,
+		fmt.Sprintf("Token for %s has expired", provider),
+		"Generate a new personal access token",
+		fmt.Sprintf("Run: lazyreview auth login --provider %s", provider),
+		"Consider using a token with no expiration for CI/CD",
+	)
+	return err.WithContext(map[string]string{"provider": provider})
 }
 
 // InsufficientPermissions returns an error for scope/permission issues.
 func InsufficientPermissions(provider string, requiredScopes []string) *ActionableError {
 	scopeList := strings.Join(requiredScopes, ", ")
-	return &ActionableError{
-		Message: fmt.Sprintf("Insufficient permissions for %s", provider),
-		Suggestions: []string{
-			fmt.Sprintf("Required scopes: %s", scopeList),
-			"Generate a new token with the correct scopes",
-			fmt.Sprintf("Run: lazyreview auth login --provider %s", provider),
-		},
-	}
+	err := NewWithCode(
+		ErrCodeAuthInsufficientPerms,
+		fmt.Sprintf("Insufficient permissions for %s", provider),
+		fmt.Sprintf("Required scopes: %s", scopeList),
+		"Generate a new token with the correct scopes",
+		fmt.Sprintf("Run: lazyreview auth login --provider %s", provider),
+	)
+	return err.WithContext(map[string]string{
+		"provider":        provider,
+		"required_scopes": scopeList,
+	})
 }
 
 // SAMLRequired returns an error for GitHub SAML SSO requirements.
 func SAMLRequired(org string) *ActionableError {
-	return &ActionableError{
-		Message: fmt.Sprintf("SAML SSO authorization required for organization '%s'", org),
-		Suggestions: []string{
-			"Go to: github.com/settings/tokens",
-			"Find your token and click 'Configure SSO'",
-			fmt.Sprintf("Authorize the '%s' organization", org),
-			"Restart LazyReview after authorizing",
-		},
-		HelpURL: "https://docs.github.com/en/enterprise-cloud@latest/authentication/authenticating-with-saml-single-sign-on/authorizing-a-personal-access-token-for-use-with-saml-single-sign-on",
-	}
+	err := NewWithCode(
+		ErrCodeAuthSAMLRequired,
+		fmt.Sprintf("SAML SSO authorization required for organization '%s'", org),
+		"Go to: github.com/settings/tokens",
+		"Find your token and click 'Configure SSO'",
+		fmt.Sprintf("Authorize the '%s' organization", org),
+		"Restart LazyReview after authorizing",
+	)
+	return err.WithContext(map[string]string{"org": org})
 }
 
 // RateLimitExceeded returns an error for API rate limiting.
 func RateLimitExceeded(provider string, resetTime string) *ActionableError {
-	suggestions := []string{
+	err := NewWithCode(
+		ErrCodeAPIRateLimit,
+		fmt.Sprintf("API rate limit exceeded for %s", provider),
 		"Wait for the rate limit to reset",
 		"Use caching to reduce API calls (performance.cache_ttl in config)",
-	}
+	)
+
+	context := map[string]string{"provider": provider}
 	if resetTime != "" {
-		suggestions = append(suggestions, fmt.Sprintf("Rate limit resets at: %s", resetTime))
+		context["reset_time"] = resetTime
 	}
 
-	return &ActionableError{
-		Message:     fmt.Sprintf("API rate limit exceeded for %s", provider),
-		Suggestions: suggestions,
-	}
+	return err.WithContext(context)
 }
 
 // NetworkError returns an error for network connectivity issues.
 func NetworkError(err error) *ActionableError {
-	return &ActionableError{
-		Err:     err,
-		Message: "Network connection error",
-		Suggestions: []string{
-			"Check your internet connection",
-			"Verify you can reach the provider's API",
-			"Check if you need to configure a proxy",
-			"Try again in a few moments",
-		},
-	}
+	return WrapWithCode(
+		err,
+		ErrCodeAPINetwork,
+		"Network connection error",
+		"Check your internet connection",
+		"Verify you can reach the provider's API",
+		"Check if you need to configure a proxy",
+		"Try again in a few moments",
+	)
 }
 
 // ConfigurationError returns an error for config issues.
 func ConfigurationError(message string) *ActionableError {
-	return &ActionableError{
-		Message: message,
-		Suggestions: []string{
-			"Run: lazyreview config path (to find config file)",
-			"Run: lazyreview config edit (to edit config)",
-			"Check YAML syntax is valid",
-		},
-	}
+	return NewWithCode(
+		ErrCodeConfigInvalid,
+		message,
+		"Run: lazyreview config path (to find config file)",
+		"Run: lazyreview config edit (to edit config)",
+		"Check YAML syntax is valid",
+	)
 }
 
 // ProviderNotSupported returns an error for unsupported providers.
 func ProviderNotSupported(provider string) *ActionableError {
-	return &ActionableError{
-		Message: fmt.Sprintf("Provider '%s' is not supported", provider),
-		Suggestions: []string{
-			"Supported providers: github, gitlab, bitbucket, azuredevops",
-			"Check spelling and try again",
-		},
-	}
+	err := NewWithCode(
+		ErrCodeConfigProviderNotFound,
+		fmt.Sprintf("Provider '%s' is not supported", provider),
+		"Supported providers: github, gitlab, bitbucket, azuredevops",
+		"Check spelling and try again",
+	)
+	return err.WithContext(map[string]string{"provider": provider})
 }

@@ -23,10 +23,10 @@ LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/l
 - **Local Git Integration** - Auto-detect repo, show branch status, checkout PR branch
 - **Comments & Threads** - Reply, edit, delete, resolve, preview, and jump to comment lines
 - **Timeline Sidebar** - Compact PR activity timeline (reviews and comment activity)
-- **Theme Presets** - Switch between `auto`, `darcula`, `tokyonight`, `gruvbox`, and `catppuccin` in Settings
+- **Theme Presets** - Switch between `lazygit`, `auto`, `darcula`, `tokyonight`, `gruvbox`, and `catppuccin` in Settings
 - **In-App Setup** - Configure provider tokens, switch active provider, and choose AI provider/key from Settings
 - **CLI AI Setup** - Configure AI provider/key from terminal (`lazyreview ai login/status/logout`)
-- **AI-Assisted Review** - Run AI review on the current file and submit approve/request changes/comment
+- **AI-Assisted Review** - Run AI review on the current file, preview the result, and manually post a review comment
 - **Range Selection** - Select multiple lines in the diff and comment on the whole block
 - **Secure Authentication** - Tokens stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
 - **Cross-Platform** - Linux, macOS, and Windows binaries available
@@ -160,7 +160,10 @@ lazyreview ai status
 | `z` | Resolve selected thread (provider support varies) |
 | `i` | Toggle full comment preview pane |
 | `Enter` (comments panel) | Jump to comment location in diff |
-| `A` | AI review (current file) |
+| `A` | AI review (preview) |
+| `p` / `Enter` (AI preview) | Post AI review comment |
+| `e` (AI preview) | Edit AI review comment |
+| `Esc` (AI preview) | Discard AI review |
 | `O` | Open selected file in `$EDITOR` |
 | `V` | Select range (multi-line comment) |
 | `Shift+c` | Checkout PR branch |

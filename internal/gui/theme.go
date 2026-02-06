@@ -28,11 +28,52 @@ type uiTheme struct {
 }
 
 func availableThemes() []string {
-	return []string{"auto", "darcula", "tokyonight", "gruvbox", "catppuccin"}
+	return []string{"auto", "lazygit", "darcula", "tokyonight", "gruvbox", "catppuccin", "high-contrast"}
+}
+
+// AvailableThemesWithCustom returns all available themes including custom ones
+func AvailableThemesWithCustom(loader *ThemeLoader) []string {
+	builtIn := availableThemes()
+	custom := []string{}
+
+	if loader != nil {
+		custom = loader.ListCustomThemes()
+	}
+
+	all := make([]string, 0, len(builtIn)+len(custom))
+	all = append(all, builtIn...)
+	all = append(all, custom...)
+
+	return all
 }
 
 func resolveTheme(name string) uiTheme {
 	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "lazygit":
+		return uiTheme{
+			Name:            "lazygit",
+			Added:           "42",
+			Deleted:         "196",
+			Context:         "252",
+			Hunk:            "75",
+			LineNo:          "240",
+			File:            "81",
+			CursorBg:        "236",
+			SelectionBg:     "238",
+			TreeSelectedBg:  "237",
+			TreeAdded:       "42",
+			TreeDeleted:     "196",
+			TreeModified:    "214",
+			TreeRenamed:     "81",
+			TreeDir:         "81",
+			TreeComment:     "220",
+			Accent:          "81",
+			HeaderBg:        "236",
+			FooterBg:        "236",
+			BorderFocused:   "81",
+			BorderUnfocused: "239",
+			Muted:           "245",
+		}
 	case "darcula":
 		return uiTheme{
 			Name:            "darcula",
@@ -133,6 +174,8 @@ func resolveTheme(name string) uiTheme {
 			BorderUnfocused: "241",
 			Muted:           "246",
 		}
+	case "high-contrast":
+		return HighContrastTheme()
 	default:
 		return uiTheme{
 			Name:            "auto",
