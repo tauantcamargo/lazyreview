@@ -14,6 +14,7 @@
   },
   "devDependencies": {
     "@testing-library/react": "^15.0.0",
+    "ink-testing-library": "^4.0.0",
     "jsdom": "^28.0.0"
   }
 }

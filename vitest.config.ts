@@ -9,6 +9,8 @@ export default defineConfig({
     environmentMatchGlobs: [
       // Use jsdom for UI package tests (React hooks/components)
       ['packages/ui/**/*.{test,spec}.{ts,tsx}', 'jsdom'],
+      // Use jsdom for CLI React hook tests
+      ['apps/cli/**/*.{test,spec}.{ts,tsx}', 'jsdom'],
     ],
     coverage: {
       provider: 'v8',
