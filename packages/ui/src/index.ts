@@ -32,6 +32,14 @@ export { NotificationBadge } from './components/NotificationBadge';
 export type { NotificationBadgeProps } from './components/NotificationBadge';
 export { Toast, ToastContainer } from './components/Toast';
 export type { ToastProps, ToastItem, ToastContainerProps, ToastType } from './components/Toast';
+export { ProgressBar } from './components/ProgressBar';
+export type { ProgressBarProps } from './components/ProgressBar';
+export { Tabs, TabPanel } from './components/Tabs';
+export type { Tab, TabsProps, TabPanelProps } from './components/Tabs';
+export { SearchInput } from './components/SearchInput';
+export type { SearchInputProps } from './components/SearchInput';
+export { Breadcrumb } from './components/Breadcrumb';
+export type { BreadcrumbItem, BreadcrumbProps } from './components/Breadcrumb';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
