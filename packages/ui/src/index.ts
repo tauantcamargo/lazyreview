@@ -68,6 +68,12 @@ export { Tree, FileTreeView, TreeItem } from './components/Tree';
 export type { TreeProps, TreeNode, FileTreeNode, FileTreeViewProps, TreeItemProps } from './components/Tree';
 export { Avatar, AvatarGroup, UserBadge, ReviewerList, AuthorInfo } from './components/Avatar';
 export type { AvatarProps, AvatarGroupProps, UserBadgeProps, ReviewerListProps, AuthorInfoProps } from './components/Avatar';
+export { SyntaxHighlight, CodeBlock, InlineCode, DiffCode, detectLanguage } from './components/SyntaxHighlight';
+export type { SyntaxHighlightProps, CodeBlockProps, InlineCodeProps, DiffCodeProps } from './components/SyntaxHighlight';
+export { Markdown, MarkdownPreview, PRDescription, CommentBody } from './components/Markdown';
+export type { MarkdownProps, MarkdownPreviewProps, PRDescriptionProps, CommentBodyProps } from './components/Markdown';
+export { Shortcuts, KeyLegend, ChordIndicator, ModeIndicator, QuickActions, VimKeys, CommandHint, ShortcutOverlay } from './components/Shortcuts';
+export type { ShortcutsProps, ShortcutDef, KeyLegendProps, ChordIndicatorProps, ModeIndicatorProps, QuickActionsProps, VimKeysProps, CommandHintProps, ShortcutOverlayProps } from './components/Shortcuts';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
