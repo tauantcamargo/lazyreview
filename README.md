@@ -10,6 +10,12 @@
 
 LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/lazygit) to code reviews. Navigate, review, and manage pull requests across GitHub, GitLab, Bitbucket, and Azure DevOps - all from your terminal with vim-style keybindings.
 
+## Elevator Pitch
+
+Rant time: Code review in a browser is a tax on your attention. Tabs everywhere, tiny diff tools, endless scrolling, and four different workflows for four different providers. Want to leave a comment on a hunk without losing your place? Or just approve a PR quickly? It shouldn’t be this hard.
+
+LazyReview is a fast, keyboard-driven terminal UI for reviewing pull requests across GitHub, GitLab, Bitbucket, and Azure DevOps. If you’re tired of the web UI maze, LazyReview is the escape hatch.
+
 ## Features
 
 - **Multi-Provider Support** - GitHub, GitLab, Bitbucket, Azure DevOps (cloud & self-hosted)
