@@ -15,3 +15,5 @@ export * from './use-async';
 export * from './use-key-handler';
 export * from './use-pagination';
 export * from './use-history';
+export * from './use-window';
+export * from './use-storage';
