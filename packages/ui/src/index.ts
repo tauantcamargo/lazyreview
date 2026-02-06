@@ -60,6 +60,8 @@ export { Tooltip, KeyHint, KeyHintGroup, InfoBox, HotkeyList } from './component
 export type { TooltipProps, TooltipPosition, KeyHintProps, KeyHintGroupProps, InfoBoxProps, HotkeyListProps } from './components/Tooltip';
 export { EmptyState, PresetEmptyState, LoadingState, ErrorState, SuccessState, Placeholder } from './components/EmptyState';
 export type { EmptyStateProps, EmptyStateType, PresetEmptyStateProps, LoadingStateProps, ErrorStateProps, SuccessStateProps, PlaceholderProps } from './components/EmptyState';
+export { Select, MultiSelect, RadioGroup, Toggle, Dropdown } from './components/Select';
+export type { SelectProps, SelectOption, MultiSelectProps, RadioGroupProps, ToggleProps, DropdownProps } from './components/Select';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
