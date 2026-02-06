@@ -23,3 +23,4 @@ export * from './use-file-review';
 export * from './use-notifications';
 export * from './use-ai-review';
 export * from './use-offline-queue';
+export * from './use-config';
