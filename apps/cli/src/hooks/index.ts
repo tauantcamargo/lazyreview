@@ -21,3 +21,4 @@ export * from './use-git';
 export * from './use-diff';
 export * from './use-file-review';
 export * from './use-notifications';
+export * from './use-ai-review';
