@@ -18,3 +18,5 @@ export * from './use-history';
 export * from './use-window';
 export * from './use-storage';
 export * from './use-git';
+export * from './use-diff';
+export * from './use-file-review';
