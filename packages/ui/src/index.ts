@@ -50,6 +50,8 @@ export { PRListItem, PRListHeader } from './components/PRListItem';
 export type { PRListItemProps, PRListHeaderProps, PRStatus, ReviewStatus } from './components/PRListItem';
 export { Timeline, TimelineItem } from './components/Timeline';
 export type { TimelineProps, TimelineItemProps, TimelineEvent, TimelineEventType } from './components/Timeline';
+export { Modal, ModalActions, ModalButton, AlertModal, ConfirmModal, PromptModal } from './components/Modal';
+export type { ModalProps, ModalActionsProps, ModalButtonProps, AlertModalProps, ConfirmModalProps, PromptModalProps } from './components/Modal';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
