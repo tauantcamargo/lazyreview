@@ -6,6 +6,9 @@
   "bin": {
     "lazyreview": "dist/index.js"
   },
+  "scripts": {
+    "build": "tsup"
+  },
   "dependencies": {
     "@lazyreview/core": "workspace:*",
     "@lazyreview/storage": "workspace:*",

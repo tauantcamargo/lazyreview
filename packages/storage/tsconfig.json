@@ -4,8 +4,5 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "references": [
-    { "path": "../platform" }
-  ],
-  "include": ["src"]
+  "include": ["src/**/*.ts"]
 }
