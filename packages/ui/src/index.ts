@@ -52,6 +52,10 @@ export { Timeline, TimelineItem } from './components/Timeline';
 export type { TimelineProps, TimelineItemProps, TimelineEvent, TimelineEventType } from './components/Timeline';
 export { Modal, ModalActions, ModalButton, AlertModal, ConfirmModal, PromptModal } from './components/Modal';
 export type { ModalProps, ModalActionsProps, ModalButtonProps, AlertModalProps, ConfirmModalProps, PromptModalProps } from './components/Modal';
+export { Table, SimpleTable } from './components/Table';
+export type { TableProps, TableColumn, SimpleTableProps } from './components/Table';
+export { Badge, StatusBadge, LabelBadge, CountBadge, TagList } from './components/Badge';
+export type { BadgeProps, BadgeVariant, StatusBadgeProps, LabelBadgeProps, CountBadgeProps, TagListProps } from './components/Badge';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
