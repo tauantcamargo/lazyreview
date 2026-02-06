@@ -42,6 +42,7 @@ type KeyMap struct {
 	ToggleCommentPreview key.Binding
 	DraftSummary         key.Binding
 	AIReview             key.Binding
+	RegenerateSummary    key.Binding
 	Update               key.Binding
 	OpenBrowser          key.Binding
 	OpenEditor           key.Binding
@@ -125,6 +126,7 @@ func DefaultKeyMap(vimMode bool) KeyMap {
 			ToggleCommentPreview: key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "toggle comment preview")),
 			DraftSummary:         key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "draft summary")),
 			AIReview:             key.NewBinding(key.WithKeys("A", "ctrl+a"), key.WithHelp("A/ctrl+a", "ai review")),
+			RegenerateSummary:    key.NewBinding(key.WithKeys("shift+s"), key.WithHelp("shift+s", "regenerate summary")),
 			Update:               key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "update")),
 			OpenBrowser:          key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open in browser")),
 			OpenEditor:           key.NewBinding(key.WithKeys("O"), key.WithHelp("O", "open in editor")),
@@ -259,6 +261,10 @@ func DefaultKeyMap(vimMode bool) KeyMap {
 		AIReview: key.NewBinding(
 			key.WithKeys("A", "ctrl+a"),
 			key.WithHelp("A/ctrl+a", "ai review"),
+		),
+		RegenerateSummary: key.NewBinding(
+			key.WithKeys("shift+s"),
+			key.WithHelp("shift+s", "regenerate summary"),
 		),
 		Update: key.NewBinding(
 			key.WithKeys("U"),

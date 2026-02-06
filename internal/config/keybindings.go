@@ -5,6 +5,7 @@ type KeybindingsConfig struct {
 	Navigation NavigationKeys `mapstructure:"navigation"`
 	Actions    ActionKeys     `mapstructure:"actions"`
 	Global     GlobalKeys     `mapstructure:"global"`
+	Chords     ChordsConfig   `mapstructure:"chords"`
 }
 
 // NavigationKeys defines vim-style navigation keybindings
@@ -76,6 +77,32 @@ func DefaultKeybindings() KeybindingsConfig {
 			NextPanel: "tab",
 			PrevPanel: "shift+tab",
 		},
+		Chords: DefaultChords(),
+	}
+}
+
+// DefaultChords returns the default chord configuration
+func DefaultChords() ChordsConfig {
+	return ChordsConfig{
+		Enabled: true,
+		Timeout: 500,
+		Sequences: []ChordSequence{
+			{
+				Keys:        []string{"g", "g"},
+				Action:      "goto_top",
+				Description: "Go to top",
+			},
+			{
+				Keys:        []string{"g", "c"},
+				Action:      "general_comment",
+				Description: "Add general comment",
+			},
+			{
+				Keys:        []string{"g", "r"},
+				Action:      "refresh",
+				Description: "Refresh current view",
+			},
+		},
 	}
 }
 
@@ -87,10 +114,22 @@ type Keybinding struct {
 	Contexts    []string // Empty means global
 }
 
-// KeySequence represents a multi-key sequence like "gg"
-type KeySequence struct {
-	Keys        []string
-	Description string
-	Handler     func() error
-	Timeout     int // milliseconds to wait for next key
+// ChordsConfig holds chord (multi-key sequence) configuration
+type ChordsConfig struct {
+	// Enabled controls whether chord support is enabled (default: true in vim mode)
+	Enabled bool `mapstructure:"enabled"`
+	// Timeout is the milliseconds to wait for the next key in a sequence (default: 500)
+	Timeout int `mapstructure:"timeout"`
+	// Sequences is the list of configured chord sequences
+	Sequences []ChordSequence `mapstructure:"sequences"`
+}
+
+// ChordSequence represents a multi-key sequence like "gg"
+type ChordSequence struct {
+	// Keys is the sequence of keys (e.g., ["g", "g"])
+	Keys []string `mapstructure:"keys"`
+	// Action is the action identifier this chord triggers
+	Action string `mapstructure:"action"`
+	// Description is a human-readable description
+	Description string `mapstructure:"description"`
 }

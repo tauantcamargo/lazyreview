@@ -28,7 +28,23 @@ type uiTheme struct {
 }
 
 func availableThemes() []string {
-	return []string{"auto", "lazygit", "darcula", "tokyonight", "gruvbox", "catppuccin"}
+	return []string{"auto", "lazygit", "darcula", "tokyonight", "gruvbox", "catppuccin", "high-contrast"}
+}
+
+// AvailableThemesWithCustom returns all available themes including custom ones
+func AvailableThemesWithCustom(loader *ThemeLoader) []string {
+	builtIn := availableThemes()
+	custom := []string{}
+
+	if loader != nil {
+		custom = loader.ListCustomThemes()
+	}
+
+	all := make([]string, 0, len(builtIn)+len(custom))
+	all = append(all, builtIn...)
+	all = append(all, custom...)
+
+	return all
 }
 
 func resolveTheme(name string) uiTheme {
@@ -158,6 +174,8 @@ func resolveTheme(name string) uiTheme {
 			BorderUnfocused: "241",
 			Muted:           "246",
 		}
+	case "high-contrast":
+		return HighContrastTheme()
 	default:
 		return uiTheme{
 			Name:            "auto",

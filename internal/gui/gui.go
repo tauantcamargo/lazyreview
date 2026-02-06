@@ -70,6 +70,7 @@ const (
 	DetailSidebarComments
 	DetailSidebarTimeline
 	DetailSidebarDescription
+	DetailSidebarSummary
 )
 
 // ViewMode represents the current sidebar view mode
@@ -178,6 +179,12 @@ type summaryDraftMsg struct {
 	err     error
 }
 
+type prSummaryMsg struct {
+	summary *components.PRSummary
+	prID    string
+	err     error
+}
+
 type providerSwitchResultMsg struct {
 	provider providers.Provider
 	label    string
@@ -262,23 +269,25 @@ const queueSyncInterval = time.Minute
 
 // Model is the main application model
 type Model struct {
-	config      *config.Config
-	width       int
-	height      int
-	activePanel Panel
-	mode        Mode
-	viewState   ViewState
-	sidebar     components.List
-	content     components.List
-	fileTree    components.FileTree
-	diffViewer  components.DiffViewer
-	textInput   components.TextInput
-	help        components.Help
-	keyMap      KeyMap
-	keySeq      *KeySequence
-	showHelp    bool
-	ready       bool
-	statusMsg   string
+	config        *config.Config
+	width         int
+	height        int
+	activePanel   Panel
+	mode          Mode
+	viewState     ViewState
+	sidebar       components.List
+	content       components.List
+	prVirtualList components.VirtualList // Virtual list for PR views (high performance)
+	fileTree      components.FileTree
+	diffViewer    components.DiffViewer
+	textInput     components.TextInput
+	help          components.Help
+	keyMap        KeyMap
+	keySeq        *KeySequence             // Legacy key sequence tracker
+	chordHandler  *components.ChordHandler // New chord handler
+	showHelp      bool
+	ready         bool
+	statusMsg     string
 
 	// Workspace storage and views
 	storage             storage.Storage
@@ -327,6 +336,13 @@ type Model struct {
 	unfocusedBorder string
 	mutedColor      string
 
+	// Status indicators
+	indicators components.IndicatorSet
+
+	// Breadcrumb navigation
+	breadcrumb      *components.Breadcrumb
+	currentFileName string // Currently selected file in diff view
+
 	// Detail view sidebar mode
 	detailSidebarMode DetailSidebarMode
 
@@ -349,6 +365,9 @@ type Model struct {
 	filterPaletteVisible   bool
 	pendingAIReview        *ai.ReviewResponse
 	pendingAIReviewPath    string
+	prSummary              *components.PRSummary
+	prSummaryCache         map[string]*components.PRSummary // keyed by "owner/repo#number"
+	costEstimator          *ai.CostEstimator
 
 	// File review tracking (keyed by "owner/repo#number:filepath")
 	reviewedFiles map[string]bool
@@ -377,6 +396,9 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 
 	// Create content panel (initially empty)
 	content := components.NewList("Pull Requests", []list.Item{}, 50, 20)
+
+	// Create virtual list for PR views (high performance for large lists)
+	prVirtualList := components.NewVirtualList("Pull Requests", []list.Item{}, 50, 20)
 
 	// Create file tree (for PR detail view)
 	fileTree := components.NewFileTree(30, 20)
@@ -436,6 +458,29 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		aiModel = "gpt-4o-mini"
 	}
 
+	// Initialize indicators based on config
+	unicodeMode := components.UnicodeMode(cfg.UI.UnicodeMode)
+	indicators := components.GetIndicators(unicodeMode)
+
+	// Initialize chord handler from config
+	chordTimeout := time.Duration(cfg.Keybindings.Chords.Timeout) * time.Millisecond
+	if chordTimeout == 0 {
+		chordTimeout = 500 * time.Millisecond
+	}
+	chordConfigs := make([]components.ChordConfig, len(cfg.Keybindings.Chords.Sequences))
+	for i, seq := range cfg.Keybindings.Chords.Sequences {
+		chordConfigs[i] = components.ChordConfig{
+			Keys:        seq.Keys,
+			Action:      seq.Action,
+			Description: seq.Description,
+		}
+	}
+	chordHandler := components.NewChordHandler(chordTimeout, chordConfigs)
+
+	// Initialize breadcrumb navigation (colors will be set by applyTheme)
+	breadcrumbStyles := components.DefaultBreadcrumbStyles("170", "240")
+	breadcrumb := components.NewBreadcrumb(80, breadcrumbStyles) // Width will be adjusted on resize
+
 	model := Model{
 		config:                 cfg,
 		provider:               provider,
@@ -454,9 +499,11 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		currentTheme:           cfg.UI.Theme,
 		vimMode:                cfg.UI.VimMode,
 		editorCommand:          strings.TrimSpace(cfg.UI.Editor),
+		indicators:             indicators,
 		commentPreviewExpanded: true,
 		sidebar:                sidebar,
 		content:                content,
+		prVirtualList:          prVirtualList,
 		fileTree:               fileTree,
 		diffViewer:             diffViewer,
 		commentsList:           commentsList,
@@ -468,6 +515,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		help:                   components.NewHelp(),
 		keyMap:                 DefaultKeyMap(cfg.UI.VimMode),
 		keySeq:                 NewKeySequence(),
+		chordHandler:           chordHandler,
 		workspaceManager:       workspaceManager,
 		repoSelector:           repoSelector,
 		workspaceTabs:          workspaceTabs,
@@ -480,7 +528,11 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 		prDiffCache:            prDiffCache,
 		prCommentsCache:        prCommentsCache,
 		prReviewsCache:         prReviewsCache,
+		prSummary:              components.NewPRSummary(),
+		prSummaryCache:         make(map[string]*components.PRSummary),
 		reviewedFiles:          make(map[string]bool),
+		breadcrumb:             breadcrumb,
+		currentFileName:        "",
 		isLoading:              true,
 		loadingMessage:         "Loading your pull requests...",
 		spinner:                s,
@@ -489,6 +541,7 @@ func New(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	model.applyVimMode(cfg.UI.VimMode)
 	model.loadPersistedUISettings()
 	model.loadPersistedAISettings()
+	model.initCostEstimator(cfg)
 	return model
 }
 
@@ -535,14 +588,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.filterPaletteVisible = false
 				if item.ID() == "saved_filter:clear" {
-					m.content.ResetFilter()
+					m.resetContentFilter()
 					m.statusMsg = "Filter cleared"
 					return m, nil
 				}
 				name := strings.TrimPrefix(item.ID(), "saved_filter:")
 				for _, filter := range m.savedFilters {
 					if filter.Name == name {
-						_ = m.content.SetFilterText(filter.Query)
+						_ = m.setContentFilterText(filter.Query)
 						m.statusMsg = fmt.Sprintf("Filter applied: %s", filter.Name)
 						return m, nil
 					}
@@ -609,16 +662,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Track key sequence for multi-key bindings like "gg"
+		// Handle keyboard chords if enabled
 		keyStr := msg.String()
-		m.keySeq.Add(keyStr)
+		if m.config.Keybindings.Chords.Enabled && m.vimMode {
+			action, consumed, isPending := m.chordHandler.HandleKey(msg)
 
-		// Check for "gg" sequence (go to top) in vim mode
-		if m.vimMode && m.keySeq.IsSequence("g", "g") {
-			m.keySeq.Reset()
-			m.goToTop()
-			return m, nil
+			// If a chord is complete, execute the action
+			if action != "" {
+				return m.handleChordAction(action)
+			}
+
+			// If the key was consumed as part of a potential chord, don't process further
+			if consumed && isPending {
+				return m, nil
+			}
+
+			// If not consumed, fall through to regular key handling
 		}
+
+		// Legacy key sequence handling (kept for compatibility)
+		m.keySeq.Add(keyStr)
 
 		if m.viewState == ViewList {
 			switch keyStr {
@@ -684,7 +747,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if m.activePanel == PanelContent {
 				m.activePanel = PanelSidebar
 				m.sidebar.Focus()
-				m.content.Blur()
+				m.blurContentPanel()
 			}
 			return m, nil
 
@@ -715,7 +778,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							if alreadyLoaded {
 								// Just move focus to content panel, don't reload
 								m.activePanel = PanelContent
-								m.content.Focus()
+								m.focusContentPanel()
 								m.sidebar.Blur()
 								return m, nil
 							}
@@ -725,7 +788,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 					m.activePanel = PanelContent
-					m.content.Focus()
+					m.focusContentPanel()
 					m.sidebar.Blur()
 				} else if m.activePanel == PanelContent {
 					// Enter PR detail view
@@ -766,15 +829,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keyMap.Back):
-			// Go back from detail view to list view
-			if m.viewState == ViewDetail {
-				m.viewState = ViewList
-				m.activePanel = PanelContent
-				m.currentPR = nil
-				m.currentDiff = nil
-				m.currentFiles = nil
-			}
-			return m, nil
+			// Navigate up one level based on breadcrumb
+			return m.navigateUpLevel(), nil
 
 		case key.Matches(msg, m.keyMap.Bottom):
 			m.goToBottom()
@@ -810,6 +866,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else if m.detailSidebarMode == DetailSidebarTimeline {
 					m.detailSidebarMode = DetailSidebarDescription
 					m.statusMsg = "Description panel"
+				} else if m.detailSidebarMode == DetailSidebarDescription {
+					m.detailSidebarMode = DetailSidebarSummary
+					m.statusMsg = "AI Summary panel"
 				} else {
 					m.detailSidebarMode = DetailSidebarFiles
 					m.statusMsg = "Files panel"
@@ -1015,6 +1074,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loadingMessage = "Generating review summary draft..."
 			return m, m.generateSummaryDraft()
 
+		case key.Matches(msg, m.keyMap.RegenerateSummary):
+			if m.inWorkspaceView() {
+				break
+			}
+			if m.viewState != ViewDetail || m.currentPR == nil || m.currentDiff == nil {
+				m.statusMsg = "Summary: Open a PR diff first"
+				return m, nil
+			}
+			// Clear cache for current PR to force regeneration
+			prID := m.getPRCacheKey()
+			if prID != "" {
+				delete(m.prSummaryCache, prID)
+			}
+			m.prSummary = components.NewLoadingPRSummary()
+			m.isLoading = true
+			m.loadingMessage = "Regenerating AI summary..."
+			return m, m.generatePRSummary()
+
 		case key.Matches(msg, m.keyMap.AIReview):
 			return m.handleAIReviewShortcut()
 
@@ -1155,7 +1232,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keyMap.SaveFilter):
 			if m.viewState == ViewList && m.activePanel == PanelContent {
-				query := strings.TrimSpace(m.content.FilterValue())
+				query := strings.TrimSpace(m.getContentFilterValue())
 				if query == "" {
 					m.statusMsg = "Save filter: create a list filter first with /"
 					return m, nil
@@ -1199,35 +1276,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items := []list.Item{
 				components.NewSimpleItem("empty", "No pull requests found", "Select 'My PRs' from sidebar to see PRs from all repos"),
 			}
-			contentWidth := m.width - 44
-			contentHeight := m.height - 6
-			m.content = components.NewList("Pull Requests", items, contentWidth, contentHeight)
+			_ = m.prVirtualList.SetItems(items)
 			return m, nil
 		}
 
-		// Convert PRs to list items
-		items := make([]list.Item, len(msg.prs))
-		for i, pr := range msg.prs {
-			// Build status indicators
-			statusIcons := ""
-			if ci := checksStatusIcon(pr.ChecksStatus); ci != "" {
-				statusIcons += ci + " "
-			}
-			if rv := reviewDecisionIcon(pr.ReviewDecision); rv != "" {
-				statusIcons += rv + " "
-			}
-			if pr.IsDraft {
-				statusIcons += "◌ "
-			}
-			title := fmt.Sprintf("#%d: %s", pr.Number, pr.Title)
-			labels := formatLabels(pr.Labels, 2)
-			relTime := formatRelativeTime(pr.UpdatedAt)
-			desc := fmt.Sprintf("%sby %s • %s • %s%s", statusIcons, pr.Author.Login, relTime, pr.State, labels)
-			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
-		}
-		contentWidth := m.width - 44
-		contentHeight := m.height - 6
-		m.content = components.NewList("Pull Requests", items, contentWidth, contentHeight)
+		// Convert PRs to list items using virtual list for performance
+		items := buildPRListItemsWithIndicators(msg.prs, false, m.indicators) // false = single repo view
+		_ = m.prVirtualList.SetItems(items)
 		m.statusMsg = fmt.Sprintf("Loaded %d pull requests", len(msg.prs))
 		return m, nil
 
@@ -1277,36 +1332,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items := []list.Item{
 				components.NewSimpleItem("empty", emptyMsg, helpTip),
 			}
-			contentWidth := m.width - 44
-			contentHeight := m.height - 6
-			m.content = components.NewList("Pull Requests", items, contentWidth, contentHeight)
+			_ = m.prVirtualList.SetItems(items)
 			return m, nil
 		}
 
-		// Convert PRs to list items
-		items := make([]list.Item, len(prs))
-		for i, pr := range prs {
-			// Build status indicators
-			statusIcons := ""
-			if ci := checksStatusIcon(pr.ChecksStatus); ci != "" {
-				statusIcons += ci + " "
-			}
-			if rv := reviewDecisionIcon(pr.ReviewDecision); rv != "" {
-				statusIcons += rv + " "
-			}
-			if pr.IsDraft {
-				statusIcons += "◌ "
-			}
-			title := fmt.Sprintf("#%d %s", pr.Number, pr.Title)
-			labels := formatLabels(pr.Labels, 2)
-			relTime := formatRelativeTime(pr.UpdatedAt)
-			// Include repo name since these are from multiple repos
-			desc := fmt.Sprintf("%s%s/%s • by %s • %s • %s%s", statusIcons, pr.Repository.Owner, pr.Repository.Name, pr.Author.Login, relTime, pr.State, labels)
-			items[i] = components.NewSimpleItem(fmt.Sprintf("%d", pr.Number), title, desc)
-		}
-		contentWidth := m.width - 44
-		contentHeight := m.height - 6
-		m.content = components.NewList("Pull Requests", items, contentWidth, contentHeight)
+		// Convert PRs to list items using virtual list for performance
+		// true = multi-repo view (include repo names)
+		items := buildPRListItemsWithIndicators(prs, true, m.indicators)
+		_ = m.prVirtualList.SetItems(items)
 		m.statusMsg = fmt.Sprintf("Loaded %d pull requests", len(prs))
 		return m, nil
 
@@ -1333,6 +1366,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.diffViewer.SetDiff(msg.diff)
 		m.isLoading = false
 		m.statusMsg = fmt.Sprintf("Loaded diff (+%d -%d)", msg.diff.Additions, msg.diff.Deletions)
+
+		// Auto-generate PR summary when diff loads (if not already cached)
+		prID := m.getPRCacheKey()
+		if prID != "" {
+			if _, exists := m.prSummaryCache[prID]; !exists {
+				// Set loading state for summary
+				m.prSummary = components.NewLoadingPRSummary()
+				return m, m.generatePRSummary()
+			}
+			// Load from cache
+			if cachedSummary, exists := m.prSummaryCache[prID]; exists {
+				m.prSummary = cachedSummary
+			}
+		}
 		return m, nil
 
 	case prCommentsMsg:
@@ -1530,11 +1577,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadingMessage = ""
 		if msg.err != nil {
 			m.lastError = msg.err
-			m.statusMsg = fmt.Sprintf("Update failed: %s", msg.err.Error())
+			// Provide helpful error messages
+			if errors.Is(msg.err, updater.ErrHomebrewInstallation) {
+				m.statusMsg = "Update via Homebrew: brew upgrade lazyreview"
+			} else if errors.Is(msg.err, updater.ErrAlreadyLatest) {
+				m.statusMsg = "Already running the latest version"
+			} else if errors.Is(msg.err, updater.ErrUnsupportedPlatform) {
+				m.statusMsg = "Auto-update not supported on this platform"
+			} else {
+				m.statusMsg = fmt.Sprintf("Update failed: %s", msg.err.Error())
+			}
 			return m, nil
 		}
 		if msg.result.Updated {
-			m.statusMsg = fmt.Sprintf("Updated to %s. Restart LazyReview.", msg.result.Version)
+			m.statusMsg = fmt.Sprintf("✓ Updated to %s. Restart LazyReview to use new version.", msg.result.Version)
 		} else {
 			m.statusMsg = "Update complete. Restart LazyReview."
 		}
@@ -1566,6 +1622,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.reviewDraft = msg.summary
 		m.statusMsg = "Review summary draft ready (press v to edit/post)"
+		return m, nil
+
+	case prSummaryMsg:
+		m.isLoading = false
+		m.loadingMessage = ""
+		if msg.err != nil {
+			m.lastError = msg.err
+			m.prSummary = components.NewErrorPRSummary(msg.err.Error())
+			m.statusMsg = fmt.Sprintf("PR summary failed: %s", msg.err.Error())
+			return m, nil
+		}
+		m.prSummary = msg.summary
+		// Cache the summary
+		if msg.prID != "" {
+			m.prSummaryCache[msg.prID] = msg.summary
+		}
+		m.statusMsg = "PR summary generated"
 		return m, nil
 
 	case commentSubmitMsg:
@@ -1713,8 +1786,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.repoSelector, cmd = m.repoSelector.Update(msg)
 				case ViewModeDashboard:
 					m.dashboard, cmd = m.dashboard.Update(msg)
-				default:
+				case ViewModeSettings:
+					// Settings view uses regular list
 					m.content, cmd = m.content.Update(msg)
+				default:
+					// PR list views use virtual list for performance
+					m.prVirtualList, cmd = m.prVirtualList.Update(msg)
 				}
 				cmds = append(cmds, cmd)
 			}
@@ -1727,6 +1804,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.timelineList, cmd = m.timelineList.Update(msg)
 				} else if m.detailSidebarMode == DetailSidebarDescription {
 					m.descriptionView, cmd = m.descriptionView.Update(msg)
+				} else if m.detailSidebarMode == DetailSidebarSummary {
+					// Summary panel doesn't need updates (read-only)
+					cmd = nil
 				} else {
 					m.fileTree, cmd = m.fileTree.Update(msg)
 					if selectedPath := m.fileTree.SelectedPath(); selectedPath != "" {
@@ -1852,15 +1932,25 @@ func (m Model) View() string {
 			headerText = "LazyReview - Code Review TUI"
 		}
 	} else if m.currentPR != nil {
-		// Build review status indicator
-		reviewStatus := ""
-		switch m.currentPR.ReviewDecision {
-		case models.ReviewDecisionApproved:
-			reviewStatus = " ✓"
-		case models.ReviewDecisionChangesRequsted:
-			reviewStatus = " ⚠"
-		case models.ReviewDecisionPending, models.ReviewDecisionReviewRequired:
-			reviewStatus = " ⏳"
+		// Build status indicators using configured mode
+		var statusIndicators []string
+
+		if rv := m.indicators.ReviewDecisionIndicator(m.currentPR.ReviewDecision); rv != "" {
+			statusIndicators = append(statusIndicators, rv)
+		}
+		if ci := m.indicators.ChecksStatusIndicator(m.currentPR.ChecksStatus); ci != "" {
+			statusIndicators = append(statusIndicators, ci)
+		}
+		if draft := m.indicators.DraftIndicator(m.currentPR.IsDraft); draft != "" {
+			statusIndicators = append(statusIndicators, draft)
+		}
+		if conflict := m.indicators.ConflictIndicator(m.currentPR.MergeableState); conflict != "" {
+			statusIndicators = append(statusIndicators, conflict)
+		}
+
+		statusText := ""
+		if len(statusIndicators) > 0 {
+			statusText = " " + strings.Join(statusIndicators, " ")
 		}
 
 		// Build stats summary
@@ -1881,12 +1971,6 @@ func (m Model) View() string {
 			stats += fmt.Sprintf(" +%d/-%d", m.currentPR.Additions, m.currentPR.Deletions)
 		}
 
-		// Add draft indicator
-		draftIndicator := ""
-		if m.currentPR.IsDraft {
-			draftIndicator = " [DRAFT]"
-		}
-
 		// Add assignees info
 		assignees := ""
 		if len(m.currentPR.Assignees) > 0 {
@@ -1901,14 +1985,27 @@ func (m Model) View() string {
 			assignees = fmt.Sprintf(" | @%s", strings.Join(names, ", @"))
 		}
 
-		headerText = fmt.Sprintf("LazyReview - PR #%d%s%s: %s%s%s", m.currentPR.Number, reviewStatus, draftIndicator, m.currentPR.Title, stats, assignees)
+		headerText = fmt.Sprintf("LazyReview - PR #%d%s: %s%s%s", m.currentPR.Number, statusText, m.currentPR.Title, stats, assignees)
 	} else {
 		headerText = "LazyReview - PR Details"
 	}
 	if gitStatus := formatGitStatus(m.gitBranchStatus); gitStatus != "" {
 		headerText = fmt.Sprintf("%s | %s", headerText, gitStatus)
 	}
-	header := headerStyle.Render(headerText)
+
+	// Update and render breadcrumb
+	m.updateBreadcrumb()
+	m.breadcrumb.SetMaxWidth(m.width - 4) // Leave some padding
+	breadcrumbView := m.breadcrumb.Render()
+
+	// Combine header text and breadcrumb
+	var headerContent string
+	if breadcrumbView != "" {
+		headerContent = lipgloss.JoinVertical(lipgloss.Left, headerText, breadcrumbView)
+	} else {
+		headerContent = headerText
+	}
+	header := headerStyle.Render(headerContent)
 
 	tabsView := ""
 	if m.tabsVisible() {
@@ -1933,8 +2030,12 @@ func (m Model) View() string {
 			rawContent = m.repoSelector.View()
 		case ViewModeDashboard:
 			rawContent = m.dashboard.View()
-		default:
+		case ViewModeSettings:
+			// Settings view uses regular list (not virtual)
 			rawContent = m.content.View()
+		default:
+			// PR list views use virtual list for high performance
+			rawContent = m.prVirtualList.View()
 		}
 
 		if m.activePanel == PanelContent {
@@ -1964,6 +2065,9 @@ func (m Model) View() string {
 			sidebarContent = m.timelineList.View()
 		} else if m.detailSidebarMode == DetailSidebarDescription {
 			sidebarContent = m.descriptionView.View()
+		} else if m.detailSidebarMode == DetailSidebarSummary {
+			styles := components.DefaultPRSummaryStyles()
+			sidebarContent = m.prSummary.Render(m.width/4, styles)
 		}
 		if m.activePanel == PanelFiles {
 			fileTreeView = focusedStyle.Render(sidebarContent)
@@ -2066,12 +2170,12 @@ func (m *Model) switchPanel() {
 	if m.viewState == ViewList {
 		if m.activePanel == PanelSidebar {
 			m.activePanel = PanelContent
-			m.content.Focus()
+			m.focusContentPanel()
 			m.sidebar.Blur()
 		} else {
 			m.activePanel = PanelSidebar
 			m.sidebar.Focus()
-			m.content.Blur()
+			m.blurContentPanel()
 		}
 	} else {
 		// Detail view
@@ -2092,7 +2196,7 @@ func (m *Model) focusDetailSidebar() {
 		m.commentsList.Focus()
 		m.fileTree.Blur()
 		m.timelineList.Blur()
-	} else if m.detailSidebarMode == DetailSidebarDescription {
+	} else if m.detailSidebarMode == DetailSidebarDescription || m.detailSidebarMode == DetailSidebarSummary {
 		m.fileTree.Blur()
 		m.commentsList.Blur()
 		m.timelineList.Blur()
@@ -2221,9 +2325,58 @@ func (m *Model) renderHelpOverlay() string {
 	return boxStyle.Render(content)
 }
 
+// focusContentPanel focuses the appropriate content panel based on current view mode
+func (m *Model) focusContentPanel() {
+	if m.currentViewMode == ViewModeSettings {
+		m.content.Focus()
+	} else {
+		m.prVirtualList.Focus()
+	}
+}
+
+// blurContentPanel blurs the appropriate content panel based on current view mode
+func (m *Model) blurContentPanel() {
+	if m.currentViewMode == ViewModeSettings {
+		m.content.Blur()
+	} else {
+		m.prVirtualList.Blur()
+	}
+}
+
+// getContentFilterValue returns the current filter value from the appropriate content panel
+func (m *Model) getContentFilterValue() string {
+	if m.currentViewMode == ViewModeSettings {
+		return m.content.FilterValue()
+	}
+	return m.prVirtualList.FilterValue()
+}
+
+// resetContentFilter resets the filter on the appropriate content panel
+func (m *Model) resetContentFilter() {
+	if m.currentViewMode == ViewModeSettings {
+		m.content.ResetFilter()
+	} else {
+		m.prVirtualList.ResetFilter()
+	}
+}
+
+// setContentFilterText sets the filter text on the appropriate content panel
+func (m *Model) setContentFilterText(query string) tea.Cmd {
+	if m.currentViewMode == ViewModeSettings {
+		return m.content.SetFilterText(query)
+	}
+	return m.prVirtualList.SetFilterText(query)
+}
+
 func (m *Model) enterDetailView() tea.Cmd {
-	// Get the selected PR from the content list
-	selectedItem := m.content.SelectedItem()
+	// Get the selected PR from the virtual list (used for PR views)
+	var selectedItem list.Item
+	if m.currentViewMode == ViewModeSettings {
+		selectedItem = m.content.SelectedItem()
+	} else {
+		selectedItem = m.prVirtualList.SelectedItem()
+	}
+
 	if selectedItem == nil {
 		m.statusMsg = "No PR selected"
 		return nil
@@ -2333,6 +2486,7 @@ func (m *Model) exitDetailView() {
 	m.comments = nil
 	m.reviews = nil
 	m.reviewDraft = ""
+	m.prSummary = components.NewPRSummary()
 	m.diffViewer.SetComments(nil)
 	m.commentsList.SetItems(nil)
 	m.timelineList.SetItems(nil)
@@ -2341,6 +2495,46 @@ func (m *Model) exitDetailView() {
 	m.timelineTargets = map[string]timelineJumpTarget{}
 	m.statusMsg = ""
 	m.applyLayout(m.width, m.height)
+}
+
+// navigateUpLevel navigates up one level in the breadcrumb hierarchy
+func (m *Model) navigateUpLevel() tea.Model {
+	if m.breadcrumb == nil {
+		// Fallback to old behavior if breadcrumb not initialized
+		if m.viewState == ViewDetail {
+			m.exitDetailView()
+		}
+		return *m
+	}
+
+	// Determine what action to take based on current state
+	if m.viewState == ViewDetail {
+		// In detail view
+		if m.currentFileName != "" {
+			// Level 4: File -> go back to file list
+			m.currentFileName = ""
+			m.activePanel = PanelFiles
+		} else if m.detailSidebarMode != DetailSidebarFiles {
+			// Level 3: Detail mode (Comments/Timeline/etc) -> go back to Files
+			m.detailSidebarMode = DetailSidebarFiles
+			m.focusDetailSidebar()
+		} else {
+			// Level 2: PR detail -> go back to PR list
+			m.exitDetailView()
+		}
+	} else if m.viewState == ViewList {
+		// In list view
+		if m.currentPR != nil {
+			// Shouldn't happen, but clear current PR if set
+			m.currentPR = nil
+		} else {
+			// Already at top level, switch to sidebar
+			m.activePanel = PanelSidebar
+			m.statusMsg = "At top level"
+		}
+	}
+
+	return *m
 }
 
 func (m *Model) goToTop() {
@@ -2371,6 +2565,50 @@ func (m *Model) pageUp() {
 
 func (m *Model) pageDown() {
 	// Move down a full page
+}
+
+// handleChordAction handles the execution of keyboard chord actions
+func (m *Model) handleChordAction(action string) (tea.Model, tea.Cmd) {
+	switch action {
+	case "goto_top":
+		m.goToTop()
+		return *m, nil
+
+	case "general_comment":
+		// Open general comment input (same as pressing 'C')
+		if m.viewState == ViewDetail && m.currentPR != nil {
+			m.textInput.Show(components.TextInputGeneralComment, "Add General Comment", "")
+			m.textInput.SetSize(m.width-20, m.height-10)
+			return *m, nil
+		}
+		m.statusMsg = "General comment only available in PR detail view"
+		return *m, nil
+
+	case "refresh":
+		// Refresh current view (same as pressing 'R')
+		if m.currentViewMode == ViewModeDashboard {
+			m.isLoading = true
+			m.loadingMessage = "Refreshing dashboard..."
+			return *m, m.fetchDashboard()
+		}
+		if m.viewState == ViewList {
+			m.isLoading = true
+			m.loadingMessage = "Refreshing pull requests..."
+			m.statusMsg = "Refreshing..."
+			owner := m.gitOwner
+			repo := m.gitRepo
+			if owner == "" || repo == "" {
+				owner = "golang"
+				repo = "go"
+			}
+			return *m, tea.Batch(m.fetchPRListCached(owner, repo), m.fetchGitStatus())
+		}
+		return *m, nil
+
+	default:
+		m.statusMsg = fmt.Sprintf("Unknown chord action: %s", action)
+		return *m, nil
+	}
 }
 
 func (m *Model) submitComment() (tea.Model, tea.Cmd) {
@@ -2717,6 +2955,86 @@ func (m *Model) clearPendingAIReview() {
 	m.pendingAIReviewPath = ""
 }
 
+func (m *Model) generatePRSummary() tea.Cmd {
+	if m.currentPR == nil || m.currentDiff == nil {
+		return nil
+	}
+
+	// Check cache first
+	prID := m.getPRCacheKey()
+	if cachedSummary, exists := m.prSummaryCache[prID]; exists && !cachedSummary.IsEmpty {
+		return func() tea.Msg {
+			return prSummaryMsg{summary: cachedSummary, prID: prID}
+		}
+	}
+
+	if m.aiProvider == nil {
+		return func() tea.Msg {
+			return prSummaryMsg{err: errors.New("AI provider not configured")}
+		}
+	}
+
+	provider := m.aiProvider
+	diff := m.currentDiff
+	files := m.currentFiles
+	title := m.currentPR.Title
+	body := m.currentPR.Body
+	estimator := m.costEstimator
+
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Build prompt for PR summary
+		prompt := buildPRSummaryPrompt(title, body, diff, files)
+
+		req := ai.ReviewRequest{
+			FilePath: "PR_SUMMARY",
+			Diff:     prompt,
+		}
+
+		// Show cost estimate if available
+		if estimator != nil {
+			estimate, err := estimator.EstimateCost(
+				m.aiProviderName,
+				m.aiModel,
+				prompt,
+				500, // Estimated output tokens for summary
+			)
+			if err == nil && estimate.TotalCost > 0 {
+				// Check if cost exceeds threshold
+				exceeded, warning, msg := estimator.CheckThresholds(ctx)
+				if exceeded {
+					return prSummaryMsg{err: errors.New(msg)}
+				}
+				if warning {
+					// Log warning but continue
+					_ = msg
+				}
+			}
+		}
+
+		// Generate summary
+		resp, err := provider.Review(ctx, req)
+		if err != nil {
+			return prSummaryMsg{err: err, prID: prID}
+		}
+
+		// Record cost if estimator is available
+		if estimator != nil {
+			// Estimate tokens (rough approximation)
+			inputTokens := len(prompt) / 4
+			outputTokens := len(resp.Comment) / 4
+			_ = estimator.RecordCost(ctx, m.aiProviderName, m.aiModel, inputTokens, outputTokens)
+		}
+
+		// Parse the response into structured summary
+		summary := components.ParseSummaryResponse(resp.Comment)
+
+		return prSummaryMsg{summary: summary, prID: prID}
+	}
+}
+
 func (m *Model) generateSummaryDraft() tea.Cmd {
 	if m.currentPR == nil || m.currentDiff == nil {
 		return nil
@@ -2749,6 +3067,77 @@ func (m *Model) generateSummaryDraft() tea.Cmd {
 		}
 		return summaryDraftMsg{summary: manual}
 	}
+}
+
+func (m *Model) getPRCacheKey() string {
+	if m.currentPR == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s/%s#%d",
+		m.currentPR.Repository.Owner,
+		m.currentPR.Repository.Name,
+		m.currentPR.Number,
+	)
+}
+
+func buildPRSummaryPrompt(title, body string, diff *models.Diff, files []models.FileChange) string {
+	var prompt strings.Builder
+
+	prompt.WriteString("Generate a structured PR summary in the following format:\n\n")
+	prompt.WriteString("## Purpose\n")
+	prompt.WriteString("[Brief description of what this PR does]\n\n")
+	prompt.WriteString("## Key Changes\n")
+	prompt.WriteString("- [Change 1]\n")
+	prompt.WriteString("- [Change 2]\n")
+	prompt.WriteString("- [Change 3]\n\n")
+	prompt.WriteString("## Risk Assessment\n")
+	prompt.WriteString("🟢 Low / 🟡 Medium / 🔴 High\n")
+	prompt.WriteString("[Brief explanation of risk level]\n\n")
+	prompt.WriteString("---\n\n")
+
+	prompt.WriteString(fmt.Sprintf("PR Title: %s\n\n", title))
+
+	if body != "" {
+		prompt.WriteString(fmt.Sprintf("PR Description:\n%s\n\n", truncateText(body, 500)))
+	}
+
+	// Add file context
+	prompt.WriteString(fmt.Sprintf("Files Changed: %d\n", len(files)))
+	testFiles := 0
+	prodFiles := 0
+	for _, file := range files {
+		if isTestFile(file.Filename) {
+			testFiles++
+		} else {
+			prodFiles++
+		}
+	}
+	prompt.WriteString(fmt.Sprintf("- Production files: %d\n", prodFiles))
+	prompt.WriteString(fmt.Sprintf("- Test files: %d\n\n", testFiles))
+
+	// Add diff excerpt
+	prompt.WriteString("Code Changes (excerpt):\n")
+	prompt.WriteString(buildDiffExcerpt(diff))
+
+	return prompt.String()
+}
+
+func isTestFile(path string) bool {
+	lowerPath := strings.ToLower(path)
+	return strings.Contains(lowerPath, "_test.") ||
+		strings.Contains(lowerPath, ".test.") ||
+		strings.Contains(lowerPath, "/test/") ||
+		strings.Contains(lowerPath, "/tests/") ||
+		strings.Contains(lowerPath, "__tests__") ||
+		strings.HasSuffix(lowerPath, ".spec.ts") ||
+		strings.HasSuffix(lowerPath, ".spec.js")
+}
+
+func truncateText(text string, maxLen int) string {
+	if len(text) <= maxLen {
+		return text
+	}
+	return text[:maxLen] + "..."
 }
 
 func (m *Model) runUpdate() tea.Cmd {
@@ -3925,6 +4314,7 @@ func (m *Model) applyLayout(width, height int) {
 	// List view components
 	m.sidebar.SetSize(sidebarWidth, panelHeight)
 	m.content.SetSize(contentWidth, panelHeight)
+	m.prVirtualList.SetSize(contentWidth, panelHeight)
 	m.workspaceManager.SetSize(contentWidth, panelHeight)
 	m.repoSelector.SetSize(contentWidth, panelHeight)
 	m.dashboard.SetSize(contentWidth, panelHeight)
@@ -4435,6 +4825,7 @@ func (m *Model) applyTheme(themeName string) {
 	}
 	m.sidebar.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
 	m.content.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
+	m.prVirtualList.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
 	m.commentsList.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
 	m.timelineList.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
 	m.filterPalette.SetThemeColors(theme.Accent, theme.Muted, theme.SelectionBg, theme.HeaderBg)
@@ -4463,6 +4854,11 @@ func (m *Model) applyTheme(themeName string) {
 		theme.CursorBg,
 		theme.SelectionBg,
 	)
+	// Update breadcrumb styles
+	if m.breadcrumb != nil {
+		breadcrumbStyles := components.DefaultBreadcrumbStyles(theme.Accent, theme.Muted)
+		*m.breadcrumb = *components.NewBreadcrumb(m.breadcrumb.Depth(), breadcrumbStyles)
+	}
 }
 
 func (m *Model) applyVimMode(enabled bool) {
@@ -4470,6 +4866,7 @@ func (m *Model) applyVimMode(enabled bool) {
 	m.keyMap = DefaultKeyMap(enabled)
 	m.sidebar.SetVimMode(enabled)
 	m.content.SetVimMode(enabled)
+	m.prVirtualList.SetVimMode(enabled)
 	m.commentsList.SetVimMode(enabled)
 	m.timelineList.SetVimMode(enabled)
 	m.filterPalette.SetVimMode(enabled)
@@ -4485,6 +4882,52 @@ func (m *Model) applyVimMode(enabled bool) {
 		}
 		_ = m.storage.SetSetting("ui.vim_mode", value)
 	}
+}
+
+// updateBreadcrumb updates the breadcrumb trail based on current navigation state
+func (m *Model) updateBreadcrumb() {
+	if m.breadcrumb == nil {
+		return
+	}
+
+	viewMode := string(m.currentViewMode)
+	owner := m.gitOwner
+	repo := m.gitRepo
+	prNumber := 0
+	prTitle := ""
+	detailMode := ""
+	fileName := m.currentFileName
+
+	if m.currentPR != nil {
+		prNumber = m.currentPR.Number
+		prTitle = m.currentPR.Title
+		// Use PR's repo if available (for cross-repo views)
+		if m.currentPR.Repository.Owner != "" {
+			owner = m.currentPR.Repository.Owner
+		}
+		if m.currentPR.Repository.Name != "" {
+			repo = m.currentPR.Repository.Name
+		}
+	}
+
+	if m.viewState == ViewDetail {
+		// Convert detail sidebar mode to string
+		switch m.detailSidebarMode {
+		case DetailSidebarFiles:
+			detailMode = "Files"
+		case DetailSidebarComments:
+			detailMode = "Comments"
+		case DetailSidebarTimeline:
+			detailMode = "Timeline"
+		case DetailSidebarDescription:
+			detailMode = "Description"
+		case DetailSidebarSummary:
+			detailMode = "Summary"
+		}
+	}
+
+	segments := components.BuildBreadcrumbPath(viewMode, owner, repo, prNumber, prTitle, detailMode, fileName)
+	m.breadcrumb.SetSegments(segments)
 }
 
 func (m *Model) configuredProviderOptions() []config.ProviderConfig {
@@ -4836,6 +5279,35 @@ func (m *Model) loadPersistedAISettings() {
 		m.aiProviderName = "none"
 	}
 	_ = m.reloadAIProvider()
+}
+
+func (m *Model) initCostEstimator(cfg *config.Config) {
+	// Initialize cost estimator with database in config directory
+	configDir, err := config.ConfigDir()
+	if err != nil {
+		m.statusMsg = fmt.Sprintf("Failed to get config directory: %s", err.Error())
+		return
+	}
+
+	dbPath := filepath.Join(configDir, "ai_costs.db")
+
+	warningThreshold := cfg.AI.CostWarningThreshold
+	if warningThreshold == 0 {
+		warningThreshold = 10.0 // Default $10
+	}
+
+	monthlyLimit := cfg.AI.CostMonthlyLimit
+	if monthlyLimit == 0 {
+		monthlyLimit = 50.0 // Default $50
+	}
+
+	estimator, err := ai.NewCostEstimator(dbPath, warningThreshold, monthlyLimit)
+	if err != nil {
+		// Log error but don't fail initialization
+		m.statusMsg = fmt.Sprintf("Failed to initialize cost estimator: %s", err.Error())
+	} else {
+		m.costEstimator = estimator
+	}
 }
 
 func (m *Model) loadPersistedUISettings() {
@@ -5310,31 +5782,19 @@ func defaultWorkspaceOrder(workspaces []storage.Workspace) []string {
 }
 
 // checksStatusIcon returns an icon representing the CI/check status
+// Deprecated: Use Model.indicators.ChecksStatusIndicator instead
 func checksStatusIcon(status models.ChecksStatus) string {
-	switch status {
-	case models.ChecksStatusPassing:
-		return "✓"
-	case models.ChecksStatusFailing:
-		return "✗"
-	case models.ChecksStatusPending:
-		return "○"
-	default:
-		return ""
-	}
+	// Fallback to auto-detect mode for backward compatibility
+	indicators := components.GetIndicators(components.UnicodeModeAuto)
+	return indicators.ChecksStatusIndicator(status)
 }
 
 // reviewDecisionIcon returns an icon representing the review decision
+// Deprecated: Use Model.indicators.ReviewDecisionIndicator instead
 func reviewDecisionIcon(decision models.ReviewDecision) string {
-	switch decision {
-	case models.ReviewDecisionApproved:
-		return "👍"
-	case models.ReviewDecisionChangesRequsted:
-		return "⚠"
-	case models.ReviewDecisionReviewRequired:
-		return "👀"
-	default:
-		return ""
-	}
+	// Fallback to auto-detect mode for backward compatibility
+	indicators := components.GetIndicators(components.UnicodeModeAuto)
+	return indicators.ReviewDecisionIndicator(decision)
 }
 
 // formatLabels returns a compact string of PR labels (max 3)
@@ -5437,4 +5897,41 @@ func Run(cfg *config.Config, provider providers.Provider, authService *auth.Serv
 	}
 
 	return nil
+}
+
+
+// refreshPRList refreshes the current PR list view
+func (m *Model) refreshPRList() tea.Cmd {
+	m.isLoading = true
+	m.loadingMessage = "Refreshing pull requests..."
+	m.statusMsg = "Refreshing..."
+
+	// Use detected owner/repo or default
+	owner := m.gitOwner
+	repo := m.gitRepo
+	if owner == "" || repo == "" {
+		owner = "golang"
+		repo = "go"
+	}
+
+	return tea.Batch(m.fetchPRListCached(owner, repo), m.fetchGitStatus())
+}
+
+// refreshPRDetail refreshes the current PR detail view
+func (m *Model) refreshPRDetail() tea.Cmd {
+	if m.currentPR == nil {
+		m.statusMsg = "No PR to refresh"
+		return nil
+	}
+
+	m.isLoading = true
+	m.loadingMessage = fmt.Sprintf("Refreshing PR #%d...", m.currentPR.Number)
+
+	owner, repo := m.resolvePRRepo()
+	return tea.Batch(
+		m.fetchPRDetailCached(owner, repo, m.currentPR.Number),
+		m.fetchPRFilesCached(owner, repo, m.currentPR.Number),
+		m.fetchPRCommentsCached(owner, repo, m.currentPR.Number),
+		m.fetchPRReviewsCached(owner, repo, m.currentPR.Number),
+	)
 }
