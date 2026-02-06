@@ -10,6 +10,10 @@ export { StatusBar } from './components/StatusBar';
 export type { KeyBinding, StatusBarProps } from './components/StatusBar';
 export { CommandPalette } from './components/CommandPalette';
 export type { Command, CommandPaletteProps } from './components/CommandPalette';
+export { Spinner } from './components/Spinner';
+export type { SpinnerProps } from './components/Spinner';
+export { ErrorMessage } from './components/ErrorMessage';
+export type { ErrorMessageProps } from './components/ErrorMessage';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
