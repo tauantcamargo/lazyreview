@@ -10,3 +10,39 @@ profiles/
 *.prof
 *.out
 benchmark-*.txt
+
+# Node / TypeScript
+node_modules/
+dist/
+apps/**/dist/
+packages/**/dist/
+*.tsbuildinfo
+.turbo/
+.cache/
+
+# Testing
+coverage/
+.vitest/
+
+# Build
+*.generated.ts
+!packages/core/src/providers/**/*.generated.ts
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local

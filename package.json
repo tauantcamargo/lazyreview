@@ -1,0 +1,55 @@
+{
+  "name": "lazyreview",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "tsx apps/cli/src/index.ts",
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false",
+    "build:cli": "tsc -p apps/cli/tsconfig.json",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "bench": "tsx benchmarks/virtual-list.bench.ts",
+    "generate:types": "tsx scripts/generate-types.ts",
+    "user-stories:verify": "tsx scripts/verify-user-stories.ts",
+    "ralph": "bun run scripts/ralph/runner.ts",
+    "pkg": "pkg -t node20-macos-x64,node20-macos-arm64,node20-linux-x64,node20-linux-arm64,node20-win-x64 apps/cli/dist/index.js -o dist/lazyreview",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@tanstack/eslint-plugin-query": "^5.50.0",
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.66",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "husky": "^9.0.0",
+    "openapi-typescript": "^7.0.0",
+    "pkg": "^5.8.1",
+    "prettier": "^3.2.0",
+    "tinybench": "^2.5.1",
+    "tsx": "^4.15.2",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0",
+    "zod": "^3.24.1"
+  },
+  "pkg": {
+    "assets": [
+      "node_modules/better-sqlite3/build/Release/*.node",
+      "node_modules/keytar/build/Release/*.node",
+      "apps/cli/dist/workers/*.js"
+    ]
+  }
+}

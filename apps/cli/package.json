@@ -1,0 +1,24 @@
+{
+  "name": "@lazyreview/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "lazyreview": "dist/index.js"
+  },
+  "dependencies": {
+    "@lazyreview/core": "workspace:*",
+    "@lazyreview/storage": "workspace:*",
+    "@lazyreview/ui": "workspace:*",
+    "@tanstack/react-query": "^5.50.0",
+    "axios": "^1.7.0",
+    "commander": "^12.1.0",
+    "ink": "^5.0.0",
+    "react": "^18.2.0",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^15.0.0",
+    "ink-testing-library": "^4.0.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@lazyreview/platform",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "keytar": "^7.9.0"
+  }
+}
