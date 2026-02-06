@@ -14,3 +14,4 @@ export * from './use-debounce';
 export * from './use-async';
 export * from './use-key-handler';
 export * from './use-pagination';
+export * from './use-history';

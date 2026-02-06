@@ -13,7 +13,8 @@ const PROVIDERS_DIR = path.join(__dirname, '..', 'packages', 'core', 'src', 'pro
 
 // OpenAPI spec URLs for each provider
 const OPENAPI_SPECS = {
-  github: 'https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.yaml',
+  github:
+    'https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.yaml',
   // GitLab doesn't have a single OpenAPI spec, types are maintained manually
   // gitlab: 'manual',
   // Bitbucket and Azure DevOps specs are not publicly available in a single file

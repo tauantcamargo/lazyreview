@@ -17,6 +17,16 @@ import {
   getTheme,
   themes,
   defaultTheme,
+  Spinner,
+  ErrorMessage,
+  Dashboard,
+  DashboardSection,
+  DashboardItem,
+  HelpPanel,
+  HelpSection,
+  ConfirmDialog,
+  PRDetail,
+  PRDetailData,
 } from '@lazyreview/ui';
 import { LazyReviewStorage } from '@lazyreview/storage';
 import { processDiff } from './utils/diffWorker';
@@ -71,7 +81,7 @@ export type AppProps = {
   repo?: string;
 };
 
-type ViewMode = 'list' | 'diff' | 'files' | 'settings' | 'ai';
+type ViewMode = 'dashboard' | 'list' | 'diff' | 'files' | 'settings' | 'ai' | 'detail' | 'help';
 type PanelFocus = 'sidebar' | 'main' | 'detail';
 
 function buildSamplePRs(count: number): VirtualListItem[] {
@@ -140,6 +150,81 @@ function mapPullRequests(prs: PullRequest[]): VirtualListItem[] {
   }));
 }
 
+function buildDashboardSections(prs: PullRequest[]): DashboardSection[] {
+  const needsReview: DashboardItem[] = [];
+  const myPrs: DashboardItem[] = [];
+  const recentlyUpdated: DashboardItem[] = [];
+
+  for (const pr of prs) {
+    const item: DashboardItem = {
+      id: pr.id,
+      repo: pr.repo,
+      title: `#${pr.number} ${pr.title}`,
+      author: pr.author,
+      status: pr.state === 'open' ? 'open' : pr.state === 'merged' ? 'merged' : 'closed',
+      updatedAt: pr.updatedAt,
+    };
+
+    // Simple categorization - could be enhanced with user context
+    if (pr.state === 'open') {
+      needsReview.push(item);
+    }
+    recentlyUpdated.push(item);
+  }
+
+  return [
+    {
+      id: 'needs-review',
+      title: 'Needs Review',
+      items: needsReview.slice(0, 10),
+      emptyMessage: 'No PRs need your review',
+    },
+    {
+      id: 'recent',
+      title: 'Recently Updated',
+      items: recentlyUpdated.slice(0, 10),
+      emptyMessage: 'No recent activity',
+    },
+  ];
+}
+
+function buildHelpSections(): HelpSection[] {
+  return [
+    {
+      title: 'Navigation',
+      bindings: [
+        { key: 'j/↓', description: 'Move down' },
+        { key: 'k/↑', description: 'Move up' },
+        { key: 'gg', description: 'Go to top', chord: true },
+        { key: 'G', description: 'Go to bottom' },
+        { key: 'Ctrl+d', description: 'Page down' },
+        { key: 'Ctrl+u', description: 'Page up' },
+        { key: 'Tab', description: 'Next panel' },
+      ],
+    },
+    {
+      title: 'Actions',
+      bindings: [
+        { key: 'Enter', description: 'Select/Open' },
+        { key: 's', description: 'AI Summary' },
+        { key: 'A', description: 'AI Review' },
+        { key: 'f', description: 'View files' },
+        { key: 'gr', description: 'Refresh', chord: true },
+      ],
+    },
+    {
+      title: 'View',
+      bindings: [
+        { key: 'Ctrl+b', description: 'Toggle sidebar' },
+        { key: 'Ctrl+p', description: 'Command palette' },
+        { key: 't', description: 'Theme settings' },
+        { key: '?', description: 'Toggle help' },
+        { key: 'q/Esc', description: 'Back/Quit' },
+      ],
+    },
+  ];
+}
+
 function parseRepo(input: string, provider: ProviderType): { owner: string; repo: string } {
   const parts = input.split('/');
   if (provider === 'azuredevops') {
@@ -167,11 +252,16 @@ export function App({ provider, repo }: AppProps): JSX.Element {
   const width = stdout?.columns ?? 80;
   const height = stdout?.rows ?? 24;
 
-  const [view, setView] = useState<ViewMode>('list');
+  const [view, setView] = useState<ViewMode>('dashboard');
   const [focus, setFocus] = useState<PanelFocus>('main');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showHelp, setShowHelp] = useState(false);
+  const [dashboardSections, setDashboardSections] = useState<DashboardSection[]>([]);
+  const [selectedDashboardSection, setSelectedDashboardSection] = useState(0);
+  const [selectedDashboardItem, setSelectedDashboardItem] = useState(0);
+  const helpSections = useMemo(() => buildHelpSections(), []);
 
   const sampleItems = useMemo(() => buildSamplePRs(100), []);
   const sidebarItems = useMemo(() => buildSampleSidebarItems(), []);
@@ -313,6 +403,59 @@ export function App({ provider, repo }: AppProps): JSX.Element {
       return;
     }
 
+    // Toggle help
+    if (input === '?') {
+      setShowHelp((s) => !s);
+      return;
+    }
+
+    // Close help panel on escape or q
+    if (showHelp && (key.escape || input === 'q')) {
+      setShowHelp(false);
+      return;
+    }
+
+    // Dashboard navigation
+    if (view === 'dashboard') {
+      if (input === 'j' || key.downArrow) {
+        const currentSection = dashboardSections[selectedDashboardSection];
+        if (currentSection && selectedDashboardItem < currentSection.items.length - 1) {
+          setSelectedDashboardItem((i) => i + 1);
+        } else if (selectedDashboardSection < dashboardSections.length - 1) {
+          setSelectedDashboardSection((s) => s + 1);
+          setSelectedDashboardItem(0);
+        }
+        return;
+      }
+      if (input === 'k' || key.upArrow) {
+        if (selectedDashboardItem > 0) {
+          setSelectedDashboardItem((i) => i - 1);
+        } else if (selectedDashboardSection > 0) {
+          const prevSection = dashboardSections[selectedDashboardSection - 1];
+          setSelectedDashboardSection((s) => s - 1);
+          setSelectedDashboardItem(prevSection ? prevSection.items.length - 1 : 0);
+        }
+        return;
+      }
+      if (key.return) {
+        const section = dashboardSections[selectedDashboardSection];
+        const item = section?.items[selectedDashboardItem];
+        if (item) {
+          // Find the PR and switch to list view
+          const prIndex = pullRequests.findIndex((pr) => pr.id === item.id);
+          if (prIndex >= 0) {
+            setSelectedIndex(prIndex);
+            setView('diff');
+          }
+        }
+        return;
+      }
+      if (input === 'l' || input === 'q' || key.escape) {
+        setView('list');
+        return;
+      }
+    }
+
     // Try chord first
     if (handleChord(input)) {
       return;
@@ -416,6 +559,19 @@ export function App({ provider, repo }: AppProps): JSX.Element {
     async function loadData() {
       if (!repo) {
         setItems(sampleItems);
+        // Build demo dashboard sections
+        const demoDashboardItems: DashboardItem[] = sampleItems.slice(0, 10).map((item, idx) => ({
+          id: item.id,
+          repo: `demo/repo-${(idx % 3) + 1}`,
+          title: item.title,
+          author: 'demouser',
+          status: 'open' as const,
+          updatedAt: new Date(Date.now() - idx * 3600000).toISOString(),
+        }));
+        setDashboardSections([
+          { id: 'demo-review', title: 'Needs Review', items: demoDashboardItems.slice(0, 5), emptyMessage: 'No PRs' },
+          { id: 'demo-recent', title: 'Recently Updated', items: demoDashboardItems.slice(5, 10), emptyMessage: 'No activity' },
+        ]);
         setStatus('ready');
         setDemoMode(true);
         setPullRequests([]);
@@ -467,6 +623,7 @@ export function App({ provider, repo }: AppProps): JSX.Element {
           if (active) {
             setPullRequests(prs);
             setItems(mapPullRequests(prs));
+            setDashboardSections(buildDashboardSections(prs));
             setStatus('ready');
           }
           if (active) {
@@ -496,6 +653,15 @@ export function App({ provider, repo }: AppProps): JSX.Element {
   const listHeight = contentHeight - detailHeight;
 
   const statusBindings = useMemo(() => {
+    if (view === 'dashboard') {
+      return [
+        { key: 'j/k', label: 'move' },
+        { key: 'Enter', label: 'open' },
+        { key: 'l', label: 'list' },
+        { key: '?', label: 'help' },
+        { key: 'q', label: 'quit' },
+      ];
+    }
     if (view === 'list') {
       return [
         { key: 'j/k', label: 'move' },
@@ -551,6 +717,23 @@ export function App({ provider, repo }: AppProps): JSX.Element {
         </Box>
       )}
 
+      {/* Help Panel Overlay */}
+      {showHelp && (
+        <Box
+          position="absolute"
+          marginLeft={Math.floor((width - 50) / 2)}
+          marginTop={2}
+        >
+          <HelpPanel
+            sections={helpSections}
+            width={50}
+            height={Math.min(height - 6, 24)}
+            theme={theme}
+            onClose={() => setShowHelp(false)}
+          />
+        </Box>
+      )}
+
       {/* Main Content */}
       <Box flexDirection="row" height={contentHeight}>
         {/* Sidebar */}
@@ -573,7 +756,31 @@ export function App({ provider, repo }: AppProps): JSX.Element {
 
         {/* Main Panel */}
         <Box flexDirection="column" width={mainWidth}>
-          {view === 'settings' ? (
+          {view === 'dashboard' ? (
+            status === 'loading' ? (
+              <Box paddingX={1} height={contentHeight}>
+                <Spinner label="Loading pull requests..." theme={theme} />
+              </Box>
+            ) : status === 'error' ? (
+              <Box paddingX={1} height={contentHeight}>
+                <ErrorMessage
+                  title="Failed to load"
+                  message={errorMessage ?? 'Unknown error'}
+                  suggestion="Check your network connection and authentication"
+                  theme={theme}
+                />
+              </Box>
+            ) : (
+              <Dashboard
+                sections={dashboardSections}
+                selectedSection={selectedDashboardSection}
+                selectedItem={selectedDashboardItem}
+                width={mainWidth}
+                height={contentHeight}
+                theme={theme}
+              />
+            )
+          ) : view === 'settings' ? (
             <VirtualList
               title="Themes"
               items={themeItems}
@@ -597,9 +804,14 @@ export function App({ provider, repo }: AppProps): JSX.Element {
               </Text>
               <Box marginTop={1}>
                 {aiStatus === 'loading' ? (
-                  <Text color={theme.muted}>Generating...</Text>
+                  <Spinner label={`Generating ${aiMode}...`} theme={theme} />
                 ) : aiStatus === 'error' ? (
-                  <Text color={theme.removed}>{aiError ?? 'AI request failed'}</Text>
+                  <ErrorMessage
+                    title="AI Generation Failed"
+                    message={aiError ?? 'Unknown error'}
+                    suggestion="Check your AI provider configuration"
+                    theme={theme}
+                  />
                 ) : aiEditing ? (
                   <Text>{aiDraft || ' '}</Text>
                 ) : (
@@ -621,13 +833,17 @@ export function App({ provider, repo }: AppProps): JSX.Element {
               }}
             />
           ) : status === 'loading' ? (
-            <Box paddingX={1}>
-              <Text color={theme.accent}>Loading pull requests...</Text>
+            <Box paddingX={1} height={contentHeight}>
+              <Spinner label="Loading pull requests..." theme={theme} />
             </Box>
           ) : status === 'error' ? (
-            <Box flexDirection="column" paddingX={1}>
-              <Text color={theme.removed}>Failed to load pull requests.</Text>
-              {errorMessage && <Text color={theme.muted}>{errorMessage}</Text>}
+            <Box paddingX={1} height={contentHeight}>
+              <ErrorMessage
+                title="Failed to load pull requests"
+                message={errorMessage ?? 'Unknown error occurred'}
+                suggestion="Check your network connection and try again"
+                theme={theme}
+              />
             </Box>
           ) : view === 'list' ? (
             <Box flexDirection="column">
@@ -698,7 +914,7 @@ export function App({ provider, repo }: AppProps): JSX.Element {
         bindings={statusBindings}
         chordBuffer={chordState.buffer}
         pendingChords={chordState.pendingChords}
-        rightText={`${view === 'list' ? 'PR List' : view === 'diff' ? 'Diff' : view === 'files' ? 'Files' : view === 'ai' ? 'AI' : 'Settings'}${demoMode ? ' • Demo' : ''}`}
+        rightText={`${view === 'dashboard' ? 'Dashboard' : view === 'list' ? 'PR List' : view === 'diff' ? 'Diff' : view === 'files' ? 'Files' : view === 'ai' ? 'AI' : 'Settings'}${demoMode ? ' • Demo' : ''}`}
         theme={theme}
         width={width}
       />
