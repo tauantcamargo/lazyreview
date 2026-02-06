@@ -11,5 +11,9 @@
   "dependencies": {
     "ink": "^5.0.0",
     "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^15.0.0",
+    "jsdom": "^28.0.0"
   }
 }

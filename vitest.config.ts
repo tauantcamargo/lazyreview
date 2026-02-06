@@ -6,6 +6,10 @@ export default defineConfig({
     environment: 'node',
     include: ['**/*.{test,spec}.{ts,tsx}'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
+    environmentMatchGlobs: [
+      // Use jsdom for UI package tests (React hooks/components)
+      ['packages/ui/**/*.{test,spec}.{ts,tsx}', 'jsdom'],
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
