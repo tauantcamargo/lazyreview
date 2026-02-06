@@ -64,6 +64,10 @@ export { Select, MultiSelect, RadioGroup, Toggle, Dropdown } from './components/
 export type { SelectProps, SelectOption, MultiSelectProps, RadioGroupProps, ToggleProps, DropdownProps } from './components/Select';
 export { TextArea, CommentInput, InlineInput } from './components/TextArea';
 export type { TextAreaProps, CommentInputProps, InlineInputProps } from './components/TextArea';
+export { Tree, FileTreeView, TreeItem } from './components/Tree';
+export type { TreeProps, TreeNode, FileTreeNode, FileTreeViewProps, TreeItemProps } from './components/Tree';
+export { Avatar, AvatarGroup, UserBadge, ReviewerList, AuthorInfo } from './components/Avatar';
+export type { AvatarProps, AvatarGroupProps, UserBadgeProps, ReviewerListProps, AuthorInfoProps } from './components/Avatar';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
