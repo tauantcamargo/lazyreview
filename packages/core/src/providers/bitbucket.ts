@@ -7,6 +7,17 @@ const BitbucketPullRequestSchema = z.object({
   id: z.number(),
   title: z.string(),
   state: z.enum(['OPEN', 'MERGED', 'DECLINED', 'SUPERSEDED']),
+  source: z.object({
+    branch: z.object({
+      name: z.string(),
+    }),
+  }),
+  destination: z.object({
+    branch: z.object({
+      name: z.string(),
+    }),
+  }),
+  created_on: z.string(),
   updated_on: z.string(),
   author: z
     .object({
@@ -77,6 +88,9 @@ function mapPullRequest(owner: string, repo: string, pr: BitbucketPullRequest): 
     title: pr.title,
     repo: `${owner}/${repo}`,
     author: pr.author?.display_name ?? pr.author?.nickname ?? 'unknown',
+    sourceBranch: pr.source.branch.name,
+    targetBranch: pr.destination.branch.name,
+    createdAt: pr.created_on,
     updatedAt: pr.updated_on,
     state,
   });

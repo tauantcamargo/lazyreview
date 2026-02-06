@@ -14,6 +14,8 @@ const AzurePullRequestSchema = z.object({
     .nullable()
     .optional(),
   creationDate: z.string(),
+  sourceRefName: z.string(),
+  targetRefName: z.string(),
   codeReviewId: z.number().optional(),
 });
 
@@ -107,6 +109,10 @@ async function requestJsonWithBody<T>(
   return (await response.json()) as T;
 }
 
+function stripRefPrefix(ref: string): string {
+  return ref.replace(/^refs\/heads\//, '');
+}
+
 function mapPullRequest(owner: string, repo: string, pr: AzurePullRequest): PullRequest {
   const state = pr.status === 'active' ? 'open' : pr.status === 'completed' ? 'merged' : 'closed';
   return PullRequestSchema.parse({
@@ -115,6 +121,9 @@ function mapPullRequest(owner: string, repo: string, pr: AzurePullRequest): Pull
     title: pr.title,
     repo: `${owner}/${repo}`,
     author: pr.createdBy?.displayName ?? 'unknown',
+    sourceBranch: stripRefPrefix(pr.sourceRefName),
+    targetBranch: stripRefPrefix(pr.targetRefName),
+    createdAt: pr.creationDate,
     updatedAt: pr.creationDate,
     state,
   });

@@ -8,6 +8,9 @@ const GitLabMergeRequestSchema = z.object({
   iid: z.number(),
   title: z.string(),
   state: z.enum(['opened', 'closed', 'merged']),
+  source_branch: z.string(),
+  target_branch: z.string(),
+  created_at: z.string(),
   updated_at: z.string(),
   author: z
     .object({
@@ -74,6 +77,9 @@ function mapMergeRequest(owner: string, repo: string, mr: GitLabMergeRequest): P
     title: mr.title,
     repo: `${owner}/${repo}`,
     author: mr.author?.username ?? 'unknown',
+    sourceBranch: mr.source_branch,
+    targetBranch: mr.target_branch,
+    createdAt: mr.created_at,
     updatedAt: mr.updated_at,
     state: mr.state === 'opened' ? 'open' : mr.state,
   });

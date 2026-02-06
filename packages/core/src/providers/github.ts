@@ -9,6 +9,7 @@ const GitHubPullRequestSchema = z.object({
   title: z.string(),
   state: z.enum(['open', 'closed']),
   merged_at: z.string().nullable().optional(),
+  created_at: z.string(),
   updated_at: z.string(),
   user: z
     .object({
@@ -16,6 +17,12 @@ const GitHubPullRequestSchema = z.object({
     })
     .nullable()
     .optional(),
+  head: z.object({
+    ref: z.string(),
+  }),
+  base: z.object({
+    ref: z.string(),
+  }),
 });
 
 type GitHubPullRequest = z.infer<typeof GitHubPullRequestSchema>;
@@ -85,6 +92,9 @@ function mapPullRequest(owner: string, repo: string, pr: GitHubPullRequest): Pul
     title: pr.title,
     repo: `${owner}/${repo}`,
     author: pr.user?.login ?? 'unknown',
+    sourceBranch: pr.head.ref,
+    targetBranch: pr.base.ref,
+    createdAt: pr.created_at,
     updatedAt: pr.updated_at,
     state,
   });
