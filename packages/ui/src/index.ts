@@ -62,6 +62,8 @@ export { EmptyState, PresetEmptyState, LoadingState, ErrorState, SuccessState, P
 export type { EmptyStateProps, EmptyStateType, PresetEmptyStateProps, LoadingStateProps, ErrorStateProps, SuccessStateProps, PlaceholderProps } from './components/EmptyState';
 export { Select, MultiSelect, RadioGroup, Toggle, Dropdown } from './components/Select';
 export type { SelectProps, SelectOption, MultiSelectProps, RadioGroupProps, ToggleProps, DropdownProps } from './components/Select';
+export { TextArea, CommentInput, InlineInput } from './components/TextArea';
+export type { TextAreaProps, CommentInputProps, InlineInputProps } from './components/TextArea';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
