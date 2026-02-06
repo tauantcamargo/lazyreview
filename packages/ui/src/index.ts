@@ -74,6 +74,8 @@ export { Markdown, MarkdownPreview, PRDescription, CommentBody } from './compone
 export type { MarkdownProps, MarkdownPreviewProps, PRDescriptionProps, CommentBodyProps } from './components/Markdown';
 export { Shortcuts, KeyLegend, ChordIndicator, ModeIndicator, QuickActions, VimKeys, CommandHint, ShortcutOverlay } from './components/Shortcuts';
 export type { ShortcutsProps, ShortcutDef, KeyLegendProps, ChordIndicatorProps, ModeIndicatorProps, QuickActionsProps, VimKeysProps, CommandHintProps, ShortcutOverlayProps } from './components/Shortcuts';
+export { Panel, CollapsiblePanel, Section, Card, InfoPanel, StatsRow, HeaderBar, FooterBar, Divider } from './components/Panel';
+export type { PanelProps, CollapsiblePanelProps, SectionProps, CardProps, InfoPanelProps, StatsRowProps, HeaderBarProps, FooterBarProps, DividerProps } from './components/Panel';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
