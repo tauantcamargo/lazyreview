@@ -78,6 +78,8 @@ export { Panel, CollapsiblePanel, Section, Card, InfoPanel, StatsRow, HeaderBar,
 export type { PanelProps, CollapsiblePanelProps, SectionProps, CardProps, InfoPanelProps, StatsRowProps, HeaderBarProps, FooterBarProps, DividerProps } from './components/Panel';
 export { FilterBar, FilterChips, QuickFilter, FilterGroup, ActiveFilters, SortSelect, FilterSummary, SearchFilter, PresetFilter } from './components/Filter';
 export type { FilterBarProps, FilterOption, FilterChipsProps, QuickFilterProps, FilterGroupProps, ActiveFiltersProps, SortOption, SortSelectProps, FilterSummaryProps, SearchFilterProps, PresetFilterProps } from './components/Filter';
+export { ConnectionStatus, SyncStatus, OnlineStatus, RateLimitStatus, CacheStatus, ProviderStatus, BuildStatus, HealthCheck, VersionInfo, QuotaStatus, StatusRow } from './components/StatusDisplay';
+export type { ConnectionStatusProps, SyncStatusProps, OnlineStatusProps, RateLimitStatusProps, CacheStatusProps, ProviderStatusProps, BuildStatusProps, HealthCheckProps, VersionInfoProps, QuotaStatusProps, StatusRowProps } from './components/StatusDisplay';
 
 // Hooks
 export { useChord, defaultChords } from './hooks/useChord';
