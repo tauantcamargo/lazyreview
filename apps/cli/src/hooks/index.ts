@@ -27,3 +27,4 @@ export * from './use-config';
 export * from './use-chord';
 export * from './use-comment-operations';
 export * from './use-pr-diff';
+export * from './use-github-auth';
