@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 import {
-  StatusBar,
   HelpPanel,
   CommandPalette,
   ToastContainer,
-  Panel,
-  SearchInput,
   ChordIndicator,
   useChord,
   type ChordDefinition,
@@ -30,6 +27,7 @@ import {
 import { PRActionDialogs, type PRActionType } from './components/index.js';
 import { useToast, useConfig, pullRequestKeys } from './hooks/index.js';
 import type { ViewType } from './stores/app-store.js';
+import { match } from 'ts-pattern';
 
 export interface AppProps {
   width?: number;
@@ -111,36 +109,43 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
   // Chord actions
   const goToTop = useCallback(() => {
     setSelectedListIndex(0);
-    addToast({ message: 'Jumped to top', type: 'info' });
+    addToast('Jumped to top', 'info');
   }, [setSelectedListIndex, addToast]);
 
   const generalComment = useCallback(() => {
     // TODO: Open comment dialog
-    addToast({ message: 'General comment (coming soon)', type: 'info' });
+    addToast('General comment (coming soon)', 'info');
   }, [addToast]);
 
   const refresh = useCallback(() => {
     if (selectedRepo) {
       queryClient.invalidateQueries({ queryKey: pullRequestKeys.lists() });
-      addToast({ message: 'Refreshing...', type: 'info' });
+      addToast('Refreshing...', 'info');
     }
   }, [selectedRepo, queryClient, addToast]);
 
   // Chord definitions
-  const chordDefinitions: ChordDefinition[] = React.useMemo(() => [
-    { keys: 'gg', action: goToTop, description: 'Go to top' },
-    { keys: 'gc', action: generalComment, description: 'General comment' },
-    { keys: 'gr', action: refresh, description: 'Refresh' },
-    { keys: 'gd', action: () => setView('detail'), description: 'Go to detail' },
-    { keys: 'gf', action: () => setView('files'), description: 'Go to files' },
-    { keys: 'ga', action: () => setView('ai'), description: 'Go to AI review' },
-  ], [goToTop, generalComment, refresh, setView]);
+  const chordDefinitions: ChordDefinition[] = React.useMemo(
+    () => [
+      { keys: 'gg', action: goToTop, description: 'Go to top' },
+      { keys: 'gc', action: generalComment, description: 'General comment' },
+      { keys: 'gr', action: refresh, description: 'Refresh' },
+      { keys: 'gd', action: () => setView('detail'), description: 'Go to detail' },
+      { keys: 'gf', action: () => setView('files'), description: 'Go to files' },
+      { keys: 'ga', action: () => setView('ai'), description: 'Go to AI review' },
+    ],
+    [goToTop, generalComment, refresh, setView]
+  );
 
   // Chord handler
-  const { handleInput: handleChord, state: chordState, reset: resetChord } = useChord({
+  const {
+    handleInput: handleChord,
+    state: chordState,
+    reset: resetChord,
+  } = useChord({
     chords: chordDefinitions,
     timeout: 500,
-    onChordComplete: (chord) => {
+    onChordComplete: (_chord: string) => {
       // Chord executed successfully
     },
     onChordCancel: () => {
@@ -265,12 +270,23 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
     else if (input === '2') setView('dashboard');
     else if (input === '3') setView('settings');
 
-    // Tab switching with Tab key
-    if (key.tab) {
+    // Global filter tab switching with Shift+Tab (works everywhere)
+    if (key.tab && key.shift) {
       const tabs: FilterTab[] = ['all', 'recent', 'favorites', 'mine', 'review'];
       const currentIdx = tabs.indexOf(activeTab);
       const nextIdx = (currentIdx + 1) % tabs.length;
-      setActiveTab(tabs[nextIdx]);
+      const nextTab = tabs[nextIdx];
+      if (nextTab !== undefined) setActiveTab(nextTab);
+      return; // Prevent other tab handling
+    }
+
+    // Local tab switching with Tab (only in list view, for local navigation)
+    if (key.tab && currentView === 'list') {
+      const tabs: FilterTab[] = ['all', 'recent', 'favorites', 'mine', 'review'];
+      const currentIdx = tabs.indexOf(activeTab);
+      const nextIdx = (currentIdx + 1) % tabs.length;
+      const nextTab = tabs[nextIdx];
+      if (nextTab !== undefined) setActiveTab(nextTab);
     }
 
     // Panel focus switching (h/l or left/right arrows)
@@ -324,21 +340,39 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
     return `${nav} • / filter • q quit • ? more`;
   };
 
+  // If help is open, render full-screen centered modal
+  if (isHelpOpen) {
+    return (
+      <Box flexDirection="column" width={width} height={height} alignItems="center" justifyContent="center">
+        <HelpOverlay onClose={toggleHelp} width={width} height={height} />
+      </Box>
+    );
+  }
+
+  // Theme colors for modern look
+  const accentColor = '#7aa2f7'; // Tokyo Night blue
+  const mutedColor = '#565f89';
+  const borderColor = '#3b4261';
+  const successColor = '#9ece6a';
+  const warningColor = '#e0af68';
+
   return (
     <Box flexDirection="column" width={width} height={height}>
-      {/* Header Bar - LazyGit style */}
+      {/* Header Bar - Modern style */}
       <Box height={1}>
-        <Text color="magenta" bold>LazyReview</Text>
-        <Text color="white"> – </Text>
-        <Text color="magenta" bold>My PRs ({pullRequests.length})</Text>
-        <Text color="gray"> | branch </Text>
-        <Text color={demoMode ? "yellow" : "white"} bold={demoMode}>{branchInfo}</Text>
-        {demoMode && <Text color="yellow" bold> ⚠ DEMO DATA - Start with --repo to see real PRs</Text>}
+        <Text color={accentColor} bold>
+          LazyReview
+        </Text>
+        <Text color={mutedColor}> • </Text>
+        <Text color="white">{pullRequests.length} PRs</Text>
+        <Text color={mutedColor}> • </Text>
+        <Text color={demoMode ? warningColor : mutedColor}>{branchInfo}</Text>
+        {demoMode && <Text color={warningColor}> ⚠ DEMO</Text>}
         {/* Chord indicator - shows pending keys */}
         {chordState.isActive && !demoMode && (
           <>
-            <Text color="gray"> | </Text>
-            <ChordIndicator pendingKeys={chordState.buffer.split('')} />
+            <Text color={mutedColor}> • </Text>
+            <ChordIndicator chord={chordState.buffer} pending={chordState.isActive} />
           </>
         )}
       </Box>
@@ -366,16 +400,16 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
             <Box
               width={sidebarWidth}
               flexDirection="column"
-              borderStyle="single"
-              borderColor={focusedPanel === 'nav' ? 'magenta' : 'gray'}
+              borderStyle="round"
+              borderColor={focusedPanel === 'nav' ? accentColor : borderColor}
             >
-              <Box paddingX={1} borderBottom borderColor={focusedPanel === 'nav' ? 'magenta' : 'gray'}>
-                <Text color={focusedPanel === 'nav' ? 'magenta' : 'white'} bold>Navigation</Text>
-              </Box>
               <Box paddingX={1}>
-                <Text color="gray">{navItems.length} items</Text>
+                <Text color={focusedPanel === 'nav' ? accentColor : 'white'} bold>
+                  Navigation
+                </Text>
+                <Text color={mutedColor}> ({navItems.length})</Text>
               </Box>
-              <Box flexDirection="column" paddingX={1} paddingY={1}>
+              <Box flexDirection="column" paddingX={1}>
                 {navItems.map((item, index) => (
                   <NavigationItem
                     key={item.id}
@@ -400,64 +434,65 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
         <Box
           width={mainWidth}
           flexDirection="column"
-          borderStyle="single"
-          borderColor={focusedPanel === 'list' ? 'magenta' : 'gray'}
+          borderStyle="round"
+          borderColor={focusedPanel === 'list' ? accentColor : borderColor}
         >
-          <Box paddingX={1} borderBottom borderColor={focusedPanel === 'list' ? 'magenta' : 'gray'}>
-            <Text color={focusedPanel === 'list' ? 'magenta' : 'white'} bold>Pull Requests</Text>
-          </Box>
           <Box paddingX={1}>
-            <Text color="gray">{pullRequests.length} items</Text>
+            <Text color={focusedPanel === 'list' ? accentColor : 'white'} bold>
+              Pull Requests
+            </Text>
+            <Text color={mutedColor}> ({pullRequests.length})</Text>
           </Box>
           <Box flexDirection="column" flexGrow={1}>
             <CurrentScreen
               view={currentView}
               width={mainWidth - 2}
-              height={contentHeight - 4}
+              height={contentHeight - 3}
               isFocused={focusedPanel === 'list'}
             />
           </Box>
           {/* Panel footer with keybindings or search */}
-          <Box paddingX={1} borderTop borderColor="gray">
+          <Box paddingX={1}>
             {isSearchMode ? (
               <Box>
-                <Text color="cyan">/ </Text>
+                <Text color={accentColor}>/</Text>
                 <Text>{searchQuery}</Text>
                 <Text inverse> </Text>
-                <Text color="gray"> (Enter to confirm, Esc to cancel)</Text>
+                <Text color={mutedColor}> Enter to confirm, Esc to cancel</Text>
               </Box>
             ) : searchQuery ? (
               <Box>
-                <Text color="cyan">Filter: </Text>
-                <Text color="yellow">{searchQuery}</Text>
-                <Text color="gray"> (Esc to clear)</Text>
+                <Text color={accentColor}>Filter: </Text>
+                <Text color={successColor}>{searchQuery}</Text>
+                <Text color={mutedColor}> (Esc to clear)</Text>
               </Box>
             ) : (
-              <Text color="gray">{getStatusBarContent()}</Text>
+              <Text color={mutedColor}>{getStatusBarContent()}</Text>
             )}
           </Box>
         </Box>
       </Box>
 
       {/* Bottom Status */}
-      <Box height={1} marginTop={0}>
+      <Box height={1} marginTop={0} paddingX={1}>
         {searchQuery ? (
-          <Text color="gray">
-            Showing {pullRequests.filter(pr =>
-              pr.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              pr.author.login.toLowerCase().includes(searchQuery.toLowerCase())
-            ).length} of {pullRequests.length} pull requests
+          <Text color={mutedColor}>
+            Showing{' '}
+            {
+              pullRequests.filter(
+                (pr) =>
+                  pr.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  pr.author.login.toLowerCase().includes(searchQuery.toLowerCase())
+              ).length
+            }{' '}
+            of {pullRequests.length} PRs
           </Text>
         ) : (
-          <Text color="gray">Loaded {pullRequests.length} pull requests</Text>
+          <Text color={mutedColor}>{pullRequests.length} PRs loaded</Text>
         )}
       </Box>
 
       {/* Overlays */}
-      {isHelpOpen && (
-        <HelpOverlay onClose={toggleHelp} width={width} height={height} />
-      )}
-
       {isCommandPaletteOpen && (
         <CommandPaletteOverlay
           onClose={toggleCommandPalette}
@@ -481,11 +516,11 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
             action={activeAction}
             onClose={() => setActiveAction(null)}
             onSuccess={(message) => {
-              addToast({ message, type: 'success' });
+              addToast(message, 'success');
               setActiveAction(null);
             }}
             onError={(message) => {
-              addToast({ message, type: 'error' });
+              addToast(message, 'error');
             }}
           />
         </Box>
@@ -499,7 +534,7 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
           type: t.type,
           onDismiss: () => removeToast(t.id),
         }))}
-        position="bottom-right"
+        position="bottom"
       />
     </Box>
   );
@@ -512,16 +547,19 @@ interface TabBarProps {
   onSelect: (id: string) => void;
 }
 
-function TabBar({ tabs, activeTab, onSelect }: TabBarProps): React.ReactElement {
+function TabBar({ tabs, activeTab }: TabBarProps): React.ReactElement {
+  const accentColor = '#7aa2f7';
+  const mutedColor = '#565f89';
+
   return (
     <Box>
       {tabs.map((tab, index) => (
         <React.Fragment key={tab.id}>
-          {index > 0 && <Text color="gray"> | </Text>}
+          {index > 0 && <Text color={mutedColor}> • </Text>}
           <Text
-            color={tab.id === activeTab ? 'magenta' : 'white'}
+            color={tab.id === activeTab ? accentColor : mutedColor}
             bold={tab.id === activeTab}
-            inverse={tab.id === activeTab}
+            underline={tab.id === activeTab}
           >
             {tab.label}
           </Text>
@@ -540,16 +578,22 @@ interface NavigationItemProps {
 }
 
 function NavigationItem({ label, description, selected }: NavigationItemProps): React.ReactElement {
+  const accentColor = '#7aa2f7';
+  const mutedColor = '#565f89';
+
   return (
-    <Box flexDirection="column" marginBottom={1}>
-      <Text
-        color={selected ? 'magenta' : 'white'}
-        bold={selected}
-        inverse={selected}
-      >
-        {selected ? '│ ' : '│ '}{label}
-      </Text>
-      <Text color="gray">│ {description}</Text>
+    <Box flexDirection="column" marginBottom={0}>
+      <Box>
+        <Text color={selected ? accentColor : mutedColor}>{selected ? '▸ ' : '  '}</Text>
+        <Text color={selected ? 'white' : mutedColor} bold={selected}>
+          {label}
+        </Text>
+      </Box>
+      {selected && (
+        <Box marginLeft={2}>
+          <Text color={mutedColor}>{description}</Text>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -563,22 +607,14 @@ interface CurrentScreenProps {
 }
 
 function CurrentScreen({ view, width, height, isFocused }: CurrentScreenProps): React.ReactElement {
-  switch (view) {
-    case 'list':
-      return <PRListScreen width={width} height={height} isFocused={isFocused} />;
-    case 'detail':
-      return <PRDetailScreen width={width} height={height} />;
-    case 'files':
-      return <DiffScreen width={width} height={height} />;
-    case 'dashboard':
-      return <DashboardScreen width={width} height={height} />;
-    case 'settings':
-      return <SettingsScreen width={width} height={height} />;
-    case 'ai':
-      return <AIReviewScreen width={width} height={height} />;
-    default:
-      return <PRListScreen width={width} height={height} isFocused={isFocused} />;
-  }
+  return match(view)
+    .with('list', () => <PRListScreen width={width} height={height} isFocused={isFocused} />)
+    .with('detail', () => <PRDetailScreen width={width} height={height} />)
+    .with('files', () => <DiffScreen width={width} height={height} />)
+    .with('dashboard', () => <DashboardScreen width={width} height={height} />)
+    .with('settings', () => <SettingsScreen width={width} height={height} />)
+    .with('ai', () => <AIReviewScreen width={width} height={height} />)
+    .otherwise(() => <PRListScreen width={width} height={height} isFocused={isFocused} />);
 }
 
 // Help overlay component
@@ -622,14 +658,11 @@ function HelpOverlay({ onClose, width, height }: HelpOverlayProps): React.ReactE
     },
   ];
 
-  return (
-    <HelpPanel
-      sections={helpSections}
-      width={width}
-      height={height}
-      onClose={onClose}
-    />
-  );
+  // Modal dimensions - centered on screen
+  const modalWidth = Math.min(50, width - 4);
+  const modalHeight = Math.min(22, height - 4);
+
+  return <HelpPanel sections={helpSections} width={modalWidth} height={modalHeight} onClose={onClose} />;
 }
 
 // Command palette overlay component
@@ -639,50 +672,25 @@ interface CommandPaletteOverlayProps {
   width: number;
 }
 
-function CommandPaletteOverlay({
-  onClose,
-  onExecute,
-}: CommandPaletteOverlayProps): React.ReactElement {
+function CommandPaletteOverlay({ onClose, onExecute }: CommandPaletteOverlayProps): React.ReactElement {
   const commands = [
-    { id: 'list', label: 'Go to PR List', shortcut: '1' },
-    { id: 'dashboard', label: 'Go to Dashboard', shortcut: '2' },
-    { id: 'settings', label: 'Open Settings', shortcut: '3' },
-    { id: 'refresh', label: 'Refresh', shortcut: 'R' },
-    { id: 'quit', label: 'Quit', shortcut: 'Ctrl+C' },
+    { id: 'list', label: 'Go to PR List', shortcut: '1', action: () => onExecute('list') },
+    { id: 'dashboard', label: 'Go to Dashboard', shortcut: '2', action: () => onExecute('dashboard') },
+    { id: 'settings', label: 'Open Settings', shortcut: '3', action: () => onExecute('settings') },
+    { id: 'refresh', label: 'Refresh', shortcut: 'R', action: () => onExecute('refresh') },
+    { id: 'quit', label: 'Quit', shortcut: 'Ctrl+C', action: () => onExecute('quit') },
   ];
 
-  return (
-    <CommandPalette
-      commands={commands}
-      onSelect={onExecute}
-      onClose={onClose}
-      placeholder="Type a command..."
-    />
-  );
+  return <CommandPalette commands={commands} isOpen onClose={onClose} />;
 }
 
-// Command handler
-function handleCommand(
-  command: string,
-  setView: (view: ViewType) => void,
-  exit: () => void
-): void {
-  switch (command) {
-    case 'list':
-      setView('list');
-      break;
-    case 'dashboard':
-      setView('dashboard');
-      break;
-    case 'settings':
-      setView('settings');
-      break;
-    case 'quit':
-      exit();
-      break;
-    default:
-      break;
-  }
+function handleCommand(command: string, setView: (view: ViewType) => void, exit: () => void): void {
+  return match(command)
+    .with('list', () => setView('list'))
+    .with('dashboard', () => setView('dashboard'))
+    .with('settings', () => setView('settings'))
+    .with('quit', () => exit())
+    .otherwise(() => {});
 }
 
 export default App;

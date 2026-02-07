@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { Key } from 'ink';
+import { match } from 'ts-pattern';
 import type { Theme } from '../theme';
 import { defaultTheme } from '../theme';
 
@@ -99,16 +100,12 @@ function getFileIcon(file: FileChange): string {
 }
 
 function getStatusColor(status: FileChange['status'], theme: Theme): string {
-  switch (status) {
-    case 'added':
-      return theme.added;
-    case 'deleted':
-      return theme.removed;
-    case 'renamed':
-      return theme.accent;
-    default:
-      return theme.modified;
-  }
+  return match(status)
+    .with('added', () => theme.added)
+    .with('deleted', () => theme.removed)
+    .with('renamed', () => theme.accent)
+    .with('modified', () => theme.modified)
+    .exhaustive();
 }
 
 export function FileTree({
@@ -202,16 +199,15 @@ export function FileTree({
       flexDirection="column"
       width={width}
       height={height}
-      borderStyle="single"
-      borderColor={isActive ? theme.accent : theme.border}
+      paddingX={1}
     >
-      <Box paddingX={1}>
-        <Text bold color={theme.accent}>
+      <Box>
+        <Text bold color={isActive ? theme.accent : theme.text}>
           {title}
         </Text>
         <Text color={theme.muted}> ({files.length})</Text>
       </Box>
-      <Box flexDirection="column" paddingX={1}>
+      <Box flexDirection="column">
         {visibleNodes.map((node, i) => {
           const actualIndex = scrollOffset + i;
           const isSelected = actualIndex === selectedIndex;

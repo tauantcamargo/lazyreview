@@ -1,8 +1,8 @@
 # LazyReview
 
-[![Go Version](https://img.shields.io/badge/Go-1.22+-blue.svg)](https://golang.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/tauantcamargo/lazyreview)](https://goreportcard.com/report/github.com/tauantcamargo/lazyreview)
 [![Release](https://img.shields.io/github/v/release/tauantcamargo/lazyreview)](https://github.com/tauantcamargo/lazyreview/releases)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-orange?logo=buy-me-a-coffee)](https://buymeacoffee.com/tauantcamargo)
 
@@ -12,172 +12,133 @@ LazyReview brings the efficiency of [lazygit](https://github.com/jesseduffield/l
 
 ## Elevator Pitch
 
-Rant time: Code review in a browser is a tax on your attention. Tabs everywhere, tiny diff tools, endless scrolling, and four different workflows for four different providers. Want to leave a comment on a hunk without losing your place? Or just approve a PR quickly? It shouldn’t be this hard.
+Rant time: Code review in a browser is a tax on your attention. Tabs everywhere, tiny diff tools, endless scrolling, and four different workflows for four different providers. Want to leave a comment on a hunk without losing your place? Or just approve a PR quickly? It shouldn't be this hard.
 
-LazyReview is a fast, keyboard-driven terminal UI for reviewing pull requests across GitHub, GitLab, Bitbucket, and Azure DevOps. If you’re tired of the web UI maze, LazyReview is the escape hatch.
+LazyReview is a fast, keyboard-driven terminal UI for reviewing pull requests across GitHub, GitLab, Bitbucket, and Azure DevOps. If you're tired of the web UI maze, LazyReview is the escape hatch.
 
 ## Features
 
 - **Multi-Provider Support** - GitHub, GitLab, Bitbucket, Azure DevOps (cloud & self-hosted)
 - **Navigation Modes** - Vim-style by default, with optional arrows-only mode
-- **Inline Diff Viewing** - Syntax-highlighted unified/split diffs with hunk navigation
+- **Modern UI** - Tokyo Night-inspired theme with rounded borders and subtle accent colors
+- **File Navigation** - Split-pane view with file tree and syntax-highlighted diffs
+- **Inline Diff Viewing** - Syntax-highlighted unified diffs with hunk navigation
 - **Diff Search & Jump** - Search inside diff (`/`) and jump matches with `n`/`N`
 - **Review Actions** - Approve, request changes, line comments, general comments, and review comments
-- **Workspaces & Dashboard** - Group repos and get a multi-repo overview
-- **Saved Filters** - Save PR list filters and quick-switch them with a palette
-- **Offline Queue** - Automatically retries review actions and comments when you're back online
+- **Saved Filters** - Save PR list filters and quick-switch them
 - **Local Git Integration** - Auto-detect repo, show branch status, checkout PR branch
-- **Comments & Threads** - Reply, edit, delete, resolve, preview, and jump to comment lines
+- **Comments & Threads** - Reply, edit, delete, resolve, and navigate comment threads
 - **Timeline Sidebar** - Compact PR activity timeline (reviews and comment activity)
-- **Theme Presets** - Switch between `lazygit`, `auto`, `darcula`, `tokyonight`, `gruvbox`, and `catppuccin` in Settings
-- **In-App Setup** - Configure provider tokens, switch active provider, and choose AI provider/key from Settings
-- **CLI AI Setup** - Configure AI provider/key from terminal (`lazyreview ai login/status/logout`)
-- **AI-Assisted Review** - Run AI review on the current file, preview the result, and manually post a review comment
+- **Theme Support** - Multiple theme presets (Tokyo Night, Catppuccin, Dracula, GitHub, Nord, Gruvbox)
+- **AI-Assisted Review** - Run AI review on files with OpenAI integration
 - **Range Selection** - Select multiple lines in the diff and comment on the whole block
-- **Secure Authentication** - Tokens stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
-- **Cross-Platform** - Linux, macOS, and Windows binaries available
+- **Cross-Platform** - Linux, macOS, and Windows support
 
 ## Installation
 
-### Homebrew (macOS/Linux)
+### From Source (Development)
 
 ```bash
-brew install tauantcamargo/tap/lazyreview
-```
-
-### Linux (APT)
-
-```bash
-# Install latest release (Debian/Ubuntu)
-VERSION=$(curl -fsSL https://api.github.com/repos/tauantcamargo/lazyreview/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
-ARCH=$(dpkg --print-architecture)
-curl -fLO "https://github.com/tauantcamargo/lazyreview/releases/download/v${VERSION}/lazyreview_${VERSION}_linux_${ARCH}.deb"
-sudo apt-get install -y "./lazyreview_${VERSION}_linux_${ARCH}.deb"
-```
-
-Supported Debian package architectures: `amd64`, `arm64`.
-
-Or with installer script:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh -s -- --method apt
-```
-
-### Download Binary
-
-Download the latest release for your platform from [GitHub Releases](https://github.com/tauantcamargo/lazyreview/releases).
-
-**Linux/macOS:**
-```bash
-# Download and extract (replace VERSION and PLATFORM)
-curl -sL https://github.com/tauantcamargo/lazyreview/releases/download/vVERSION/lazyreview_VERSION_PLATFORM.tar.gz | tar xz
-sudo mv lazyreview /usr/local/bin/
-```
-
-### Install Script
-
-```bash
-curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh
-```
-
-Installer options:
-
-```bash
-# Force package manager method
-curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh -s -- --method apt
-curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh -s -- --method rpm
-
-# Pin a release tag
-curl -sSL https://raw.githubusercontent.com/tauantcamargo/lazyreview/main/scripts/install.sh | sh -s -- --version v0.45.0
-```
-
-### Build from Source
-
-```bash
-# Requires Go 1.22+
+# Requires Node.js 20+ and pnpm
 git clone https://github.com/tauantcamargo/lazyreview.git
 cd lazyreview
-go build -o lazyreview .
-sudo mv lazyreview /usr/local/bin/
+pnpm install
+pnpm build
 ```
 
-### Go Install
+### Run Locally
 
 ```bash
-go install github.com/tauantcamargo/lazyreview@latest
+# After building
+node apps/cli/dist/index.js
+
+# Or with pnpm
+pnpm --filter lazyreview start
 ```
 
 ## Quick Start
 
-### 1. Authenticate with your provider
+### 1. Set up authentication
 
 ```bash
 # GitHub
-lazyreview auth login --provider github
+export GITHUB_TOKEN=ghp_xxxxx
 
-# GitLab
-lazyreview auth login --provider gitlab
-
-# Bitbucket (use username:app_password format)
-lazyreview auth login --provider bitbucket
-
-# Azure DevOps
-lazyreview auth login --provider azuredevops
+# Or set in .env file
+echo "GITHUB_TOKEN=ghp_xxxxx" > .env
 ```
 
 ### 2. Launch the TUI
 
 ```bash
-lazyreview start
+node apps/cli/dist/index.js
+
+# In demo mode (no token required)
+node apps/cli/dist/index.js --demo
 ```
 
-### 3. (Optional) Configure AI for in-app review
-
-```bash
-lazyreview ai login --provider openai
-lazyreview ai status
-```
-
-### 4. Navigate and review
+### 3. Navigate and review
 
 | Key | Action |
 |-----|--------|
 | `j` / `k` | Move down / up |
 | `h` / `l` | Move left / right (panels) |
 | `Enter` | Select / Open PR details |
-| `gg` | Go to top |
+| `Tab` | Switch tabs (context-aware) |
+| `Shift+Tab` | Switch filter tabs globally |
+| `gg` | Go to top (chord) |
 | `G` | Go to bottom |
 | `Ctrl+d` / `Ctrl+u` | Half page down / up |
-| `/` | Filter PR list or search inside diff |
+| `/` | Search inside diff |
+| `n` / `N` | Next / previous search match |
+| `[` / `]` | Previous / next hunk |
 | `S` | Save current PR list filter |
 | `F` | Open saved filters palette |
-| `n` / `N` | Next / previous file (or next/prev diff match) |
-| `{` / `}` | Previous / next hunk |
 | `a` | Approve PR |
 | `r` | Request changes |
 | `c` | Line comment |
 | `C` | General PR comment |
-| `v` | Review comment |
-| `s` | Generate PR summary draft |
-| `t` | Cycle files, comments, and timeline sidebars |
 | `y` | Reply to selected comment |
-| `e` | Edit selected inline comment |
-| `x` | Delete selected inline comment |
-| `z` | Resolve selected thread (provider support varies) |
-| `i` | Toggle full comment preview pane |
-| `Enter` (comments panel) | Jump to comment location in diff |
+| `e` | Edit selected comment |
+| `x` | Delete selected comment |
+| `z` | Resolve/unresolve thread |
+| `t` | Toggle timeline sidebar |
 | `A` | AI review (preview) |
-| `p` / `Enter` (AI preview) | Post AI review comment |
-| `e` (AI preview) | Edit AI review comment |
-| `Esc` (AI preview) | Discard AI review |
-| `O` | Open selected file in `$EDITOR` |
-| `V` | Select range (multi-line comment) |
-| `Shift+c` | Checkout PR branch |
+| `V` | Visual mode (select range) |
+| `o` | Checkout PR branch |
 | `?` | Show help |
 | `q` | Quit / Go back |
 
-To change themes: open **Settings** from the sidebar, select a theme entry, and press `Enter`.
-To change navigation mode: open **Settings**, select **Navigation Mode**, and press `Enter`.
+### Tab Navigation
+
+LazyReview uses context-aware tab navigation:
+
+- **In PR List view**: `Tab` cycles through filter tabs (All, Recent, Favorites, My PRs, To Review)
+- **In other views** (PR Details, Settings, etc.): `Tab` switches between that screen's internal tabs
+- **Global tab switching**: `Shift+Tab` switches filter tabs from any screen
+
+## File Navigation
+
+LazyReview features a split-pane view in the Files tab:
+
+- **Left Panel (35%)**: File tree showing all changed files
+  - `j/k`: Navigate files
+  - `l` or `Enter`: Select file or expand folder
+  - `h`: Collapse folder
+  - File icons and status colors
+
+- **Right Panel (65%)**: Diff viewer for selected file
+  - Syntax highlighting with language detection
+  - Search with `/`
+  - Hunk navigation with `[` and `]`
+  - Line numbers
+  - Modern rounded borders with accent colors
+
+- **Panel Switching**:
+  - `Tab`: Switch between file tree and diff panels
+  - `h`: Jump back to tree from diff
+  - `l`: Jump to diff from tree
+  - Active panel is highlighted with accent color
 
 ## Authentication
 
@@ -229,169 +190,162 @@ To change navigation mode: open **Settings**, select **Navigation Mode**, and pr
 
 </details>
 
-### Security
-
-- Tokens are stored securely in your OS keychain
-- macOS: Keychain Access
-- Windows: Credential Manager
-- Linux: Secret Service (GNOME Keyring, KWallet)
-
-## Configuration
-
-Configuration file location:
-- **Linux**: `~/.config/lazyreview/config.yaml`
-- **macOS**: `~/Library/Application Support/lazyreview/config.yaml`
-- **Windows**: `%APPDATA%\lazyreview\config.yaml`
-
-Example configuration:
-
-```yaml
-version: "0.1"
-default_provider: github
-
-ui:
-  theme: auto
-  vim_mode: true
-  editor: "" # optional, fallback: git core.editor -> $EDITOR -> vim
-  show_checks: true
-
-keybindings:
-  up: k
-  down: j
-  left: h
-  right: l
-  approve: a
-  request_changes: r
-  comment: c
-
-providers:
-  - name: github-personal
-    type: github
-    host: github.com
-
-  - name: gitlab-work
-    type: gitlab
-    host: gitlab.company.com
-```
-
 ## Project Structure
 
 ```
 lazyreview/
-├── cmd/                      # CLI commands
-│   ├── cmd.go               # Command definitions
-│   └── cmui.go              # Progress UI component
-├── internal/
-│   ├── auth/                # Authentication system
-│   ├── config/              # Configuration management
-│   ├── gui/                 # Main TUI application
-│   ├── queue/               # Offline action queue
-│   ├── services/            # Aggregation + caching helpers
+├── apps/
+│   └── cli/                 # CLI application
+│       ├── src/
+│       │   ├── screens/     # TUI screens
+│       │   ├── hooks/       # React hooks for data fetching
+│       │   ├── stores/      # Zustand state management
+│       │   └── utils/       # Utilities
+│       └── dist/            # Built output
+├── packages/
+│   ├── ui/                  # UI components library
+│   │   └── src/
+│   │       ├── components/  # Reusable TUI components
+│   │       ├── hooks/       # UI hooks
+│   │       └── theme.ts     # Theme system
+│   ├── core/                # Core business logic
+│   │   └── src/
+│   │       ├── providers/   # Git provider adapters
+│   │       ├── models.ts    # Data models
+│   │       └── ai.ts        # AI integration
 │   ├── storage/             # SQLite storage layer
-│   └── models/              # Data models
-├── pkg/
-│   ├── components/          # Reusable UI components
-│   │   ├── diff.go         # Diff viewer
-│   │   ├── filetree.go     # File tree
-│   │   ├── help.go         # Help overlay
-│   │   └── list.go         # List component
-│   ├── git/                 # Local git helpers
-│   └── providers/           # Git provider adapters
-│       ├── github/         # GitHub implementation
-│       ├── gitlab/         # GitLab implementation
-│       ├── bitbucket/      # Bitbucket implementation
-│       └── azuredevops/    # Azure DevOps implementation
-├── scripts/
-│   └── install.sh          # Installation script
-└── .goreleaser.yaml        # Release configuration
+│   ├── platform/            # Platform-specific code
+│   └── ...
+├── examples/                # Example applications
+└── pnpm-workspace.yaml      # Monorepo configuration
 ```
 
 ## Development
 
 ### Prerequisites
 
-- Go 1.22+
-- Git
+- Node.js 20+
+- pnpm 9+
 
-### Building
+### Setup
 
 ```bash
+# Clone the repository
 git clone https://github.com/tauantcamargo/lazyreview.git
 cd lazyreview
-go build
-./lazyreview start
+
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm build
+
+# Run CLI
+node apps/cli/dist/index.js
 ```
 
 ### Running Tests
 
 ```bash
-go test ./...
+# Run all tests
+pnpm test
+
+# Run tests with coverage
+pnpm test:coverage
+
+# Run specific package tests
+pnpm --filter @lazyreview/ui test
 ```
+
+### Development Scripts
+
+```bash
+# Build all packages
+pnpm build
+
+# Build only CLI
+pnpm build:cli
+
+# Watch mode (auto-rebuild)
+pnpm dev
+
+# Lint
+pnpm lint
+
+# Type check
+pnpm typecheck
+```
+
+## Architecture
+
+LazyReview is built with:
+
+- **Ink** - React for CLIs, building terminal UI components
+- **Zustand** - Lightweight state management
+- **React Query** - Data fetching and caching
+- **TypeScript** - Type safety across the codebase
+- **pnpm** - Fast, disk space efficient package manager
+
+### Key Packages
+
+- `@lazyreview/ui` - Reusable TUI components (FileTree, DiffView, Table, etc.)
+- `@lazyreview/core` - Provider adapters, models, and business logic
+- `@lazyreview/storage` - SQLite storage for caching and persistence
+- `lazyreview` (apps/cli) - Main CLI application
 
 ## AI Review Setup
 
-Preferred (stored securely in keyring):
-
 ```bash
-lazyreview ai login --provider openai
-lazyreview ai status
+# Set OpenAI API key
+export OPENAI_API_KEY=sk-xxxxx
+
+# Or in .env file
+echo "OPENAI_API_KEY=sk-xxxxx" >> .env
 ```
 
-Alternative (environment variables):
+Supported AI providers:
+- OpenAI (gpt-4, gpt-4-turbo, gpt-3.5-turbo)
+- Any OpenAI-compatible API (set `OPENAI_BASE_URL`)
 
-```bash
-export LAZYREVIEW_AI_PROVIDER=openai
-export LAZYREVIEW_AI_API_KEY=your_key
-# Optional:
-export LAZYREVIEW_AI_MODEL=gpt-4o-mini
-export LAZYREVIEW_AI_BASE_URL=https://api.openai.com/v1
-```
+## Configuration
 
-Remove stored key:
+Configuration is managed through:
 
-```bash
-lazyreview ai logout
-```
+1. **Environment variables** (`.env` file)
+   - `GITHUB_TOKEN` - GitHub personal access token
+   - `GITLAB_TOKEN` - GitLab personal access token
+   - `OPENAI_API_KEY` - OpenAI API key
 
-Troubleshooting:
-- If AI still shows unavailable after setting a key, run `lazyreview ai status` to verify provider/key visibility.
-- LazyReview loads AI key in this order: `LAZYREVIEW_AI_API_KEY` env var, OS keyring, then local app fallback storage.
+2. **Zustand store** (in-memory state)
+   - UI preferences
+   - Saved filters
+   - Selected repository
 
 ## Roadmap
 
-- [x] Core TUI with Bubble Tea
+- [x] Core TUI with Ink
 - [x] GitHub provider
 - [x] GitLab provider
 - [x] Bitbucket provider
 - [x] Azure DevOps provider
 - [x] Vim-style navigation
-- [x] Diff viewer with file navigation
-- [x] Hunk navigation ({/})
-- [x] Secure credential storage
-- [x] Real API data fetching
-- [x] Cross-platform releases
+- [x] File tree with split-pane diff view
+- [x] Syntax-highlighted diffs
+- [x] Hunk navigation
+- [x] Diff search with match highlighting
 - [x] Review actions (approve, request changes)
-- [x] Local git detection (auto-detect repo from .git)
-- [x] SQLite storage layer (workspaces, favorites)
-- [x] Syntax highlighting with Chroma
-- [x] Advanced filtering (by author, state, labels, etc.)
-- [x] Provider org/repo listing extensions
-- [x] Inline commenting (c key) and general comments (C key)
-- [x] Review comments (v key)
-- [x] Local git integration (branch status + checkout)
-- [x] Dashboard view (multi-repo)
-- [x] Workspace management UI
-- [x] Offline queue for comments/approvals
-- [x] Comments panel with replies
-- [x] AI-assisted review (OpenAI-compatible)
-- [x] Multi-line diff selection for comments
-- [x] Split/unified diff view toggle (d key)
-- [x] Theme presets (auto, darcula, tokyonight, gruvbox, catppuccin)
-- [x] Diff search and jump (/, n, N)
-- [x] PR timeline view
-- [x] Saved filters and quick switch
-- [x] In-app AI provider/key setup
-- [x] CLI AI login/status/logout
+- [x] Comment operations (create, reply, edit, delete, resolve)
+- [x] Local git integration (status, checkout)
+- [x] Saved filters
+- [x] Timeline sidebar
+- [x] AI-assisted review
+- [x] Visual mode (range selection)
+- [ ] Keyboard chord system improvements
+- [ ] Configuration file support
+- [ ] Theme customization UI
+- [ ] Workspace management
+- [ ] Offline queue for actions
+- [ ] Binary releases
 
 ## Contributing
 
@@ -410,10 +364,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Inspired by [lazygit](https://github.com/jesseduffield/lazygit)
-- Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI framework
-- Uses [Bubbles](https://github.com/charmbracelet/bubbles) components
-- Styled with [Lipgloss](https://github.com/charmbracelet/lipgloss)
-- CLI powered by [urfave/cli](https://github.com/urfave/cli)
+- Built with [Ink](https://github.com/vadimdemedes/ink) - React for CLIs
+- UI components with [Ink UI](https://github.com/vadimdemedes/ink-ui)
+- State management with [Zustand](https://github.com/pmndrs/zustand)
+- Styled with Ink's styling system
 
 ## Support
 
