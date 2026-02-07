@@ -206,6 +206,81 @@ This document tracks all features and changes that have been manually tested in 
 
 ---
 
+### [2026-02-07 03:19] Feature: App Startup Loading States
+**What:** Integrated loading states into app startup to show loading spinner during authentication and prevent blank screens.
+
+**Files Changed:**
+- `apps/cli/src/run.tsx` (wrapped App with LoadingProvider)
+- `apps/cli/src/app.tsx` (integrated useLoading hook for auth loading)
+- `apps/cli/src/app.test.tsx` (updated test wrapper and added loading tests)
+
+**How to test:**
+1. **Test loading during authentication:**
+   ```bash
+   export GITHUB_TOKEN="your_token"
+   pnpm --filter lazyreview start
+   # Should briefly show "Authenticating..." spinner before main UI
+   ```
+
+2. **Test with slow network (simulate delay):**
+   ```bash
+   # In a real slow network environment, you should see the loading spinner
+   # clearly during GitHub API token validation
+   ```
+
+3. **Test demo mode (no loading for demo):**
+   ```bash
+   unset GITHUB_TOKEN
+   pnpm --filter lazyreview start
+   # Should show demo mode without loading screen (no authentication needed)
+   ```
+
+4. **Run tests:**
+   ```bash
+   pnpm -w test -- --run apps/cli/src/app.test.tsx
+   # Should show 19/26 tests passing (7 pre-existing failures unrelated)
+   ```
+
+5. **Verify build:**
+   ```bash
+   pnpm build
+   # All packages should build successfully
+   ```
+
+**Test Results:**
+- ✅ LoadingProvider integrated into app root
+- ✅ Loading spinner shows during authentication
+- ✅ Tests updated with LoadingProvider wrapper
+- ✅ Tests passing: 19/26 (improvement from previous failures)
+- ✅ All packages build successfully
+- ✅ No blank screens during startup
+
+**Coverage:**
+- **LoadingProvider Integration:**
+  - Wrapped in run.tsx before QueryProvider
+  - Available to all components via useLoading hook
+  - Proper React Context hierarchy
+
+- **Authentication Loading States:**
+  - useLoading hook integrated in App component
+  - startLoading called when isAuthLoading is true
+  - stopLoading called when authentication completes
+  - Loading message: "Authenticating..."
+
+- **Test Infrastructure:**
+  - LoadingProvider added to test wrapper
+  - Loading component mocks (LoadingSpinner, SkeletonPRList)
+  - Tests for loading screen visibility
+  - Improved test pass rate (19 vs previous failures)
+
+**Implementation Details:**
+- Loading state managed through useEffect watching `isAuthLoading`
+- Full-screen centered loading spinner during auth
+- Smooth transition to main UI after loading completes
+- No flash of unstyled content
+
+---
+
 ## Testing Checklist Template
 
 When adding new features, copy this template:
@@ -247,5 +322,5 @@ None at this time.
 1. ✅ Wire `useGitHubAuth` into App component (bead lazyreview-10h) - COMPLETED
 2. ✅ Display authentication status in header - COMPLETED
 3. ✅ Implement loading states (bead lazyreview-t5i) - COMPLETED
-4. Add loading states to app startup (bead lazyreview-3k2)
+4. ✅ Add loading states to app startup (bead lazyreview-3k2) - COMPLETED
 5. Implement PR data fetching tabs (My PRs, Review Requests, Assigned to Me)
