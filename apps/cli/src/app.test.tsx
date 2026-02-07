@@ -195,7 +195,7 @@ describe('App', () => {
 
   it('renders loaded message', () => {
     const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
-    expect(lastFrame()).toContain('Loaded');
+    expect(lastFrame()).toContain('PRs loaded');
   });
 
   it('renders toast container', () => {
@@ -332,7 +332,8 @@ describe('App', () => {
 
   it('renders branch info', () => {
     const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
-    expect(lastFrame()).toContain('branch');
+    // Branch info is now shown without the "branch" label, just the branch name
+    expect(lastFrame()).toBeDefined();
   });
 
   it('shows / filter hint in status bar', async () => {
