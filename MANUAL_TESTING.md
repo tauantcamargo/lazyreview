@@ -368,6 +368,94 @@ This document tracks all features and changes that have been manually tested in 
 
 ---
 
+### [2026-02-07 03:29] Feature: getReviewRequests API Method in GitHub Provider
+**What:** Implemented `getReviewRequests()` method in GitHub provider to fetch pull requests where the authenticated user is requested as a reviewer using GitHub Search API.
+
+**Files Changed:**
+- `packages/core/src/providers/provider.ts` (added getReviewRequests to interface)
+- `packages/core/src/providers/github.ts` (full implementation)
+- `packages/core/src/providers/bitbucket.ts` (stub)
+- `packages/core/src/providers/gitlab.ts` (stub)
+- `packages/core/src/providers/azuredevops.ts` (stub)
+- `packages/core/src/providers/github.test.ts` (added 3 tests)
+
+**How to test:**
+1. **Test in code (TypeScript):**
+   ```typescript
+   import { createGitHubProvider } from '@lazyreview/core';
+
+   const provider = createGitHubProvider({ token: process.env.GITHUB_TOKEN });
+   const reviewRequests = await provider.getReviewRequests();
+   console.log(`Found ${reviewRequests.length} PRs requesting my review`);
+   ```
+
+2. **Run unit tests:**
+   ```bash
+   pnpm -w test -- --run packages/core/src/providers/github.test.ts
+   # Should show 21/21 tests passing (3 new getReviewRequests tests)
+   ```
+
+3. **Test with different options:**
+   ```typescript
+   // Get closed review requests
+   const closedReviews = await provider.getReviewRequests({ state: 'closed' });
+
+   // Limit results
+   const recentReviews = await provider.getReviewRequests({ limit: 5 });
+   ```
+
+4. **Verify build:**
+   ```bash
+   pnpm build
+   # All packages should build successfully
+   ```
+
+**Test Results:**
+- ✅ All 21 GitHub provider tests passing
+- ✅ getReviewRequests returns PRs from multiple repositories
+- ✅ Search API properly queries by review-requested
+- ✅ Includes both direct and team review requests
+- ✅ Current user cached across multiple calls
+- ✅ All packages build successfully
+- ✅ No TypeScript errors
+
+**Coverage:**
+- **Provider Interface:**
+  - Added getReviewRequests method signature
+  - Accepts optional ListPullRequestOptions (state, limit)
+  - Returns Promise<PullRequest[]>
+
+- **GitHub Implementation:**
+  - Uses GitHub Search API: `GET /search/issues`
+  - Query format: `is:pr review-requested:{username} is:{state}`
+  - Automatically includes team review requests
+  - Fetches current user from cache (shared with getMyPRs)
+  - Extracts owner/repo from repository_url
+  - Fetches full PR details for head/base refs
+  - Sorts by created date (newest first)
+  - Respects state and limit options
+
+- **Tests:**
+  - Fetches review requests using search API
+  - Passes state and limit parameters correctly
+  - Caches current user (no duplicate /user calls)
+  - Maps search results to PullRequest objects
+  - Handles multiple repositories
+
+**Implementation Details:**
+- Search query includes both direct user reviews and team reviews
+- Sorted by created date to prioritize newest requests
+- Reuses getCurrentUser() caching for performance
+- Same mapSearchIssueToPR helper as getMyPRs
+- Limit capped at 100 (GitHub API maximum)
+
+**Next Steps:**
+- Implement getReviewRequests for GitLab, Bitbucket, Azure DevOps
+- Create "Review Requests" tab in UI
+- Wire up to app state
+
+---
+
 ## Testing Checklist Template
 
 When adding new features, copy this template:
@@ -411,6 +499,7 @@ None at this time.
 3. ✅ Implement loading states (bead lazyreview-t5i) - COMPLETED
 4. ✅ Add loading states to app startup (bead lazyreview-3k2) - COMPLETED
 5. ✅ Implement getMyPRs API method (bead lazyreview-6lw) - COMPLETED
-6. Implement getReviewRequests API method (bead lazyreview-73r)
+6. ✅ Implement getReviewRequests API method (bead lazyreview-73r) - COMPLETED
 7. Implement getAssignedPRs API method (bead lazyreview-paw)
 8. Create My PRs tab UI (bead lazyreview-i7o)
+9. Create Review Requests tab UI (bead lazyreview-3sq)
