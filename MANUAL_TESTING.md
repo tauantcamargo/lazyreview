@@ -541,9 +541,120 @@ This document tracks all features and changes that have been manually tested in 
 - Demo mode still shows demo data (will be removed in next iteration)
 
 **Next Steps:**
-- Remove demoMode and test with real data only
-- Show graceful error messages when no data available
-- Trigger data fetch when navigation items are selected
+- ✅ Remove demoMode and test with real data only - COMPLETED
+- ✅ Show graceful error messages when no data available - COMPLETED
+- ✅ Trigger data fetch when navigation items are selected - COMPLETED
+- ✅ Easier navigation between files/diff with h/l keys - COMPLETED
+- 🔄 Fetch and display changed files in Files view (bead lazyreview-di1) - IN PROGRESS
+
+---
+
+### [2026-02-07 03:52] Refactor: Remove Demo Mode
+**What:** Removed all demoMode references and updated to use real API data only with graceful error handling.
+
+**Files Changed:**
+- `apps/cli/src/screens/PRListScreen.tsx` (removed demoMode, improved error messages)
+- `apps/cli/src/app.tsx` (removed demoMode from header and status bar)
+
+**How to test:**
+1. **Test without token:**
+   ```bash
+   unset GITHUB_TOKEN
+   pnpm --filter lazyreview start
+   # Should show error with helpful message about setting token
+   ```
+
+2. **Test with invalid token:**
+   ```bash
+   export GITHUB_TOKEN="ghp_invalid"
+   pnpm --filter lazyreview start
+   # Should show authentication error with setup instructions
+   ```
+
+3. **Test with valid token:**
+   ```bash
+   export GITHUB_TOKEN="your_valid_token"
+   pnpm --filter lazyreview start
+   # Should fetch and display real PR data
+   ```
+
+**Test Results:**
+- ✅ All packages build successfully
+- ✅ No TypeScript errors
+- ⏳ Manual testing pending
+
+**Coverage:**
+- Removed demoMode from PRListScreen component
+- Removed demo data fallback
+- Improved error messages with actionable instructions
+- Token setup instructions shown when auth fails
+- Network error messages with retry suggestions
+- Removed demo mode warning from status bar
+
+---
+
+### [2026-02-07 03:54] Feature: Enhanced Navigation
+**What:** Added data refresh when selecting navigation items and easier navigation between PR detail views using h/l keys.
+
+**Files Changed:**
+- `apps/cli/src/app.tsx` (improved navigation handling)
+
+**How to test:**
+1. **Test navigation item selection with data refresh:**
+   ```bash
+   export GITHUB_TOKEN="your_token"
+   pnpm --filter lazyreview start
+   # Navigate to sidebar (press 'h')
+   # Press 'j' or 'k' to select different navigation items
+   # Press Enter to select an item
+   # Should see toast notification and data should refresh
+   # Focus should return to PR list panel
+   ```
+
+2. **Test h/l navigation between PR views:**
+   ```bash
+   # Select a PR and press Enter to view details
+   # Press 'l' or '→' to go from Files to Detail view
+   # Press 'l' or '→' again to go to AI Review
+   # Press 'h' or '←' to go back to Detail
+   # Press 'h' or '←' again to go back to Files
+   # Press 'h' or '←' in Files to focus navigation sidebar
+   ```
+
+3. **Test navigation flow:**
+   ```bash
+   # From PR List: press 'h' to go to navigation panel
+   # Use j/k to select items
+   # Press Enter to navigate
+   # Should auto-focus list panel and show toast
+   ```
+
+**Test Results:**
+- ✅ All packages build successfully
+- ✅ No TypeScript errors
+- ⏳ Manual testing pending
+
+**Coverage:**
+- **Navigation Item Selection:**
+  - Query invalidation triggers data refresh
+  - Auto-focus list panel after selection
+  - Toast notification shows navigation confirmation
+  - Works with dashboard, settings, and list views
+
+- **PR Detail View Navigation:**
+  - h/← in Files view: goes to nav panel (if sidebar visible)
+  - l/→ in Files view: goes to Detail view
+  - l/→ in Detail view: goes to AI Review view
+  - h/← in AI view: goes back to Detail view
+  - h/← in Detail view: goes back to Files view
+  - Navigation only active when PR is selected
+  - Falls back to default panel switching when not in PR views
+
+**Implementation Details:**
+- Navigation checks current view and PR selection state
+- Uses early returns to prevent conflicting navigation handlers
+- Maintains sidebar panel switching for non-PR views
+- Query invalidation uses pullRequestKeys.lists() for all PR data
 
 ---
 
