@@ -285,6 +285,10 @@ export function createAzureDevOpsProvider(config: AzureConfig): Provider {
       const changes = AzureChangesSchema.parse(await requestJson<unknown>(changesUrl, config));
       return buildDiffFromChanges(changes.changeEntries);
     },
+    async getPullRequestFiles(_owner, _repo, _number) {
+      // TODO: Implement Azure DevOps getPullRequestFiles
+      throw new Error('getPullRequestFiles not yet implemented for Azure DevOps');
+    },
     async createComment(owner, repo, number, comment) {
       await createCommentInternal(owner, repo, number, comment);
     },

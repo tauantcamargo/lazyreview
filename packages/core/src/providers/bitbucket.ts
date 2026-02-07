@@ -137,6 +137,10 @@ export function createBitbucketProvider(config: BitbucketConfig): Provider {
       const url = `${baseUrl}/repositories/${owner}/${repo}/pullrequests/${number}/diff`;
       return await requestText(url, config);
     },
+    async getPullRequestFiles(_owner, _repo, _number) {
+      // TODO: Implement Bitbucket getPullRequestFiles
+      throw new Error('getPullRequestFiles not yet implemented for Bitbucket');
+    },
     async createComment(owner, repo, number, comment) {
       const payload: Record<string, unknown> = { content: { raw: comment.body } };
       if (comment.path && comment.line) {

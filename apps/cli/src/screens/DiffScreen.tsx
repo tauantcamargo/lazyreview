@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { DiffView, FileTree, Spinner, EmptyState, SplitPane, InputBox } from '@lazyreview/ui';
 import { useAppStore, useSelectedPR, usePullRequests, useStatus, useSelectedRepo } from '../stores/app-store.js';
-import { useDiff, usePullRequestDiff, usePRActions } from '../hooks/index.js';
+import { useDiff, usePullRequestDiff, usePRActions, usePRFiles } from '../hooks/index.js';
 import type { PullRequest, ProviderType } from '@lazyreview/core';
 
 export interface DiffScreenProps {
@@ -18,7 +18,6 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
   const pullRequests = usePullRequests();
   const selectedRepo = useSelectedRepo();
   const status = useStatus();
-  const demoMode = useAppStore((s) => s.demoMode);
   const storeDiff = useAppStore((s) => s.currentDiff);
   const setCurrentDiff = useAppStore((s) => s.setCurrentDiff);
   const setView = useAppStore((s) => s.setView);
@@ -29,23 +28,32 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
   const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
   const [commentInput, setCommentInput] = useState('');
 
-  // Fetch real diff when not in demo mode
+  // Fetch real diff
   const { data: realDiff, isLoading: isDiffLoading, isError: isDiffError, error: diffError } = usePullRequestDiff({
     owner: selectedRepo?.owner ?? '',
     repo: selectedRepo?.repo ?? '',
     provider: (selectedRepo?.provider ?? 'github') as ProviderType,
     number: selectedPRNumber ?? 0,
-    enabled: !demoMode && !!selectedPRNumber && !!selectedRepo,
+    enabled: !!selectedPRNumber && !!selectedRepo,
+  });
+
+  // Fetch PR files
+  const { data: prFiles, isLoading: isFilesLoading, isError: isFilesError, error: filesError } = usePRFiles({
+    owner: selectedRepo?.owner ?? '',
+    repo: selectedRepo?.repo ?? '',
+    provider: (selectedRepo?.provider ?? 'github') as ProviderType,
+    number: selectedPRNumber ?? 0,
+    enabled: !!selectedPRNumber && !!selectedRepo,
   });
 
   // Sync real diff to store
   React.useEffect(() => {
-    if (!demoMode && realDiff) {
+    if (realDiff) {
       setCurrentDiff(realDiff);
     }
-  }, [realDiff, demoMode, setCurrentDiff]);
+  }, [realDiff, setCurrentDiff]);
 
-  const currentDiff = demoMode ? storeDiff : (realDiff ?? storeDiff);
+  const currentDiff = realDiff ?? storeDiff;
 
   // Find the selected PR
   const selectedPR = React.useMemo(
@@ -53,7 +61,8 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
     [pullRequests, selectedPRNumber]
   );
 
-  const files = selectedPR?.files ?? [];
+  // Use fetched files or fallback to PR files
+  const files = prFiles ?? selectedPR?.files ?? [];
   const selectedFile = files[selectedFileIndex];
 
   // Initialize PR actions hook for inline comments
@@ -83,7 +92,7 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
 
   // Handle inline comment creation
   const handleCreateInlineComment = useCallback(async () => {
-    if (!selectedPR || !selectedFile || demoMode || !commentInput.trim()) return;
+    if (!selectedPR || !selectedFile || !commentInput.trim()) return;
 
     try {
       // Create a comment input with line information
@@ -102,7 +111,7 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
     } catch (error) {
       // Error is already handled by the hook
     }
-  }, [selectedPR, selectedFile, currentLine, commentInput, prActions, demoMode]);
+  }, [selectedPR, selectedFile, currentLine, commentInput, prActions]);
 
   // Handle keyboard input
   useInput((input, key) => {
@@ -142,7 +151,7 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
         navigateToPrevHunk();
       } else if (input === ' ') {
         toggleLineSelection(currentLine);
-      } else if (input === 'c' && !demoMode) {
+      } else if (input === 'c') {
         // Open inline comment dialog
         setIsCommentDialogOpen(true);
       } else if (input === 'A') {
@@ -163,7 +172,7 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
   }
 
   // Error state
-  if (isDiffError && !demoMode) {
+  if (isDiffError) {
     const errorMessage = diffError instanceof Error ? diffError.message : 'Failed to load diff';
     return (
       <Box flexDirection="column" alignItems="center" justifyContent="center" height={height}>

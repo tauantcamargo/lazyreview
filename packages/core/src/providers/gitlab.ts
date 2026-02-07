@@ -139,6 +139,10 @@ export function createGitLabProvider(config: GitLabConfig): Provider {
       const parsed = GitLabChangesSchema.parse(data);
       return buildUnifiedDiff(parsed.changes);
     },
+    async getPullRequestFiles(_owner, _repo, _number) {
+      // TODO: Implement GitLab getPullRequestFiles
+      throw new Error('getPullRequestFiles not yet implemented for GitLab');
+    },
     async createComment(owner, repo, number, comment) {
       if (comment.path && comment.line) {
         throw new Error('GitLab inline comments are not implemented yet');

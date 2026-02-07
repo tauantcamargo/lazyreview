@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PullRequestSchema, type CommentInput, type PullRequest } from '../models';
+import { FileChangeSchema, PullRequestSchema, type CommentInput, type FileChange, type PullRequest } from '../models';
 import type { Provider } from './provider';
 
 const GitHubPullRequestSchema = z.object({
@@ -53,9 +53,25 @@ const GitHubSearchResponseSchema = z.object({
   items: z.array(GitHubSearchIssueSchema),
 });
 
+// GitHub file schema from /repos/{owner}/{repo}/pulls/{number}/files
+const GitHubFileSchema = z.object({
+  sha: z.string(),
+  filename: z.string(),
+  status: z.enum(['added', 'removed', 'modified', 'renamed']),
+  additions: z.number(),
+  deletions: z.number(),
+  changes: z.number(),
+  blob_url: z.string().optional(),
+  raw_url: z.string().optional(),
+  contents_url: z.string().optional(),
+  patch: z.string().optional(),
+  previous_filename: z.string().optional(),
+});
+
 type GitHubPullRequest = z.infer<typeof GitHubPullRequestSchema>;
 type GitHubSearchIssue = z.infer<typeof GitHubSearchIssueSchema>;
 type GitHubSearchResponse = z.infer<typeof GitHubSearchResponseSchema>;
+type GitHubFile = z.infer<typeof GitHubFileSchema>;
 
 type GitHubProviderConfig = {
   token: string;
@@ -241,6 +257,19 @@ export function createGitHubProvider(config: GitHubProviderConfig): Provider {
     async getPullRequestDiff(owner, repo, number) {
       const url = `${baseUrl}/repos/${owner}/${repo}/pulls/${number}`;
       return await requestText(url, config, 'application/vnd.github.v3.diff');
+    },
+    async getPullRequestFiles(owner, repo, number) {
+      const url = `${baseUrl}/repos/${owner}/${repo}/pulls/${number}/files`;
+      const data = await requestJson<unknown>(url, config);
+      const files = z.array(GitHubFileSchema).parse(data);
+
+      // Map GitHub file format to our FileChange model
+      return files.map((file): FileChange => ({
+        path: file.filename,
+        status: file.status === 'removed' ? 'deleted' : file.status,
+        additions: file.additions,
+        deletions: file.deletions,
+      }));
     },
     async createComment(owner, repo, number, comment) {
       if (comment.path && comment.line) {

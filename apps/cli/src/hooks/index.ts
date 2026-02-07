@@ -32,4 +32,5 @@ export {
   type UseCommentOperationsResult,
 } from './use-comment-operations';
 export * from './use-pr-diff';
+export * from './use-pr-files';
 export * from './use-github-auth';
