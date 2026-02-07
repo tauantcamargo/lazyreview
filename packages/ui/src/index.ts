@@ -1,4 +1,6 @@
 // Components
+export { BorderedBox } from './components/BorderedBox';
+export type { BorderedBoxProps } from './components/BorderedBox';
 export { VirtualList } from './components/VirtualList';
 export type { VirtualListItem } from './components/VirtualList';
 export { DiffView } from './components/DiffView';

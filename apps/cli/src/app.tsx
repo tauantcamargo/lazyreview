@@ -5,6 +5,7 @@ import {
   CommandPalette,
   ToastContainer,
   ChordIndicator,
+  BorderedBox,
   useChord,
   type ChordDefinition,
 } from '@lazyreview/ui';
@@ -397,18 +398,12 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
         {/* Left Navigation Panel */}
         {isSidebarVisible && (
           <>
-            <Box
+            <BorderedBox
+              title={`Navigation (${navItems.length})`}
               width={sidebarWidth}
-              flexDirection="column"
-              borderStyle="round"
-              borderColor={focusedPanel === 'nav' ? accentColor : borderColor}
+              height={contentHeight}
+              isActive={focusedPanel === 'nav'}
             >
-              <Box paddingX={1}>
-                <Text color={focusedPanel === 'nav' ? accentColor : 'white'} bold>
-                  Navigation
-                </Text>
-                <Text color={mutedColor}> ({navItems.length})</Text>
-              </Box>
               <Box flexDirection="column" paddingX={1}>
                 {navItems.map((item, index) => (
                   <NavigationItem
@@ -425,29 +420,23 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
                   />
                 ))}
               </Box>
-            </Box>
+            </BorderedBox>
             <Box width={1} />
           </>
         )}
 
         {/* Right Content Panel */}
-        <Box
+        <BorderedBox
+          title={`Pull Requests (${pullRequests.length})`}
           width={mainWidth}
-          flexDirection="column"
-          borderStyle="round"
-          borderColor={focusedPanel === 'list' ? accentColor : borderColor}
+          height={contentHeight}
+          isActive={focusedPanel === 'list'}
         >
-          <Box paddingX={1}>
-            <Text color={focusedPanel === 'list' ? accentColor : 'white'} bold>
-              Pull Requests
-            </Text>
-            <Text color={mutedColor}> ({pullRequests.length})</Text>
-          </Box>
-          <Box flexDirection="column" flexGrow={1}>
+          <Box flexDirection="column" height={contentHeight - 3}>
             <CurrentScreen
               view={currentView}
               width={mainWidth - 2}
-              height={contentHeight - 3}
+              height={contentHeight - 4}
               isFocused={focusedPanel === 'list'}
             />
           </Box>
@@ -470,7 +459,7 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
               <Text color={mutedColor}>{getStatusBarContent()}</Text>
             )}
           </Box>
-        </Box>
+        </BorderedBox>
       </Box>
 
       {/* Bottom Status */}

@@ -13,6 +13,7 @@ import {
   InputBox,
   ConfirmDialog,
   SplitPane,
+  BorderedBox,
   type FileChange,
 } from '@lazyreview/ui';
 import { formatRelativeTime, type PullRequest } from '@lazyreview/core';
@@ -673,35 +674,34 @@ function FilesTabContent({
   return (
     <Box flexDirection="row" width={width} height={height}>
       {/* File Tree Panel */}
-      <Box
+      <BorderedBox
+        title="Files"
         width={treeWidth}
         height={height}
-        flexDirection="column"
-        borderStyle="round"
-        borderColor={activePanel === 'tree' ? accentColor : borderColor}
+        isActive={activePanel === 'tree'}
       >
         <FileTree
-          title="Files"
+          title=""
           files={fileTreeData}
           width={treeWidth - 2}
           height={height - 2}
           isActive={activePanel === 'tree'}
           onSelect={handleFileSelect}
         />
-      </Box>
+      </BorderedBox>
+
+      <Box width={1} />
 
       {/* Diff Panel */}
-      <Box
+      <BorderedBox
+        title={selectedFile ? selectedFile.path : 'Diff'}
         width={diffWidth}
         height={height}
-        flexDirection="column"
-        borderStyle="round"
-        borderColor={activePanel === 'diff' ? accentColor : borderColor}
-        marginLeft={1}
+        isActive={activePanel === 'diff'}
       >
         {selectedFile && selectedFileDiff ? (
           <DiffView
-            title={selectedFile.path}
+            title=""
             diff={selectedFileDiff}
             width={diffWidth - 2}
             height={height - 2}
@@ -720,7 +720,7 @@ function FilesTabContent({
             <Text color={mutedColor}>←/h to focus files, Enter to select</Text>
           </Box>
         )}
-      </Box>
+      </BorderedBox>
     </Box>
   );
 }
