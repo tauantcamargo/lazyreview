@@ -688,6 +688,91 @@ When adding new features, copy this template:
 
 ---
 
+### [2026-02-07 04:10] Feature: getPullRequestFiles API and Files View Integration
+**What:** Added getPullRequestFiles method to provider interface to fetch changed files for a PR. Implemented for GitHub and integrated into Files/Diff view to display real file data.
+
+**Files Changed:**
+- `packages/core/src/providers/provider.ts` (added getPullRequestFiles to interface)
+- `packages/core/src/providers/github.ts` (full GitHub implementation)
+- `packages/core/src/providers/gitlab.ts` (stub)
+- `packages/core/src/providers/bitbucket.ts` (stub)
+- `packages/core/src/providers/azuredevops.ts` (stub)
+- `apps/cli/src/hooks/use-pr-files.ts` (new hook)
+- `apps/cli/src/hooks/index.ts` (export)
+- `apps/cli/src/screens/DiffScreen.tsx` (integrated hook, removed demoMode)
+
+**How to test:**
+1. **Test file fetching:**
+   ```bash
+   export GITHUB_TOKEN="your_token"
+   pnpm --filter lazyreview start
+   # Select a PR and press Enter
+   # Navigate to Files view (h/l keys or number 3)
+   # Should see file tree with actual changed files
+   ```
+
+2. **Test file metadata:**
+   ```bash
+   # Files should show:
+   # - File path
+   # - Status (added/modified/deleted/renamed)
+   # - Additions count (+X)
+   # - Deletions count (-Y)
+   ```
+
+3. **Test with different PR states:**
+   ```bash
+   # Test with PRs that have:
+   # - Multiple files changed
+   # - Added files
+   # - Modified files
+   # - Deleted files
+   # - Renamed files
+   ```
+
+**Test Results:**
+- ✅ All packages build successfully
+- ✅ No TypeScript errors
+- ⏳ Manual testing pending with real GitHub PRs
+
+**Coverage:**
+- **Provider Interface:**
+  - Added getPullRequestFiles(owner, repo, number) => Promise<FileChange[]>
+  - Returns FileChange[] with path, status, additions, deletions
+
+- **GitHub Implementation:**
+  - Uses GET /repos/{owner}/{repo}/pulls/{number}/files endpoint
+  - Created GitHubFileSchema for type-safe parsing
+  - Maps GitHub file format to FileChange model
+  - Handles all file statuses (added/removed/modified/renamed)
+
+- **usePRFiles Hook:**
+  - Fetches files using provider.getPullRequestFiles()
+  - Uses TanStack Query for caching (5 min stale time)
+  - Query key includes PR details for cache isolation
+  - Only enabled when PR is selected
+
+- **DiffScreen Integration:**
+  - Integrated usePRFiles hook
+  - Uses fetched files instead of PR.files
+  - Removed all demoMode references
+  - Handles loading and error states
+  - Falls back to PR.files if fetch fails
+
+**Implementation Details:**
+- GitHub file schema includes: sha, filename, status, additions, deletions, changes
+- Status mapping: removed → deleted (to match FileChange model)
+- Other providers have stub implementations that throw errors
+- Files are cached separately from PR data for better performance
+- Loading state shows spinner while files are being fetched
+
+**Next Steps:**
+- Implement getPullRequestFiles for GitLab, Bitbucket, Azure DevOps
+- Add file filtering and search in Files view
+- Show file diff when selecting a file
+
+---
+
 ## Known Issues
 
 None at this time.
