@@ -1,0 +1,18 @@
+{
+  "name": "@lazyreview/storage",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup"
+  },
+  "dependencies": {
+    "@lazyreview/platform": "workspace:*",
+    "better-sqlite3": "^9.4.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8"
+  }
+}

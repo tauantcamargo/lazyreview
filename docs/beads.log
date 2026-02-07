@@ -1,3 +1,12 @@
+✓ lazyreview-ts0 [P0] [task] - TS + Ink rewrite PRD and user stories
+✓ lazyreview-ts1 [P0] [task] - Phase 0: Ink UI spikes + benchmark harness
+○ lazyreview-ts2 [P1] [task] - Phase 1: Provider interfaces + GitHub provider
+○ lazyreview-ts3 [P1] [task] - Phase 2: SQLite cache + offline queue
+○ lazyreview-ts4 [P1] [task] - Phase 3: Core TUI views (list, diff, comments)
+○ lazyreview-ts5 [P2] [task] - Phase 4: Feature parity (reviews, settings, AI)
+○ lazyreview-ts6 [P2] [task] - Phase 5: Performance hardening (workers, memoization)
+○ lazyreview-ts7 [P2] [task] - Phase 6: Packaging + auto-update
+
 ✓ lazyreview-58b [P1] [bug] [ai auth] - Fix AI key persistence and fallback loading
 ✓ lazyreview-1jv [P1] [task] - Neovim-friendly markdown comment editor and configurable vim navigation mode
 ✓ lazyreview-yb0 [P1] [task] - Improve comment thread UX with expandable full preview and jump-to-line

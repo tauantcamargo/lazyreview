@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "apps/cli" },
+    { "path": "packages/ui" },
+    { "path": "packages/core" },
+    { "path": "packages/storage" },
+    { "path": "packages/platform" }
+  ]
+}
