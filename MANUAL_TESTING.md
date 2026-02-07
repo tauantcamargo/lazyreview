@@ -456,6 +456,97 @@ This document tracks all features and changes that have been manually tested in 
 
 ---
 
+### [2026-02-07 03:36] Feature: My PRs and Review Requests UI Integration
+**What:** Created hooks to fetch user's PRs and review requests across all repositories, integrated into PRListScreen with tab-based switching.
+
+**Files Changed:**
+- `apps/cli/src/hooks/use-pull-requests.ts` (added useMyPRs and useReviewRequests)
+- `apps/cli/src/hooks/use-pull-requests.test.ts` (added 6 tests)
+- `apps/cli/src/screens/PRListScreen.tsx` (integrated hooks based on activeTab)
+- `apps/cli/src/app.tsx` (passed activeTab prop to CurrentScreen)
+- `apps/cli/src/hooks/use-github-auth.ts` (cleanup - useCallback wrapper)
+
+**How to test:**
+1. **Test "My PRs" tab:**
+   ```bash
+   export GITHUB_TOKEN="your_token"
+   pnpm --filter lazyreview start
+   # Default tab should be "My PRs"
+   # Should show PRs authored by you across all repositories
+   ```
+
+2. **Test "To Review" tab:**
+   ```bash
+   # In the TUI, press Tab to switch to "To Review"
+   # Or use number keys to select the tab
+   # Should show PRs where you're requested as a reviewer
+   ```
+
+3. **Test tab switching:**
+   ```bash
+   # Switch between tabs: All, Recent, Favorites, My PRs, To Review
+   # Each tab should fetch appropriate data
+   ```
+
+4. **Run unit tests:**
+   ```bash
+   pnpm -w test -- --run apps/cli/src/hooks/use-pull-requests.test.ts
+   # Should show 16 tests passing (10 original + 6 new)
+   ```
+
+5. **Verify build:**
+   ```bash
+   pnpm build
+   # All packages should build successfully
+   ```
+
+**Test Results:**
+- ✅ All 16 tests passing (6 new query key tests)
+- ✅ All packages build successfully
+- ✅ No TypeScript errors
+- ⏳ Manual UI testing pending (integration in progress)
+
+**Coverage:**
+- **useMyPRs hook:**
+  - Calls provider.getMyPRs() with filters and limit
+  - Uses TanStack Query for caching (2 min stale time)
+  - Provider-agnostic (works with GitHub, GitLab, etc.)
+  - Query key includes provider and filters for cache isolation
+
+- **useReviewRequests hook:**
+  - Calls provider.getReviewRequests() with filters and limit
+  - Uses TanStack Query for caching (2 min stale time)
+  - Provider-agnostic (works with GitHub, GitLab, etc.)
+  - Query key includes provider and filters for cache isolation
+
+- **PRListScreen Integration:**
+  - Accepts activeTab prop (FilterTab type)
+  - Switches between useListPullRequests, useMyPRs, useReviewRequests based on tab
+  - Handles loading states for each hook independently
+  - Handles error states for each hook independently
+  - Syncs real data to store when loaded
+
+- **Query Keys:**
+  - Added pullRequestKeys.myPRs(provider, filters)
+  - Added pullRequestKeys.reviewRequests(provider, filters)
+  - Unique keys for each query type prevent cache collisions
+  - Tests verify key uniqueness across repos, providers, filters, and query types
+
+**Implementation Details:**
+- activeTab prop passed from app.tsx → CurrentScreen → PRListScreen
+- isRepoTab = 'all' | 'recent' | 'favorites' (uses useListPullRequests)
+- isMyPRsTab = 'mine' (uses useMyPRs)
+- isReviewTab = 'review' (uses useReviewRequests)
+- Only enabled hook for current tab to avoid unnecessary API calls
+- Demo mode still shows demo data (will be removed in next iteration)
+
+**Next Steps:**
+- Remove demoMode and test with real data only
+- Show graceful error messages when no data available
+- Trigger data fetch when navigation items are selected
+
+---
+
 ## Testing Checklist Template
 
 When adding new features, copy this template:
