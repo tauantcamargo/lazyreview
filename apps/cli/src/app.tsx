@@ -319,6 +319,24 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
     }
 
     // Panel focus switching (h/l or left/right arrows)
+    // When in PR detail views (detail, files, ai), h/l navigates between views
+    if (selectedPRNumber && (currentView === 'detail' || currentView === 'files' || currentView === 'ai')) {
+      if (input === 'h' || key.leftArrow) {
+        // Navigate left through views: files <- detail <- ai
+        if (currentView === 'ai') setView('detail');
+        else if (currentView === 'detail') setView('files');
+        else if (currentView === 'files' && isSidebarVisible) setFocusedPanel('nav');
+        return;
+      } else if (input === 'l' || key.rightArrow) {
+        // Navigate right through views: files -> detail -> ai
+        if (currentView === 'files') setView('detail');
+        else if (currentView === 'detail') setView('ai');
+        // ai is the rightmost, no further navigation
+        return;
+      }
+    }
+
+    // Default panel focus switching when not in PR detail views
     if ((input === 'h' || key.leftArrow) && isSidebarVisible) {
       setFocusedPanel('nav');
     } else if (input === 'l' || key.rightArrow) {
@@ -334,9 +352,20 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
       } else if (key.return) {
         const selectedNav = navItems[navIndex];
         if (selectedNav) {
-          if (selectedNav.id === 'dashboard') setView('dashboard');
-          else if (selectedNav.id === 'settings') setView('settings');
-          else setView('list');
+          // Trigger data refresh when navigating to different views
+          queryClient.invalidateQueries({ queryKey: pullRequestKeys.lists() });
+
+          if (selectedNav.id === 'dashboard') {
+            setView('dashboard');
+          } else if (selectedNav.id === 'settings') {
+            setView('settings');
+          } else {
+            setView('list');
+            // Focus back to list panel after selecting navigation item
+            setFocusedPanel('list');
+          }
+
+          addToast(`Navigated to ${selectedNav.label}`, 'info');
         }
       }
     }
@@ -361,7 +390,7 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
   ];
 
   // Get current branch info
-  const branchInfo = 'tc/rewrite-work (dirty)';
+  const branchInfo = 'main';
 
   // Status bar content
   const getStatusBarContent = (): string => {
