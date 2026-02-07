@@ -84,6 +84,9 @@ export function useGitHubAuth(): UseGitHubAuthResult {
       }
 
       const userData = await response.json();
+
+      console.log('userData', userData);
+
       const user: GitHubUser = {
         login: userData.login,
         name: userData.name || null,

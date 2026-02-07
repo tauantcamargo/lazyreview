@@ -26,7 +26,7 @@ import {
   AIReviewScreen,
 } from './screens/index.js';
 import { PRActionDialogs, type PRActionType } from './components/index.js';
-import { useToast, useConfig, pullRequestKeys } from './hooks/index.js';
+import { useToast, useConfig, pullRequestKeys, useGitHubAuth } from './hooks/index.js';
 import type { ViewType } from './stores/app-store.js';
 import { match } from 'ts-pattern';
 
@@ -87,6 +87,16 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
 
   const { toasts, addToast, removeToast } = useToast();
   const queryClient = useQueryClient();
+
+  // GitHub authentication
+  const { isAuthenticated, user, isDemoMode: authDemoMode, error: authError } = useGitHubAuth();
+
+  // Show toast for authentication errors
+  useEffect(() => {
+    if (authError) {
+      addToast(authError, 'error');
+    }
+  }, [authError, addToast]);
 
   // Active filter tab
   const [activeTab, setActiveTab] = React.useState<FilterTab>('mine');
@@ -364,6 +374,18 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
           LazyReview
         </Text>
         <Text color={mutedColor}> • </Text>
+        {/* Authentication Status */}
+        {isAuthenticated && user ? (
+          <>
+            <Text color={successColor}>Authenticated as {user.login}</Text>
+            <Text color={mutedColor}> • </Text>
+          </>
+        ) : authDemoMode ? (
+          <>
+            <Text color={warningColor}>Demo Mode</Text>
+            <Text color={mutedColor}> • </Text>
+          </>
+        ) : null}
         <Text color="white">{pullRequests.length} PRs</Text>
         <Text color={mutedColor}> • </Text>
         <Text color={demoMode ? warningColor : mutedColor}>{branchInfo}</Text>

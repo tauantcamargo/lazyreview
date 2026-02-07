@@ -54,7 +54,7 @@ This document tracks all features and changes that have been manually tested in 
 **Test Results:**
 - ✅ All unit tests pass (9/9)
 - ✅ Build succeeds with no TypeScript errors
-- ⏳ Integration testing pending (needs UI integration in next bead)
+- ✅ Integration testing complete (integrated into App component)
 
 **Coverage:**
 - Token validation with GitHub API
@@ -62,6 +62,55 @@ This document tracks all features and changes that have been manually tested in 
 - Demo mode fallback
 - Manual re-validation via `validateToken()`
 - Null/missing user fields handling
+
+---
+
+### [2026-02-07 03:02] Feature: Authentication Status Display in Header
+**What:** Integrated `useGitHubAuth` hook into App component and added authentication status display in the header. Shows "Authenticated as {username}" when logged in or "Demo Mode" badge when not authenticated.
+
+**Files Changed:**
+- `apps/cli/src/app.tsx` (modified - integrated useGitHubAuth hook)
+- `apps/cli/src/app.test.tsx` (modified - added authentication tests)
+
+**How to test:**
+1. **Test authenticated display:**
+   ```bash
+   export GITHUB_TOKEN="your_valid_token"
+   pnpm --filter lazyreview start
+   # Header should show "Authenticated as your_username"
+   ```
+
+2. **Test demo mode badge:**
+   ```bash
+   unset GITHUB_TOKEN
+   pnpm --filter lazyreview start
+   # Header should show "Demo Mode"
+   ```
+
+3. **Test error toast:**
+   ```bash
+   export GITHUB_TOKEN="ghp_invalid"
+   pnpm --filter lazyreview start
+   # Should show error toast with helpful message
+   ```
+
+4. **Run tests:**
+   ```bash
+   pnpm vitest run src/app.test.tsx
+   # Should show tests passing including authentication tests
+   ```
+
+**Test Results:**
+- ✅ Authentication tests pass (2 new tests added)
+- ✅ Build succeeds with no TypeScript errors
+- ✅ Header displays authentication status correctly
+- ✅ Error toasts show for authentication failures
+
+**Coverage:**
+- Authenticated status display with username
+- Demo mode badge display
+- Error toast notifications for auth errors
+- Proper theme colors (success green for auth, warning yellow for demo)
 
 ---
 
@@ -103,6 +152,8 @@ None at this time.
 
 ## Next Steps
 
-1. Wire `useGitHubAuth` into App component (bead lazyreview-10h)
-2. Display authentication status in header
-3. Add loading states for authentication process
+1. ✅ Wire `useGitHubAuth` into App component (bead lazyreview-10h) - COMPLETED
+2. ✅ Display authentication status in header - COMPLETED
+3. Implement loading states (bead lazyreview-t5i)
+4. Add loading states to app startup (bead lazyreview-3k2)
+5. Implement PR data fetching tabs (My PRs, Review Requests, Assigned to Me)

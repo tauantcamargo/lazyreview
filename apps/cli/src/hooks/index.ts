@@ -25,6 +25,11 @@ export * from './use-ai-review';
 export * from './use-offline-queue';
 export * from './use-config';
 export * from './use-chord';
-export * from './use-comment-operations';
+export {
+  useCommentOperations,
+  type CommentActionType,
+  type UseCommentOperationsOptions,
+  type UseCommentOperationsResult,
+} from './use-comment-operations';
 export * from './use-pr-diff';
 export * from './use-github-auth';

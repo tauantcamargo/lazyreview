@@ -61,6 +61,18 @@ vi.mock('./hooks/index.js', () => ({
     config: { version: '1.0.0' },
     isVimMode: true,
   })),
+  useGitHubAuth: vi.fn(() => ({
+    isAuthenticated: false,
+    isLoading: false,
+    user: null,
+    error: null,
+    isDemoMode: true,
+    token: null,
+    validateToken: vi.fn(),
+  })),
+  pullRequestKeys: {
+    all: () => ['pull-requests'],
+  },
 }));
 
 // Mock screens
@@ -87,6 +99,8 @@ vi.mock('@lazyreview/ui', () => ({
   ToastContainer: ({ toasts }: any) =>
     React.createElement(Text, null, `Toasts: ${toasts?.length ?? 0}`),
   Panel: ({ children }: any) => React.createElement(Box, null, children),
+  BorderedBox: ({ children, title }: any) =>
+    React.createElement(Box, null, React.createElement(Text, null, title), children),
   ChordIndicator: ({ pendingKeys }: any) =>
     React.createElement(Text, null, `Chord: ${pendingKeys?.join('') ?? ''}`),
   TextArea: ({ value, placeholder }: any) =>
@@ -140,9 +154,9 @@ describe('App', () => {
     expect(lastFrame()).toContain('Navigation');
   });
 
-  it('renders Pull Requests panel', () => {
+  it('renders Pull Request panel', () => {
     const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
-    expect(lastFrame()).toContain('Pull Requests');
+    expect(lastFrame()).toContain('Pull Request');
   });
 
   it('renders PR list screen by default', async () => {
@@ -403,5 +417,43 @@ describe('App', () => {
     const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('Filter:');
     expect(lastFrame()).toContain('test');
+  });
+
+  it('renders demo mode badge when not authenticated', async () => {
+    const { useGitHubAuth } = await import('./hooks/index.js');
+    vi.mocked(useGitHubAuth).mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+      error: null,
+      isDemoMode: true,
+      token: null,
+      validateToken: vi.fn(),
+    });
+
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('Demo Mode');
+  });
+
+  it('renders authenticated status when user is authenticated', async () => {
+    const { useGitHubAuth } = await import('./hooks/index.js');
+    vi.mocked(useGitHubAuth).mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      user: {
+        login: 'testuser',
+        name: 'Test User',
+        email: 'test@example.com',
+        avatarUrl: 'https://github.com/avatar.png',
+        bio: 'Test bio',
+      },
+      error: null,
+      isDemoMode: false,
+      token: 'ghp_testtoken',
+      validateToken: vi.fn(),
+    });
+
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('Authenticated as testuser');
   });
 });
