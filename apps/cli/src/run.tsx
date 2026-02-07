@@ -2,6 +2,7 @@ import React from 'react';
 import { render } from 'ink';
 import { App, type AppProps } from './app';
 import { QueryProvider } from './providers/QueryProvider';
+import { LoadingProvider } from '@lazyreview/core';
 import { useAppStore } from './stores/app-store';
 
 export async function runTui(props: AppProps = {}): Promise<void> {
@@ -57,9 +58,11 @@ export async function runTui(props: AppProps = {}): Promise<void> {
   });
 
   const { unmount } = render(
-    <QueryProvider>
-      <App {...props} width={width} height={height} />
-    </QueryProvider>,
+    <LoadingProvider>
+      <QueryProvider>
+        <App {...props} width={width} height={height} />
+      </QueryProvider>
+    </LoadingProvider>,
     {
       // patchConsole: false prevents Ink from hijacking console methods
       patchConsole: false,

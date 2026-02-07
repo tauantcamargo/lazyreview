@@ -10,6 +10,8 @@ import {
   type ChordDefinition,
 } from '@lazyreview/ui';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLoading } from '@lazyreview/core';
+import { LoadingSpinner, SkeletonPRList } from '@lazyreview/ui';
 import {
   useAppStore,
   useCurrentView,
@@ -89,7 +91,25 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
   const queryClient = useQueryClient();
 
   // GitHub authentication
-  const { isAuthenticated, user, isDemoMode: authDemoMode, error: authError } = useGitHubAuth();
+  const {
+    isAuthenticated,
+    user,
+    isDemoMode: authDemoMode,
+    error: authError,
+    isLoading: isAuthLoading,
+  } = useGitHubAuth();
+
+  // Loading state management
+  const { isLoading: appIsLoading, message: loadingMessage, startLoading, stopLoading, updateMessage } = useLoading();
+
+  // Manage loading states for authentication
+  useEffect(() => {
+    if (isAuthLoading) {
+      startLoading('Authenticating...', 'auth');
+    } else {
+      stopLoading();
+    }
+  }, [isAuthLoading, startLoading, stopLoading]);
 
   // Show toast for authentication errors
   useEffect(() => {
@@ -355,6 +375,15 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
     return (
       <Box flexDirection="column" width={width} height={height} alignItems="center" justifyContent="center">
         <HelpOverlay onClose={toggleHelp} width={width} height={height} />
+      </Box>
+    );
+  }
+
+  // Show loading screen during initial authentication
+  if (appIsLoading && loadingMessage) {
+    return (
+      <Box flexDirection="column" width={width} height={height}>
+        <LoadingSpinner message={loadingMessage} centered />
       </Box>
     );
   }

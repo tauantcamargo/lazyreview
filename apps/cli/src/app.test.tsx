@@ -3,6 +3,7 @@ import { Text, Box } from 'ink';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LoadingProvider } from '@lazyreview/core';
 import { App } from './app.js';
 
 // Create a test query client
@@ -15,13 +16,15 @@ const createTestQueryClient = () => new QueryClient({
   },
 });
 
-// Wrapper component that provides QueryClient
+// Wrapper component that provides QueryClient and LoadingProvider
 function TestWrapper({ children }: { children: React.ReactNode }) {
   const queryClient = createTestQueryClient();
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+    <LoadingProvider>
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    </LoadingProvider>
   );
 }
 
@@ -107,6 +110,10 @@ vi.mock('@lazyreview/ui', () => ({
     React.createElement(Text, null, value || placeholder),
   ConfirmDialog: ({ title, message }: any) =>
     React.createElement(Text, null, `${title}: ${message}`),
+  LoadingSpinner: ({ message }: any) =>
+    React.createElement(Text, null, `Loading: ${message}`),
+  SkeletonPRList: ({ count }: any) =>
+    React.createElement(Text, null, `Skeleton: ${count} items`),
   useChord: vi.fn(() => ({
     handleInput: vi.fn(() => false),
     state: { buffer: '', isActive: false, pendingChords: [] },
@@ -455,5 +462,45 @@ describe('App', () => {
 
     const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('Authenticated as testuser');
+  });
+
+  it('shows loading screen during authentication', async () => {
+    const { useGitHubAuth } = await import('./hooks/index.js');
+    vi.mocked(useGitHubAuth).mockReturnValue({
+      isAuthenticated: false,
+      isLoading: true,
+      user: null,
+      error: null,
+      isDemoMode: false,
+      token: null,
+      validateToken: vi.fn(),
+    });
+
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('Loading: Authenticating...');
+  });
+
+  it('hides loading screen after authentication completes', async () => {
+    const { useGitHubAuth } = await import('./hooks/index.js');
+    vi.mocked(useGitHubAuth).mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      user: {
+        login: 'testuser',
+        id: 123,
+        name: 'Test User',
+        email: 'test@example.com',
+        avatarUrl: 'https://example.com/avatar.png',
+        bio: 'Test bio',
+      },
+      error: null,
+      isDemoMode: false,
+      token: 'ghp_testtoken',
+      validateToken: vi.fn(),
+    });
+
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).not.toContain('Loading: Authenticating...');
+    expect(lastFrame()).toContain('LazyReview');
   });
 });
