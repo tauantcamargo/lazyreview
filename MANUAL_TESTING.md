@@ -281,6 +281,93 @@ This document tracks all features and changes that have been manually tested in 
 
 ---
 
+### [2026-02-07 03:25] Feature: getMyPRs API Method in GitHub Provider
+**What:** Implemented `getMyPRs()` method in GitHub provider to fetch pull requests authored by the authenticated user using GitHub Search API.
+
+**Files Changed:**
+- `packages/core/src/providers/provider.ts` (added getMyPRs to interface)
+- `packages/core/src/providers/github.ts` (full implementation)
+- `packages/core/src/providers/bitbucket.ts` (stub)
+- `packages/core/src/providers/gitlab.ts` (stub)
+- `packages/core/src/providers/azuredevops.ts` (stub)
+- `packages/core/src/providers/github.test.ts` (added 3 tests)
+
+**How to test:**
+1. **Test in code (TypeScript):**
+   ```typescript
+   import { createGitHubProvider } from '@lazyreview/core';
+
+   const provider = createGitHubProvider({ token: process.env.GITHUB_TOKEN });
+   const myPRs = await provider.getMyPRs();
+   console.log(`Found ${myPRs.length} PRs authored by me`);
+   ```
+
+2. **Run unit tests:**
+   ```bash
+   pnpm -w test -- --run packages/core/src/providers/github.test.ts
+   # Should show 18/18 tests passing (3 new getMyPRs tests)
+   ```
+
+3. **Test with different options:**
+   ```typescript
+   // Get closed PRs
+   const closedPRs = await provider.getMyPRs({ state: 'closed' });
+
+   // Limit results
+   const recentPRs = await provider.getMyPRs({ limit: 10 });
+   ```
+
+4. **Verify build:**
+   ```bash
+   pnpm build
+   # All packages should build successfully
+   ```
+
+**Test Results:**
+- ✅ All 18 GitHub provider tests passing
+- ✅ getMyPRs returns PRs from multiple repositories
+- ✅ Search API properly queries by author
+- ✅ Current user cached across multiple calls
+- ✅ All packages build successfully
+- ✅ No TypeScript errors
+
+**Coverage:**
+- **Provider Interface:**
+  - Added getMyPRs method signature
+  - Accepts optional ListPullRequestOptions (state, limit)
+  - Returns Promise<PullRequest[]>
+
+- **GitHub Implementation:**
+  - Uses GitHub Search API: `GET /search/issues`
+  - Query format: `is:pr author:{username} is:{state}`
+  - Fetches current user from `/user` endpoint
+  - Caches user to avoid repeated API calls
+  - Extracts owner/repo from repository_url
+  - Fetches full PR details for head/base refs
+  - Sorts by updated date (most recent first)
+  - Respects state and limit options
+
+- **Tests:**
+  - Fetches PRs using search API
+  - Passes state and limit parameters
+  - Caches current user across calls
+  - Maps search results correctly
+  - Handles multiple repositories
+
+**Implementation Details:**
+- Search API returns issues, not full PR objects
+- Need to fetch full PR data to get head/base ref information
+- repository_url format: `https://api.github.com/repos/owner/repo`
+- User caching improves performance for multiple calls
+- Limit capped at 100 (GitHub API maximum)
+
+**Next Steps:**
+- Implement getMyPRs for GitLab, Bitbucket, Azure DevOps
+- Create UI tab to display "My PRs"
+- Wire up to app state and UI
+
+---
+
 ## Testing Checklist Template
 
 When adding new features, copy this template:
@@ -323,4 +410,7 @@ None at this time.
 2. ✅ Display authentication status in header - COMPLETED
 3. ✅ Implement loading states (bead lazyreview-t5i) - COMPLETED
 4. ✅ Add loading states to app startup (bead lazyreview-3k2) - COMPLETED
-5. Implement PR data fetching tabs (My PRs, Review Requests, Assigned to Me)
+5. ✅ Implement getMyPRs API method (bead lazyreview-6lw) - COMPLETED
+6. Implement getReviewRequests API method (bead lazyreview-73r)
+7. Implement getAssignedPRs API method (bead lazyreview-paw)
+8. Create My PRs tab UI (bead lazyreview-i7o)
