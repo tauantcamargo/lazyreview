@@ -17,6 +17,7 @@ vi.mock('./stores/app-store.js', () => {
     toggleHelp: vi.fn(),
     toggleCommandPalette: vi.fn(),
     selectRepo: vi.fn(),
+    initDemoMode: vi.fn(),
   };
   return {
     useAppStore: vi.fn((selector: any) => selector ? selector(mockState) : mockState),
@@ -168,6 +169,7 @@ describe('App', () => {
       toggleHelp: vi.fn(),
       toggleCommandPalette: vi.fn(),
       selectRepo: vi.fn(),
+      initDemoMode: vi.fn(),
     };
     vi.mocked(useAppStore).mockImplementation((selector: any) =>
       selector ? selector(mockState) : mockState
@@ -191,6 +193,7 @@ describe('App', () => {
       toggleHelp: vi.fn(),
       toggleCommandPalette: vi.fn(),
       selectRepo: vi.fn(),
+      initDemoMode: vi.fn(),
     };
     vi.mocked(useAppStore).mockImplementation((selector: any) =>
       selector ? selector(mockState) : mockState
@@ -230,7 +233,26 @@ describe('App', () => {
   });
 
   it('shows vim navigation hints in status bar', async () => {
+    const { useAppStore } = await import('./stores/app-store.js');
     const { useConfig } = await import('./hooks/index.js');
+
+    // Ensure the mock has initDemoMode
+    const mockState = {
+      currentView: 'list' as const,
+      isSidebarVisible: true,
+      isCommandPaletteOpen: false,
+      isHelpOpen: false,
+      selectedRepo: null,
+      setView: vi.fn(),
+      toggleSidebar: vi.fn(),
+      toggleHelp: vi.fn(),
+      toggleCommandPalette: vi.fn(),
+      selectRepo: vi.fn(),
+      initDemoMode: vi.fn(),
+    };
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector ? selector(mockState) : mockState
+    );
     vi.mocked(useConfig).mockReturnValue({
       config: { version: '1.0.0' },
       isVimMode: true,
@@ -241,7 +263,26 @@ describe('App', () => {
   });
 
   it('shows arrow key hints when not in vim mode', async () => {
+    const { useAppStore } = await import('./stores/app-store.js');
     const { useConfig } = await import('./hooks/index.js');
+
+    // Ensure the mock has initDemoMode
+    const mockState = {
+      currentView: 'list' as const,
+      isSidebarVisible: true,
+      isCommandPaletteOpen: false,
+      isHelpOpen: false,
+      selectedRepo: null,
+      setView: vi.fn(),
+      toggleSidebar: vi.fn(),
+      toggleHelp: vi.fn(),
+      toggleCommandPalette: vi.fn(),
+      selectRepo: vi.fn(),
+      initDemoMode: vi.fn(),
+    };
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector ? selector(mockState) : mockState
+    );
     vi.mocked(useConfig).mockReturnValue({
       config: { version: '1.0.0' },
       isVimMode: false,

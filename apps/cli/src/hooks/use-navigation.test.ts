@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useNavigation } from './use-navigation';
 
@@ -162,5 +162,99 @@ describe('useNavigation', () => {
     });
     expect(result.current.selectedIndex).toBe(0);
     expect(result.current.offset).toBe(0);
+  });
+
+  // Tests for navigate* function aliases
+  it('navigateUp is an alias for moveUp', () => {
+    const { result } = renderHook(() =>
+      useNavigation({ itemCount: 10, pageSize: 5, initialIndex: 5 })
+    );
+
+    act(() => {
+      result.current.navigateUp();
+    });
+    expect(result.current.selectedIndex).toBe(4);
+  });
+
+  it('navigateDown is an alias for moveDown', () => {
+    const { result } = renderHook(() =>
+      useNavigation({ itemCount: 10, pageSize: 5 })
+    );
+
+    act(() => {
+      result.current.navigateDown();
+    });
+    expect(result.current.selectedIndex).toBe(1);
+  });
+
+  it('navigateToTop is an alias for goToTop', () => {
+    const { result } = renderHook(() =>
+      useNavigation({ itemCount: 20, pageSize: 5, initialIndex: 15 })
+    );
+
+    act(() => {
+      result.current.navigateToTop();
+    });
+    expect(result.current.selectedIndex).toBe(0);
+  });
+
+  it('navigateToBottom is an alias for goToBottom', () => {
+    const { result } = renderHook(() =>
+      useNavigation({ itemCount: 20, pageSize: 5 })
+    );
+
+    act(() => {
+      result.current.navigateToBottom();
+    });
+    expect(result.current.selectedIndex).toBe(19);
+  });
+
+  // Tests for external state management
+  describe('with external state', () => {
+    it('uses external selectedIndex', () => {
+      const { result } = renderHook(() =>
+        useNavigation({
+          itemCount: 10,
+          pageSize: 5,
+          selectedIndex: 3,
+          onIndexChange: () => {},
+        })
+      );
+      expect(result.current.selectedIndex).toBe(3);
+    });
+
+    it('calls onIndexChange when navigating', () => {
+      const onIndexChange = vi.fn();
+      const { result } = renderHook(() =>
+        useNavigation({
+          itemCount: 10,
+          pageSize: 5,
+          selectedIndex: 5,
+          onIndexChange,
+        })
+      );
+
+      act(() => {
+        result.current.navigateDown();
+      });
+      expect(onIndexChange).toHaveBeenCalledWith(6);
+    });
+
+    it('calls onIndexChange when navigating up', () => {
+      const onIndexChange = vi.fn();
+      const { result } = renderHook(() =>
+        useNavigation({
+          itemCount: 10,
+          pageSize: 5,
+          selectedIndex: 5,
+          onIndexChange,
+        })
+      );
+
+      act(() => {
+        result.current.navigateUp();
+      });
+      expect(onIndexChange).toHaveBeenCalledWith(4);
+    });
   });
 });

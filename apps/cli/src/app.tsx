@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
 import {
   Layout,
@@ -37,7 +37,7 @@ export interface AppProps {
  * Main Application Component
  * Coordinates all screens, layout, and global keyboard shortcuts
  */
-export function App({ width = 80, height = 24 }: AppProps): React.ReactElement {
+export function App({ width = 80, height = 24, provider, repo }: AppProps): React.ReactElement {
   const { exit } = useApp();
   const currentView = useCurrentView();
   const isSidebarVisible = useIsSidebarVisible();
@@ -51,8 +51,24 @@ export function App({ width = 80, height = 24 }: AppProps): React.ReactElement {
   const toggleCommandPalette = useAppStore((s) => s.toggleCommandPalette);
   const isHelpOpen = useAppStore((s) => s.isHelpOpen);
   const selectedRepo = useAppStore((s) => s.selectedRepo);
+  const initDemoMode = useAppStore((s) => s.initDemoMode);
+  const selectRepo = useAppStore((s) => s.selectRepo);
 
   const { toasts, removeToast } = useToast();
+
+  // Initialize app on mount
+  useEffect(() => {
+    if (repo) {
+      // Parse repo string (owner/name format)
+      const [owner, repoName] = repo.split('/');
+      if (owner && repoName) {
+        selectRepo(owner, repoName, provider || 'github');
+      }
+    } else {
+      // No repo provided - start in demo mode
+      initDemoMode();
+    }
+  }, [repo, provider, selectRepo, initDemoMode]);
 
   // Global keyboard shortcuts
   useInput((input, key) => {

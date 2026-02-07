@@ -3,6 +3,94 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import type { PullRequest } from '@lazyreview/core';
 
 export type ViewType = 'list' | 'detail' | 'dashboard' | 'settings' | 'files' | 'ai';
+
+// Demo data for testing the TUI
+const DEMO_PULL_REQUESTS: PullRequest[] = [
+  {
+    id: '1',
+    number: 42,
+    title: 'feat: Add user authentication with OAuth2',
+    body: 'This PR implements OAuth2 authentication flow.',
+    state: 'open',
+    isDraft: false,
+    author: { login: 'alice', avatarUrl: '' },
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+    updatedAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+    baseRef: 'main',
+    headRef: 'feat/oauth2-auth',
+    url: 'https://github.com/org/repo/pull/42',
+    labels: [{ name: 'enhancement', color: '00ff00' }],
+    reviewDecision: 'REVIEW_REQUIRED',
+    repository: { owner: 'lazyreview', name: 'demo' },
+  },
+  {
+    id: '2',
+    number: 41,
+    title: 'fix: Resolve memory leak in cache layer',
+    body: 'Fixed memory leak caused by unclosed connections.',
+    state: 'open',
+    isDraft: false,
+    author: { login: 'bob', avatarUrl: '' },
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+    updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
+    baseRef: 'main',
+    headRef: 'fix/memory-leak',
+    url: 'https://github.com/org/repo/pull/41',
+    labels: [{ name: 'bug', color: 'ff0000' }],
+    reviewDecision: 'APPROVED',
+    repository: { owner: 'lazyreview', name: 'demo' },
+  },
+  {
+    id: '3',
+    number: 40,
+    title: 'refactor: Improve database query performance',
+    body: 'Optimized queries for faster response times.',
+    state: 'open',
+    isDraft: true,
+    author: { login: 'charlie', avatarUrl: '' },
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+    updatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
+    baseRef: 'main',
+    headRef: 'refactor/db-perf',
+    url: 'https://github.com/org/repo/pull/40',
+    labels: [{ name: 'performance', color: 'ff9900' }],
+    repository: { owner: 'lazyreview', name: 'demo' },
+  },
+  {
+    id: '4',
+    number: 39,
+    title: 'docs: Update API documentation',
+    body: 'Updated REST API docs with new endpoints.',
+    state: 'open',
+    isDraft: false,
+    author: { login: 'dave', avatarUrl: '' },
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+    baseRef: 'main',
+    headRef: 'docs/api-update',
+    url: 'https://github.com/org/repo/pull/39',
+    labels: [{ name: 'documentation', color: '0066ff' }],
+    reviewDecision: 'CHANGES_REQUESTED',
+    repository: { owner: 'lazyreview', name: 'demo' },
+  },
+  {
+    id: '5',
+    number: 38,
+    title: 'test: Add integration tests for auth module',
+    body: 'Comprehensive integration tests for authentication.',
+    state: 'merged',
+    isDraft: false,
+    author: { login: 'eve', avatarUrl: '' },
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+    updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+    baseRef: 'main',
+    headRef: 'test/auth-integration',
+    url: 'https://github.com/org/repo/pull/38',
+    labels: [{ name: 'testing', color: '9900ff' }],
+    reviewDecision: 'APPROVED',
+    repository: { owner: 'lazyreview', name: 'demo' },
+  },
+];
 export type PanelType = 'sidebar' | 'content' | 'detail';
 export type SidebarMode = 'repos' | 'filters';
 
@@ -57,6 +145,7 @@ interface AppState {
   setStatus: (status: 'idle' | 'loading' | 'ready' | 'error') => void;
   setErrorMessage: (message: string | null) => void;
   setDemoMode: (demo: boolean) => void;
+  initDemoMode: () => void;
   reset: () => void;
 }
 
@@ -136,6 +225,14 @@ export const useAppStore = create<AppState>()(
     setErrorMessage: (message) => set({ errorMessage: message }),
 
     setDemoMode: (demo) => set({ demoMode: demo }),
+
+    initDemoMode: () =>
+      set({
+        demoMode: true,
+        pullRequests: DEMO_PULL_REQUESTS,
+        selectedRepo: { owner: 'lazyreview', repo: 'demo', provider: 'github' },
+        status: 'ready',
+      }),
 
     reset: () => set(initialState),
   }))

@@ -7,13 +7,22 @@ export interface NavigationState {
 
 export interface UseNavigationOptions {
   itemCount: number;
-  pageSize: number;
+  pageSize?: number;
   initialIndex?: number;
+  // For external state management (e.g., Zustand)
+  selectedIndex?: number;
+  onIndexChange?: (index: number) => void;
 }
 
 export interface UseNavigationResult {
   selectedIndex: number;
   offset: number;
+  // Primary navigation functions (used by screens)
+  navigateUp: () => void;
+  navigateDown: () => void;
+  navigateToTop: () => void;
+  navigateToBottom: () => void;
+  // Aliases for backward compatibility
   moveUp: () => void;
   moveDown: () => void;
   pageUp: () => void;
@@ -26,13 +35,19 @@ export interface UseNavigationResult {
 
 export function useNavigation({
   itemCount,
-  pageSize,
+  pageSize = 10,
   initialIndex = 0,
+  selectedIndex: externalIndex,
+  onIndexChange,
 }: UseNavigationOptions): UseNavigationResult {
-  const [selectedIndex, setSelectedIndex] = useState(
+  // Use external state if provided, otherwise use internal state
+  const [internalIndex, setInternalIndex] = useState(
     Math.min(initialIndex, Math.max(0, itemCount - 1))
   );
   const [offset, setOffset] = useState(0);
+
+  // Determine which index to use
+  const selectedIndex = externalIndex ?? internalIndex;
 
   const ensureVisible = useCallback(
     (index: number) => {
@@ -45,72 +60,114 @@ export function useNavigation({
     [offset, pageSize]
   );
 
-  const moveUp = useCallback(() => {
-    setSelectedIndex((prev) => {
-      const next = Math.max(0, prev - 1);
+  const navigateUp = useCallback(() => {
+    if (onIndexChange) {
+      // External state management - use current value
+      const next = Math.max(0, selectedIndex - 1);
+      onIndexChange(next);
       ensureVisible(next);
-      return next;
-    });
-  }, [ensureVisible]);
+    } else {
+      // Internal state - use functional update
+      setInternalIndex((prev) => {
+        const next = Math.max(0, prev - 1);
+        ensureVisible(next);
+        return next;
+      });
+    }
+  }, [selectedIndex, onIndexChange, ensureVisible]);
 
-  const moveDown = useCallback(() => {
-    setSelectedIndex((prev) => {
-      const next = Math.min(itemCount - 1, prev + 1);
+  const navigateDown = useCallback(() => {
+    if (onIndexChange) {
+      // External state management
+      const next = Math.min(Math.max(0, itemCount - 1), selectedIndex + 1);
+      onIndexChange(next);
       ensureVisible(next);
-      return next;
-    });
-  }, [itemCount, ensureVisible]);
+    } else {
+      // Internal state - use functional update
+      setInternalIndex((prev) => {
+        const next = Math.min(Math.max(0, itemCount - 1), prev + 1);
+        ensureVisible(next);
+        return next;
+      });
+    }
+  }, [itemCount, selectedIndex, onIndexChange, ensureVisible]);
 
   const pageUp = useCallback(() => {
-    setSelectedIndex((prev) => {
-      const next = Math.max(0, prev - pageSize);
-      setOffset((o) => Math.max(0, o - pageSize));
-      return next;
-    });
-  }, [pageSize]);
+    if (onIndexChange) {
+      const next = Math.max(0, selectedIndex - pageSize);
+      onIndexChange(next);
+    } else {
+      setInternalIndex((prev) => Math.max(0, prev - pageSize));
+    }
+    setOffset((o) => Math.max(0, o - pageSize));
+  }, [selectedIndex, onIndexChange, pageSize]);
 
   const pageDown = useCallback(() => {
-    setSelectedIndex((prev) => {
-      const next = Math.min(itemCount - 1, prev + pageSize);
-      setOffset((o) => Math.min(Math.max(0, itemCount - pageSize), o + pageSize));
-      return next;
-    });
-  }, [itemCount, pageSize]);
+    if (onIndexChange) {
+      const next = Math.min(Math.max(0, itemCount - 1), selectedIndex + pageSize);
+      onIndexChange(next);
+    } else {
+      setInternalIndex((prev) => Math.min(Math.max(0, itemCount - 1), prev + pageSize));
+    }
+    setOffset((o) => Math.min(Math.max(0, itemCount - pageSize), o + pageSize));
+  }, [itemCount, selectedIndex, onIndexChange, pageSize]);
 
-  const goToTop = useCallback(() => {
-    setSelectedIndex(0);
+  const navigateToTop = useCallback(() => {
+    if (onIndexChange) {
+      onIndexChange(0);
+    } else {
+      setInternalIndex(0);
+    }
     setOffset(0);
-  }, []);
+  }, [onIndexChange]);
 
-  const goToBottom = useCallback(() => {
+  const navigateToBottom = useCallback(() => {
     const lastIndex = Math.max(0, itemCount - 1);
-    setSelectedIndex(lastIndex);
+    if (onIndexChange) {
+      onIndexChange(lastIndex);
+    } else {
+      setInternalIndex(lastIndex);
+    }
     setOffset(Math.max(0, itemCount - pageSize));
-  }, [itemCount, pageSize]);
+  }, [itemCount, onIndexChange, pageSize]);
 
   const setIndex = useCallback(
     (index: number) => {
       const validIndex = Math.max(0, Math.min(itemCount - 1, index));
-      setSelectedIndex(validIndex);
+      if (onIndexChange) {
+        onIndexChange(validIndex);
+      } else {
+        setInternalIndex(validIndex);
+      }
       ensureVisible(validIndex);
     },
-    [itemCount, ensureVisible]
+    [itemCount, onIndexChange, ensureVisible]
   );
 
   const reset = useCallback(() => {
-    setSelectedIndex(0);
+    if (onIndexChange) {
+      onIndexChange(0);
+    } else {
+      setInternalIndex(0);
+    }
     setOffset(0);
-  }, []);
+  }, [onIndexChange]);
 
   return {
     selectedIndex,
     offset,
-    moveUp,
-    moveDown,
+    // Primary navigation functions
+    navigateUp,
+    navigateDown,
+    navigateToTop,
+    navigateToBottom,
+    // Aliases for backward compatibility
+    moveUp: navigateUp,
+    moveDown: navigateDown,
     pageUp,
     pageDown,
-    goToTop,
-    goToBottom,
+    goToTop: navigateToTop,
+    goToBottom: navigateToBottom,
     setIndex,
     reset,
   };
