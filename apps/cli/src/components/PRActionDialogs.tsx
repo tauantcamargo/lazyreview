@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { TextArea, ConfirmDialog } from '@lazyreview/ui';
+import { TextArea, ConfirmDialog, BorderedBox } from '@lazyreview/ui';
 import { useApprovePR, useRequestChanges, useCreateComment } from '../hooks/index.js';
 import { useAppStore, useSelectedRepo, useSelectedPR, usePullRequests } from '../stores/app-store.js';
 import type { ProviderType } from '@lazyreview/core';
+import { defaultTheme } from '@lazyreview/ui';
 
 export type PRActionType = 'approve' | 'request-changes' | 'comment' | 'merge' | null;
 
@@ -94,42 +95,56 @@ function ApproveDialog({ onClose, onSuccess, onError }: DialogProps): React.Reac
   });
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="green" paddingX={2} paddingY={1}>
-      <Box marginBottom={1}>
-        <Text color="green" bold>
-          Approve PR #{selectedPRNumber}
-        </Text>
+    <Box position="absolute" width="100%" height="100%" justifyContent="center" alignItems="center">
+      <Box width={80} flexDirection="column">
+        <BorderedBox
+          title={`Approve PR #${selectedPRNumber}`}
+          width={80}
+          height={20}
+          isActive={true}
+          theme={defaultTheme}
+        >
+          <Box flexDirection="column" paddingX={1}>
+            <Box marginBottom={1}>
+              <Text color={defaultTheme.muted}>{selectedPR?.title ?? 'Loading...'}</Text>
+            </Box>
+
+            <Box marginBottom={1}>
+              <Text color={defaultTheme.muted}>Optional comment (supports markdown):</Text>
+            </Box>
+
+            <TextArea
+              value={comment}
+              onChange={setComment}
+              onSubmit={handleSubmit}
+              onCancel={onClose}
+              placeholder="LGTM! Use ```code``` for suggestions"
+              rows={5}
+              isFocused={!isSubmitting}
+              showHelp={false}
+            />
+
+            <Box marginTop={1} gap={1} flexDirection="column">
+              <Box gap={2}>
+                {comment === '' && <Text color={defaultTheme.added}>[y] Approve now</Text>}
+                <Text color={defaultTheme.added}>[Ctrl+Enter] Approve with comment</Text>
+                <Text color={defaultTheme.muted}>[Esc] Cancel</Text>
+              </Box>
+              <Box>
+                <Text color={defaultTheme.muted} dimColor>
+                  💡 Tip: Use ```lang for code blocks
+                </Text>
+              </Box>
+            </Box>
+
+            {isSubmitting && (
+              <Box marginTop={1}>
+                <Text color={defaultTheme.modified}>⏳ Submitting...</Text>
+              </Box>
+            )}
+          </Box>
+        </BorderedBox>
       </Box>
-
-      <Box marginBottom={1}>
-        <Text>{selectedPR?.title ?? 'Loading...'}</Text>
-      </Box>
-
-      <Box marginBottom={1}>
-        <Text color="gray">Optional comment:</Text>
-      </Box>
-
-      <TextArea
-        value={comment}
-        onChange={setComment}
-        onSubmit={handleSubmit}
-        onCancel={onClose}
-        placeholder="LGTM! (optional)"
-        rows={3}
-        isFocused={!isSubmitting}
-      />
-
-      <Box marginTop={1} gap={2}>
-        {comment === '' && <Text color="green">[y] Approve now</Text>}
-        <Text color="green">[Ctrl+Enter] Approve with comment</Text>
-        <Text color="gray">[Esc] Cancel</Text>
-      </Box>
-
-      {isSubmitting && (
-        <Box marginTop={1}>
-          <Text color="yellow">Submitting...</Text>
-        </Box>
-      )}
     </Box>
   );
 }
@@ -183,41 +198,55 @@ function RequestChangesDialog({ onClose, onSuccess, onError }: DialogProps): Rea
   });
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={2} paddingY={1}>
-      <Box marginBottom={1}>
-        <Text color="red" bold>
-          Request Changes on PR #{selectedPRNumber}
-        </Text>
+    <Box position="absolute" width="100%" height="100%" justifyContent="center" alignItems="center">
+      <Box width={80} flexDirection="column">
+        <BorderedBox
+          title={`Request Changes on PR #${selectedPRNumber}`}
+          width={80}
+          height={22}
+          isActive={true}
+          theme={defaultTheme}
+        >
+          <Box flexDirection="column" paddingX={1}>
+            <Box marginBottom={1}>
+              <Text color={defaultTheme.muted}>{selectedPR?.title ?? 'Loading...'}</Text>
+            </Box>
+
+            <Box marginBottom={1}>
+              <Text color={defaultTheme.muted}>Describe the changes needed (supports markdown):</Text>
+            </Box>
+
+            <TextArea
+              value={comment}
+              onChange={setComment}
+              onSubmit={handleSubmit}
+              onCancel={onClose}
+              placeholder="Please fix... Use ```code``` for suggestions"
+              rows={6}
+              isFocused={!isSubmitting}
+              showHelp={false}
+            />
+
+            <Box marginTop={1} gap={1} flexDirection="column">
+              <Box gap={2}>
+                <Text color={defaultTheme.removed}>[Ctrl+Enter] Request changes</Text>
+                <Text color={defaultTheme.muted}>[Esc] Cancel</Text>
+              </Box>
+              <Box>
+                <Text color={defaultTheme.muted} dimColor>
+                  💡 Tip: Use ```lang for code blocks
+                </Text>
+              </Box>
+            </Box>
+
+            {isSubmitting && (
+              <Box marginTop={1}>
+                <Text color={defaultTheme.modified}>⏳ Submitting...</Text>
+              </Box>
+            )}
+          </Box>
+        </BorderedBox>
       </Box>
-
-      <Box marginBottom={1}>
-        <Text>{selectedPR?.title ?? 'Loading...'}</Text>
-      </Box>
-
-      <Box marginBottom={1}>
-        <Text color="gray">Describe the changes needed:</Text>
-      </Box>
-
-      <TextArea
-        value={comment}
-        onChange={setComment}
-        onSubmit={handleSubmit}
-        onCancel={onClose}
-        placeholder="Please fix the following issues..."
-        rows={5}
-        isFocused={!isSubmitting}
-      />
-
-      <Box marginTop={1} gap={2}>
-        <Text color="red">[Ctrl+Enter] Request changes</Text>
-        <Text color="gray">[Esc] Cancel</Text>
-      </Box>
-
-      {isSubmitting && (
-        <Box marginTop={1}>
-          <Text color="yellow">Submitting...</Text>
-        </Box>
-      )}
     </Box>
   );
 }
@@ -271,41 +300,55 @@ function CommentDialog({ onClose, onSuccess, onError }: DialogProps): React.Reac
   });
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={2} paddingY={1}>
-      <Box marginBottom={1}>
-        <Text color="cyan" bold>
-          Add Comment to PR #{selectedPRNumber}
-        </Text>
+    <Box position="absolute" width="100%" height="100%" justifyContent="center" alignItems="center">
+      <Box width={80} flexDirection="column">
+        <BorderedBox
+          title={`Add Comment to PR #${selectedPRNumber}`}
+          width={80}
+          height={22}
+          isActive={true}
+          theme={defaultTheme}
+        >
+          <Box flexDirection="column" paddingX={1}>
+            <Box marginBottom={1}>
+              <Text color={defaultTheme.muted}>{selectedPR?.title ?? 'Loading...'}</Text>
+            </Box>
+
+            <Box marginBottom={1}>
+              <Text color={defaultTheme.muted}>Write your comment (supports markdown):</Text>
+            </Box>
+
+            <TextArea
+              value={comment}
+              onChange={setComment}
+              onSubmit={handleSubmit}
+              onCancel={onClose}
+              placeholder="Leave a comment... Use ```code``` for suggestions"
+              rows={6}
+              isFocused={!isSubmitting}
+              showHelp={false}
+            />
+
+            <Box marginTop={1} gap={1} flexDirection="column">
+              <Box gap={2}>
+                <Text color={defaultTheme.accent}>[Ctrl+Enter] Submit</Text>
+                <Text color={defaultTheme.muted}>[Esc] Cancel</Text>
+              </Box>
+              <Box>
+                <Text color={defaultTheme.muted} dimColor>
+                  💡 Tip: Use ```lang for code blocks
+                </Text>
+              </Box>
+            </Box>
+
+            {isSubmitting && (
+              <Box marginTop={1}>
+                <Text color={defaultTheme.modified}>⏳ Submitting...</Text>
+              </Box>
+            )}
+          </Box>
+        </BorderedBox>
       </Box>
-
-      <Box marginBottom={1}>
-        <Text>{selectedPR?.title ?? 'Loading...'}</Text>
-      </Box>
-
-      <Box marginBottom={1}>
-        <Text color="gray">Write your comment:</Text>
-      </Box>
-
-      <TextArea
-        value={comment}
-        onChange={setComment}
-        onSubmit={handleSubmit}
-        onCancel={onClose}
-        placeholder="Leave a comment..."
-        rows={5}
-        isFocused={!isSubmitting}
-      />
-
-      <Box marginTop={1} gap={2}>
-        <Text color="cyan">[Ctrl+Enter] Submit</Text>
-        <Text color="gray">[Esc] Cancel</Text>
-      </Box>
-
-      {isSubmitting && (
-        <Box marginTop={1}>
-          <Text color="yellow">Submitting...</Text>
-        </Box>
-      )}
     </Box>
   );
 }
@@ -359,48 +402,54 @@ function MergeDialog({ onClose, onSuccess, onError }: DialogProps): React.ReactE
   }, [selectedRepo, selectedPRNumber, mergeMethod, onSuccess, onError, onClose]);
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={2} paddingY={1}>
-      <Box marginBottom={1}>
-        <Text color="magenta" bold>
-          Merge PR #{selectedPRNumber}
-        </Text>
-      </Box>
+    <Box position="absolute" width="100%" height="100%" justifyContent="center" alignItems="center">
+      <Box width={80} flexDirection="column">
+        <BorderedBox
+          title={`Merge PR #${selectedPRNumber}`}
+          width={80}
+          height={18}
+          isActive={true}
+          theme={defaultTheme}
+        >
+          <Box flexDirection="column" paddingX={1}>
+            <Box marginBottom={1}>
+              <Text color={defaultTheme.muted}>{selectedPR?.title ?? 'Loading...'}</Text>
+            </Box>
 
-      <Box marginBottom={1}>
-        <Text>{selectedPR?.title ?? 'Loading...'}</Text>
-      </Box>
+            <Box marginBottom={1} flexDirection="column">
+              <Text color={defaultTheme.muted}>Select merge method:</Text>
+              <Box marginTop={1} flexDirection="column" gap={0}>
+                <Box>
+                  <Text color={mergeMethod === 'merge' ? defaultTheme.accent : defaultTheme.text} bold={mergeMethod === 'merge'}>
+                    {mergeMethod === 'merge' ? '▸' : ' '} [m] Merge commit
+                  </Text>
+                </Box>
+                <Box>
+                  <Text color={mergeMethod === 'squash' ? defaultTheme.accent : defaultTheme.text} bold={mergeMethod === 'squash'}>
+                    {mergeMethod === 'squash' ? '▸' : ' '} [s] Squash and merge
+                  </Text>
+                </Box>
+                <Box>
+                  <Text color={mergeMethod === 'rebase' ? defaultTheme.accent : defaultTheme.text} bold={mergeMethod === 'rebase'}>
+                    {mergeMethod === 'rebase' ? '▸' : ' '} [r] Rebase and merge
+                  </Text>
+                </Box>
+              </Box>
+            </Box>
 
-      <Box marginBottom={1} flexDirection="column">
-        <Text color="gray">Select merge method:</Text>
-        <Box marginTop={1} flexDirection="column" gap={0}>
-          <Box>
-            <Text color={mergeMethod === 'merge' ? 'magenta' : 'white'} bold={mergeMethod === 'merge'}>
-              {mergeMethod === 'merge' ? '>' : ' '} [m] Merge commit
-            </Text>
+            <Box marginTop={1} gap={2}>
+              <Text color={defaultTheme.added}>[y/Enter] Confirm merge</Text>
+              <Text color={defaultTheme.muted}>[Esc] Cancel</Text>
+            </Box>
+
+            {isSubmitting && (
+              <Box marginTop={1}>
+                <Text color={defaultTheme.modified}>⏳ Merging...</Text>
+              </Box>
+            )}
           </Box>
-          <Box>
-            <Text color={mergeMethod === 'squash' ? 'magenta' : 'white'} bold={mergeMethod === 'squash'}>
-              {mergeMethod === 'squash' ? '>' : ' '} [s] Squash and merge
-            </Text>
-          </Box>
-          <Box>
-            <Text color={mergeMethod === 'rebase' ? 'magenta' : 'white'} bold={mergeMethod === 'rebase'}>
-              {mergeMethod === 'rebase' ? '>' : ' '} [r] Rebase and merge
-            </Text>
-          </Box>
-        </Box>
+        </BorderedBox>
       </Box>
-
-      <Box marginTop={1} gap={2}>
-        <Text color="magenta">[y/Enter] Confirm merge</Text>
-        <Text color="gray">[Esc] Cancel</Text>
-      </Box>
-
-      {isSubmitting && (
-        <Box marginTop={1}>
-          <Text color="yellow">Merging...</Text>
-        </Box>
-      )}
     </Box>
   );
 }
