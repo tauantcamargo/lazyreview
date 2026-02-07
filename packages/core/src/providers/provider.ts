@@ -5,6 +5,7 @@ export type Provider = {
   type: ProviderType;
   name: string;
   listPullRequests: (owner: string, repo: string, options?: ListPullRequestOptions) => Promise<PullRequest[]>;
+  getMyPRs: (options?: ListPullRequestOptions) => Promise<PullRequest[]>;
   getPullRequestDiff: (owner: string, repo: string, number: number) => Promise<string>;
   createComment: (owner: string, repo: string, number: number, comment: CommentInput) => Promise<void>;
   approveReview: (owner: string, repo: string, number: number, body?: string) => Promise<void>;

@@ -237,6 +237,10 @@ export function createAzureDevOpsProvider(config: AzureConfig): Provider {
         return false;
       }
     },
+    async getMyPRs(_options) {
+      // TODO: Implement Azure DevOps getMyPRs using creator filter
+      throw new Error('getMyPRs not yet implemented for Azure DevOps');
+    },
     async listPullRequests(owner, repo, options) {
       const [org, project] = owner.split('/');
       if (!org || !project) {

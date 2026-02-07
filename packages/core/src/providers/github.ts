@@ -24,7 +24,38 @@ const GitHubPullRequestSchema = z.object({
   }),
 });
 
+// GitHub Search API response for issues/PRs
+const GitHubSearchIssueSchema = z.object({
+  id: z.number(),
+  number: z.number(),
+  title: z.string(),
+  state: z.enum(['open', 'closed']),
+  created_at: z.string(),
+  updated_at: z.string(),
+  user: z
+    .object({
+      login: z.string(),
+    })
+    .nullable()
+    .optional(),
+  pull_request: z
+    .object({
+      url: z.string(),
+      merged_at: z.string().nullable().optional(),
+    })
+    .optional(),
+  repository_url: z.string(),
+});
+
+const GitHubSearchResponseSchema = z.object({
+  total_count: z.number(),
+  incomplete_results: z.boolean(),
+  items: z.array(GitHubSearchIssueSchema),
+});
+
 type GitHubPullRequest = z.infer<typeof GitHubPullRequestSchema>;
+type GitHubSearchIssue = z.infer<typeof GitHubSearchIssueSchema>;
+type GitHubSearchResponse = z.infer<typeof GitHubSearchResponseSchema>;
 
 type GitHubProviderConfig = {
   token: string;
@@ -99,6 +130,28 @@ function mapPullRequest(owner: string, repo: string, pr: GitHubPullRequest): Pul
   });
 }
 
+function extractRepoFromUrl(repoUrl: string): { owner: string; repo: string } {
+  // GitHub API repository_url format: https://api.github.com/repos/owner/repo
+  const match = repoUrl.match(/repos\/([^/]+)\/([^/]+)$/);
+  if (!match || !match[1] || !match[2]) {
+    throw new Error(`Invalid repository URL format: ${repoUrl}`);
+  }
+  return { owner: match[1], repo: match[2] };
+}
+
+async function mapSearchIssueToPR(issue: GitHubSearchIssue, config: GitHubProviderConfig): Promise<PullRequest> {
+  const { owner, repo } = extractRepoFromUrl(issue.repository_url);
+
+  // For search results, we need to fetch the full PR details to get head/base refs
+  const baseUrl = config.baseUrl ?? 'https://api.github.com';
+  const prData = await requestJson<GitHubPullRequest>(
+    `${baseUrl}/repos/${owner}/${repo}/pulls/${issue.number}`,
+    config
+  );
+
+  return mapPullRequest(owner, repo, prData);
+}
+
 export function createGitHubProvider(config: GitHubProviderConfig): Provider {
   if (!config.token) {
     throw new Error('GitHub token is required');
@@ -106,12 +159,24 @@ export function createGitHubProvider(config: GitHubProviderConfig): Provider {
 
   const baseUrl = config.baseUrl ?? 'https://api.github.com';
 
+  // Cache the current user to avoid repeated API calls
+  let cachedUser: { login: string } | null = null;
+
+  async function getCurrentUser(): Promise<{ login: string }> {
+    if (cachedUser) {
+      return cachedUser;
+    }
+    const user = await requestJson<{ login: string }>(`${baseUrl}/user`, config);
+    cachedUser = user;
+    return user;
+  }
+
   return {
     type: 'github',
     name: 'GitHub',
     async validateToken() {
       try {
-        await requestJson(`${baseUrl}/user`, config);
+        await getCurrentUser();
         return true;
       } catch {
         return false;
@@ -127,6 +192,28 @@ export function createGitHubProvider(config: GitHubProviderConfig): Provider {
       const data = await requestJson<unknown>(url.toString(), config);
       const list = z.array(GitHubPullRequestSchema).parse(data);
       return list.map((pr) => mapPullRequest(owner, repo, pr));
+    },
+    async getMyPRs(options) {
+      const user = await getCurrentUser();
+      const state = options?.state ?? 'open';
+      const limit = Math.min(options?.limit ?? 20, 100);
+
+      // Use GitHub Search API to find PRs by author
+      const url = new URL(`${baseUrl}/search/issues`);
+      url.searchParams.set('q', `is:pr author:${user.login} is:${state}`);
+      url.searchParams.set('per_page', String(limit));
+      url.searchParams.set('sort', 'updated');
+      url.searchParams.set('order', 'desc');
+
+      const data = await requestJson<unknown>(url.toString(), config);
+      const searchResponse = GitHubSearchResponseSchema.parse(data);
+
+      // Map search results to PullRequest objects
+      const pullRequests = await Promise.all(
+        searchResponse.items.map((issue) => mapSearchIssueToPR(issue, config))
+      );
+
+      return pullRequests;
     },
     async getPullRequestDiff(owner, repo, number) {
       const url = `${baseUrl}/repos/${owner}/${repo}/pulls/${number}`;
