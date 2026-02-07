@@ -63,6 +63,6 @@ export async function listPullRequests(options: PrListOptions): Promise<void> {
   }
 
   for (const pr of prs) {
-    console.log(`#${pr.number} ${pr.title} (${pr.state}) ${pr.author} • ${pr.updatedAt}`);
+    console.log(`#${pr.number} ${pr.title} (${pr.state}) ${pr.author.login} • ${pr.updatedAt}`);
   }
 }
