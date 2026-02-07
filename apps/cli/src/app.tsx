@@ -332,9 +332,10 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
         <Text color="white"> – </Text>
         <Text color="magenta" bold>My PRs ({pullRequests.length})</Text>
         <Text color="gray"> | branch </Text>
-        <Text color="white">{branchInfo}</Text>
+        <Text color={demoMode ? "yellow" : "white"} bold={demoMode}>{branchInfo}</Text>
+        {demoMode && <Text color="yellow" bold> ⚠ DEMO DATA - Start with --repo to see real PRs</Text>}
         {/* Chord indicator - shows pending keys */}
-        {chordState.isActive && (
+        {chordState.isActive && !demoMode && (
           <>
             <Text color="gray"> | </Text>
             <ChordIndicator pendingKeys={chordState.buffer.split('')} />
