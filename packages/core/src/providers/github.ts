@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { PullRequestSchema, type CommentInput, type PullRequest } from '../models';
-import type { ListPullRequestOptions } from './types';
 import type { Provider } from './provider';
 
 const GitHubPullRequestSchema = z.object({

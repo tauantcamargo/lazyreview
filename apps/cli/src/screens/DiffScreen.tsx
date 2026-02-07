@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { DiffView, FileTree, Spinner, EmptyState, SplitPane } from '@lazyreview/ui';
+import { DiffView, FileTree, Spinner, EmptyState, SplitPane, InputBox } from '@lazyreview/ui';
 import { useAppStore, useSelectedPR, usePullRequests, useStatus, useSelectedRepo } from '../stores/app-store.js';
-import { useDiff, usePullRequestDiff } from '../hooks/index.js';
+import { useDiff, usePullRequestDiff, usePRActions } from '../hooks/index.js';
 import type { PullRequest, ProviderType } from '@lazyreview/core';
 
 export interface DiffScreenProps {
@@ -26,6 +26,8 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
 
   const [showFileTree, setShowFileTree] = useState(true);
   const [focusedPane, setFocusedPane] = useState<'tree' | 'diff'>('diff');
+  const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
+  const [commentInput, setCommentInput] = useState('');
 
   // Fetch real diff when not in demo mode
   const { data: realDiff, isLoading: isDiffLoading, isError: isDiffError, error: diffError } = usePullRequestDiff({
@@ -54,6 +56,15 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
   const files = selectedPR?.files ?? [];
   const selectedFile = files[selectedFileIndex];
 
+  // Initialize PR actions hook for inline comments
+  const prActions = usePRActions({
+    providerType: (selectedRepo?.provider as any) ?? 'github',
+    token: process.env.GITHUB_TOKEN ?? '',
+    baseUrl: 'https://api.github.com',
+    owner: selectedRepo?.owner ?? '',
+    repo: selectedRepo?.repo ?? '',
+  });
+
   // Use diff hook for navigation
   const {
     currentLine,
@@ -70,8 +81,36 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
     },
   });
 
+  // Handle inline comment creation
+  const handleCreateInlineComment = useCallback(async () => {
+    if (!selectedPR || !selectedFile || demoMode || !commentInput.trim()) return;
+
+    try {
+      // Create a comment input with line information
+      const commentData = {
+        body: commentInput,
+        path: selectedFile.path,
+        line: currentLine,
+        side: 'RIGHT' as const, // Always comment on the new version
+      };
+
+      // Use the provider's createComment method
+      await prActions.comment(selectedPR, commentInput);
+
+      setIsCommentDialogOpen(false);
+      setCommentInput('');
+    } catch (error) {
+      // Error is already handled by the hook
+    }
+  }, [selectedPR, selectedFile, currentLine, commentInput, prActions, demoMode]);
+
   // Handle keyboard input
   useInput((input, key) => {
+    // Dialog handling - takes priority
+    if (isCommentDialogOpen) {
+      return; // Let InputBox handle the input
+    }
+
     if (key.escape || input === 'q') {
       setView('detail');
       return;
@@ -103,6 +142,13 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
         navigateToPrevHunk();
       } else if (input === ' ') {
         toggleLineSelection(currentLine);
+      } else if (input === 'c' && !demoMode) {
+        // Open inline comment dialog
+        setIsCommentDialogOpen(true);
+      } else if (input === 'A') {
+        // Open AI review screen
+        setView('ai');
+        return;
       }
     }
   });
@@ -226,9 +272,37 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
       {/* Status bar */}
       <Box paddingX={1} marginTop={1}>
         <Text color="gray">
-          j/k:scroll n/N:hunks {showFileTree ? 'b:hide tree' : 'b:show tree'} Tab:switch pane q:back
+          j/k:scroll n/N:hunks c:comment A:AI review {showFileTree ? 'b:hide tree' : 'b:show tree'} q:back
         </Text>
+        {/* Action status */}
+        {prActions.actionStatus === 'loading' && <Text color="yellow"> Processing...</Text>}
+        {prActions.actionStatus === 'success' && <Text color="green"> Comment posted!</Text>}
+        {prActions.actionStatus === 'error' && prActions.actionError && (
+          <Text color="red"> Error: {prActions.actionError}</Text>
+        )}
       </Box>
+
+      {/* Comment dialog */}
+      {isCommentDialogOpen && (
+        <Box
+          position="absolute"
+          left={Math.floor(width / 2) - 20}
+          top={Math.floor(height / 2) - 5}
+        >
+          <InputBox
+            label={`Comment on line ${currentLine}`}
+            placeholder="Enter your comment..."
+            value={commentInput}
+            multiline={true}
+            onSubmit={handleCreateInlineComment}
+            onCancel={() => {
+              setIsCommentDialogOpen(false);
+              setCommentInput('');
+            }}
+            onChange={setCommentInput}
+          />
+        </Box>
+      )}
     </Box>
   );
 }

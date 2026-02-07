@@ -1,4 +1,12 @@
-import { defaultProviderHost, getDefaultProvider, loadConfig, type ProviderType, storeToken, readToken, deleteToken } from '@lazyreview/core';
+import {
+  defaultProviderHost,
+  getDefaultProvider,
+  loadConfig,
+  type ProviderType,
+  storeToken,
+  readToken,
+  deleteToken,
+} from '@lazyreview/core';
 
 function resolveProvider(input?: string): { type: ProviderType; host: string } {
   const config = loadConfig();

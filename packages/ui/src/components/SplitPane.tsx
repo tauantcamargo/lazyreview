@@ -42,8 +42,12 @@ export function SplitPane({
 
   // Adjust last pane to fill remaining space
   const usedSize = computedSizes.reduce((a, b) => a + b, 0);
-  if (computedSizes.length > 0 && usedSize < availableSize) {
-    computedSizes[computedSizes.length - 1] += availableSize - usedSize;
+  const lastIndex = computedSizes.length - 1;
+  if (lastIndex >= 0 && usedSize < availableSize) {
+    const lastSize = computedSizes[lastIndex];
+    if (lastSize !== undefined) {
+      computedSizes[lastIndex] = lastSize + (availableSize - usedSize);
+    }
   }
 
   return (

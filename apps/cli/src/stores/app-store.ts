@@ -126,6 +126,13 @@ export interface PRFilter {
   search?: string;
 }
 
+export interface SavedFilter {
+  id: string;
+  name: string;
+  filter: PRFilter;
+  createdAt: Date;
+}
+
 interface AppState {
   // Navigation
   currentView: ViewType;
@@ -145,6 +152,7 @@ interface AppState {
   // UI State
   searchQuery: string;
   filters: PRFilter;
+  savedFilters: SavedFilter[];
   isCommandPaletteOpen: boolean;
   isHelpOpen: boolean;
   isSidebarVisible: boolean;
@@ -163,6 +171,9 @@ interface AppState {
   setSelectedListIndex: (index: number) => void;
   setSearchQuery: (query: string) => void;
   setFilters: (filters: Partial<PRFilter>) => void;
+  saveFilter: (name: string, filter: PRFilter) => void;
+  loadFilter: (id: string) => void;
+  deleteFilter: (id: string) => void;
   toggleCommandPalette: () => void;
   toggleHelp: () => void;
   toggleSidebar: () => void;
@@ -187,6 +198,7 @@ const initialState = {
   currentDiff: '',
   searchQuery: '',
   filters: {},
+  savedFilters: [],
   isCommandPaletteOpen: false,
   isHelpOpen: false,
   isSidebarVisible: true,
@@ -225,6 +237,30 @@ export const useAppStore = create<AppState>()(
     setFilters: (filters) =>
       set((state) => ({
         filters: { ...state.filters, ...filters },
+      })),
+
+    saveFilter: (name, filter) =>
+      set((state) => ({
+        savedFilters: [
+          ...state.savedFilters,
+          {
+            id: `filter-${Date.now()}`,
+            name,
+            filter,
+            createdAt: new Date(),
+          },
+        ],
+      })),
+
+    loadFilter: (id) =>
+      set((state) => {
+        const savedFilter = state.savedFilters.find((f) => f.id === id);
+        return savedFilter ? { filters: savedFilter.filter } : state;
+      }),
+
+    deleteFilter: (id) =>
+      set((state) => ({
+        savedFilters: state.savedFilters.filter((f) => f.id !== id),
       })),
 
     toggleCommandPalette: () =>

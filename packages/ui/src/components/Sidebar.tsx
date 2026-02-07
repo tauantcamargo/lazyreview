@@ -31,8 +31,9 @@ function flattenItems(items: SidebarItem[], parentExpanded = true): SidebarItem[
     if (parentExpanded) {
       result.push(item);
     }
-    if (item.children && item.expanded !== false) {
-      const childItems = flattenItems(item.children, parentExpanded && item.expanded !== false);
+    const expanded = item.expanded !== false;
+    if (item.children && expanded) {
+      const childItems = flattenItems(item.children, parentExpanded && expanded);
       result.push(...childItems);
     }
   }

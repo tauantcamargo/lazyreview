@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern';
 import { deleteSecret, getSecret, storeSecret } from '@lazyreview/platform';
 import type { AppConfig } from './config';
 
@@ -59,38 +60,27 @@ async function runRequest(params: RequestParams): Promise<string> {
   const prompt = params.mode === 'summary' ? SUMMARY_SYSTEM : REVIEW_SYSTEM;
   const userContent = `Diff:\n${params.diff}`;
 
-  switch (params.provider) {
-    case 'openai':
-      return await callOpenAI(params.baseUrl, params.apiKey ?? '', params.model, prompt, userContent);
-    case 'anthropic':
-      return await callAnthropic(params.baseUrl, params.apiKey ?? '', params.model, prompt, userContent);
-    case 'ollama':
-      return await callOllama(params.baseUrl, params.model, `${prompt}\n\n${userContent}`);
-    default:
-      throw new Error(`Unsupported AI provider: ${params.provider}`);
-  }
+  return match(params.provider)
+    .with('openai', () => callOpenAI(params.baseUrl, params.apiKey ?? '', params.model, prompt, userContent))
+    .with('anthropic', () => callAnthropic(params.baseUrl, params.apiKey ?? '', params.model, prompt, userContent))
+    .with('ollama', () => callOllama(params.baseUrl, params.model, `${prompt}\n\n${userContent}`))
+    .exhaustive();
 }
 
 function defaultModel(provider: AIProvider): string {
-  switch (provider) {
-    case 'anthropic':
-      return 'claude-3-sonnet-20240229';
-    case 'ollama':
-      return 'codellama:13b';
-    default:
-      return 'gpt-4o-mini';
-  }
+  return match(provider)
+    .with('anthropic', () => 'claude-3-sonnet-20240229')
+    .with('ollama', () => 'codellama:13b')
+    .with('openai', () => 'gpt-4o-mini')
+    .exhaustive();
 }
 
 function defaultBaseUrl(provider: AIProvider): string {
-  switch (provider) {
-    case 'anthropic':
-      return 'https://api.anthropic.com';
-    case 'ollama':
-      return 'http://localhost:11434';
-    default:
-      return 'https://api.openai.com/v1';
-  }
+  return match(provider)
+    .with('anthropic', () => 'https://api.anthropic.com')
+    .with('ollama', () => 'http://localhost:11434')
+    .with('openai', () => 'https://api.openai.com/v1')
+    .exhaustive();
 }
 
 async function callOpenAI(baseUrl: string, apiKey: string, model: string, system: string, user: string): Promise<string> {

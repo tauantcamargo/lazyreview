@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, type BoxProps } from 'ink';
 import { getTheme, Theme } from '../theme';
 
 export interface SyntaxHighlightProps {
@@ -44,7 +44,11 @@ export function SyntaxHighlight({
                 {String(lineNumber).padStart(lineNumberWidth, ' ')} │
               </Text>
             )}
-            <Box backgroundColor={isHighlighted ? theme.listSelectedBackground : undefined}>
+            <Box
+              {...(isHighlighted
+                ? ({ backgroundColor: theme.listSelectedBackground } as BoxProps)
+                : {})}
+            >
               {tokens.map((token, tokenIndex) => (
                 <Text
                   key={tokenIndex}

@@ -24,33 +24,39 @@ const ProviderSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
-const AiConfigSchema = z.object({
-  provider: z.string().optional(),
-  model: z.string().optional(),
-  baseUrl: z.string().optional(),
-  enabled: z.boolean().optional(),
-  strictness: z.enum(['relaxed', 'standard', 'strict']).optional(),
-  costWarningThreshold: z.number().optional(),
-  costMonthlyLimit: z.number().optional(),
-  showCostEstimate: z.boolean().optional(),
-  fallbackChain: z.array(z.string()).optional(),
-}).optional();
+const AiConfigSchema = z
+  .object({
+    provider: z.string().optional(),
+    model: z.string().optional(),
+    baseUrl: z.string().optional(),
+    enabled: z.boolean().optional(),
+    strictness: z.enum(['relaxed', 'standard', 'strict']).optional(),
+    costWarningThreshold: z.number().optional(),
+    costMonthlyLimit: z.number().optional(),
+    showCostEstimate: z.boolean().optional(),
+    fallbackChain: z.array(z.string()).optional(),
+  })
+  .optional();
 
-const UiConfigSchema = z.object({
-  theme: z.string().optional(),
-  paging: z.boolean().optional(),
-  showChecks: z.boolean().optional(),
-  vimMode: z.boolean().optional(),
-  editor: z.string().optional(),
-  unicodeMode: z.enum(['auto', 'on', 'off']).optional(),
-}).optional();
+const UiConfigSchema = z
+  .object({
+    theme: z.string().optional(),
+    paging: z.boolean().optional(),
+    showChecks: z.boolean().optional(),
+    vimMode: z.boolean().optional(),
+    editor: z.string().optional(),
+    unicodeMode: z.enum(['auto', 'on', 'off']).optional(),
+  })
+  .optional();
 
-const PerformanceSchema = z.object({
-  cacheTtl: z.number().optional(),
-  commentCacheTtl: z.number().optional(),
-  maxConcurrency: z.number().optional(),
-  rateLimitPerSecond: z.number().optional(),
-}).optional();
+const PerformanceSchema = z
+  .object({
+    cacheTtl: z.number().optional(),
+    commentCacheTtl: z.number().optional(),
+    maxConcurrency: z.number().optional(),
+    rateLimitPerSecond: z.number().optional(),
+  })
+  .optional();
 
 const ConfigSchema = z.object({
   version: z.string().optional(),

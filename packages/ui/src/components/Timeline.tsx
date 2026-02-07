@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import { match } from 'ts-pattern';
 import { defaultTheme, type Theme } from '../theme';
 
 export type TimelineEventType =
@@ -49,57 +50,33 @@ function formatTimestamp(timestamp: string): string {
 }
 
 function getEventIcon(type: TimelineEventType): string {
-  switch (type) {
-    case 'commit':
-      return '●';
-    case 'comment':
-      return '💬';
-    case 'review':
-      return '👁';
-    case 'approval':
-      return '✓';
-    case 'changes_requested':
-      return '✗';
-    case 'merged':
-      return '◆';
-    case 'closed':
-      return '○';
-    case 'reopened':
-      return '↺';
-    case 'assigned':
-      return '→';
-    case 'labeled':
-      return '◉';
-    default:
-      return '•';
-  }
+  return match(type)
+    .with('commit', () => '●')
+    .with('comment', () => '💬')
+    .with('review', () => '👁')
+    .with('approval', () => '✓')
+    .with('changes_requested', () => '✗')
+    .with('merged', () => '◆')
+    .with('closed', () => '○')
+    .with('reopened', () => '↺')
+    .with('assigned', () => '→')
+    .with('labeled', () => '◉')
+    .exhaustive();
 }
 
 function getEventColor(type: TimelineEventType, theme: Theme): string {
-  switch (type) {
-    case 'commit':
-      return theme.info;
-    case 'comment':
-      return theme.muted;
-    case 'review':
-      return theme.warning;
-    case 'approval':
-      return theme.success;
-    case 'changes_requested':
-      return theme.error;
-    case 'merged':
-      return theme.info;
-    case 'closed':
-      return theme.error;
-    case 'reopened':
-      return theme.success;
-    case 'assigned':
-      return theme.warning;
-    case 'labeled':
-      return theme.accent;
-    default:
-      return theme.muted;
-  }
+  return match(type)
+    .with('commit', () => theme.info)
+    .with('comment', () => theme.muted)
+    .with('review', () => theme.warning)
+    .with('approval', () => theme.success)
+    .with('changes_requested', () => theme.error)
+    .with('merged', () => theme.info)
+    .with('closed', () => theme.error)
+    .with('reopened', () => theme.success)
+    .with('assigned', () => theme.warning)
+    .with('labeled', () => theme.accent)
+    .exhaustive();
 }
 
 function getEventTitle(event: TimelineEvent): string {
