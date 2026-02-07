@@ -4,18 +4,21 @@ import { match, P } from 'ts-pattern';
 import { Spinner, EmptyState, InputBox, Select } from '@lazyreview/ui';
 import { formatRelativeTime, type PullRequest, type ProviderType } from '@lazyreview/core';
 import { useAppStore, usePullRequests, useSelectedRepo, useStatus } from '../stores/app-store.js';
-import { useNavigation, useListPullRequests } from '../hooks/index.js';
+import { useNavigation, useListPullRequests, useMyPRs, useReviewRequests } from '../hooks/index.js';
+
+export type FilterTab = 'all' | 'recent' | 'favorites' | 'mine' | 'review';
 
 export interface PRListScreenProps {
   width?: number;
   height?: number;
   isFocused?: boolean;
+  activeTab?: FilterTab;
 }
 
 /**
  * PR List Screen - LazyGit-style PR list matching Go version
  */
-export function PRListScreen({ width = 80, height = 20, isFocused = true }: PRListScreenProps): React.ReactElement {
+export function PRListScreen({ width = 80, height = 20, isFocused = true, activeTab = 'mine' }: PRListScreenProps): React.ReactElement {
   const demoPullRequests = usePullRequests();
   const selectedRepo = useSelectedRepo();
   const status = useStatus();
@@ -36,13 +39,44 @@ export function PRListScreen({ width = 80, height = 20, isFocused = true }: PRLi
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [filterName, setFilterName] = useState('');
 
-  // Fetch real PRs when not in demo mode
-  const { data: realPullRequests, isLoading, isError, error } = useListPullRequests({
+  // Determine which hook to use based on activeTab
+  const isRepoTab = activeTab === 'all' || activeTab === 'recent' || activeTab === 'favorites';
+  const isMyPRsTab = activeTab === 'mine';
+  const isReviewTab = activeTab === 'review';
+
+  // Fetch repo-specific PRs (for 'all', 'recent', 'favorites' tabs)
+  const { data: repoPullRequests, isLoading: isRepoLoading, isError: isRepoError, error: repoError } = useListPullRequests({
     owner: selectedRepo?.owner ?? '',
     repo: selectedRepo?.repo ?? '',
     provider: (selectedRepo?.provider ?? 'github') as ProviderType,
-    enabled: !demoMode && !!selectedRepo,
+    enabled: !demoMode && isRepoTab && !!selectedRepo,
   });
+
+  // Fetch user's PRs across all repos (for 'mine' tab)
+  const { data: myPullRequests, isLoading: isMyPRsLoading, isError: isMyPRsError, error: myPRsError } = useMyPRs({
+    provider: (selectedRepo?.provider ?? 'github') as ProviderType,
+    filters,
+    enabled: !demoMode && isMyPRsTab,
+  });
+
+  // Fetch review requests (for 'review' tab)
+  const { data: reviewPullRequests, isLoading: isReviewLoading, isError: isReviewError, error: reviewError } = useReviewRequests({
+    provider: (selectedRepo?.provider ?? 'github') as ProviderType,
+    filters,
+    enabled: !demoMode && isReviewTab,
+  });
+
+  // Determine which data to use based on activeTab
+  const realPullRequests = React.useMemo(() => {
+    if (demoMode) return null;
+    if (isMyPRsTab) return myPullRequests ?? null;
+    if (isReviewTab) return reviewPullRequests ?? null;
+    return repoPullRequests ?? null;
+  }, [demoMode, isMyPRsTab, isReviewTab, myPullRequests, reviewPullRequests, repoPullRequests]);
+
+  const isLoading = demoMode ? false : (isRepoTab ? isRepoLoading : isMyPRsTab ? isMyPRsLoading : isReviewLoading);
+  const isError = demoMode ? false : (isRepoTab ? isRepoError : isMyPRsTab ? isMyPRsError : isReviewError);
+  const error = isRepoTab ? repoError : isMyPRsTab ? myPRsError : reviewError;
 
   // Sync real data to store when it arrives
   React.useEffect(() => {

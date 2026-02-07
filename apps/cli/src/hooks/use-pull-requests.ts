@@ -16,6 +16,10 @@ export const pullRequestKeys = {
   lists: () => [...pullRequestKeys.all, 'list'] as const,
   list: (owner: string, repo: string, provider: string, filters?: PRFilter) =>
     [...pullRequestKeys.lists(), owner, repo, provider, filters] as const,
+  myPRs: (provider: string, filters?: PRFilter) =>
+    [...pullRequestKeys.lists(), 'my-prs', provider, filters] as const,
+  reviewRequests: (provider: string, filters?: PRFilter) =>
+    [...pullRequestKeys.lists(), 'review-requests', provider, filters] as const,
   details: () => [...pullRequestKeys.all, 'detail'] as const,
   detail: (owner: string, repo: string, provider: string, number: number) =>
     [...pullRequestKeys.details(), owner, repo, provider, number] as const,
@@ -159,5 +163,55 @@ export function useCreateComment() {
     onSuccess: (_, { owner, repo, provider, number }) => {
       queryClient.invalidateQueries({ queryKey: pullRequestKeys.detail(owner, repo, provider, number) });
     },
+  });
+}
+
+interface UseMyPRsOptions {
+  provider: ProviderType;
+  filters?: PRFilter;
+  enabled?: boolean;
+}
+
+/**
+ * Hook to fetch PRs authored by the current user across all repositories
+ */
+export function useMyPRs({ provider, filters, enabled = true }: UseMyPRsOptions) {
+  return useQuery({
+    queryKey: pullRequestKeys.myPRs(provider, filters),
+    queryFn: async (): Promise<PullRequest[]> => {
+      const client = await getProviderClient(provider);
+      return client.getMyPRs({
+        limit: 50,
+        state: filters?.state,
+      });
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    enabled,
+  });
+}
+
+interface UseReviewRequestsOptions {
+  provider: ProviderType;
+  filters?: PRFilter;
+  enabled?: boolean;
+}
+
+/**
+ * Hook to fetch PRs where the current user is requested as a reviewer
+ */
+export function useReviewRequests({ provider, filters, enabled = true }: UseReviewRequestsOptions) {
+  return useQuery({
+    queryKey: pullRequestKeys.reviewRequests(provider, filters),
+    queryFn: async (): Promise<PullRequest[]> => {
+      const client = await getProviderClient(provider);
+      return client.getReviewRequests({
+        limit: 50,
+        state: filters?.state,
+      });
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    enabled,
   });
 }

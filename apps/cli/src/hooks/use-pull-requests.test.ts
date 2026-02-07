@@ -79,6 +79,50 @@ describe('pullRequestKeys', () => {
     });
   });
 
+  describe('myPRs', () => {
+    it('should return myPRs key with provider', () => {
+      expect(pullRequestKeys.myPRs('github')).toEqual([
+        'pull-requests',
+        'list',
+        'my-prs',
+        'github',
+        undefined,
+      ]);
+    });
+
+    it('should include filters when provided', () => {
+      expect(pullRequestKeys.myPRs('github', { state: 'closed' })).toEqual([
+        'pull-requests',
+        'list',
+        'my-prs',
+        'github',
+        { state: 'closed' },
+      ]);
+    });
+  });
+
+  describe('reviewRequests', () => {
+    it('should return reviewRequests key with provider', () => {
+      expect(pullRequestKeys.reviewRequests('gitlab')).toEqual([
+        'pull-requests',
+        'list',
+        'review-requests',
+        'gitlab',
+        undefined,
+      ]);
+    });
+
+    it('should include filters when provided', () => {
+      expect(pullRequestKeys.reviewRequests('gitlab', { state: 'open' })).toEqual([
+        'pull-requests',
+        'list',
+        'review-requests',
+        'gitlab',
+        { state: 'open' },
+      ]);
+    });
+  });
+
   describe('key uniqueness', () => {
     it('should generate unique keys for different repos', () => {
       const key1 = pullRequestKeys.list('owner1', 'repo1', 'github');
@@ -96,6 +140,15 @@ describe('pullRequestKeys', () => {
       const key1 = pullRequestKeys.list('owner', 'repo', 'github', { state: 'open' });
       const key2 = pullRequestKeys.list('owner', 'repo', 'github', { state: 'closed' });
       expect(key1).not.toEqual(key2);
+    });
+
+    it('should generate unique keys for different query types', () => {
+      const repoKey = pullRequestKeys.list('owner', 'repo', 'github');
+      const myPRsKey = pullRequestKeys.myPRs('github');
+      const reviewKey = pullRequestKeys.reviewRequests('github');
+      expect(repoKey).not.toEqual(myPRsKey);
+      expect(repoKey).not.toEqual(reviewKey);
+      expect(myPRsKey).not.toEqual(reviewKey);
     });
   });
 });

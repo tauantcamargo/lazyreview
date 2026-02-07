@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface GitHubUser {
   login: string;
@@ -38,7 +38,7 @@ export function useGitHubAuth(): UseGitHubAuthResult {
 
   const token = process.env.GITHUB_TOKEN || null;
 
-  const validateToken = async () => {
+  const validateToken = useCallback(async () => {
     if (!token) {
       setState({
         isAuthenticated: false,
@@ -85,8 +85,6 @@ export function useGitHubAuth(): UseGitHubAuthResult {
 
       const userData = await response.json();
 
-      console.log('userData', userData);
-
       const user: GitHubUser = {
         login: userData.login,
         name: userData.name || null,
@@ -112,11 +110,11 @@ export function useGitHubAuth(): UseGitHubAuthResult {
         isDemoMode: true,
       });
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     validateToken();
-  }, [token]);
+  }, [validateToken]);
 
   return {
     ...state,

@@ -398,7 +398,7 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
   return (
     <Box flexDirection="column" width={width} height={height}>
       {/* Header Bar - Modern style */}
-      <Box height={1}>
+      <Box height={1} flexShrink={0} marginTop={1}>
         <Text color={accentColor} bold>
           LazyReview
         </Text>
@@ -429,7 +429,7 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
       </Box>
 
       {/* Tab Bar */}
-      <Box height={1} marginBottom={0}>
+      <Box height={1} marginBottom={0} flexShrink={0}>
         <TabBar
           tabs={[
             { id: 'all', label: 'All' },
@@ -444,7 +444,7 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
       </Box>
 
       {/* Main Content Area */}
-      <Box flexDirection="row" height={contentHeight}>
+      <Box flexDirection="row" height={contentHeight} flexShrink={0}>
         {/* Left Navigation Panel */}
         {isSidebarVisible && (
           <>
@@ -488,6 +488,7 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
               width={mainWidth - 2}
               height={contentHeight - 4}
               isFocused={focusedPanel === 'list'}
+              activeTab={activeTab}
             />
           </Box>
           {/* Panel footer with keybindings or search */}
@@ -513,7 +514,7 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
       </Box>
 
       {/* Bottom Status */}
-      <Box height={1} marginTop={0} paddingX={1}>
+      <Box height={1} marginTop={0} paddingX={1} flexShrink={0}>
         {searchQuery ? (
           <Text color={mutedColor}>
             Showing{' '}
@@ -643,17 +644,18 @@ interface CurrentScreenProps {
   width: number;
   height: number;
   isFocused: boolean;
+  activeTab: FilterTab;
 }
 
-function CurrentScreen({ view, width, height, isFocused }: CurrentScreenProps): React.ReactElement {
+function CurrentScreen({ view, width, height, isFocused, activeTab }: CurrentScreenProps): React.ReactElement {
   return match(view)
-    .with('list', () => <PRListScreen width={width} height={height} isFocused={isFocused} />)
+    .with('list', () => <PRListScreen width={width} height={height} isFocused={isFocused} activeTab={activeTab} />)
     .with('detail', () => <PRDetailScreen width={width} height={height} />)
     .with('files', () => <DiffScreen width={width} height={height} />)
     .with('dashboard', () => <DashboardScreen width={width} height={height} />)
     .with('settings', () => <SettingsScreen width={width} height={height} />)
     .with('ai', () => <AIReviewScreen width={width} height={height} />)
-    .otherwise(() => <PRListScreen width={width} height={height} isFocused={isFocused} />);
+    .otherwise(() => <PRListScreen width={width} height={height} isFocused={isFocused} activeTab={activeTab} />);
 }
 
 // Help overlay component

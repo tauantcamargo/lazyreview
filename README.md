@@ -244,6 +244,16 @@ pnpm build
 node apps/cli/dist/index.js
 ```
 
+### Using React DevTools
+
+When you run `pnpm dev`, the CLI is started with `DEV=true`, so [Ink’s React DevTools integration](https://github.com/vadimdemedes/ink?tab=readme-ov-file#using-react-devtools) is enabled. To inspect the component tree and props:
+
+1. In one terminal: `pnpm dev`
+2. In another terminal: `pnpm run devtools` (runs `npx react-devtools`)
+3. Open the standalone React DevTools window and connect to the CLI
+
+Quit the CLI with Ctrl+C when finished.
+
 ### Running Tests
 
 ```bash

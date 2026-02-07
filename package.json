@@ -6,7 +6,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "pnpm build:cli && node apps/cli/dist/index.js",
+    "dev": "pnpm build:cli && DEV=true node apps/cli/dist/index.js",
     "build": "pnpm -r run build",
     "build:tsc": "tsc -b",
     "typecheck": "tsc -b --pretty false",
@@ -20,7 +20,8 @@
     "bench": "tsx benchmarks/virtual-list.bench.ts",
     "generate:types": "tsx scripts/generate-types.ts",
     "pkg": "pkg -t node20-macos-x64,node20-macos-arm64,node20-linux-x64,node20-linux-arm64,node20-win-x64 apps/cli/dist/index.js -o dist/lazyreview",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "devtools": "npx react-devtools"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
@@ -44,7 +45,8 @@
     "tsx": "^4.15.2",
     "typescript": "^5.4.5",
     "vitest": "^1.6.0",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "react-devtools-core": "^4.19.1"
   },
   "pkg": {
     "assets": [
