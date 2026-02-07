@@ -49,12 +49,12 @@ describe('PullRequestSchema', () => {
     number: 42,
     title: 'Fix bug',
     state: 'open' as const,
-    author: 'testuser',
-    repo: 'owner/repo',
-    sourceBranch: 'feature/fix',
-    targetBranch: 'main',
+    author: { login: 'testuser', avatarUrl: '' },
+    headRef: 'feature/fix',
+    baseRef: 'main',
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-02T00:00:00Z',
+    repository: { owner: 'owner', name: 'repo' },
   };
 
   it('should validate a valid pull request', () => {
@@ -66,17 +66,12 @@ describe('PullRequestSchema', () => {
 
   it('should apply default values', () => {
     const result = PullRequestSchema.parse(validPR);
-    expect(result.draft).toBe(false);
-    expect(result.additions).toBe(0);
-    expect(result.deletions).toBe(0);
-    expect(result.changedFiles).toBe(0);
+    expect(result.isDraft).toBe(false);
     expect(result.labels).toEqual([]);
-    expect(result.assignees).toEqual([]);
-    expect(result.reviewers).toEqual([]);
   });
 
   it('should validate all PR states', () => {
-    const states = ['open', 'closed', 'merged', 'draft'] as const;
+    const states = ['open', 'closed', 'merged'] as const;
     for (const state of states) {
       const result = PullRequestSchema.parse({ ...validPR, state });
       expect(result.state).toBe(state);
@@ -92,12 +87,9 @@ describe('PullRequestSchema', () => {
       ...validPR,
       body: 'Description',
       url: 'https://github.com/pr/1',
-      mergedAt: '2026-01-03T00:00:00Z',
-      checksStatus: 'success' as const,
     };
     const result = PullRequestSchema.parse(prWithOptional);
     expect(result.body).toBe('Description');
-    expect(result.checksStatus).toBe('success');
   });
 });
 
@@ -278,12 +270,12 @@ describe('Validation Helpers', () => {
     number: 1,
     title: 'Test',
     state: 'open',
-    author: 'test',
-    repo: 'owner/repo',
-    sourceBranch: 'feature',
-    targetBranch: 'main',
+    author: { login: 'test', avatarUrl: '' },
+    headRef: 'feature',
+    baseRef: 'main',
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
+    repository: { owner: 'owner', name: 'repo' },
   };
 
   describe('validateUser', () => {

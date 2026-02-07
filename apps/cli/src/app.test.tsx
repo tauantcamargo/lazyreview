@@ -2,7 +2,28 @@ import React from 'react';
 import { Text, Box } from 'ink';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'ink-testing-library';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './app.js';
+
+// Create a test query client
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      gcTime: 0,
+    },
+  },
+});
+
+// Wrapper component that provides QueryClient
+function TestWrapper({ children }: { children: React.ReactNode }) {
+  const queryClient = createTestQueryClient();
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+}
 
 // Mock the store
 vi.mock('./stores/app-store.js', () => {
@@ -11,13 +32,14 @@ vi.mock('./stores/app-store.js', () => {
     isSidebarVisible: true,
     isCommandPaletteOpen: false,
     isHelpOpen: false,
-    selectedRepo: null,
+    selectedRepo: { owner: 'lazyreview', repo: 'demo', provider: 'github' },
+    demoMode: true,
+    searchQuery: '',
     setView: vi.fn(),
     toggleSidebar: vi.fn(),
     toggleHelp: vi.fn(),
     toggleCommandPalette: vi.fn(),
-    selectRepo: vi.fn(),
-    initDemoMode: vi.fn(),
+    setSearchQuery: vi.fn(),
   };
   return {
     useAppStore: vi.fn((selector: any) => selector ? selector(mockState) : mockState),
@@ -58,12 +80,29 @@ vi.mock('@lazyreview/ui', () => ({
     React.createElement(Text, null, `Sidebar: ${title} (${items?.length ?? 0} items)`),
   StatusBar: ({ left, right }: any) =>
     React.createElement(Text, null, `Status: ${left} | ${right}`),
-  HelpPanel: ({ sections }: any) =>
-    React.createElement(Text, null, `Help Panel: ${sections?.length ?? 0} sections`),
+  HelpPanel: ({ sections, width, height }: any) =>
+    React.createElement(Text, null, `Help Panel: ${sections?.length ?? 0} sections (${width}x${height})`),
   CommandPalette: ({ commands }: any) =>
     React.createElement(Text, null, `Command Palette: ${commands?.length ?? 0} commands`),
   ToastContainer: ({ toasts }: any) =>
     React.createElement(Text, null, `Toasts: ${toasts?.length ?? 0}`),
+  Panel: ({ children }: any) => React.createElement(Box, null, children),
+  ChordIndicator: ({ pendingKeys }: any) =>
+    React.createElement(Text, null, `Chord: ${pendingKeys?.join('') ?? ''}`),
+  TextArea: ({ value, placeholder }: any) =>
+    React.createElement(Text, null, value || placeholder),
+  ConfirmDialog: ({ title, message }: any) =>
+    React.createElement(Text, null, `${title}: ${message}`),
+  useChord: vi.fn(() => ({
+    handleInput: vi.fn(() => false),
+    state: { buffer: '', isActive: false, pendingChords: [] },
+    reset: vi.fn(),
+  })),
+}));
+
+// Mock components
+vi.mock('./components/index.js', () => ({
+  PRActionDialogs: () => null,
 }));
 
 describe('App', () => {
@@ -72,37 +111,45 @@ describe('App', () => {
   });
 
   it('renders without crashing', () => {
-    const { lastFrame } = render(<App />);
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toBeDefined();
   });
 
   it('renders with custom dimensions', () => {
-    const { lastFrame } = render(<App width={120} height={40} />);
+    const { lastFrame } = render(<TestWrapper><App width={120} height={40} /></TestWrapper>);
     expect(lastFrame()).toBeDefined();
   });
 
-  it('renders sidebar when visible', async () => {
+  it('renders header bar with LazyReview title', () => {
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('LazyReview');
+  });
+
+  it('renders tab bar', () => {
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('All');
+    expect(lastFrame()).toContain('Recent');
+    expect(lastFrame()).toContain('My PRs');
+  });
+
+  it('renders Navigation panel when sidebar visible', async () => {
     const { useIsSidebarVisible } = await import('./stores/app-store.js');
     vi.mocked(useIsSidebarVisible).mockReturnValue(true);
 
-    const { lastFrame } = render(<App />);
-    expect(lastFrame()).toContain('Sidebar');
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('Navigation');
   });
 
-  it('hides sidebar when not visible', async () => {
-    const { useIsSidebarVisible } = await import('./stores/app-store.js');
-    vi.mocked(useIsSidebarVisible).mockReturnValue(false);
-
-    const { lastFrame } = render(<App />);
-    // Sidebar component shouldn't be rendered
-    expect(lastFrame()).not.toContain('Sidebar:');
+  it('renders Pull Requests panel', () => {
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('Pull Requests');
   });
 
   it('renders PR list screen by default', async () => {
     const { useCurrentView } = await import('./stores/app-store.js');
     vi.mocked(useCurrentView).mockReturnValue('list');
 
-    const { lastFrame } = render(<App />);
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('PR List Screen');
   });
 
@@ -110,7 +157,7 @@ describe('App', () => {
     const { useCurrentView } = await import('./stores/app-store.js');
     vi.mocked(useCurrentView).mockReturnValue('dashboard');
 
-    const { lastFrame } = render(<App />);
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('Dashboard Screen');
   });
 
@@ -118,7 +165,7 @@ describe('App', () => {
     const { useCurrentView } = await import('./stores/app-store.js');
     vi.mocked(useCurrentView).mockReturnValue('settings');
 
-    const { lastFrame } = render(<App />);
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('Settings Screen');
   });
 
@@ -126,7 +173,7 @@ describe('App', () => {
     const { useCurrentView } = await import('./stores/app-store.js');
     vi.mocked(useCurrentView).mockReturnValue('detail');
 
-    const { lastFrame } = render(<App />);
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('PR Detail Screen');
   });
 
@@ -134,7 +181,7 @@ describe('App', () => {
     const { useCurrentView } = await import('./stores/app-store.js');
     vi.mocked(useCurrentView).mockReturnValue('files');
 
-    const { lastFrame } = render(<App />);
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('Diff Screen');
   });
 
@@ -142,17 +189,17 @@ describe('App', () => {
     const { useCurrentView } = await import('./stores/app-store.js');
     vi.mocked(useCurrentView).mockReturnValue('ai');
 
-    const { lastFrame } = render(<App />);
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('AI Review Screen');
   });
 
-  it('renders status bar', () => {
-    const { lastFrame } = render(<App />);
-    expect(lastFrame()).toContain('Status:');
+  it('renders loaded message', () => {
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('Loaded');
   });
 
   it('renders toast container', () => {
-    const { lastFrame } = render(<App />);
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('Toasts:');
   });
 
@@ -163,19 +210,18 @@ describe('App', () => {
       isSidebarVisible: true,
       isCommandPaletteOpen: false,
       isHelpOpen: true,
-      selectedRepo: null,
+      selectedRepo: { owner: 'lazyreview', repo: 'demo', provider: 'github' },
+      demoMode: true,
       setView: vi.fn(),
       toggleSidebar: vi.fn(),
       toggleHelp: vi.fn(),
       toggleCommandPalette: vi.fn(),
-      selectRepo: vi.fn(),
-      initDemoMode: vi.fn(),
     };
     vi.mocked(useAppStore).mockImplementation((selector: any) =>
       selector ? selector(mockState) : mockState
     );
 
-    const { lastFrame } = render(<App />);
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('Help Panel');
   });
 
@@ -187,25 +233,23 @@ describe('App', () => {
       isSidebarVisible: true,
       isCommandPaletteOpen: true,
       isHelpOpen: false,
-      selectedRepo: null,
+      selectedRepo: { owner: 'lazyreview', repo: 'demo', provider: 'github' },
+      demoMode: true,
       setView: vi.fn(),
       toggleSidebar: vi.fn(),
       toggleHelp: vi.fn(),
       toggleCommandPalette: vi.fn(),
-      selectRepo: vi.fn(),
-      initDemoMode: vi.fn(),
     };
     vi.mocked(useAppStore).mockImplementation((selector: any) =>
       selector ? selector(mockState) : mockState
     );
 
-    const { lastFrame } = render(<App />);
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
     expect(lastFrame()).toContain('Command Palette');
   });
 
-  it('calculates sidebar items from pull requests', async () => {
-    const { usePullRequests, useIsSidebarVisible, useCurrentView } = await import('./stores/app-store.js');
-    vi.mocked(useIsSidebarVisible).mockReturnValue(true);
+  it('shows PR count in header', async () => {
+    const { usePullRequests, useCurrentView } = await import('./stores/app-store.js');
     vi.mocked(useCurrentView).mockReturnValue('list');
     vi.mocked(usePullRequests).mockReturnValue([
       {
@@ -226,29 +270,25 @@ describe('App', () => {
       },
     ]);
 
-    const { lastFrame } = render(<App />);
-    expect(lastFrame()).toContain('Sidebar');
-    // Sidebar should have "All" plus repo items
-    expect(lastFrame()).toContain('items');
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('My PRs (1)');
   });
 
-  it('shows vim navigation hints in status bar', async () => {
+  it('shows vim navigation hints when in vim mode', async () => {
     const { useAppStore } = await import('./stores/app-store.js');
     const { useConfig } = await import('./hooks/index.js');
 
-    // Ensure the mock has initDemoMode
     const mockState = {
       currentView: 'list' as const,
       isSidebarVisible: true,
       isCommandPaletteOpen: false,
       isHelpOpen: false,
-      selectedRepo: null,
+      selectedRepo: { owner: 'lazyreview', repo: 'demo', provider: 'github' },
+      demoMode: true,
       setView: vi.fn(),
       toggleSidebar: vi.fn(),
       toggleHelp: vi.fn(),
       toggleCommandPalette: vi.fn(),
-      selectRepo: vi.fn(),
-      initDemoMode: vi.fn(),
     };
     vi.mocked(useAppStore).mockImplementation((selector: any) =>
       selector ? selector(mockState) : mockState
@@ -258,27 +298,25 @@ describe('App', () => {
       isVimMode: true,
     });
 
-    const { lastFrame } = render(<App />);
-    expect(lastFrame()).toContain('j/k:scroll');
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('↑/k up');
   });
 
   it('shows arrow key hints when not in vim mode', async () => {
     const { useAppStore } = await import('./stores/app-store.js');
     const { useConfig } = await import('./hooks/index.js');
 
-    // Ensure the mock has initDemoMode
     const mockState = {
       currentView: 'list' as const,
       isSidebarVisible: true,
       isCommandPaletteOpen: false,
       isHelpOpen: false,
-      selectedRepo: null,
+      selectedRepo: { owner: 'lazyreview', repo: 'demo', provider: 'github' },
+      demoMode: true,
       setView: vi.fn(),
       toggleSidebar: vi.fn(),
       toggleHelp: vi.fn(),
       toggleCommandPalette: vi.fn(),
-      selectRepo: vi.fn(),
-      initDemoMode: vi.fn(),
     };
     vi.mocked(useAppStore).mockImplementation((selector: any) =>
       selector ? selector(mockState) : mockState
@@ -288,7 +326,81 @@ describe('App', () => {
       isVimMode: false,
     });
 
-    const { lastFrame } = render(<App />);
-    expect(lastFrame()).toContain('↑/↓:scroll');
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('↑ up');
+  });
+
+  it('renders branch info', () => {
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('branch');
+  });
+
+  it('shows / filter hint in status bar', async () => {
+    const { useAppStore, useCurrentView } = await import('./stores/app-store.js');
+    vi.mocked(useCurrentView).mockReturnValue('list');
+    const mockState = {
+      currentView: 'list' as const,
+      isSidebarVisible: true,
+      isCommandPaletteOpen: false,
+      isHelpOpen: false,
+      selectedRepo: { owner: 'lazyreview', repo: 'demo', provider: 'github' },
+      demoMode: true,
+      searchQuery: '',
+      setView: vi.fn(),
+      toggleSidebar: vi.fn(),
+      toggleHelp: vi.fn(),
+      toggleCommandPalette: vi.fn(),
+      setSearchQuery: vi.fn(),
+    };
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector ? selector(mockState) : mockState
+    );
+
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('/ filter');
+  });
+
+  it('shows filter text when search query is set', async () => {
+    const { useAppStore, useCurrentView, usePullRequests } = await import('./stores/app-store.js');
+    vi.mocked(useCurrentView).mockReturnValue('list');
+    vi.mocked(usePullRequests).mockReturnValue([
+      {
+        id: '1',
+        number: 1,
+        title: 'Test PR',
+        body: '',
+        state: 'open',
+        isDraft: false,
+        author: { login: 'alice', avatarUrl: '' },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        baseRef: 'main',
+        headRef: 'feature',
+        url: '',
+        labels: [],
+        repository: { owner: 'org', name: 'repo' },
+      },
+    ]);
+    const mockState = {
+      currentView: 'list' as const,
+      isSidebarVisible: true,
+      isCommandPaletteOpen: false,
+      isHelpOpen: false,
+      selectedRepo: { owner: 'lazyreview', repo: 'demo', provider: 'github' },
+      demoMode: true,
+      searchQuery: 'test',
+      setView: vi.fn(),
+      toggleSidebar: vi.fn(),
+      toggleHelp: vi.fn(),
+      toggleCommandPalette: vi.fn(),
+      setSearchQuery: vi.fn(),
+    };
+    vi.mocked(useAppStore).mockImplementation((selector: any) =>
+      selector ? selector(mockState) : mockState
+    );
+
+    const { lastFrame } = render(<TestWrapper><App /></TestWrapper>);
+    expect(lastFrame()).toContain('Filter:');
+    expect(lastFrame()).toContain('test');
   });
 });

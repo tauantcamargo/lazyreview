@@ -53,5 +53,9 @@
       "node_modules/keytar/build/Release/*.node",
       "apps/cli/dist/workers/*.js"
     ]
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0"
   }
 }

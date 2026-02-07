@@ -10,8 +10,8 @@ import {
   Spinner,
   EmptyState,
 } from '@lazyreview/ui';
+import { formatRelativeTime, type PullRequest } from '@lazyreview/core';
 import { useAppStore, useSelectedPR, usePullRequests, useStatus } from '../stores/app-store.js';
-import type { PullRequest } from '@lazyreview/core';
 
 export interface PRDetailScreenProps {
   width?: number;
@@ -207,7 +207,7 @@ function CommentsTabContent({ pr, height }: TabContentProps): React.ReactElement
         id: String(c.id),
         author: c.author.login,
         body: c.body,
-        createdAt: formatRelativeTime(c.createdAt),
+        createdAt: formatRelativeTime(c.createdAt, { addSuffix: true }),
         isResolved: c.isResolved,
       }))}
       height={height}
@@ -234,7 +234,7 @@ function TimelineTabContent({ pr, height }: TabContentProps): React.ReactElement
         id: String(e.id),
         type: mapEventType(e.type),
         actor: e.actor.login,
-        timestamp: formatRelativeTime(e.createdAt),
+        timestamp: formatRelativeTime(e.createdAt, { addSuffix: true }),
         message: e.message,
       }))}
     />
@@ -261,7 +261,7 @@ function ReviewsTabContent({ pr, height }: TabContentProps): React.ReactElement 
         author: r.author.login,
         state: mapReviewState(r.state),
         body: r.body,
-        submittedAt: formatRelativeTime(r.submittedAt),
+        submittedAt: formatRelativeTime(r.submittedAt, { addSuffix: true }),
       }))}
       height={height}
     />
@@ -332,21 +332,6 @@ function mapReviewState(state: string): 'approved' | 'changes_requested' | 'comm
     default:
       return 'pending';
   }
-}
-
-function formatRelativeTime(date: Date | string): string {
-  const now = new Date();
-  const then = typeof date === 'string' ? new Date(date) : date;
-  const diffMs = now.getTime() - then.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return then.toLocaleDateString();
 }
 
 export default PRDetailScreen;

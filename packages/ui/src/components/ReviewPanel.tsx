@@ -20,7 +20,7 @@ export interface Review {
   state: ReviewEvent;
   body?: string;
   submittedAt: string;
-  comments: ReviewComment[];
+  comments?: ReviewComment[];
 }
 
 export interface ReviewPanelProps {
@@ -122,7 +122,7 @@ export function ReviewPanel({
                 </Box>
               )}
 
-              {review.comments.length > 0 && (
+              {review.comments && review.comments.length > 0 && (
                 <Box paddingLeft={3} marginTop={1}>
                   <Text color={mutedColor}>
                     {review.comments.length} comment{review.comments.length === 1 ? '' : 's'}

@@ -1,26 +1,49 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { Box, Text, useInput } from 'ink';
-import { VirtualList, PRListItem, EmptyState, Spinner } from '@lazyreview/ui';
+import { Spinner, EmptyState } from '@lazyreview/ui';
+import { formatRelativeTime, type PullRequest, type ProviderType } from '@lazyreview/core';
 import { useAppStore, usePullRequests, useSelectedRepo, useStatus } from '../stores/app-store.js';
-import { useNavigation, useKeyboard } from '../hooks/index.js';
-import type { PullRequest } from '@lazyreview/core';
+import { useNavigation, useListPullRequests } from '../hooks/index.js';
 
 export interface PRListScreenProps {
   width?: number;
   height?: number;
+  isFocused?: boolean;
 }
 
 /**
- * PR List Screen - Main screen showing list of pull requests
+ * PR List Screen - LazyGit-style PR list matching Go version
  */
-export function PRListScreen({ width = 80, height = 20 }: PRListScreenProps): React.ReactElement {
-  const pullRequests = usePullRequests();
+export function PRListScreen({ width = 80, height = 20, isFocused = true }: PRListScreenProps): React.ReactElement {
+  const demoPullRequests = usePullRequests();
   const selectedRepo = useSelectedRepo();
   const status = useStatus();
+  const demoMode = useAppStore((s) => s.demoMode);
   const selectPR = useAppStore((s) => s.selectPR);
   const selectedListIndex = useAppStore((s) => s.selectedListIndex);
   const setSelectedListIndex = useAppStore((s) => s.setSelectedListIndex);
   const searchQuery = useAppStore((s) => s.searchQuery);
+  const setPullRequests = useAppStore((s) => s.setPullRequests);
+  const setStatus = useAppStore((s) => s.setStatus);
+
+  // Fetch real PRs when not in demo mode
+  const { data: realPullRequests, isLoading, isError, error } = useListPullRequests({
+    owner: selectedRepo?.owner ?? '',
+    repo: selectedRepo?.repo ?? '',
+    provider: (selectedRepo?.provider ?? 'github') as ProviderType,
+    enabled: !demoMode && !!selectedRepo,
+  });
+
+  // Sync real data to store when it arrives
+  React.useEffect(() => {
+    if (!demoMode && realPullRequests) {
+      setPullRequests(realPullRequests);
+      setStatus('ready');
+    }
+  }, [realPullRequests, demoMode, setPullRequests, setStatus]);
+
+  // Use demo data in demo mode, real data otherwise
+  const pullRequests = demoMode ? demoPullRequests : (realPullRequests ?? []);
 
   const { navigateUp, navigateDown, navigateToTop, navigateToBottom } = useNavigation({
     itemCount: pullRequests.length,
@@ -40,8 +63,10 @@ export function PRListScreen({ width = 80, height = 20 }: PRListScreenProps): Re
     );
   }, [pullRequests, searchQuery]);
 
-  // Handle keyboard input
+  // Handle keyboard input (only when this panel is focused)
   useInput((input, key) => {
+    if (!isFocused) return;
+
     if (key.upArrow || input === 'k') {
       navigateUp();
     } else if (key.downArrow || input === 'j') {
@@ -56,18 +81,8 @@ export function PRListScreen({ width = 80, height = 20 }: PRListScreenProps): Re
     }
   });
 
-  // Handle gg chord for going to top
-  const handleChord = useCallback(
-    (chord: string) => {
-      if (chord === 'gg') {
-        navigateToTop();
-      }
-    },
-    [navigateToTop]
-  );
-
   // Loading state
-  if (status === 'loading') {
+  if (status === 'loading' || isLoading) {
     return (
       <Box flexDirection="column" alignItems="center" justifyContent="center" height={height}>
         <Spinner label="Loading pull requests..." />
@@ -75,8 +90,22 @@ export function PRListScreen({ width = 80, height = 20 }: PRListScreenProps): Re
     );
   }
 
-  // No repo selected
-  if (!selectedRepo) {
+  // Error state
+  if (isError && !demoMode) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load pull requests';
+    return (
+      <Box flexDirection="column" alignItems="center" justifyContent="center" height={height}>
+        <EmptyState
+          type="error"
+          title="Error Loading PRs"
+          message={errorMessage}
+        />
+      </Box>
+    );
+  }
+
+  // No repo selected - show demo message
+  if (!selectedRepo && filteredPRs.length === 0) {
     return (
       <Box flexDirection="column" alignItems="center" justifyContent="center" height={height}>
         <EmptyState
@@ -105,86 +134,116 @@ export function PRListScreen({ width = 80, height = 20 }: PRListScreenProps): Re
     );
   }
 
-  // Calculate visible height for virtual list (subtract header)
-  const listHeight = height - 2;
+  // Calculate visible items (2 lines per PR item)
+  const itemHeight = 2;
+  const visibleCount = Math.floor(height / itemHeight);
+  const startIndex = Math.max(0, selectedListIndex - Math.floor(visibleCount / 2));
+  const endIndex = Math.min(filteredPRs.length, startIndex + visibleCount);
+  const visiblePRs = filteredPRs.slice(startIndex, endIndex);
 
   return (
     <Box flexDirection="column" width={width}>
-      {/* Header */}
-      <Box paddingX={1} marginBottom={1}>
-        <Text bold>
-          Pull Requests ({filteredPRs.length})
-          {searchQuery && <Text color="gray"> - filtered by "{searchQuery}"</Text>}
-        </Text>
-      </Box>
-
-      {/* PR List */}
-      <VirtualList
-        items={filteredPRs}
-        itemHeight={1}
-        height={listHeight}
-        width={width}
-        selectedIndex={selectedListIndex}
-        renderItem={(pr: PullRequest, index: number) => (
-          <PRListItem
-            title={pr.title}
-            number={pr.number}
-            author={pr.author.login}
-            status={mapPRStatus(pr.state, pr.isDraft)}
-            reviewStatus={mapReviewStatus(pr.reviewDecision)}
-            selected={index === selectedListIndex}
-            updatedAt={formatRelativeTime(pr.updatedAt)}
-            labels={pr.labels?.map((l) => ({ name: l.name, color: l.color })) ?? []}
+      {visiblePRs.map((pr, idx) => {
+        const actualIndex = startIndex + idx;
+        const isSelected = actualIndex === selectedListIndex;
+        return (
+          <PRListItemLazygit
+            key={pr.id}
+            pr={pr}
+            selected={isSelected}
+            width={width}
           />
-        )}
-        keyExtractor={(pr: PullRequest) => String(pr.number)}
-      />
+        );
+      })}
+      {/* Scroll indicator */}
+      {filteredPRs.length > visibleCount && (
+        <Box paddingX={1}>
+          <Text color="gray">
+            ··
+          </Text>
+        </Box>
+      )}
     </Box>
   );
 }
 
-// Helper functions
-function mapPRStatus(state: string, isDraft: boolean): 'open' | 'merged' | 'closed' | 'draft' {
-  if (isDraft) return 'draft';
-  switch (state.toLowerCase()) {
+// PR List Item - LazyGit style (two lines per item)
+interface PRListItemLazygitProps {
+  pr: PullRequest;
+  selected: boolean;
+  width: number;
+}
+
+function PRListItemLazygit({ pr, selected, width }: PRListItemLazygitProps): React.ReactElement {
+  const relativeTime = formatRelativeTime(pr.updatedAt, { abbreviated: true });
+  const repoName = pr.repository ? `${pr.repository.owner}/${pr.repository.name}` : 'unknown';
+  const statusText = pr.isDraft ? 'draft' : pr.state;
+
+  // Build labels string
+  const labelsText = pr.labels?.length
+    ? pr.labels.map(l => `[${l.name}]`).join(' ')
+    : '';
+
+  // Truncate title if needed
+  const maxTitleLen = width - 8; // Account for PR number prefix
+  const displayTitle = pr.title.length > maxTitleLen
+    ? pr.title.slice(0, maxTitleLen - 1) + '…'
+    : pr.title;
+
+  return (
+    <Box flexDirection="column" paddingX={1}>
+      {/* Line 1: PR number and title */}
+      <Box>
+        <Text color="gray">│</Text>
+        <Text color={selected ? 'magenta' : 'gray'}>│ </Text>
+        <Text color={selected ? 'yellow' : 'white'} bold={selected}>
+          #{pr.number}
+        </Text>
+        <Text> </Text>
+        <Text
+          color={selected ? 'white' : 'white'}
+          bold={selected}
+          inverse={selected}
+        >
+          {displayTitle}
+        </Text>
+      </Box>
+      {/* Line 2: repo, author, time, status, labels */}
+      <Box>
+        <Text color="gray">│</Text>
+        <Text color="gray">│ </Text>
+        <Text color="cyan">{repoName}</Text>
+        <Text color="gray"> • </Text>
+        <Text color="gray">by </Text>
+        <Text color="white">{pr.author.login}</Text>
+        <Text color="gray"> • </Text>
+        <Text color="gray">{relativeTime} ago</Text>
+        <Text color="gray"> • </Text>
+        <Text color={getStatusColor(statusText)}>{statusText}</Text>
+        {labelsText && (
+          <>
+            <Text color="gray"> </Text>
+            <Text color="yellow">{labelsText}</Text>
+          </>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+function getStatusColor(status: string): string {
+  switch (status.toLowerCase()) {
+    case 'open':
+      return 'green';
     case 'merged':
-      return 'merged';
+      return 'magenta';
     case 'closed':
-      return 'closed';
+      return 'red';
+    case 'draft':
+      return 'gray';
     default:
-      return 'open';
+      return 'white';
   }
-}
-
-function mapReviewStatus(
-  decision?: string
-): 'approved' | 'changes_requested' | 'pending' | 'commented' | undefined {
-  if (!decision) return undefined;
-  switch (decision.toLowerCase()) {
-    case 'approved':
-      return 'approved';
-    case 'changes_requested':
-      return 'changes_requested';
-    case 'commented':
-      return 'commented';
-    default:
-      return 'pending';
-  }
-}
-
-function formatRelativeTime(date: Date | string): string {
-  const now = new Date();
-  const then = typeof date === 'string' ? new Date(date) : date;
-  const diffMs = now.getTime() - then.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return then.toLocaleDateString();
 }
 
 export default PRListScreen;

@@ -100,9 +100,9 @@ describe('GitLabProvider', () => {
         id: '123',
         number: 1,
         title: 'Test MR',
-        repo: 'owner/repo',
-        author: 'testuser',
+        author: { login: 'testuser', avatarUrl: '' },
         state: 'open',
+        repository: { owner: 'owner', name: 'repo' },
       });
       expect(prs[1]?.state).toBe('merged');
     });

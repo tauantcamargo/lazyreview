@@ -86,13 +86,13 @@ function mapPullRequest(owner: string, repo: string, pr: BitbucketPullRequest): 
     id: String(pr.id),
     number: pr.id,
     title: pr.title,
-    repo: `${owner}/${repo}`,
-    author: pr.author?.display_name ?? pr.author?.nickname ?? 'unknown',
-    sourceBranch: pr.source.branch.name,
-    targetBranch: pr.destination.branch.name,
+    author: { login: pr.author?.display_name ?? pr.author?.nickname ?? 'unknown', avatarUrl: '' },
+    headRef: pr.source.branch.name,
+    baseRef: pr.destination.branch.name,
     createdAt: pr.created_on,
     updatedAt: pr.updated_on,
     state,
+    repository: { owner, name: repo },
   });
 }
 

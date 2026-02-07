@@ -12,6 +12,9 @@ vi.mock('../stores/app-store.js', () => {
     selectedListIndex: 0,
     setSelectedListIndex: vi.fn(),
     searchQuery: '',
+    demoMode: true,
+    setPullRequests: vi.fn(),
+    setStatus: vi.fn(),
   };
   return {
     useAppStore: vi.fn((selector: any) => selector ? selector(mockState) : mockState),
@@ -30,6 +33,12 @@ vi.mock('../hooks/index.js', () => ({
     navigateToBottom: vi.fn(),
   })),
   useKeyboard: vi.fn(() => ({})),
+  useListPullRequests: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+  })),
 }));
 
 // Mock UI components with proper Ink-compatible output
@@ -122,7 +131,7 @@ describe('PRListScreen', () => {
     expect(lastFrame()).toContain('No Pull Requests');
   });
 
-  it('renders PR list header with count', async () => {
+  it('renders PR list with PR items', async () => {
     const { useAppStore, usePullRequests, useSelectedRepo, useStatus } =
       await import('../stores/app-store.js');
 
@@ -131,6 +140,9 @@ describe('PRListScreen', () => {
       selectedListIndex: 0,
       setSelectedListIndex: vi.fn(),
       searchQuery: '',
+      demoMode: true,
+      setPullRequests: vi.fn(),
+      setStatus: vi.fn(),
     };
     vi.mocked(useAppStore).mockImplementation((selector: any) =>
       selector ? selector(mockState) : mockState
@@ -140,7 +152,11 @@ describe('PRListScreen', () => {
     vi.mocked(useStatus).mockReturnValue('ready');
 
     const { lastFrame } = render(<PRListScreen />);
-    expect(lastFrame()).toContain('Pull Requests (2)');
+    // PR items should show PR number and title
+    expect(lastFrame()).toContain('#1');
+    expect(lastFrame()).toContain('Fix authentication bug');
+    expect(lastFrame()).toContain('#2');
+    expect(lastFrame()).toContain('Add new feature');
   });
 
   it('filters PRs by search query', async () => {
@@ -152,6 +168,9 @@ describe('PRListScreen', () => {
       selectedListIndex: 0,
       setSelectedListIndex: vi.fn(),
       searchQuery: 'auth',
+      demoMode: true,
+      setPullRequests: vi.fn(),
+      setStatus: vi.fn(),
     };
     vi.mocked(useAppStore).mockImplementation((selector: any) =>
       selector ? selector(mockState) : mockState
@@ -161,7 +180,11 @@ describe('PRListScreen', () => {
     vi.mocked(useStatus).mockReturnValue('ready');
 
     const { lastFrame } = render(<PRListScreen />);
-    expect(lastFrame()).toContain('filtered by "auth"');
+    // Only the PR with "auth" in title should be shown
+    expect(lastFrame()).toContain('#1');
+    expect(lastFrame()).toContain('Fix authentication bug');
+    // The other PR should NOT be shown
+    expect(lastFrame()).not.toContain('Add new feature');
   });
 
   it('shows no matching PRs for search', async () => {
@@ -173,6 +196,9 @@ describe('PRListScreen', () => {
       selectedListIndex: 0,
       setSelectedListIndex: vi.fn(),
       searchQuery: 'nonexistent',
+      demoMode: true,
+      setPullRequests: vi.fn(),
+      setStatus: vi.fn(),
     };
     vi.mocked(useAppStore).mockImplementation((selector: any) =>
       selector ? selector(mockState) : mockState

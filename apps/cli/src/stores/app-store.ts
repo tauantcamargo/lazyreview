@@ -10,35 +10,61 @@ const DEMO_PULL_REQUESTS: PullRequest[] = [
     id: '1',
     number: 42,
     title: 'feat: Add user authentication with OAuth2',
-    body: 'This PR implements OAuth2 authentication flow.',
+    body: 'This PR implements OAuth2 authentication flow.\n\n## Changes\n- Add OAuth2 provider\n- Add login/logout endpoints\n- Add session management',
     state: 'open',
     isDraft: false,
     author: { login: 'alice', avatarUrl: '' },
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-    updatedAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 30 * 60 * 1000),
     baseRef: 'main',
     headRef: 'feat/oauth2-auth',
     url: 'https://github.com/org/repo/pull/42',
     labels: [{ name: 'enhancement', color: '00ff00' }],
     reviewDecision: 'REVIEW_REQUIRED',
     repository: { owner: 'lazyreview', name: 'demo' },
+    files: [
+      { path: 'src/auth/oauth.ts', status: 'added', additions: 150, deletions: 0 },
+      { path: 'src/auth/session.ts', status: 'added', additions: 80, deletions: 0 },
+      { path: 'src/routes/auth.ts', status: 'modified', additions: 45, deletions: 10 },
+      { path: 'src/config.ts', status: 'modified', additions: 5, deletions: 2 },
+    ],
+    comments: [
+      { id: 1, author: { login: 'bob', avatarUrl: '' }, body: 'Looks good! Just a few questions about the session handling.', createdAt: new Date(Date.now() - 60 * 60 * 1000), isResolved: false },
+      { id: 2, author: { login: 'alice', avatarUrl: '' }, body: 'Good catch, updated the session expiry logic.', createdAt: new Date(Date.now() - 45 * 60 * 1000), isResolved: true },
+    ],
+    reviews: [
+      { id: 1, author: { login: 'bob', avatarUrl: '' }, state: 'commented', body: 'Left some comments', submittedAt: new Date(Date.now() - 60 * 60 * 1000) },
+    ],
+    timeline: [
+      { id: 1, type: 'opened', actor: { login: 'alice', avatarUrl: '' }, createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), message: 'Opened pull request' },
+      { id: 2, type: 'commented', actor: { login: 'bob', avatarUrl: '' }, createdAt: new Date(Date.now() - 60 * 60 * 1000), message: 'Left some comments' },
+      { id: 3, type: 'committed', actor: { login: 'alice', avatarUrl: '' }, createdAt: new Date(Date.now() - 45 * 60 * 1000), message: 'Fixed session expiry logic' },
+    ],
   },
   {
     id: '2',
     number: 41,
     title: 'fix: Resolve memory leak in cache layer',
-    body: 'Fixed memory leak caused by unclosed connections.',
+    body: 'Fixed memory leak caused by unclosed connections.\n\n## Root Cause\nConnections were not being properly closed in error paths.',
     state: 'open',
     isDraft: false,
     author: { login: 'bob', avatarUrl: '' },
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-    updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
+    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
     baseRef: 'main',
     headRef: 'fix/memory-leak',
     url: 'https://github.com/org/repo/pull/41',
     labels: [{ name: 'bug', color: 'ff0000' }],
     reviewDecision: 'APPROVED',
     repository: { owner: 'lazyreview', name: 'demo' },
+    files: [
+      { path: 'src/cache/redis.ts', status: 'modified', additions: 25, deletions: 8 },
+      { path: 'src/cache/memory.ts', status: 'modified', additions: 15, deletions: 5 },
+      { path: 'tests/cache.test.ts', status: 'modified', additions: 40, deletions: 0 },
+    ],
+    reviews: [
+      { id: 2, author: { login: 'charlie', avatarUrl: '' }, state: 'approved', body: 'LGTM! Good fix.', submittedAt: new Date(Date.now() - 8 * 60 * 60 * 1000) },
+    ],
   },
   {
     id: '3',

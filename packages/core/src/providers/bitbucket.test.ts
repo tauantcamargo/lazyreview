@@ -100,9 +100,9 @@ describe('BitbucketProvider', () => {
         id: '1',
         number: 1,
         title: 'Test PR',
-        repo: 'workspace/repo',
-        author: 'Test User',
+        author: { login: 'Test User', avatarUrl: '' },
         state: 'open',
+        repository: { owner: 'workspace', name: 'repo' },
       });
       expect(prs[1]?.state).toBe('merged');
     });

@@ -12,11 +12,14 @@ vi.mock('../stores/app-store.js', () => {
     setView: vi.fn(),
     selectedFileIndex: 0,
     setSelectedListIndex: vi.fn(),
+    demoMode: true,
+    setCurrentDiff: vi.fn(),
   };
   return {
     useAppStore: vi.fn((selector: any) => selector ? selector(mockState) : mockState),
     usePullRequests: vi.fn(() => []),
     useSelectedPR: vi.fn(() => null),
+    useSelectedRepo: vi.fn(() => ({ owner: 'org', repo: 'repo', provider: 'github' })),
     useStatus: vi.fn(() => 'ready'),
   };
 });
@@ -31,6 +34,12 @@ vi.mock('../hooks/index.js', () => ({
     navigateToNextHunk: vi.fn(),
     navigateToPrevHunk: vi.fn(),
     toggleLineSelection: vi.fn(),
+  })),
+  usePullRequestDiff: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
   })),
 }));
 

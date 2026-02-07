@@ -98,9 +98,9 @@ describe('AzureDevOpsProvider', () => {
         id: '1',
         number: 1,
         title: 'Test PR',
-        repo: 'org/project/repo',
-        author: 'Test User',
+        author: { login: 'Test User', avatarUrl: '' },
         state: 'open',
+        repository: { owner: 'org/project', name: 'repo' },
       });
       expect(prs[1]?.state).toBe('merged');
     });

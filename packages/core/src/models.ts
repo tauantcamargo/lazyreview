@@ -34,33 +34,92 @@ export type Label = z.infer<typeof LabelSchema>;
 export const PullRequestStateSchema = z.enum(['open', 'closed', 'merged', 'draft']);
 export type PullRequestState = z.infer<typeof PullRequestStateSchema>;
 
+// Simplified author reference for PR listing
+export const AuthorRefSchema = z.object({
+  login: z.string(),
+  avatarUrl: z.string().optional(),
+});
+
+export type AuthorRef = z.infer<typeof AuthorRefSchema>;
+
+// File change in a PR
+export const FileChangeSchema = z.object({
+  path: z.string(),
+  status: z.enum(['added', 'modified', 'deleted', 'renamed']),
+  additions: z.number().default(0),
+  deletions: z.number().default(0),
+});
+
+export type FileChange = z.infer<typeof FileChangeSchema>;
+
+// Simple comment for PR listing
+export const PRCommentSchema = z.object({
+  id: z.number(),
+  author: AuthorRefSchema,
+  body: z.string(),
+  createdAt: z.union([z.string(), z.date()]),
+  isResolved: z.boolean().optional(),
+});
+
+export type PRComment = z.infer<typeof PRCommentSchema>;
+
+// Simple review for PR listing
+export const PRReviewSchema = z.object({
+  id: z.number(),
+  author: AuthorRefSchema,
+  state: z.string(),
+  body: z.string().optional(),
+  submittedAt: z.union([z.string(), z.date()]),
+});
+
+export type PRReview = z.infer<typeof PRReviewSchema>;
+
+// Repository reference
+export const RepositoryRefSchema = z.object({
+  owner: z.string(),
+  name: z.string(),
+});
+
+export type RepositoryRef = z.infer<typeof RepositoryRefSchema>;
+
+// Review decision enum
+export const ReviewDecisionSchema = z.enum([
+  'APPROVED',
+  'CHANGES_REQUESTED',
+  'REVIEW_REQUIRED',
+]).optional();
+
+export type ReviewDecision = z.infer<typeof ReviewDecisionSchema>;
+
 export const PullRequestSchema = z.object({
   id: z.string(),
   number: z.number(),
   title: z.string(),
   body: z.string().optional(),
-  state: PullRequestStateSchema,
-  draft: z.boolean().default(false),
-  author: z.string(),
-  authorAvatar: z.string().optional(),
-  repo: z.string(),
-  owner: z.string().optional(),
-  sourceBranch: z.string(),
-  targetBranch: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  mergedAt: z.string().optional(),
-  closedAt: z.string().optional(),
+  state: z.enum(['open', 'closed', 'merged']),
+  isDraft: z.boolean().default(false),
+  author: AuthorRefSchema,
+  createdAt: z.union([z.string(), z.date()]),
+  updatedAt: z.union([z.string(), z.date()]),
+  baseRef: z.string(),
+  headRef: z.string(),
   url: z.string().optional(),
-  additions: z.number().default(0),
-  deletions: z.number().default(0),
-  changedFiles: z.number().default(0),
-  labels: z.array(LabelSchema).default([]),
-  assignees: z.array(UserSchema).default([]),
-  reviewers: z.array(UserSchema).default([]),
-  mergeable: z.boolean().optional(),
-  mergeableState: z.string().optional(),
-  checksStatus: z.enum(['pending', 'success', 'failure', 'neutral']).optional(),
+  labels: z.array(z.object({
+    name: z.string(),
+    color: z.string().optional(),
+  })).default([]),
+  reviewDecision: ReviewDecisionSchema,
+  repository: RepositoryRefSchema.optional(),
+  files: z.array(FileChangeSchema).optional(),
+  comments: z.array(PRCommentSchema).optional(),
+  reviews: z.array(PRReviewSchema).optional(),
+  timeline: z.array(z.object({
+    id: z.number(),
+    type: z.string(),
+    actor: AuthorRefSchema,
+    createdAt: z.union([z.string(), z.date()]),
+    message: z.string().optional(),
+  })).optional(),
 });
 
 export type PullRequest = z.infer<typeof PullRequestSchema>;

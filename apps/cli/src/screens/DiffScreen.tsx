@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { DiffView, FileTree, Spinner, EmptyState, SplitPane } from '@lazyreview/ui';
-import { useAppStore, useSelectedPR, usePullRequests, useStatus } from '../stores/app-store.js';
-import { useDiff } from '../hooks/index.js';
-import type { PullRequest } from '@lazyreview/core';
+import { useAppStore, useSelectedPR, usePullRequests, useStatus, useSelectedRepo } from '../stores/app-store.js';
+import { useDiff, usePullRequestDiff } from '../hooks/index.js';
+import type { PullRequest, ProviderType } from '@lazyreview/core';
 
 export interface DiffScreenProps {
   width?: number;
@@ -16,13 +16,34 @@ export interface DiffScreenProps {
 export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.ReactElement {
   const selectedPRNumber = useSelectedPR();
   const pullRequests = usePullRequests();
+  const selectedRepo = useSelectedRepo();
   const status = useStatus();
-  const currentDiff = useAppStore((s) => s.currentDiff);
+  const demoMode = useAppStore((s) => s.demoMode);
+  const storeDiff = useAppStore((s) => s.currentDiff);
+  const setCurrentDiff = useAppStore((s) => s.setCurrentDiff);
   const setView = useAppStore((s) => s.setView);
   const selectedFileIndex = useAppStore((s) => s.selectedFileIndex);
 
   const [showFileTree, setShowFileTree] = useState(true);
   const [focusedPane, setFocusedPane] = useState<'tree' | 'diff'>('diff');
+
+  // Fetch real diff when not in demo mode
+  const { data: realDiff, isLoading: isDiffLoading, isError: isDiffError, error: diffError } = usePullRequestDiff({
+    owner: selectedRepo?.owner ?? '',
+    repo: selectedRepo?.repo ?? '',
+    provider: (selectedRepo?.provider ?? 'github') as ProviderType,
+    number: selectedPRNumber ?? 0,
+    enabled: !demoMode && !!selectedPRNumber && !!selectedRepo,
+  });
+
+  // Sync real diff to store
+  React.useEffect(() => {
+    if (!demoMode && realDiff) {
+      setCurrentDiff(realDiff);
+    }
+  }, [realDiff, demoMode, setCurrentDiff]);
+
+  const currentDiff = demoMode ? storeDiff : (realDiff ?? storeDiff);
 
   // Find the selected PR
   const selectedPR = React.useMemo(
@@ -87,10 +108,24 @@ export function DiffScreen({ width = 80, height = 20 }: DiffScreenProps): React.
   });
 
   // Loading state
-  if (status === 'loading') {
+  if (status === 'loading' || isDiffLoading) {
     return (
       <Box flexDirection="column" alignItems="center" justifyContent="center" height={height}>
         <Spinner label="Loading diff..." />
+      </Box>
+    );
+  }
+
+  // Error state
+  if (isDiffError && !demoMode) {
+    const errorMessage = diffError instanceof Error ? diffError.message : 'Failed to load diff';
+    return (
+      <Box flexDirection="column" alignItems="center" justifyContent="center" height={height}>
+        <EmptyState
+          type="error"
+          title="Error Loading Diff"
+          message={errorMessage}
+        />
       </Box>
     );
   }

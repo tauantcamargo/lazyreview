@@ -12,6 +12,8 @@
     "@lazyreview/platform": "workspace:*",
     "axios": "^1.7.0",
     "axios-retry": "^4.4.0",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "yaml": "^2.5.1",
     "zod": "^3.24.1"
   }

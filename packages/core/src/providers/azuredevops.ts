@@ -119,13 +119,13 @@ function mapPullRequest(owner: string, repo: string, pr: AzurePullRequest): Pull
     id: String(pr.pullRequestId),
     number: pr.pullRequestId,
     title: pr.title,
-    repo: `${owner}/${repo}`,
-    author: pr.createdBy?.displayName ?? 'unknown',
-    sourceBranch: stripRefPrefix(pr.sourceRefName),
-    targetBranch: stripRefPrefix(pr.targetRefName),
+    author: { login: pr.createdBy?.displayName ?? 'unknown', avatarUrl: '' },
+    headRef: stripRefPrefix(pr.sourceRefName),
+    baseRef: stripRefPrefix(pr.targetRefName),
     createdAt: pr.creationDate,
     updatedAt: pr.creationDate,
     state,
+    repository: { owner, name: repo },
   });
 }
 

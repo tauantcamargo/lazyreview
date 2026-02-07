@@ -90,13 +90,13 @@ function mapPullRequest(owner: string, repo: string, pr: GitHubPullRequest): Pul
     id: String(pr.id),
     number: pr.number,
     title: pr.title,
-    repo: `${owner}/${repo}`,
-    author: pr.user?.login ?? 'unknown',
-    sourceBranch: pr.head.ref,
-    targetBranch: pr.base.ref,
+    author: { login: pr.user?.login ?? 'unknown', avatarUrl: '' },
+    headRef: pr.head.ref,
+    baseRef: pr.base.ref,
     createdAt: pr.created_at,
     updatedAt: pr.updated_at,
     state,
+    repository: { owner, name: repo },
   });
 }
 

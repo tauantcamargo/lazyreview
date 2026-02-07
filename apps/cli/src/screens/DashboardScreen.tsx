@@ -7,8 +7,8 @@ import {
   Spinner,
   EmptyState,
 } from '@lazyreview/ui';
+import { formatRelativeTime, type PullRequest } from '@lazyreview/core';
 import { useAppStore, usePullRequests, useStatus } from '../stores/app-store.js';
-import type { PullRequest } from '@lazyreview/core';
 
 export interface DashboardScreenProps {
   width?: number;
@@ -157,7 +157,7 @@ export function DashboardScreen({ width = 80, height = 20 }: DashboardScreenProp
               <Text> </Text>
               <Text>{truncate(pr.title, 40)}</Text>
               <Text color="gray"> by @{pr.author.login}</Text>
-              <Text color="gray"> • {formatRelativeTime(pr.updatedAt)}</Text>
+              <Text color="gray"> • {formatRelativeTime(pr.updatedAt, { addSuffix: true })}</Text>
             </Box>
           ))}
         </Box>
@@ -195,21 +195,6 @@ function StatRow({ label, value, color }: StatRowProps): React.ReactElement {
 function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength - 3) + '...';
-}
-
-function formatRelativeTime(date: Date | string): string {
-  const now = new Date();
-  const then = typeof date === 'string' ? new Date(date) : date;
-  const diffMs = now.getTime() - then.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return then.toLocaleDateString();
 }
 
 export default DashboardScreen;

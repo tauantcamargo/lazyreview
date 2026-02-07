@@ -75,13 +75,13 @@ function mapMergeRequest(owner: string, repo: string, mr: GitLabMergeRequest): P
     id: String(mr.id),
     number: mr.iid,
     title: mr.title,
-    repo: `${owner}/${repo}`,
-    author: mr.author?.username ?? 'unknown',
-    sourceBranch: mr.source_branch,
-    targetBranch: mr.target_branch,
+    author: { login: mr.author?.username ?? 'unknown', avatarUrl: '' },
+    headRef: mr.source_branch,
+    baseRef: mr.target_branch,
     createdAt: mr.created_at,
     updatedAt: mr.updated_at,
     state: mr.state === 'opened' ? 'open' : mr.state,
+    repository: { owner, name: repo },
   });
 }
 
