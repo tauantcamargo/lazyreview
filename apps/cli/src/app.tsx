@@ -271,23 +271,22 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
     else if (input === '2') setView('dashboard');
     else if (input === '3') setView('settings');
 
-    // Global filter tab switching with Shift+Tab (works everywhere)
-    if (key.tab && key.shift) {
-      const tabs: FilterTab[] = ['all', 'recent', 'favorites', 'mine', 'review'];
-      const currentIdx = tabs.indexOf(activeTab);
-      const nextIdx = (currentIdx + 1) % tabs.length;
-      const nextTab = tabs[nextIdx];
-      if (nextTab !== undefined) setActiveTab(nextTab);
-      return; // Prevent other tab handling
-    }
+    // Main filter tab switching with Tab or Shift+Tab
+    // Only when in navigation panel or in list view with list panel focused
+    if (key.tab) {
+      const shouldSwitchMainTabs =
+        key.shift || // Shift+Tab always switches main tabs
+        focusedPanel === 'nav' || // Tab in navigation switches main tabs
+        (currentView === 'list' && focusedPanel === 'list'); // Tab in list view switches main tabs
 
-    // Local tab switching with Tab (only in list view, for local navigation)
-    if (key.tab && currentView === 'list') {
-      const tabs: FilterTab[] = ['all', 'recent', 'favorites', 'mine', 'review'];
-      const currentIdx = tabs.indexOf(activeTab);
-      const nextIdx = (currentIdx + 1) % tabs.length;
-      const nextTab = tabs[nextIdx];
-      if (nextTab !== undefined) setActiveTab(nextTab);
+      if (shouldSwitchMainTabs) {
+        const tabs: FilterTab[] = ['all', 'recent', 'favorites', 'mine', 'review'];
+        const currentIdx = tabs.indexOf(activeTab);
+        const nextIdx = (currentIdx + 1) % tabs.length;
+        const nextTab = tabs[nextIdx];
+        if (nextTab !== undefined) setActiveTab(nextTab);
+        return; // Prevent other tab handling
+      }
     }
 
     // Panel focus switching (h/l or left/right arrows)
