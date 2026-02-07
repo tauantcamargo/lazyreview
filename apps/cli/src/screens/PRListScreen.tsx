@@ -3,7 +3,7 @@ import { Box, Text, useInput } from 'ink';
 import { match, P } from 'ts-pattern';
 import { Spinner, EmptyState, InputBox, Select } from '@lazyreview/ui';
 import { formatRelativeTime, type PullRequest, type ProviderType } from '@lazyreview/core';
-import { useAppStore, usePullRequests, useSelectedRepo, useStatus } from '../stores/app-store.js';
+import { useAppStore, useSelectedRepo, useStatus } from '../stores/app-store.js';
 import { useNavigation, useListPullRequests, useMyPRs, useReviewRequests } from '../hooks/index.js';
 
 export type FilterTab = 'all' | 'recent' | 'favorites' | 'mine' | 'review';
@@ -19,10 +19,8 @@ export interface PRListScreenProps {
  * PR List Screen - LazyGit-style PR list matching Go version
  */
 export function PRListScreen({ width = 80, height = 20, isFocused = true, activeTab = 'mine' }: PRListScreenProps): React.ReactElement {
-  const demoPullRequests = usePullRequests();
   const selectedRepo = useSelectedRepo();
   const status = useStatus();
-  const demoMode = useAppStore((s) => s.demoMode);
   const selectPR = useAppStore((s) => s.selectPR);
   const selectedListIndex = useAppStore((s) => s.selectedListIndex);
   const setSelectedListIndex = useAppStore((s) => s.setSelectedListIndex);
@@ -49,45 +47,41 @@ export function PRListScreen({ width = 80, height = 20, isFocused = true, active
     owner: selectedRepo?.owner ?? '',
     repo: selectedRepo?.repo ?? '',
     provider: (selectedRepo?.provider ?? 'github') as ProviderType,
-    enabled: !demoMode && isRepoTab && !!selectedRepo,
+    enabled: isRepoTab && !!selectedRepo,
   });
 
   // Fetch user's PRs across all repos (for 'mine' tab)
   const { data: myPullRequests, isLoading: isMyPRsLoading, isError: isMyPRsError, error: myPRsError } = useMyPRs({
-    provider: (selectedRepo?.provider ?? 'github') as ProviderType,
+    provider: 'github' as ProviderType,
     filters,
-    enabled: !demoMode && isMyPRsTab,
+    enabled: isMyPRsTab,
   });
 
   // Fetch review requests (for 'review' tab)
   const { data: reviewPullRequests, isLoading: isReviewLoading, isError: isReviewError, error: reviewError } = useReviewRequests({
-    provider: (selectedRepo?.provider ?? 'github') as ProviderType,
+    provider: 'github' as ProviderType,
     filters,
-    enabled: !demoMode && isReviewTab,
+    enabled: isReviewTab,
   });
 
   // Determine which data to use based on activeTab
-  const realPullRequests = React.useMemo(() => {
-    if (demoMode) return null;
-    if (isMyPRsTab) return myPullRequests ?? null;
-    if (isReviewTab) return reviewPullRequests ?? null;
-    return repoPullRequests ?? null;
-  }, [demoMode, isMyPRsTab, isReviewTab, myPullRequests, reviewPullRequests, repoPullRequests]);
+  const pullRequests = React.useMemo(() => {
+    if (isMyPRsTab) return myPullRequests ?? [];
+    if (isReviewTab) return reviewPullRequests ?? [];
+    return repoPullRequests ?? [];
+  }, [isMyPRsTab, isReviewTab, myPullRequests, reviewPullRequests, repoPullRequests]);
 
-  const isLoading = demoMode ? false : (isRepoTab ? isRepoLoading : isMyPRsTab ? isMyPRsLoading : isReviewLoading);
-  const isError = demoMode ? false : (isRepoTab ? isRepoError : isMyPRsTab ? isMyPRsError : isReviewError);
+  const isLoading = isRepoTab ? isRepoLoading : isMyPRsTab ? isMyPRsLoading : isReviewLoading;
+  const isError = isRepoTab ? isRepoError : isMyPRsTab ? isMyPRsError : isReviewError;
   const error = isRepoTab ? repoError : isMyPRsTab ? myPRsError : reviewError;
 
-  // Sync real data to store when it arrives
+  // Sync data to store when it arrives
   React.useEffect(() => {
-    if (!demoMode && realPullRequests) {
-      setPullRequests(realPullRequests);
+    if (pullRequests.length > 0) {
+      setPullRequests(pullRequests);
       setStatus('ready');
     }
-  }, [realPullRequests, demoMode, setPullRequests, setStatus]);
-
-  // Use demo data in demo mode, real data otherwise
-  const pullRequests = demoMode ? demoPullRequests : (realPullRequests ?? []);
+  }, [pullRequests, setPullRequests, setStatus]);
 
   const { navigateUp, navigateDown, navigateToTop, navigateToBottom } = useNavigation({
     itemCount: pullRequests.length,
@@ -163,21 +157,25 @@ export function PRListScreen({ width = 80, height = 20, isFocused = true, active
   }
 
   // Error state
-  if (isError && !demoMode) {
+  if (isError) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to load pull requests';
+    const helpMessage = errorMessage.includes('token') || errorMessage.includes('Missing token')
+      ? 'Please set GITHUB_TOKEN environment variable or run: lazyreview auth login --provider github'
+      : 'Please check your network connection and try again';
+
     return (
       <Box flexDirection="column" alignItems="center" justifyContent="center" height={height}>
         <EmptyState
           type="error"
           title="Error Loading PRs"
-          message={errorMessage}
+          message={`${errorMessage}\n\n${helpMessage}`}
         />
       </Box>
     );
   }
 
-  // No repo selected - show demo message
-  if (!selectedRepo && filteredPRs.length === 0) {
+  // No repo selected for repo-specific tabs
+  if (isRepoTab && !selectedRepo) {
     return (
       <Box flexDirection="column" alignItems="center" justifyContent="center" height={height}>
         <EmptyState

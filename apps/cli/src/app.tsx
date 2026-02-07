@@ -85,7 +85,6 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
   const toggleCommandPalette = useAppStore((s) => s.toggleCommandPalette);
   const isHelpOpen = useAppStore((s) => s.isHelpOpen);
   const selectedRepo = useAppStore((s) => s.selectedRepo);
-  const demoMode = useAppStore((s) => s.demoMode);
 
   const { toasts, addToast, removeToast } = useToast();
   const queryClient = useQueryClient();
@@ -362,7 +361,7 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
   ];
 
   // Get current branch info
-  const branchInfo = demoMode ? 'demo-mode' : 'tc/rewrite-work (dirty)';
+  const branchInfo = 'tc/rewrite-work (dirty)';
 
   // Status bar content
   const getStatusBarContent = (): string => {
@@ -417,10 +416,9 @@ export function App({ width: initialWidth = 80, height: initialHeight = 24 }: Ap
         ) : null}
         <Text color="white">{pullRequests.length} PRs</Text>
         <Text color={mutedColor}> • </Text>
-        <Text color={demoMode ? warningColor : mutedColor}>{branchInfo}</Text>
-        {demoMode && <Text color={warningColor}> ⚠ DEMO</Text>}
+        <Text color={mutedColor}>{branchInfo}</Text>
         {/* Chord indicator - shows pending keys */}
-        {chordState.isActive && !demoMode && (
+        {chordState.isActive && (
           <>
             <Text color={mutedColor}> • </Text>
             <ChordIndicator chord={chordState.buffer} pending={chordState.isActive} />
