@@ -116,6 +116,10 @@ export function createGitLabProvider(config: GitLabConfig): Provider {
       // TODO: Implement GitLab getMyPRs using author filter
       throw new Error('getMyPRs not yet implemented for GitLab');
     },
+    async getReviewRequests(_options) {
+      // TODO: Implement GitLab getReviewRequests
+      throw new Error('getReviewRequests not yet implemented for GitLab');
+    },
     async listPullRequests(owner, repo, options) {
       const state = options?.state === 'closed' ? 'closed' : options?.state === 'all' ? 'all' : 'opened';
       const limit = Math.min(options?.limit ?? 20, 100);

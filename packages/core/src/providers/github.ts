@@ -215,6 +215,29 @@ export function createGitHubProvider(config: GitHubProviderConfig): Provider {
 
       return pullRequests;
     },
+    async getReviewRequests(options) {
+      const user = await getCurrentUser();
+      const state = options?.state ?? 'open';
+      const limit = Math.min(options?.limit ?? 20, 100);
+
+      // Use GitHub Search API to find PRs where user is requested as reviewer
+      // Note: This includes both direct user review requests and team review requests
+      const url = new URL(`${baseUrl}/search/issues`);
+      url.searchParams.set('q', `is:pr review-requested:${user.login} is:${state}`);
+      url.searchParams.set('per_page', String(limit));
+      url.searchParams.set('sort', 'created');
+      url.searchParams.set('order', 'desc');
+
+      const data = await requestJson<unknown>(url.toString(), config);
+      const searchResponse = GitHubSearchResponseSchema.parse(data);
+
+      // Map search results to PullRequest objects
+      const pullRequests = await Promise.all(
+        searchResponse.items.map((issue) => mapSearchIssueToPR(issue, config))
+      );
+
+      return pullRequests;
+    },
     async getPullRequestDiff(owner, repo, number) {
       const url = `${baseUrl}/repos/${owner}/${repo}/pulls/${number}`;
       return await requestText(url, config, 'application/vnd.github.v3.diff');

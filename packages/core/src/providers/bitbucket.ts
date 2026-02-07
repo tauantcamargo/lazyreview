@@ -118,6 +118,10 @@ export function createBitbucketProvider(config: BitbucketConfig): Provider {
       // TODO: Implement Bitbucket getMyPRs using search API
       throw new Error('getMyPRs not yet implemented for Bitbucket');
     },
+    async getReviewRequests(_options) {
+      // TODO: Implement Bitbucket getReviewRequests
+      throw new Error('getReviewRequests not yet implemented for Bitbucket');
+    },
     async listPullRequests(owner, repo, options) {
       const limit = Math.min(options?.limit ?? 20, 50);
       const state = options?.state === 'closed' ? 'MERGED' : options?.state === 'all' ? 'ALL' : 'OPEN';

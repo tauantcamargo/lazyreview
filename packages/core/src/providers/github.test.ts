@@ -438,6 +438,167 @@ describe('GitHubProvider', () => {
     });
   });
 
+  describe('getReviewRequests', () => {
+    it('should fetch PRs where user is requested as reviewer', async () => {
+      // Mock getCurrentUser call
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ login: 'testuser' }),
+      });
+
+      // Mock search API response
+      const mockSearchResponse = {
+        total_count: 2,
+        incomplete_results: false,
+        items: [
+          {
+            id: 789,
+            number: 10,
+            title: 'PR needing review 1',
+            state: 'open',
+            created_at: '2024-01-03T00:00:00Z',
+            updated_at: '2024-01-03T00:00:00Z',
+            user: { login: 'otheruser' },
+            repository_url: 'https://api.github.com/repos/org/repo1',
+          },
+          {
+            id: 101112,
+            number: 20,
+            title: 'PR needing review 2',
+            state: 'open',
+            created_at: '2024-01-04T00:00:00Z',
+            updated_at: '2024-01-04T00:00:00Z',
+            user: { login: 'anotheruser' },
+            repository_url: 'https://api.github.com/repos/org/repo2',
+          },
+        ],
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockSearchResponse,
+      });
+
+      // Mock fetching full PR details for each search result
+      const mockPR1 = {
+        id: 789,
+        number: 10,
+        title: 'PR needing review 1',
+        state: 'open',
+        created_at: '2024-01-03T00:00:00Z',
+        updated_at: '2024-01-03T00:00:00Z',
+        user: { login: 'otheruser' },
+        head: { ref: 'feature-xyz' },
+        base: { ref: 'main' },
+      };
+
+      const mockPR2 = {
+        id: 101112,
+        number: 20,
+        title: 'PR needing review 2',
+        state: 'open',
+        created_at: '2024-01-04T00:00:00Z',
+        updated_at: '2024-01-04T00:00:00Z',
+        user: { login: 'anotheruser' },
+        head: { ref: 'fix-abc' },
+        base: { ref: 'develop' },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockPR1,
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockPR2,
+      });
+
+      const provider = createGitHubProvider({ token: 'test-token' });
+      const prs = await provider.getReviewRequests();
+
+      expect(prs).toHaveLength(2);
+      expect(prs[0]).toMatchObject({
+        id: '789',
+        number: 10,
+        title: 'PR needing review 1',
+        author: { login: 'otheruser', avatarUrl: '' },
+        repository: { owner: 'org', name: 'repo1' },
+      });
+      expect(prs[1]).toMatchObject({
+        id: '101112',
+        number: 20,
+        title: 'PR needing review 2',
+        repository: { owner: 'org', name: 'repo2' },
+      });
+
+      // Verify search API was called with review-requested query
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('q=is%3Apr+review-requested%3Atestuser+is%3Aopen'),
+        expect.anything()
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('sort=created'),
+        expect.anything()
+      );
+    });
+
+    it('should respect state and limit options', async () => {
+      // Mock getCurrentUser call
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ login: 'testuser' }),
+      });
+
+      // Mock empty search response
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ total_count: 0, incomplete_results: false, items: [] }),
+      });
+
+      const provider = createGitHubProvider({ token: 'test-token' });
+      await provider.getReviewRequests({ state: 'closed', limit: 30 });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('is%3Aclosed'),
+        expect.anything()
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('per_page=30'),
+        expect.anything()
+      );
+    });
+
+    it('should use cached user across multiple calls', async () => {
+      // Mock getCurrentUser call only once
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ login: 'testuser' }),
+      });
+
+      // Mock empty search responses
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ total_count: 0, incomplete_results: false, items: [] }),
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ total_count: 0, incomplete_results: false, items: [] }),
+      });
+
+      const provider = createGitHubProvider({ token: 'test-token' });
+      await provider.getReviewRequests();
+      await provider.getReviewRequests();
+
+      // Verify /user was only called once (cached after first call)
+      const userCalls = mockFetch.mock.calls.filter(call =>
+        typeof call[0] === 'string' && call[0].includes('/user')
+      );
+      expect(userCalls).toHaveLength(1);
+    });
+  });
+
   describe('error handling', () => {
     it('should throw on API error', async () => {
       mockFetch.mockResolvedValueOnce({
