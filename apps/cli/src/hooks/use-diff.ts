@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { match } from 'ts-pattern';
 
 export interface DiffLine {
   type: 'add' | 'remove' | 'context' | 'header';
@@ -315,14 +316,10 @@ export function formatDiffStats(additions: number, deletions: number): string {
  * Get color for diff line type
  */
 export function getDiffLineColor(type: DiffLine['type']): string {
-  switch (type) {
-    case 'add':
-      return '#9ece6a'; // green
-    case 'remove':
-      return '#f7768e'; // red
-    case 'header':
-      return '#7aa2f7'; // blue
-    default:
-      return '#a9b1d6'; // default text
-  }
+  return match(type)
+    .with('add', () => '#9ece6a')      // green
+    .with('remove', () => '#f7768e')   // red
+    .with('header', () => '#7aa2f7')   // blue
+    .with('context', () => '#a9b1d6')  // default text
+    .exhaustive();
 }

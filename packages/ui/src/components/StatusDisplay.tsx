@@ -25,7 +25,8 @@ export function ConnectionStatus({
     error: { color: theme.removed, icon: '●', text: 'Error' },
   };
 
-  const { color, icon, text } = config[status] ?? config.disconnected;
+  const entry = (config[status] ?? config.disconnected)!;
+  const { color, icon, text } = entry;
 
   return (
     <Box gap={1}>
@@ -58,7 +59,8 @@ export function SyncStatus({
     error: { color: theme.removed, icon: '✗', text: 'Sync Error' },
   };
 
-  const { color, icon, text } = config[status] ?? config.synced;
+  const entry = (config[status] ?? config.synced)!;
+  const { color, icon, text } = entry;
 
   return (
     <Box gap={1}>
@@ -228,7 +230,8 @@ export function BuildStatus({
     skipped: { color: theme.muted, icon: '⊘' },
   };
 
-  const { color, icon } = config[status] ?? config.pending;
+  const entry = (config[status] ?? config.pending)!;
+  const { color, icon } = entry;
 
   return (
     <Box gap={1}>

@@ -70,22 +70,30 @@ prCommand
   .option('-l, --limit <number>', 'Max number of PRs to fetch', '20')
   .option('-s, --state <state>', 'PR state (open, closed, all)')
   .option('--json', 'Output JSON', false)
-  .action(async (options: { repo: string; provider?: string; limit: string; json: boolean; state?: 'open' | 'closed' | 'all' }) => {
-    try {
-      debug('Listing PRs', options);
-      await listPullRequests({
-        repo: options.repo,
-        provider: options.provider,
-        limit: Number(options.limit),
-        json: options.json,
-        state: options.state,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`lazyreview: ${message}`);
-      process.exitCode = 1;
+  .action(
+    async (options: {
+      repo: string;
+      provider?: string;
+      limit: string;
+      json: boolean;
+      state?: 'open' | 'closed' | 'all';
+    }) => {
+      try {
+        debug('Listing PRs', options);
+        await listPullRequests({
+          repo: options.repo,
+          provider: options.provider,
+          limit: Number(options.limit),
+          json: options.json,
+          state: options.state,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`lazyreview: ${message}`);
+        process.exitCode = 1;
+      }
     }
-  });
+  );
 
 prCommand
   .command('approve')
@@ -193,18 +201,28 @@ queueCommand
   .requiredOption('--repo <repo>', 'Repository name')
   .requiredOption('--pr <number>', 'Pull request number')
   .option('--payload <json>', 'JSON payload')
-  .action((options: { type: string; provider: string; host: string; owner: string; repo: string; pr: string; payload?: string }) => {
-    debug('Enqueuing action', options);
-    enqueueAction({
-      type: options.type,
-      providerType: options.provider,
-      host: options.host,
-      owner: options.owner,
-      repo: options.repo,
-      prNumber: Number(options.pr),
-      payload: options.payload,
-    });
-  });
+  .action(
+    (options: {
+      type: string;
+      provider: string;
+      host: string;
+      owner: string;
+      repo: string;
+      pr: string;
+      payload?: string;
+    }) => {
+      debug('Enqueuing action', options);
+      enqueueAction({
+        type: options.type,
+        providerType: options.provider,
+        host: options.host,
+        owner: options.owner,
+        repo: options.repo,
+        prNumber: Number(options.pr),
+        payload: options.payload,
+      });
+    }
+  );
 
 queueCommand
   .command('sync')

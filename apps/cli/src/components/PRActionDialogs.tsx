@@ -94,13 +94,7 @@ function ApproveDialog({ onClose, onSuccess, onError }: DialogProps): React.Reac
   });
 
   return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor="green"
-      paddingX={2}
-      paddingY={1}
-    >
+    <Box flexDirection="column" borderStyle="round" borderColor="green" paddingX={2} paddingY={1}>
       <Box marginBottom={1}>
         <Text color="green" bold>
           Approve PR #{selectedPRNumber}
@@ -108,9 +102,7 @@ function ApproveDialog({ onClose, onSuccess, onError }: DialogProps): React.Reac
       </Box>
 
       <Box marginBottom={1}>
-        <Text>
-          {selectedPR?.title ?? 'Loading...'}
-        </Text>
+        <Text>{selectedPR?.title ?? 'Loading...'}</Text>
       </Box>
 
       <Box marginBottom={1}>
@@ -128,9 +120,7 @@ function ApproveDialog({ onClose, onSuccess, onError }: DialogProps): React.Reac
       />
 
       <Box marginTop={1} gap={2}>
-        {comment === '' && (
-          <Text color="green">[y] Approve now</Text>
-        )}
+        {comment === '' && <Text color="green">[y] Approve now</Text>}
         <Text color="green">[Ctrl+Enter] Approve with comment</Text>
         <Text color="gray">[Esc] Cancel</Text>
       </Box>
@@ -193,13 +183,7 @@ function RequestChangesDialog({ onClose, onSuccess, onError }: DialogProps): Rea
   });
 
   return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor="red"
-      paddingX={2}
-      paddingY={1}
-    >
+    <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={2} paddingY={1}>
       <Box marginBottom={1}>
         <Text color="red" bold>
           Request Changes on PR #{selectedPRNumber}
@@ -207,9 +191,7 @@ function RequestChangesDialog({ onClose, onSuccess, onError }: DialogProps): Rea
       </Box>
 
       <Box marginBottom={1}>
-        <Text>
-          {selectedPR?.title ?? 'Loading...'}
-        </Text>
+        <Text>{selectedPR?.title ?? 'Loading...'}</Text>
       </Box>
 
       <Box marginBottom={1}>
@@ -289,13 +271,7 @@ function CommentDialog({ onClose, onSuccess, onError }: DialogProps): React.Reac
   });
 
   return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor="cyan"
-      paddingX={2}
-      paddingY={1}
-    >
+    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={2} paddingY={1}>
       <Box marginBottom={1}>
         <Text color="cyan" bold>
           Add Comment to PR #{selectedPRNumber}
@@ -303,9 +279,7 @@ function CommentDialog({ onClose, onSuccess, onError }: DialogProps): React.Reac
       </Box>
 
       <Box marginBottom={1}>
-        <Text>
-          {selectedPR?.title ?? 'Loading...'}
-        </Text>
+        <Text>{selectedPR?.title ?? 'Loading...'}</Text>
       </Box>
 
       <Box marginBottom={1}>
@@ -385,13 +359,7 @@ function MergeDialog({ onClose, onSuccess, onError }: DialogProps): React.ReactE
   }, [selectedRepo, selectedPRNumber, mergeMethod, onSuccess, onError, onClose]);
 
   return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor="magenta"
-      paddingX={2}
-      paddingY={1}
-    >
+    <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={2} paddingY={1}>
       <Box marginBottom={1}>
         <Text color="magenta" bold>
           Merge PR #{selectedPRNumber}
@@ -399,9 +367,7 @@ function MergeDialog({ onClose, onSuccess, onError }: DialogProps): React.ReactE
       </Box>
 
       <Box marginBottom={1}>
-        <Text>
-          {selectedPR?.title ?? 'Loading...'}
-        </Text>
+        <Text>{selectedPR?.title ?? 'Loading...'}</Text>
       </Box>
 
       <Box marginBottom={1} flexDirection="column">

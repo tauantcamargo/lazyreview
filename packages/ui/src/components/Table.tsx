@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, type BoxProps } from 'ink';
 import { defaultTheme, type Theme } from '../theme';
 
 export interface TableColumn<T> {
@@ -119,17 +119,12 @@ export function Table<T extends Record<string, unknown>>({
       {visibleData.map((row, rowIndex) => {
         const isSelected = selectedIndex === rowIndex;
         const isStriped = striped && rowIndex % 2 === 1;
-
+        const rowBg =
+          isSelected ? theme.selection : isStriped ? theme.secondary : undefined;
         return (
           <Box
             key={rowIndex}
-            backgroundColor={
-              isSelected
-                ? theme.selection
-                : isStriped
-                ? theme.secondary
-                : undefined
-            }
+            {...(rowBg !== undefined ? ({ backgroundColor: rowBg } as BoxProps) : {})}
           >
             {columns.map((col, colIndex) => {
               const value = getColumnValue(row, col.key);
@@ -200,10 +195,7 @@ export function SimpleTable({
 
       {/* Rows */}
       {rows.map((row, rowIndex) => (
-        <Box
-          key={rowIndex}
-          backgroundColor={selectedRow === rowIndex ? theme.selection : undefined}
-        >
+        <Box key={rowIndex}>
           {row.map((cell, cellIndex) => (
             <Box key={cellIndex} width={widths[cellIndex]}>
               <Text

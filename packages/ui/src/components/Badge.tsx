@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import { match } from 'ts-pattern';
 import { defaultTheme, type Theme } from '../theme';
 
 export type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 'muted';
@@ -13,20 +14,14 @@ export interface BadgeProps {
 }
 
 function getVariantColor(variant: BadgeVariant, theme: Theme): string {
-  switch (variant) {
-    case 'success':
-      return theme.success;
-    case 'warning':
-      return theme.warning;
-    case 'error':
-      return theme.error;
-    case 'info':
-      return theme.info;
-    case 'muted':
-      return theme.muted;
-    default:
-      return theme.accent;
-  }
+  return match(variant)
+    .with('success', () => theme.success)
+    .with('warning', () => theme.warning)
+    .with('error', () => theme.error)
+    .with('info', () => theme.info)
+    .with('muted', () => theme.muted)
+    .with('default', () => theme.accent)
+    .exhaustive();
 }
 
 export function Badge({
@@ -65,10 +60,7 @@ export interface StatusBadgeProps {
   theme?: Theme;
 }
 
-const statusConfig: Record<
-  StatusBadgeProps['status'],
-  { icon: string; variant: BadgeVariant; label: string }
-> = {
+const statusConfig: Record<StatusBadgeProps['status'], { icon: string; variant: BadgeVariant; label: string }> = {
   open: { icon: '●', variant: 'success', label: 'Open' },
   closed: { icon: '○', variant: 'error', label: 'Closed' },
   merged: { icon: '◆', variant: 'info', label: 'Merged' },
@@ -78,19 +70,11 @@ const statusConfig: Record<
   rejected: { icon: '✗', variant: 'error', label: 'Rejected' },
 };
 
-export function StatusBadge({
-  status,
-  showIcon = true,
-  theme = defaultTheme,
-}: StatusBadgeProps): JSX.Element {
+export function StatusBadge({ status, showIcon = true, theme = defaultTheme }: StatusBadgeProps): JSX.Element {
   const config = statusConfig[status];
 
   return (
-    <Badge
-      variant={config.variant}
-      icon={showIcon ? config.icon : undefined}
-      theme={theme}
-    >
+    <Badge variant={config.variant} icon={showIcon ? config.icon : undefined} theme={theme}>
       {config.label}
     </Badge>
   );
@@ -102,11 +86,7 @@ export interface LabelBadgeProps {
   theme?: Theme;
 }
 
-export function LabelBadge({
-  name,
-  color,
-  theme = defaultTheme,
-}: LabelBadgeProps): JSX.Element {
+export function LabelBadge({ name, color, theme = defaultTheme }: LabelBadgeProps): JSX.Element {
   return (
     <Box>
       <Text color={color ?? theme.accent}>◉ </Text>
@@ -153,12 +133,7 @@ export interface TagListProps {
   theme?: Theme;
 }
 
-export function TagList({
-  tags,
-  maxVisible,
-  separator = ' ',
-  theme = defaultTheme,
-}: TagListProps): JSX.Element {
+export function TagList({ tags, maxVisible, separator = ' ', theme = defaultTheme }: TagListProps): JSX.Element {
   const visibleTags = maxVisible ? tags.slice(0, maxVisible) : tags;
   const hiddenCount = maxVisible ? Math.max(0, tags.length - maxVisible) : 0;
 

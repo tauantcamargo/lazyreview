@@ -8,6 +8,6 @@ export default defineConfig({
   clean: true,
   splitting: false,
   sourcemap: true,
-  dts: false,
+  dts: true,
   external: ['keytar'],
 });

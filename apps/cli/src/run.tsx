@@ -28,9 +28,54 @@ export async function runTui(props: AppProps = {}): Promise<void> {
   const width = process.stdout.columns || 80;
   const height = process.stdout.rows || 24;
 
-  render(
+  // Enable alternate screen buffer (prevents scrollback, like lazygit)
+  // ESC[?1049h enters alternate screen, ESC[?1049l exits
+  process.stdout.write('\x1b[?1049h');
+
+  // Clear screen
+  process.stdout.write('\x1b[2J');
+
+  // Hide cursor
+  process.stdout.write('\x1b[?25l');
+
+  // Restore terminal on exit
+  const cleanup = () => {
+    // Show cursor
+    process.stdout.write('\x1b[?25h');
+    // Exit alternate screen
+    process.stdout.write('\x1b[?1049l');
+  };
+
+  process.on('exit', cleanup);
+  process.on('SIGINT', () => {
+    cleanup();
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    cleanup();
+    process.exit(0);
+  });
+
+  const { unmount } = render(
     <QueryProvider>
       <App {...props} width={width} height={height} />
-    </QueryProvider>
+    </QueryProvider>,
+    {
+      // patchConsole: false prevents Ink from hijacking console methods
+      patchConsole: false,
+      exitOnCtrlC: true,
+    }
   );
+
+  // When app exits, cleanup
+  return new Promise<void>((resolve) => {
+    process.stdin.on('data', (data) => {
+      // Listen for quit signal from app
+      if (data.toString() === 'QUIT') {
+        unmount();
+        cleanup();
+        resolve();
+      }
+    });
+  });
 }
