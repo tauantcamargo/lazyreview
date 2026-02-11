@@ -7,6 +7,7 @@ import { usePagination } from '../hooks/usePagination'
 import { useFilter } from '../hooks/useFilter'
 import { PRListItem } from '../components/pr/PRListItem'
 import { EmptyState } from '../components/common/EmptyState'
+import { ErrorWithRetry } from '../components/common/ErrorWithRetry'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { PaginationBar } from '../components/common/PaginationBar'
 import { FilterModal } from '../components/common/FilterModal'
@@ -28,7 +29,7 @@ export function MyPRsScreen({
   const { setStatusMessage } = useStatusMessage()
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
-  useManualRefresh({
+  const { refresh } = useManualRefresh({
     isActive: !showFilter && !showSort,
     queryKeys: [['my-prs']],
   })
@@ -92,11 +93,7 @@ export function MyPRsScreen({
   }
 
   if (error) {
-    return (
-      <Box flexDirection="column" padding={1}>
-        <Text color={theme.colors.error}>Error: {String(error)}</Text>
-      </Box>
-    )
+    return <ErrorWithRetry message={String(error)} onRetry={refresh} />
   }
 
   if (prs.length === 0) {
