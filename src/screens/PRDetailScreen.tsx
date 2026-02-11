@@ -25,6 +25,7 @@ import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { openInBrowser } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useManualRefresh } from '../hooks/useManualRefresh'
+import { setScreenContext } from '../hooks/useScreenContext'
 import { useTheme } from '../theme/index'
 import type { PullRequest } from '../models/pull-request'
 import type { InlineCommentContext } from '../models/inline-comment'
@@ -54,6 +55,16 @@ export function PRDetailScreen({
   const [currentTab, setCurrentTab] = useState(0)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
+
+  // Set screen context for status bar hints based on active tab
+  React.useEffect(() => {
+    const tabContexts = [
+      'pr-detail-conversations',
+      'pr-detail-files',
+      'pr-detail-commits',
+    ] as const
+    setScreenContext(tabContexts[currentTab] ?? 'pr-detail-conversations')
+  }, [currentTab])
 
   // Fetch full PR data (search API doesn't include head.sha)
   const { data: fullPR } = usePullRequest(owner, repo, pr.number)

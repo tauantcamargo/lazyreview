@@ -7,6 +7,7 @@ import { TopBar } from './components/layout/TopBar'
 import { Sidebar, SIDEBAR_ITEMS } from './components/layout/Sidebar'
 import { MainPanel } from './components/layout/MainPanel'
 import { StatusBar } from './components/layout/StatusBar'
+import { useScreenContext, setScreenContext } from './hooks/useScreenContext'
 import { HelpModal } from './components/layout/HelpModal'
 import { TokenInputModal } from './components/layout/TokenInputModal'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -166,6 +167,16 @@ function AppContent({
   const repoPath =
     repoOwner && repoName ? `${repoOwner}/${repoName}` : undefined
 
+  // Set screen context for list-level screens
+  // PRDetailScreen sets its own context based on active tab
+  React.useEffect(() => {
+    if (currentScreen.type !== 'detail') {
+      setScreenContext(sidebarIndex === 4 ? 'settings' : 'pr-list')
+    }
+  }, [currentScreen.type, sidebarIndex])
+
+  const screenContext = useScreenContext()
+
   return (
     <Box flexDirection="column" height={terminalHeight}>
       <TopBar
@@ -183,7 +194,7 @@ function AppContent({
           {renderScreen()}
         </MainPanel>
       </Box>
-      <StatusBar activePanel={activePanel} />
+      <StatusBar activePanel={activePanel} screenContext={screenContext} />
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {showTokenInput && (
         <TokenInputModal

@@ -8,25 +8,57 @@ import { useLastUpdated } from '../../hooks/useLastUpdated'
 import { useRateLimit } from '../../hooks/useRateLimit'
 import type { Panel } from '../../hooks/useActivePanel'
 
+export type ScreenContext =
+  | 'pr-list'
+  | 'pr-detail-files'
+  | 'pr-detail-conversations'
+  | 'pr-detail-commits'
+  | 'settings'
+
 const PANEL_HINTS: Record<Panel, string> = {
-  sidebar: 'j/k:nav  gg/G:top/bottom  Enter:select  Tab:list  b:toggle  ?:help  R:refresh  q:quit',
-  list: 'j/k:nav  gg/G:top/bottom  Enter:detail  Esc:sidebar  Tab:next  ?:help  R:refresh  q:quit',
-  detail: 'j/k:scroll  Tab:tabs  Esc:list  ?:help  R:refresh  q:quit',
+  sidebar: 'j/k:nav  Enter:select  Tab:list  b:sidebar  ?:help  q:quit',
+  list: 'j/k:nav  Enter:detail  /:filter  s:sort  o:open  R:refresh  q:back',
+  detail: 'j/k:scroll  Tab:tabs  Esc:list  ?:help  R:refresh',
+}
+
+const SCREEN_CONTEXT_HINTS: Record<ScreenContext, string> = {
+  'pr-list': 'j/k:nav  Enter:open  /:filter  s:sort  o:browser  n/p:page  R:refresh',
+  'pr-detail-files': 'j/k:nav  Enter:expand  d:diff  /:filter  Tab:tabs  Esc:back',
+  'pr-detail-conversations': 'j/k:nav  c:comment  r:reply  e:edit  x:resolve  f:toggle-resolved',
+  'pr-detail-commits': 'j/k:nav  Tab:tabs  Esc:back',
+  'settings': 'j/k:nav  Enter:edit/toggle  Esc:cancel',
+}
+
+export function getContextHints(
+  activePanel: Panel,
+  screenContext?: ScreenContext,
+): string {
+  if (activePanel === 'sidebar') {
+    return PANEL_HINTS.sidebar
+  }
+  if (screenContext && screenContext in SCREEN_CONTEXT_HINTS) {
+    return SCREEN_CONTEXT_HINTS[screenContext]
+  }
+  return PANEL_HINTS[activePanel]
 }
 
 const RATE_LIMIT_WARNING_THRESHOLD = 100
 
 interface StatusBarProps {
   readonly activePanel?: Panel
+  readonly screenContext?: ScreenContext
 }
 
-export function StatusBar({ activePanel = 'sidebar' }: StatusBarProps): React.ReactElement {
+export function StatusBar({
+  activePanel = 'sidebar',
+  screenContext,
+}: StatusBarProps): React.ReactElement {
   const theme = useTheme()
   const loadingState = useLoading()
   const { message: statusMessage } = useStatusMessage()
   const { label: lastUpdatedLabel } = useLastUpdated()
   const rateLimit = useRateLimit()
-  const hints = PANEL_HINTS[activePanel]
+  const hints = getContextHints(activePanel, screenContext)
 
   const showRateLimitWarning = rateLimit.remaining < RATE_LIMIT_WARNING_THRESHOLD
 

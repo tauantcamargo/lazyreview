@@ -1,0 +1,58 @@
+import { describe, it, expect } from 'vitest'
+import { getContextHints } from './StatusBar'
+
+describe('getContextHints', () => {
+  it('returns sidebar hints when panel is sidebar regardless of screen context', () => {
+    const hints = getContextHints('sidebar', 'pr-list')
+    expect(hints).toContain('Enter:select')
+    expect(hints).toContain('Tab:list')
+  })
+
+  it('returns sidebar hints when panel is sidebar and no context', () => {
+    const hints = getContextHints('sidebar')
+    expect(hints).toContain('Enter:select')
+    expect(hints).toContain('?:help')
+  })
+
+  it('returns pr-list hints when context is pr-list', () => {
+    const hints = getContextHints('list', 'pr-list')
+    expect(hints).toContain('/:filter')
+    expect(hints).toContain('s:sort')
+    expect(hints).toContain('o:browser')
+  })
+
+  it('returns files tab hints for pr-detail-files', () => {
+    const hints = getContextHints('detail', 'pr-detail-files')
+    expect(hints).toContain('d:diff')
+    expect(hints).toContain('/:filter')
+    expect(hints).toContain('Tab:tabs')
+  })
+
+  it('returns conversations tab hints for pr-detail-conversations', () => {
+    const hints = getContextHints('detail', 'pr-detail-conversations')
+    expect(hints).toContain('c:comment')
+    expect(hints).toContain('r:reply')
+    expect(hints).toContain('x:resolve')
+  })
+
+  it('returns commits tab hints for pr-detail-commits', () => {
+    const hints = getContextHints('detail', 'pr-detail-commits')
+    expect(hints).toContain('j/k:nav')
+    expect(hints).toContain('Tab:tabs')
+  })
+
+  it('returns settings hints for settings context', () => {
+    const hints = getContextHints('list', 'settings')
+    expect(hints).toContain('Enter:edit/toggle')
+    expect(hints).toContain('Esc:cancel')
+  })
+
+  it('falls back to default panel hints when no screen context', () => {
+    const listHints = getContextHints('list')
+    expect(listHints).toContain('Enter:detail')
+
+    const detailHints = getContextHints('detail')
+    expect(detailHints).toContain('Tab:tabs')
+    expect(detailHints).toContain('Esc:list')
+  })
+})
