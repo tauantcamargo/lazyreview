@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Text } from 'tuir'
-import { Spinner } from '@inkjs/ui'
+import { Spinner } from '../common/Spinner'
 import { useTheme } from '../../theme/index'
 import { useLoading } from '../../hooks/useLoading'
 

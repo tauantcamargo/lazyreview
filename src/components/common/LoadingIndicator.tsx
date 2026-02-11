@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box } from 'tuir'
-import { Spinner } from '@inkjs/ui'
+import { Spinner } from './Spinner'
 
 interface LoadingIndicatorProps {
   readonly message?: string

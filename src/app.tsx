@@ -162,16 +162,25 @@ interface AppProps {
   readonly repo: string
 }
 
-export function App({ owner, repo }: AppProps): React.ReactElement {
+function AppWithTheme({
+  owner,
+  repo,
+}: AppProps): React.ReactElement {
   const { config } = useConfig()
   const themeName = (config?.theme ?? 'tokyo-night') as ThemeName
   const theme = getThemeByName(themeName)
 
   return (
+    <ThemeProvider theme={theme}>
+      <AppContent owner={owner} repo={repo} />
+    </ThemeProvider>
+  )
+}
+
+export function App({ owner, repo }: AppProps): React.ReactElement {
+  return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <AppContent owner={owner} repo={repo} />
-      </ThemeProvider>
+      <AppWithTheme owner={owner} repo={repo} />
     </QueryClientProvider>
   )
 }
