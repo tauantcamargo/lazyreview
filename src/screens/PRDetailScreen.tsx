@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react'
-import { Box, useInput, useStdout } from 'ink'
+import React, { useCallback, useState } from 'react'
+import { Box, Text, useInput, useStdout } from 'ink'
 import { Match } from 'effect'
 import {
   usePullRequest,
@@ -8,20 +8,14 @@ import {
   usePRReviews,
   usePRCommits,
   useReviewThreads,
-  useSubmitReview,
-  useCreateComment,
-  useCreateReviewComment,
-  useReplyToReviewComment,
-  useResolveReviewThread,
-  useUnresolveReviewThread,
-  useRequestReReview,
-  useMergePR,
+  useCurrentUser,
 } from '../hooks/useGitHub'
-import type { ReviewEvent, MergeMethod } from '../hooks/useGitHub'
+import { usePRDetailModals } from '../hooks/usePRDetailModals'
+import { usePendingReview } from '../hooks/usePendingReview'
 import { PRHeader } from '../components/pr/PRHeader'
 import { PRTabs } from '../components/pr/PRTabs'
 import { FilesTab } from '../components/pr/FilesTab'
-import { ConversationsTab, type ReplyContext, type ResolveContext } from '../components/pr/ConversationsTab'
+import { ConversationsTab } from '../components/pr/ConversationsTab'
 import { CommitsTab } from '../components/pr/CommitsTab'
 import { ReviewModal } from '../components/pr/ReviewModal'
 import { CommentModal } from '../components/pr/CommentModal'
@@ -31,15 +25,13 @@ import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { openInBrowser } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useManualRefresh } from '../hooks/useManualRefresh'
+import { useTheme } from '../theme/index'
 import type { PullRequest } from '../models/pull-request'
+import type { InlineCommentContext } from '../models/inline-comment'
 
-export interface InlineCommentContext {
-  readonly path: string
-  readonly line: number
-  readonly side: 'LEFT' | 'RIGHT'
-  readonly startLine?: number
-  readonly startSide?: 'LEFT' | 'RIGHT'
-}
+export type { InlineCommentContext }
+export type { ReplyContext, ResolveContext } from '../components/pr/ConversationsTab'
+export type { EditCommentContext } from '../hooks/usePRDetailModals'
 
 interface PRDetailScreenProps {
   readonly pr: PullRequest
@@ -58,34 +50,10 @@ export function PRDetailScreen({
 }: PRDetailScreenProps): React.ReactElement {
   const { stdout } = useStdout()
   const { setStatusMessage } = useStatusMessage()
+  const theme = useTheme()
   const [currentTab, setCurrentTab] = useState(0)
-  const [showReviewModal, setShowReviewModal] = useState(false)
-  const [reviewError, setReviewError] = useState<string | null>(null)
-  const [showCommentModal, setShowCommentModal] = useState(false)
-  const [commentError, setCommentError] = useState<string | null>(null)
-  const [showMergeModal, setShowMergeModal] = useState(false)
-  const [mergeError, setMergeError] = useState<string | null>(null)
-  const [showReReviewModal, setShowReReviewModal] = useState(false)
-  const [reReviewError, setReReviewError] = useState<string | null>(null)
-  const [inlineContext, setInlineContext] = useState<InlineCommentContext | null>(null)
-  const [replyContext, setReplyContext] = useState<ReplyContext | null>(null)
-  const [showResolved, setShowResolved] = useState(true)
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
-
-  const submitReview = useSubmitReview()
-  const createComment = useCreateComment()
-  const createReviewComment = useCreateReviewComment()
-  const replyToReviewComment = useReplyToReviewComment()
-  const resolveThread = useResolveReviewThread()
-  const unresolveThread = useUnresolveReviewThread()
-  const requestReReview = useRequestReReview()
-  const mergePR = useMergePR()
-
-  const hasModal = showReviewModal || showCommentModal || showMergeModal || showReReviewModal
-
-  useManualRefresh({
-    isActive: !hasModal,
-  })
 
   // Fetch full PR data (search API doesn't include head.sha)
   const { data: fullPR } = usePullRequest(owner, repo, pr.number)
@@ -97,184 +65,86 @@ export function PRDetailScreen({
   const { data: reviews = [], isLoading: reviewsLoading } = usePRReviews(owner, repo, pr.number)
   const { data: commits = [], isLoading: commitsLoading } = usePRCommits(owner, repo, pr.number)
   const { data: reviewThreads } = useReviewThreads(owner, repo, pr.number)
+  const { data: currentUser } = useCurrentUser()
 
   const isLoading = filesLoading || commentsLoading || reviewsLoading || commitsLoading
 
+  const modals = usePRDetailModals({
+    owner,
+    repo,
+    prNumber: pr.number,
+    headSha: activePR.head.sha,
+    setStatusMessage,
+    onMergeSuccess: onBack,
+    onCloseSuccess: onBack,
+  })
+
+  const pendingReview = usePendingReview({
+    owner,
+    repo,
+    prNumber: pr.number,
+    setStatusMessage,
+  })
+
   const handleReviewSubmit = useCallback(
-    (body: string, event: ReviewEvent) => {
-      setReviewError(null)
-      submitReview.mutate(
-        { owner, repo, prNumber: pr.number, body, event },
-        {
-          onSuccess: () => {
-            setShowReviewModal(false)
-            setStatusMessage('Review submitted')
-          },
-          onError: (err) => {
-            setReviewError(String(err))
-          },
-        },
-      )
-    },
-    [owner, repo, pr.number, submitReview, setStatusMessage],
-  )
-
-  const handleOpenGeneralComment = useCallback(() => {
-    setCommentError(null)
-    setInlineContext(null)
-    setReplyContext(null)
-    setShowCommentModal(true)
-  }, [])
-
-  const handleOpenInlineComment = useCallback((context: InlineCommentContext) => {
-    setCommentError(null)
-    setInlineContext(context)
-    setReplyContext(null)
-    setShowCommentModal(true)
-  }, [])
-
-  const handleOpenReply = useCallback((context: ReplyContext) => {
-    setCommentError(null)
-    setInlineContext(null)
-    setReplyContext(context)
-    setShowCommentModal(true)
-  }, [])
-
-  const handleToggleResolve = useCallback(
-    (context: ResolveContext) => {
-      if (context.isResolved) {
-        unresolveThread.mutate(
-          { owner, repo, prNumber: pr.number, threadId: context.threadId },
-          {
-            onSuccess: () => setStatusMessage('Thread unresolved'),
-            onError: (err) => setStatusMessage(`Error: ${String(err)}`),
-          },
-        )
+    (body: string, event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT') => {
+      if (pendingReview.isActive) {
+        pendingReview.submitReview(body, event)
+        modals.closeReviewModal()
       } else {
-        resolveThread.mutate(
-          { owner, repo, prNumber: pr.number, threadId: context.threadId },
-          {
-            onSuccess: () => setStatusMessage('Thread resolved'),
-            onError: (err) => setStatusMessage(`Error: ${String(err)}`),
-          },
-        )
+        modals.handleReviewSubmit(body, event)
       }
     },
-    [owner, repo, pr.number, resolveThread, unresolveThread, setStatusMessage],
-  )
-
-  const handleToggleShowResolved = useCallback(() => {
-    setShowResolved((prev) => !prev)
-  }, [])
-
-  const handleReReviewSubmit = useCallback(
-    (reviewers: readonly string[]) => {
-      setReReviewError(null)
-      requestReReview.mutate(
-        { owner, repo, prNumber: pr.number, reviewers },
-        {
-          onSuccess: () => {
-            setShowReReviewModal(false)
-            setStatusMessage(`Re-review requested from ${reviewers.join(', ')}`)
-          },
-          onError: (err) => {
-            setReReviewError(String(err))
-          },
-        },
-      )
-    },
-    [owner, repo, pr.number, requestReReview, setStatusMessage],
+    [pendingReview, modals],
   )
 
   const handleCommentSubmit = useCallback(
     (body: string) => {
-      setCommentError(null)
-
-      if (replyContext) {
-        replyToReviewComment.mutate(
+      if (pendingReview.isActive && modals.inlineContext) {
+        pendingReview.addPendingComment(
           {
-            owner,
-            repo,
-            prNumber: pr.number,
             body,
-            inReplyTo: replyContext.commentId,
+            path: modals.inlineContext.path,
+            line: modals.inlineContext.line,
+            side: modals.inlineContext.side,
+            startLine: modals.inlineContext.startLine,
+            startSide: modals.inlineContext.startSide,
           },
-          {
-            onSuccess: () => {
-              setShowCommentModal(false)
-              setReplyContext(null)
-              setStatusMessage('Reply posted')
-            },
-            onError: (err) => {
-              setCommentError(String(err))
-            },
-          },
+          body,
         )
-      } else if (inlineContext) {
-        createReviewComment.mutate(
-          {
-            owner,
-            repo,
-            prNumber: pr.number,
-            body,
-            commitId: activePR.head.sha,
-            path: inlineContext.path,
-            line: inlineContext.line,
-            side: inlineContext.side,
-            startLine: inlineContext.startLine,
-            startSide: inlineContext.startSide,
-          },
-          {
-            onSuccess: () => {
-              setShowCommentModal(false)
-              setInlineContext(null)
-              setStatusMessage('Comment posted')
-            },
-            onError: (err) => {
-              setCommentError(String(err))
-            },
-          },
-        )
+        modals.closeCommentModal()
       } else {
-        createComment.mutate(
-          { owner, repo, issueNumber: pr.number, body },
-          {
-            onSuccess: () => {
-              setShowCommentModal(false)
-              setStatusMessage('Comment posted')
-            },
-            onError: (err) => {
-              setCommentError(String(err))
-            },
-          },
-        )
+        modals.handleCommentSubmit(body)
       }
     },
-    [owner, repo, pr.number, replyContext, inlineContext, createComment, createReviewComment, replyToReviewComment, setStatusMessage],
+    [pendingReview, modals],
   )
 
-  const handleMergeSubmit = useCallback(
-    (mergeMethod: MergeMethod, commitTitle?: string) => {
-      setMergeError(null)
-      mergePR.mutate(
-        { owner, repo, prNumber: pr.number, mergeMethod, commitTitle },
-        {
-          onSuccess: () => {
-            setShowMergeModal(false)
-            setStatusMessage('PR merged successfully')
-            onBack()
-          },
-          onError: (err) => {
-            setMergeError(String(err))
-          },
-        },
-      )
-    },
-    [owner, repo, pr.number, mergePR, setStatusMessage, onBack],
-  )
+  useManualRefresh({
+    isActive: !modals.hasModal,
+  })
 
   useInput(
     (input, key) => {
+      if (showDiscardConfirm) {
+        if (input === 'y' || input === 'Y') {
+          pendingReview.discardReview()
+          setShowDiscardConfirm(false)
+        } else {
+          setShowDiscardConfirm(false)
+        }
+        return
+      }
+
+      if (modals.showCloseConfirm) {
+        if (input === 'y' || input === 'Y') {
+          modals.handleClosePR()
+        } else {
+          modals.closeCloseConfirm()
+        }
+        return
+      }
+
       if (input === '1') {
         setCurrentTab(0)
       } else if (input === '2') {
@@ -284,23 +154,33 @@ export function PRDetailScreen({
       } else if (input === 'o') {
         openInBrowser(pr.html_url)
         setStatusMessage('Opened in browser')
+      } else if (input === 'X') {
+        if (activePR.state === 'open') {
+          modals.openCloseConfirm()
+        } else {
+          modals.handleReopenPR()
+        }
+      } else if (input === 'S') {
+        if (!pendingReview.isActive) {
+          pendingReview.startReview()
+        }
       } else if (input === 'r' && currentTab !== 0) {
-        setReviewError(null)
-        setShowReviewModal(true)
+        modals.openReviewModal()
       } else if (input === 'R') {
-        setReviewError(null)
-        setShowReviewModal(true)
-      } else if (input === 'e') {
-        setReReviewError(null)
-        setShowReReviewModal(true)
+        modals.openReviewModal()
+      } else if (input === 'E') {
+        modals.openReReviewModal()
       } else if (input === 'm') {
-        setMergeError(null)
-        setShowMergeModal(true)
+        modals.openMergeModal()
       } else if (input === 'q' || key.escape) {
-        onBack()
+        if (pendingReview.isActive) {
+          setShowDiscardConfirm(true)
+        } else {
+          onBack()
+        }
       }
     },
-    { isActive: !hasModal },
+    { isActive: !modals.hasModal },
   )
 
   const renderTabContent = (): React.ReactElement => {
@@ -315,20 +195,28 @@ export function PRDetailScreen({
           comments={comments}
           reviews={reviews}
           reviewThreads={reviewThreads}
-          isActive={!hasModal}
-          showResolved={showResolved}
-          onComment={handleOpenGeneralComment}
-          onReply={handleOpenReply}
-          onToggleResolve={handleToggleResolve}
-          onToggleShowResolved={handleToggleShowResolved}
+          isActive={!modals.hasModal}
+          showResolved={modals.showResolved}
+          currentUser={currentUser?.login}
+          onComment={modals.handleOpenGeneralComment}
+          onReply={modals.handleOpenReply}
+          onToggleResolve={modals.handleToggleResolve}
+          onToggleShowResolved={modals.handleToggleShowResolved}
+          onEditComment={modals.handleOpenEditComment}
         />
       )),
-      Match.when(1, () => <CommitsTab commits={commits} isActive={!hasModal} />),
+      Match.when(1, () => <CommitsTab commits={commits} isActive={!modals.hasModal} />),
       Match.when(2, () => (
         <FilesTab
           files={files}
-          isActive={!hasModal}
-          onInlineComment={handleOpenInlineComment}
+          isActive={!modals.hasModal}
+          onInlineComment={modals.handleOpenInlineComment}
+          comments={comments}
+          reviewThreads={reviewThreads}
+          currentUser={currentUser?.login}
+          onReply={modals.handleOpenReply}
+          onToggleResolve={modals.handleToggleResolve}
+          onEditComment={modals.handleOpenEditComment}
         />
       )),
       Match.orElse(() => (
@@ -337,27 +225,18 @@ export function PRDetailScreen({
           comments={comments}
           reviews={reviews}
           reviewThreads={reviewThreads}
-          isActive={!hasModal}
-          showResolved={showResolved}
-          onComment={handleOpenGeneralComment}
-          onReply={handleOpenReply}
-          onToggleResolve={handleToggleResolve}
-          onToggleShowResolved={handleToggleShowResolved}
+          isActive={!modals.hasModal}
+          showResolved={modals.showResolved}
+          currentUser={currentUser?.login}
+          onComment={modals.handleOpenGeneralComment}
+          onReply={modals.handleOpenReply}
+          onToggleResolve={modals.handleToggleResolve}
+          onToggleShowResolved={modals.handleToggleShowResolved}
+          onEditComment={modals.handleOpenEditComment}
         />
       ))
     )
   }
-
-  const commentModalTitle = replyContext
-    ? `Reply to ${replyContext.user}`
-    : inlineContext
-      ? 'Add Inline Comment'
-      : 'Add Comment'
-  const commentModalContext = replyContext
-    ? (replyContext.body ? replyContext.body.slice(0, 100) + (replyContext.body.length > 100 ? '...' : '') : undefined)
-    : inlineContext
-      ? `${inlineContext.path}:${inlineContext.line}`
-      : undefined
 
   return (
     <Box flexDirection="column" flexGrow={1}>
@@ -366,44 +245,63 @@ export function PRDetailScreen({
       <Box height={contentHeight} overflow="hidden" flexDirection="column">
         {renderTabContent()}
       </Box>
-      {showReviewModal && (
+      {pendingReview.isActive && (
+        <Box paddingX={1}>
+          <Text color={theme.colors.warning} bold>
+            Review in progress ({pendingReview.pendingCount} pending comment{pendingReview.pendingCount !== 1 ? 's' : ''})
+          </Text>
+          <Text color={theme.colors.muted}> | R: submit | q: discard</Text>
+        </Box>
+      )}
+      {showDiscardConfirm && (
+        <Box paddingX={1}>
+          <Text color={theme.colors.warning} bold>
+            Discard pending review with {pendingReview.pendingCount} comment{pendingReview.pendingCount !== 1 ? 's' : ''}? (y/n)
+          </Text>
+        </Box>
+      )}
+      {modals.showReviewModal && (
         <ReviewModal
           onSubmit={handleReviewSubmit}
-          onClose={() => setShowReviewModal(false)}
-          isSubmitting={submitReview.isPending}
-          error={reviewError}
+          onClose={modals.closeReviewModal}
+          isSubmitting={pendingReview.isActive ? pendingReview.isSubmitting : modals.submitReviewPending}
+          error={pendingReview.isActive ? pendingReview.error : modals.reviewError}
         />
       )}
-      {showCommentModal && (
+      {modals.showCommentModal && (
         <CommentModal
-          title={commentModalTitle}
-          context={commentModalContext}
+          title={pendingReview.isActive && modals.inlineContext ? 'Add Pending Comment' : modals.commentModalTitle}
+          context={modals.commentModalContext}
+          defaultValue={modals.commentModalDefaultValue}
           onSubmit={handleCommentSubmit}
-          onClose={() => {
-            setShowCommentModal(false)
-            setInlineContext(null)
-            setReplyContext(null)
-          }}
-          isSubmitting={createComment.isPending || createReviewComment.isPending || replyToReviewComment.isPending}
-          error={commentError}
+          onClose={modals.closeCommentModal}
+          isSubmitting={pendingReview.isActive ? pendingReview.isAdding : modals.commentSubmitPending}
+          error={pendingReview.isActive ? pendingReview.error : modals.commentError}
         />
       )}
-      {showMergeModal && (
+      {modals.showCloseConfirm && (
+        <Box paddingX={1}>
+          <Text color={theme.colors.warning} bold>
+            Close PR #{pr.number}? This will not delete the branch. (y/n)
+          </Text>
+        </Box>
+      )}
+      {modals.showMergeModal && (
         <MergeModal
           pr={activePR}
-          onSubmit={handleMergeSubmit}
-          onClose={() => setShowMergeModal(false)}
-          isSubmitting={mergePR.isPending}
-          error={mergeError}
+          onSubmit={modals.handleMergeSubmit}
+          onClose={modals.closeMergeModal}
+          isSubmitting={modals.mergePRPending}
+          error={modals.mergeError}
         />
       )}
-      {showReReviewModal && (
+      {modals.showReReviewModal && (
         <ReReviewModal
           reviewers={buildReviewerList(reviews, activePR.requested_reviewers)}
-          onSubmit={handleReReviewSubmit}
-          onClose={() => setShowReReviewModal(false)}
-          isSubmitting={requestReReview.isPending}
-          error={reReviewError}
+          onSubmit={modals.handleReReviewSubmit}
+          onClose={modals.closeReReviewModal}
+          isSubmitting={modals.requestReReviewPending}
+          error={modals.reReviewError}
         />
       )}
     </Box>

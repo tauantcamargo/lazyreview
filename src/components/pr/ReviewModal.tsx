@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Box, Text, useInput } from 'ink'
-import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
+import { MultiLineInput } from '../common/MultiLineInput'
 import type { ReviewEvent } from '../../hooks/useGitHub'
 
 interface ReviewModalProps {
@@ -45,6 +45,15 @@ export function ReviewModal({
     return () => setInputActive(false)
   }, [step, setInputActive])
 
+  const handleSubmit = useCallback(() => {
+    if (reviewEvent === 'REQUEST_CHANGES' && !body.trim()) {
+      return
+    }
+    if (!isSubmitting) {
+      onSubmit(body, reviewEvent)
+    }
+  }, [body, reviewEvent, isSubmitting, onSubmit])
+
   useInput(
     (input, key) => {
       if (isSubmitting) return
@@ -64,11 +73,8 @@ export function ReviewModal({
         if (key.escape) {
           setStep('select_type')
           setInputActive(false)
-        } else if (key.return) {
-          if (reviewEvent === 'REQUEST_CHANGES' && !body.trim()) {
-            return
-          }
-          onSubmit(body, reviewEvent)
+        } else if (key.return && (key.meta || key.ctrl)) {
+          handleSubmit()
         }
       }
     },
@@ -131,7 +137,6 @@ export function ReviewModal({
         flexDirection="column"
         borderStyle="round"
         borderColor={theme.colors.accent}
-        // @ts-ignore
         backgroundColor={theme.colors.bg}
         paddingX={2}
         paddingY={1}
@@ -154,11 +159,18 @@ export function ReviewModal({
             : 'Enter your review message:'}
         </Text>
 
-        <Box borderStyle="single" borderColor={theme.colors.border} paddingX={1}>
-          <TextInput
-            defaultValue={body}
+        <Box
+          borderStyle="single"
+          borderColor={theme.colors.border}
+          paddingX={1}
+          paddingY={0}
+          flexDirection="column"
+        >
+          <MultiLineInput
+            placeholder="Review message... (Markdown supported)"
             onChange={setBody}
-            placeholder="Review message..."
+            isActive={step === 'enter_body' && !isSubmitting}
+            minHeight={5}
           />
         </Box>
 
@@ -171,7 +183,7 @@ export function ReviewModal({
         )}
 
         <Text color={theme.colors.muted} dimColor>
-          Enter: submit | Esc: back
+          Enter: new line | Ctrl+Enter: submit | Esc: back
         </Text>
       </Box>
     </Modal>

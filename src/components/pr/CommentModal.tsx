@@ -8,6 +8,7 @@ import { MultiLineInput } from '../common/MultiLineInput'
 interface CommentModalProps {
   readonly title: string
   readonly context?: string
+  readonly defaultValue?: string
   readonly onSubmit: (body: string) => void
   readonly onClose: () => void
   readonly isSubmitting: boolean
@@ -17,6 +18,7 @@ interface CommentModalProps {
 export function CommentModal({
   title,
   context,
+  defaultValue,
   onSubmit,
   onClose,
   isSubmitting,
@@ -24,7 +26,7 @@ export function CommentModal({
 }: CommentModalProps): React.ReactElement {
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
-  const [body, setBody] = useState('')
+  const [body, setBody] = useState(defaultValue ?? '')
 
   useEffect(() => {
     setInputActive(true)
@@ -82,6 +84,7 @@ export function CommentModal({
         >
           <MultiLineInput
             placeholder="Write your comment... (Markdown supported)"
+            defaultValue={defaultValue}
             onChange={setBody}
             isActive={!isSubmitting}
             minHeight={5}

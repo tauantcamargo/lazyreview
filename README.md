@@ -64,33 +64,72 @@ You can switch between sources anytime in **Settings**.
 
 ## Features
 
-**PR List** — Browse open PRs with search, sort, and pagination across multiple views:
+### PR List
+
+Browse open PRs with search, sort, and pagination across multiple views:
 
 - **Involved** — PRs you authored, were requested to review, or commented on
 - **My PRs** — PRs you opened
 - **For Review** — PRs awaiting your review
 - **This Repo** — All open PRs in the current repo
+- **CI Status** — Check run results displayed inline on each PR
 
-**PR Detail** — Deep-dive into any PR with three tabs:
+### PR Detail
 
-- **Conversations** — Full timeline: description, reviews, and comments
+Deep-dive into any PR with three tabs:
+
+- **Conversations** — Full timeline with description, reviews, and comments rendered as markdown. Includes a review summary showing approval status per reviewer.
 - **Commits** — Commit history with message, author, and date
-- **Files** — File tree with syntax-highlighted diffs
+- **Files** — File tree with syntax-highlighted diffs and vim-style visual line selection
 
-**Review Actions** — Complete your review without leaving the terminal:
+### Review Actions
 
-- **Submit Review** — Approve, request changes, or comment (`r`)
-- **Post Comments** — Reply to conversations or add inline diff comments (`c`)
+Complete your entire review workflow without leaving the terminal:
+
+- **Submit Review** — Approve, request changes, or comment with multi-line markdown body (`r` / `R`)
+- **Reply to Comments** — Reply directly to review comment threads (`r` on conversations tab)
+- **Inline Comments** — Add comments on specific diff lines (`c` in diff view)
+- **Multi-line Comments** — Select a range of lines with visual mode, then comment (`v` → select → `c`)
+- **Resolve Threads** — Toggle resolve/unresolve on review threads (`x`)
+- **Filter Resolved** — Show or hide resolved comment threads (`f`)
+- **Merge PR** — Merge, squash, or rebase with confirmation and custom commit title (`m`)
+- **Request Re-review** — Multi-select reviewers to re-request reviews from (`e`)
 - **Open in Browser** — Quick escape hatch to GitHub (`o`)
-- **CI Status** — See check run results on PRs at a glance
 
-**Themes** — Ships with three color schemes:
+### Auto-Refresh
+
+PRs and review data refresh automatically in the background with rate limit awareness:
+
+- Configurable refresh interval (default: 60s for lists, 30s for detail)
+- Automatically slows down when approaching GitHub API rate limits
+- Manual refresh anytime with `R`
+
+### Themes
+
+Ships with four color schemes, cycle through them in Settings:
 
 - `tokyo-night` (default)
 - `dracula`
 - `catppuccin-mocha`
+- `gruvbox`
 
-**Other** — Git remote auto-detection, collapsible sidebar, configurable page size, and a built-in help overlay.
+### Settings
+
+Fully configurable from the TUI — no need to edit files manually:
+
+- Token source switching (gh CLI / env var / manual)
+- Theme cycling
+- Page size (1-100)
+- Refresh interval (10-600s)
+- Default owner/repo
+
+### Other
+
+- Git remote auto-detection
+- Collapsible sidebar
+- Markdown rendering in PR bodies and comments
+- Multi-line text input with cursor navigation and tab indentation
+- Built-in help overlay (`?`)
 
 ## Keyboard Shortcuts
 
@@ -99,44 +138,59 @@ You can switch between sources anytime in **Settings**.
 | Key | Action |
 |-----|--------|
 | `j` / `k` | Move down / up |
-| `gg` / `G` | Jump to top / bottom |
+| `h` / `l` | Focus file tree / diff (Files tab) |
 | `Enter` | Select / open |
-| `q` | Back / quit |
-| `Ctrl+c` | Force quit |
-
-### Panels
-
-| Key | Action |
-|-----|--------|
 | `Tab` | Switch focus between panels |
 | `b` | Toggle sidebar |
-| `h` / `l` | Focus file tree / diff (in Files tab) |
+| `q` | Back / quit |
+| `Ctrl+c` | Force quit |
+| `?` | Help overlay |
 
 ### PR List
 
 | Key | Action |
 |-----|--------|
-| `/` | Search / filter |
-| `s` | Sort |
+| `/` | Search / filter PRs |
+| `s` | Sort PRs |
 | `n` / `p` | Next / previous page |
-
-### PR List
-
-| Key | Action |
-|-----|--------|
-| `o` | Open PR in browser |
 
 ### PR Detail
 
 | Key | Action |
 |-----|--------|
-| `1` | Conversations tab |
-| `2` | Commits tab |
-| `3` | Files tab |
+| `1` / `2` / `3` | Switch tabs (Conversations / Commits / Files) |
 | `o` | Open PR in browser |
-| `r` | Submit review (approve / request changes / comment) |
-| `c` | Post comment (conversations tab or diff line) |
-| `?` | Help overlay |
+| `r` | Reply to comment (conversations) / submit review (other tabs) |
+| `R` | Submit review (any tab) |
+| `c` | Post comment (conversations or diff line) |
+| `m` | Merge PR |
+| `e` | Request re-review |
+
+### Diff View (Files Tab)
+
+| Key | Action |
+|-----|--------|
+| `v` | Enter visual line selection mode |
+| `c` | Add inline comment (single line or visual selection) |
+| `Esc` | Cancel visual selection |
+
+### Conversations Tab
+
+| Key | Action |
+|-----|--------|
+| `r` | Reply to focused comment thread |
+| `c` | Add general comment |
+| `x` | Resolve / unresolve thread |
+| `f` | Toggle showing resolved comments |
+
+### Comment / Review Input
+
+| Key | Action |
+|-----|--------|
+| `Enter` | New line |
+| `Tab` | Insert indent (2 spaces) |
+| `Ctrl+Enter` | Submit |
+| `Esc` | Cancel |
 
 ## Configuration
 
@@ -149,8 +203,9 @@ Configuration is optional. File location:
 Example:
 
 ```yaml
-theme: tokyo-night        # tokyo-night | dracula | catppuccin-mocha
-pageSize: 30              # PRs per page
+theme: tokyo-night        # tokyo-night | dracula | catppuccin-mocha | gruvbox
+pageSize: 30              # PRs per page (1-100)
+refreshInterval: 60       # Auto-refresh interval in seconds (10-600)
 provider: github          # git provider
 defaultOwner: myorg       # skip auto-detection
 defaultRepo: myrepo       # skip auto-detection

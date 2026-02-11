@@ -4,6 +4,7 @@ import { useTheme } from '../../theme/index'
 
 interface MultiLineInputProps {
   readonly placeholder?: string
+  readonly defaultValue?: string
   readonly onChange: (value: string) => void
   readonly isActive: boolean
   readonly minHeight?: number
@@ -11,12 +12,15 @@ interface MultiLineInputProps {
 
 export function MultiLineInput({
   placeholder,
+  defaultValue,
   onChange,
   isActive,
   minHeight = 3,
 }: MultiLineInputProps): React.ReactElement {
   const theme = useTheme()
-  const [lines, setLines] = useState<readonly string[]>([''])
+  const [lines, setLines] = useState<readonly string[]>(
+    defaultValue ? defaultValue.split('\n') : [''],
+  )
   const [cursorRow, setCursorRow] = useState(0)
   const [cursorCol, setCursorCol] = useState(0)
 
