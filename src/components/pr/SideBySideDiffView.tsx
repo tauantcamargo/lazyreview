@@ -3,20 +3,70 @@ import { Box, Text, useStdout } from 'ink'
 import SyntaxHighlight from 'ink-syntax-highlight'
 import { useTheme } from '../../theme/index'
 import type { Hunk, DiffLine } from '../../models/diff'
+import { DiffCommentView, type DiffCommentThread } from './DiffComment'
 import { getLanguageFromFilename } from './DiffView'
 
-export interface SideBySideRow {
-  readonly left: DiffLine | null
-  readonly right: DiffLine | null
-  readonly type: 'paired' | 'header'
+export type SideBySideRow =
+  | {
+      readonly left: DiffLine | null
+      readonly right: DiffLine | null
+      readonly type: 'paired' | 'header'
+    }
+  | {
+      readonly type: 'comment'
+      readonly thread: DiffCommentThread
+    }
+
+/**
+ * Get the comment lookup key for a diff line in side-by-side context.
+ */
+function getSbsCommentKey(line: DiffLine): string | undefined {
+  switch (line.type) {
+    case 'del':
+      return line.oldLineNumber != null ? `LEFT:${line.oldLineNumber}` : undefined
+    case 'add':
+      return line.newLineNumber != null ? `RIGHT:${line.newLineNumber}` : undefined
+    case 'context':
+      return line.newLineNumber != null ? `RIGHT:${line.newLineNumber}` : undefined
+    case 'header':
+      return undefined
+  }
+}
+
+/**
+ * Insert a comment row if there is a matching comment for the given line.
+ */
+function maybeInsertComment(
+  rows: SideBySideRow[],
+  line: DiffLine,
+  commentsByLine?: ReadonlyMap<string, DiffCommentThread>,
+): void {
+  if (!commentsByLine) return
+  const key = getSbsCommentKey(line)
+  if (key) {
+    const thread = commentsByLine.get(key)
+    if (thread) {
+      rows.push({ type: 'comment', thread })
+    }
+  }
+  // Also check LEFT for context lines
+  if (line.type === 'context' && line.oldLineNumber != null) {
+    const leftKey = `LEFT:${line.oldLineNumber}`
+    const thread = commentsByLine.get(leftKey)
+    if (thread) {
+      rows.push({ type: 'comment', thread })
+    }
+  }
 }
 
 /**
  * Build side-by-side rows from hunks by pairing deletions with additions.
  * Context lines appear on both sides. Unmatched dels/adds get an empty opposite side.
+ * When commentsByLine is provided, comment rows are inserted after matching lines.
  */
 export function buildSideBySideRows(
   hunks: readonly Hunk[],
+  commentsByLine?: ReadonlyMap<string, DiffCommentThread>,
 ): readonly SideBySideRow[] {
   const rows: SideBySideRow[] = []
 
@@ -27,11 +77,16 @@ export function buildSideBySideRows(
     const flushPending = (): void => {
       const maxLen = Math.max(pendingDels.length, pendingAdds.length)
       for (let i = 0; i < maxLen; i++) {
+        const leftLine = pendingDels[i] ?? null
+        const rightLine = pendingAdds[i] ?? null
         rows.push({
-          left: pendingDels[i] ?? null,
-          right: pendingAdds[i] ?? null,
+          left: leftLine,
+          right: rightLine,
           type: 'paired',
         })
+        // Insert comments for flushed lines
+        if (leftLine) maybeInsertComment(rows, leftLine, commentsByLine)
+        if (rightLine) maybeInsertComment(rows, rightLine, commentsByLine)
       }
       pendingDels.length = 0
       pendingAdds.length = 0
@@ -49,6 +104,7 @@ export function buildSideBySideRows(
         // context line
         flushPending()
         rows.push({ left: line, right: line, type: 'paired' })
+        maybeInsertComment(rows, line, commentsByLine)
       }
     }
 
@@ -170,6 +226,16 @@ export function SideBySideDiffView({
       {visibleRows.map((row, index) => {
         const absIndex = scrollOffset + index
         const isFocus = isActive && absIndex === selectedLine
+
+        if (row.type === 'comment') {
+          return (
+            <DiffCommentView
+              key={`sbs-comment-${absIndex}`}
+              thread={row.thread}
+              isFocus={isFocus}
+            />
+          )
+        }
 
         if (row.type === 'header') {
           return (

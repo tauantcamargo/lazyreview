@@ -5,6 +5,7 @@ import {
   type SideBySideRow,
 } from './SideBySideDiffView'
 import type { Hunk, DiffLine } from '../../models/diff'
+import type { DiffCommentThread } from './DiffComment'
 
 function makeHunk(lines: readonly DiffLine[]): Hunk {
   return {
@@ -112,6 +113,65 @@ describe('buildSideBySideRows', () => {
     expect(rows[1]!.right?.content).toBe('b')
     expect(rows[2]!.type).toBe('header')
     expect(rows[3]!.left?.content).toBe('x')
+  })
+
+  it('inserts comment rows after matching lines', () => {
+    const hunk = makeHunk([
+      { type: 'add', content: 'new line', newLineNumber: 5 },
+    ])
+    const thread: DiffCommentThread = {
+      comments: [{
+        id: 1,
+        body: 'looks good',
+        user: { login: 'alice', avatar_url: '', id: 1 },
+        path: 'test.ts',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        html_url: 'https://example.com',
+      } as DiffCommentThread['comments'][number]],
+    }
+    const commentsByLine = new Map<string, DiffCommentThread>([
+      ['RIGHT:5', thread],
+    ])
+    const rows = buildSideBySideRows([hunk], commentsByLine)
+    expect(rows).toHaveLength(2)
+    expect(rows[0]!.type).toBe('paired')
+    expect(rows[1]!.type).toBe('comment')
+    if (rows[1]!.type === 'comment') {
+      expect(rows[1]!.thread.comments).toHaveLength(1)
+    }
+  })
+
+  it('inserts comment for deletion lines on LEFT side', () => {
+    const hunk = makeHunk([
+      { type: 'del', content: 'old line', oldLineNumber: 3 },
+    ])
+    const thread: DiffCommentThread = {
+      comments: [{
+        id: 2,
+        body: 'why remove this?',
+        user: { login: 'bob', avatar_url: '', id: 2 },
+        path: 'test.ts',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        html_url: 'https://example.com',
+      } as DiffCommentThread['comments'][number]],
+    }
+    const commentsByLine = new Map<string, DiffCommentThread>([
+      ['LEFT:3', thread],
+    ])
+    const rows = buildSideBySideRows([hunk], commentsByLine)
+    expect(rows).toHaveLength(2)
+    expect(rows[1]!.type).toBe('comment')
+  })
+
+  it('returns no comments when commentsByLine is not provided', () => {
+    const hunk = makeHunk([
+      { type: 'add', content: 'new line', newLineNumber: 1 },
+    ])
+    const rows = buildSideBySideRows([hunk])
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.type).toBe('paired')
   })
 })
 

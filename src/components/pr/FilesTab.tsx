@@ -179,8 +179,8 @@ export function FilesTab({
     [hunks, commentsByLine],
   )
   const sideBySideRows = useMemo(
-    () => (effectiveDiffMode === 'side-by-side' ? buildSideBySideRows(hunks) : []),
-    [hunks, effectiveDiffMode],
+    () => (effectiveDiffMode === 'side-by-side' ? buildSideBySideRows(hunks, commentsByLine) : []),
+    [hunks, effectiveDiffMode, commentsByLine],
   )
   const totalDiffLines =
     effectiveDiffMode === 'side-by-side' ? sideBySideRows.length : allRows.length
