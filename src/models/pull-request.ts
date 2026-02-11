@@ -37,6 +37,7 @@ export class PullRequest extends S.Class<PullRequest>('PullRequest')({
   comments: S.optionalWith(S.Number, { default: () => 0 }),
   review_comments: S.optionalWith(S.Number, { default: () => 0 }),
   requested_reviewers: S.optionalWith(S.Array(User), { default: () => [] }),
+  assignees: S.optionalWith(S.Array(User), { default: () => [] }),
   mergeable: S.optionalWith(S.NullOr(S.Boolean), { default: () => null }),
   mergeable_state: S.optionalWith(S.NullOr(S.String), { default: () => null }),
   merge_commit_sha: S.optionalWith(S.NullOr(S.String), { default: () => null }),

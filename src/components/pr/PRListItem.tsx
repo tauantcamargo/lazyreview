@@ -61,6 +61,17 @@ export function PRListItem({
         >
           {item.title}
         </Text>
+        {item.labels.length > 0 && (
+          <Box gap={0}>
+            {item.labels.map(
+              (label: { id: number; name: string; color: string }) => (
+                <Text key={label.id} color={`#${label.color}`} bold>
+                  {` ${label.name} `}
+                </Text>
+              ),
+            )}
+          </Box>
+        )}
       </Box>
       <Box gap={1} paddingLeft={3}>
         {repoName && (
@@ -70,6 +81,14 @@ export function PRListItem({
           </>
         )}
         <Text color={theme.colors.muted}>{item.user.login}</Text>
+        {item.assignees && item.assignees.length > 0 && (
+          <>
+            <Text color={theme.colors.muted}>|</Text>
+            <Text color={theme.colors.warning}>
+              @{item.assignees.map((a) => a.login).join(' @')}
+            </Text>
+          </>
+        )}
         <Text color={theme.colors.muted}>|</Text>
         <Text color={theme.colors.muted}>{timeAgo(item.created_at)}</Text>
         {item.requested_reviewers.length > 0 && (
@@ -84,18 +103,6 @@ export function PRListItem({
           <>
             <Text color={theme.colors.muted}>|</Text>
             <Text color={theme.colors.muted}>{item.comments} comments</Text>
-          </>
-        )}
-        {item.labels.length > 0 && (
-          <>
-            <Text color={theme.colors.muted}>|</Text>
-            {item.labels.map(
-              (label: { id: number; name: string; color: string }) => (
-                <Text key={label.id} color={`#${label.color}`}>
-                  [{label.name}]
-                </Text>
-              ),
-            )}
           </>
         )}
       </Box>

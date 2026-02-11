@@ -76,6 +76,21 @@ describe('PullRequest schema', () => {
   it('rejects non-number id', () => {
     expect(() => decode({ ...validPR, id: 'not-a-number' })).toThrow()
   })
+
+  it('defaults assignees to empty array', () => {
+    const result = decode(validPR)
+    expect(result.assignees).toEqual([])
+  })
+
+  it('decodes assignees when provided', () => {
+    const result = decode({
+      ...validPR,
+      assignees: [validUser, { ...validUser, login: 'reviewer1', id: 2 }],
+    })
+    expect(result.assignees).toHaveLength(2)
+    expect(result.assignees[0].login).toBe('octocat')
+    expect(result.assignees[1].login).toBe('reviewer1')
+  })
 })
 
 describe('Label schema', () => {
