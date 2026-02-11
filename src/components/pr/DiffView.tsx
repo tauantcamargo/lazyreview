@@ -28,9 +28,44 @@ export function getLanguageFromFilename(
   return ext ? map[ext] : undefined
 }
 
+/**
+ * Returns the display line number for a diff line.
+ * - add/context lines: newLineNumber (RIGHT side)
+ * - del lines: oldLineNumber (LEFT side)
+ * - header lines: undefined (no line number)
+ */
+export function getDiffLineNumber(line: DiffLine): number | undefined {
+  switch (line.type) {
+    case 'add':
+    case 'context':
+      return line.newLineNumber
+    case 'del':
+      return line.oldLineNumber
+    case 'header':
+      return undefined
+  }
+}
+
+/**
+ * Returns the comment lookup key for a diff line.
+ * Format: "SIDE:lineNumber" where SIDE is LEFT for deletions, RIGHT for additions/context.
+ */
+function getCommentKey(line: DiffLine): string | undefined {
+  switch (line.type) {
+    case 'del':
+      return line.oldLineNumber != null ? `LEFT:${line.oldLineNumber}` : undefined
+    case 'add':
+      return line.newLineNumber != null ? `RIGHT:${line.newLineNumber}` : undefined
+    case 'context':
+      return line.newLineNumber != null ? `RIGHT:${line.newLineNumber}` : undefined
+    case 'header':
+      return undefined
+  }
+}
+
 interface DiffLineViewProps {
   readonly line: DiffLine
-  readonly lineNumber: number
+  readonly lineNumber?: number
   readonly isFocus: boolean
   readonly isInSelection: boolean
   readonly language?: string
@@ -76,7 +111,7 @@ function DiffLineView({
     <Box backgroundColor={bgColor}>
       <Box width={5}>
         <Text color={theme.colors.muted}>
-          {line.type === 'header' ? '' : String(lineNumber).padStart(4, ' ')}
+          {lineNumber != null ? String(lineNumber).padStart(4, ' ') : ''}
         </Text>
       </Box>
       {useSyntaxHighlight ? (
@@ -95,29 +130,52 @@ function DiffLineView({
 }
 
 export type DiffDisplayRow =
-  | { readonly type: 'line'; readonly line: DiffLine; readonly lineNumber: number; readonly hunkIndex: number }
+  | {
+      readonly type: 'line'
+      readonly line: DiffLine
+      readonly lineNumber: number | undefined
+      readonly oldLineNumber: number | undefined
+      readonly newLineNumber: number | undefined
+      readonly hunkIndex: number
+    }
   | { readonly type: 'comment'; readonly thread: DiffCommentThread }
 
 export function buildDiffRows(
   hunks: readonly Hunk[],
-  commentsByLine?: ReadonlyMap<number, DiffCommentThread>,
+  commentsByLine?: ReadonlyMap<string, DiffCommentThread>,
 ): DiffDisplayRow[] {
   const rows: DiffDisplayRow[] = []
-  let lineNumber = 1
 
   for (let hunkIndex = 0; hunkIndex < hunks.length; hunkIndex++) {
     const hunk = hunks[hunkIndex]
     for (const line of hunk.lines) {
-      rows.push({ type: 'line', line, lineNumber, hunkIndex })
-      const currentLineNumber = lineNumber
-      if (line.type !== 'header') {
-        lineNumber++
-      }
-      // After each line, check for comments on that line
+      const lineNumber = getDiffLineNumber(line)
+      rows.push({
+        type: 'line',
+        line,
+        lineNumber,
+        oldLineNumber: line.oldLineNumber,
+        newLineNumber: line.newLineNumber,
+        hunkIndex,
+      })
+
+      // After each non-header line, check for comments
       if (commentsByLine && line.type !== 'header') {
-        const thread = commentsByLine.get(currentLineNumber)
-        if (thread) {
-          rows.push({ type: 'comment', thread })
+        const key = getCommentKey(line)
+        if (key) {
+          const thread = commentsByLine.get(key)
+          if (thread) {
+            rows.push({ type: 'comment', thread })
+          }
+        }
+        // Also check the other side for context lines (they have both old and new numbers)
+        if (line.type === 'context' && line.oldLineNumber != null) {
+          const leftKey = `LEFT:${line.oldLineNumber}`
+          // Only check LEFT if it's different from what we already checked
+          const thread = commentsByLine.get(leftKey)
+          if (thread) {
+            rows.push({ type: 'comment', thread })
+          }
         }
       }
     }
@@ -127,38 +185,34 @@ export function buildDiffRows(
 }
 
 interface DiffViewProps {
-  readonly hunks: readonly Hunk[]
+  readonly allRows: readonly DiffDisplayRow[]
   readonly selectedLine: number
   readonly scrollOffset: number
   readonly viewportHeight: number
   readonly isActive: boolean
   readonly filename?: string
   readonly visualStart?: number | null
-  readonly commentsByLine?: ReadonlyMap<number, DiffCommentThread>
 }
 
 export function DiffView({
-  hunks,
+  allRows,
   selectedLine,
   scrollOffset,
   viewportHeight,
   isActive,
   filename,
   visualStart,
-  commentsByLine,
 }: DiffViewProps): React.ReactElement {
   const language = filename ? getLanguageFromFilename(filename) : undefined
   const theme = useTheme()
 
-  if (hunks.length === 0) {
+  if (allRows.length === 0) {
     return (
       <Box paddingX={1}>
         <Text color={theme.colors.muted}>No diff available</Text>
       </Box>
     )
   }
-
-  const allRows = buildDiffRows(hunks, commentsByLine)
 
   const visibleRows = allRows.slice(
     scrollOffset,

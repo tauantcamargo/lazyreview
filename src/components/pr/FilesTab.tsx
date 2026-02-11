@@ -117,7 +117,7 @@ export function FilesTab({
   const selectedFile = fileOrder[selectedFileIndex] ?? fileOrder[0] ?? null
   const hunks = selectedFile?.patch ? parseDiffPatch(selectedFile.patch) : []
 
-  const commentsByLine = useMemo((): ReadonlyMap<number, DiffCommentThread> | undefined => {
+  const commentsByLine = useMemo((): ReadonlyMap<string, DiffCommentThread> | undefined => {
     if (!comments || comments.length === 0 || !selectedFile) return undefined
     const fileComments = comments.filter(
       (c) => c.path === selectedFile.filename && c.line != null && c.in_reply_to_id == null,
@@ -135,10 +135,12 @@ export function FilesTab({
         replyMap.set(c.in_reply_to_id, [...(replyMap.get(c.in_reply_to_id) ?? []), c])
       }
     }
-    const result = new Map<number, DiffCommentThread>()
+    const result = new Map<string, DiffCommentThread>()
     for (const rc of fileComments) {
       const threadInfo = threadMap.get(rc.id)
-      result.set(rc.line!, {
+      const side = rc.side === 'LEFT' ? 'LEFT' : 'RIGHT'
+      const key = `${side}:${rc.line!}`
+      result.set(key, {
         comments: [rc, ...(replyMap.get(rc.id) ?? [])],
         threadId: threadInfo?.id, isResolved: threadInfo?.isResolved,
       })
@@ -251,24 +253,31 @@ export function FilesTab({
           ) {
             const endSide = endRow.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
             const startSide = startRow.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
-            onInlineComment({
-              path: selectedFile.filename,
-              line: endRow.lineNumber,
-              side: endSide,
-              startLine: startRow.lineNumber,
-              startSide,
-            })
-            setVisualStart(null)
+            const endLine = endSide === 'LEFT' ? endRow.oldLineNumber : endRow.newLineNumber
+            const startLine = startSide === 'LEFT' ? startRow.oldLineNumber : startRow.newLineNumber
+            if (endLine != null && startLine != null) {
+              onInlineComment({
+                path: selectedFile.filename,
+                line: endLine,
+                side: endSide,
+                startLine,
+                startSide,
+              })
+              setVisualStart(null)
+            }
           }
         } else {
           const selectedRow = allRows[diffSelectedLine]
           if (selectedRow?.type === 'line' && selectedRow.line.type !== 'header') {
             const side = selectedRow.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
-            onInlineComment({
-              path: selectedFile.filename,
-              line: selectedRow.lineNumber,
-              side,
-            })
+            const line = side === 'LEFT' ? selectedRow.oldLineNumber : selectedRow.newLineNumber
+            if (line != null) {
+              onInlineComment({
+                path: selectedFile.filename,
+                line,
+                side,
+              })
+            }
           }
         }
       }
@@ -382,14 +391,13 @@ export function FilesTab({
         </Box>
         <Box flexDirection="column" flexGrow={1} overflowY="hidden">
           <DiffView
-            hunks={hunks}
+            allRows={allRows}
             selectedLine={diffSelectedLine}
             scrollOffset={diffScrollOffset}
             viewportHeight={viewportHeight - 2}
             isActive={isActive && focusPanel === 'diff'}
             filename={selectedFile?.filename}
             visualStart={focusPanel === 'diff' ? visualStart : null}
-            commentsByLine={commentsByLine}
           />
         </Box>
       </Box>
