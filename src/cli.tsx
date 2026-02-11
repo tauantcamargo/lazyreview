@@ -20,4 +20,6 @@ function parseArgs(argv: string[]): { owner: string; repo: string } {
 
 const { owner, repo } = parseArgs(process.argv)
 
-render(<App owner={owner} repo={repo} />)
+render(<App owner={owner} repo={repo} />, {
+  fullScreen: true,
+})
