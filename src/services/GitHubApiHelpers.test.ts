@@ -1,6 +1,36 @@
 import { describe, it, expect } from 'vitest'
-import { buildQueryString } from './GitHubApiHelpers'
+import { buildQueryString, parseLinkHeader } from './GitHubApiHelpers'
 import type { ListPRsOptions } from './GitHubApiTypes'
+
+describe('parseLinkHeader', () => {
+  it('returns null when header is null', () => {
+    expect(parseLinkHeader(null)).toBeNull()
+  })
+
+  it('returns null when header is empty string', () => {
+    expect(parseLinkHeader('')).toBeNull()
+  })
+
+  it('extracts next URL from Link header', () => {
+    const header = '<https://api.github.com/repos/owner/repo/pulls?page=2>; rel="next", <https://api.github.com/repos/owner/repo/pulls?page=5>; rel="last"'
+    expect(parseLinkHeader(header)).toBe('https://api.github.com/repos/owner/repo/pulls?page=2')
+  })
+
+  it('returns null when no next link exists', () => {
+    const header = '<https://api.github.com/repos/owner/repo/pulls?page=1>; rel="prev", <https://api.github.com/repos/owner/repo/pulls?page=5>; rel="last"'
+    expect(parseLinkHeader(header)).toBeNull()
+  })
+
+  it('handles header with only next link', () => {
+    const header = '<https://api.github.com/repos/owner/repo/pulls?page=3>; rel="next"'
+    expect(parseLinkHeader(header)).toBe('https://api.github.com/repos/owner/repo/pulls?page=3')
+  })
+
+  it('handles header with multiple parameters in URL', () => {
+    const header = '<https://api.github.com/repos/owner/repo/pulls?state=open&per_page=100&page=2>; rel="next"'
+    expect(parseLinkHeader(header)).toBe('https://api.github.com/repos/owner/repo/pulls?state=open&per_page=100&page=2')
+  })
+})
 
 describe('buildQueryString', () => {
   it('returns empty string when no options are set', () => {

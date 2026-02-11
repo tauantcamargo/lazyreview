@@ -257,6 +257,146 @@ export function fetchGitHubSearch(
   })
 }
 
+/**
+ * Parse GitHub's Link header to extract the "next" page URL.
+ * Format: `<url>; rel="next", <url>; rel="last"`
+ */
+export function parseLinkHeader(header: string | null): string | null {
+  if (!header) return null
+
+  const links = header.split(',')
+  for (const link of links) {
+    const match = link.match(/<([^>]+)>;\s*rel="next"/)
+    if (match?.[1]) {
+      return match[1]
+    }
+  }
+
+  return null
+}
+
+/**
+ * Fetch all pages of a paginated GitHub REST API endpoint.
+ * Follows Link header rel="next" until exhausted.
+ * Items are concatenated across all pages.
+ */
+export function fetchGitHubPaginated<A, I>(
+  path: string,
+  token: string,
+  schema: S.Schema<A, I>,
+): Effect.Effect<readonly A[], GitHubError | NetworkError> {
+  const decode = S.decodeUnknownSync(S.Array(schema))
+
+  return Effect.tryPromise({
+    try: async () => {
+      const allItems: A[] = []
+      let url: string | null = `${BASE_URL}${path}`
+
+      // Ensure per_page=100 is set if not already present
+      if (!url.includes('per_page=')) {
+        url += url.includes('?') ? '&per_page=100' : '?per_page=100'
+      }
+
+      while (url) {
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+        })
+
+        updateRateLimit(response.headers)
+
+        if (!response.ok) {
+          const body = await response.text().catch(() => '')
+          throw new GitHubError({
+            message: `GitHub API error: ${response.status} ${response.statusText} - ${body}`,
+            status: response.status,
+            url,
+          })
+        }
+
+        const data = await response.json()
+        const items = decode(data)
+        allItems.push(...items)
+
+        // Follow pagination via Link header
+        const linkHeader = response.headers.get('Link')
+        url = parseLinkHeader(linkHeader)
+      }
+
+      touchLastUpdated()
+      return allItems
+    },
+    catch: (error) => {
+      if (error instanceof GitHubError) return error
+      return new NetworkError({
+        message: `Network request failed: ${String(error)}`,
+        cause: error,
+      })
+    },
+  })
+}
+
+/**
+ * Fetch all pages of the GitHub Search API.
+ * Follows Link header rel="next" until exhausted.
+ * Search API returns { total_count, items } per page.
+ */
+export function fetchGitHubSearchPaginated(
+  query: string,
+  token: string,
+): Effect.Effect<readonly PullRequest[], GitHubError | NetworkError> {
+  const decode = S.decodeUnknownSync(SearchResultSchema)
+
+  return Effect.tryPromise({
+    try: async () => {
+      const allItems: PullRequest[] = []
+      let url: string | null = `${BASE_URL}/search/issues?q=${encodeURIComponent(query)}&per_page=100`
+
+      while (url) {
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+        })
+
+        updateRateLimit(response.headers)
+
+        if (!response.ok) {
+          const body = await response.text().catch(() => '')
+          throw new GitHubError({
+            message: `GitHub API error: ${response.status} ${response.statusText} - ${body}`,
+            status: response.status,
+            url,
+          })
+        }
+
+        const data = await response.json()
+        const result = decode(data)
+        allItems.push(...result.items)
+
+        // Follow pagination via Link header
+        const linkHeader = response.headers.get('Link')
+        url = parseLinkHeader(linkHeader)
+      }
+
+      touchLastUpdated()
+      return allItems
+    },
+    catch: (error) => {
+      if (error instanceof GitHubError) return error
+      return new NetworkError({
+        message: `Network request failed: ${String(error)}`,
+        cause: error,
+      })
+    },
+  })
+}
+
 export function buildQueryString(options: ListPRsOptions): string {
   const params = new URLSearchParams()
   if (options.state) params.set('state', options.state)

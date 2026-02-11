@@ -10,10 +10,11 @@ import { Auth } from './Auth'
 import { GitHubApi } from './GitHubApiTypes'
 import {
   fetchGitHub,
+  fetchGitHubPaginated,
   mutateGitHub,
   mutateGitHubJson,
   graphqlGitHub,
-  fetchGitHubSearch,
+  fetchGitHubSearchPaginated,
   buildQueryString,
 } from './GitHubApiHelpers'
 
@@ -59,50 +60,50 @@ export const GitHubApiLive = Layer.effect(
       getPullRequestFiles: (owner, repo, number) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          return yield* fetchGitHub(
+          return yield* fetchGitHubPaginated(
             `/repos/${owner}/${repo}/pulls/${number}/files`,
             token,
-            S.Array(FileChange),
+            FileChange,
           )
         }),
 
       getPullRequestComments: (owner, repo, number) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          return yield* fetchGitHub(
+          return yield* fetchGitHubPaginated(
             `/repos/${owner}/${repo}/pulls/${number}/comments`,
             token,
-            S.Array(Comment),
+            Comment,
           )
         }),
 
       getIssueComments: (owner, repo, issueNumber) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          return yield* fetchGitHub(
+          return yield* fetchGitHubPaginated(
             `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
             token,
-            S.Array(IssueComment),
+            IssueComment,
           )
         }),
 
       getPullRequestReviews: (owner, repo, number) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          return yield* fetchGitHub(
+          return yield* fetchGitHubPaginated(
             `/repos/${owner}/${repo}/pulls/${number}/reviews`,
             token,
-            S.Array(Review),
+            Review,
           )
         }),
 
       getPullRequestCommits: (owner, repo, number) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          return yield* fetchGitHub(
+          return yield* fetchGitHubPaginated(
             `/repos/${owner}/${repo}/pulls/${number}/commits`,
             token,
-            S.Array(Commit),
+            Commit,
           )
         }),
 
@@ -111,7 +112,7 @@ export const GitHubApiLive = Layer.effect(
           const token = yield* auth.getToken()
           const stateQ = buildStateQualifier(stateFilter)
           const query = `is:pr ${stateQ} author:@me`.replace(/\s+/g, ' ').trim()
-          return yield* fetchGitHubSearch(query, token)
+          return yield* fetchGitHubSearchPaginated(query, token)
         }),
 
       getReviewRequests: (stateFilter = 'open') =>
@@ -119,7 +120,7 @@ export const GitHubApiLive = Layer.effect(
           const token = yield* auth.getToken()
           const stateQ = buildStateQualifier(stateFilter)
           const query = `is:pr ${stateQ} review-requested:@me`.replace(/\s+/g, ' ').trim()
-          return yield* fetchGitHubSearch(query, token)
+          return yield* fetchGitHubSearchPaginated(query, token)
         }),
 
       getInvolvedPRs: (stateFilter = 'open') =>
@@ -127,7 +128,7 @@ export const GitHubApiLive = Layer.effect(
           const token = yield* auth.getToken()
           const stateQ = buildStateQualifier(stateFilter)
           const query = `is:pr ${stateQ} involves:@me`.replace(/\s+/g, ' ').trim()
-          return yield* fetchGitHubSearch(query, token)
+          return yield* fetchGitHubSearchPaginated(query, token)
         }),
 
       getCheckRuns: (owner, repo, ref) =>
@@ -183,11 +184,15 @@ export const GitHubApiLive = Layer.effect(
       getReviewThreads: (owner, repo, prNumber) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          const query = `
-            query($owner: String!, $repo: String!, $prNumber: Int!) {
+          const gqlQuery = `
+            query($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
               repository(owner: $owner, name: $repo) {
                 pullRequest(number: $prNumber) {
-                  reviewThreads(first: 100) {
+                  reviewThreads(first: 100, after: $cursor) {
+                    pageInfo {
+                      hasNextPage
+                      endCursor
+                    }
                     nodes {
                       id
                       isResolved
@@ -206,6 +211,10 @@ export const GitHubApiLive = Layer.effect(
             repository: {
               pullRequest: {
                 reviewThreads: {
+                  pageInfo: {
+                    hasNextPage: boolean
+                    endCursor: string | null
+                  }
                   nodes: {
                     id: string
                     isResolved: boolean
@@ -217,16 +226,29 @@ export const GitHubApiLive = Layer.effect(
               }
             }
           }
-          const data = yield* graphqlGitHub<ThreadsResponse>(
-            token,
-            query,
-            { owner, repo, prNumber },
-          )
-          const nodes = data?.repository?.pullRequest?.reviewThreads?.nodes
-          if (!nodes) {
-            return []
+
+          type ThreadNode = ThreadsResponse['repository']['pullRequest']['reviewThreads']['nodes'][number]
+          const allNodes: ThreadNode[] = []
+          let cursor: string | null = null
+          let hasNextPage = true
+
+          while (hasNextPage) {
+            const data: ThreadsResponse = yield* graphqlGitHub<ThreadsResponse>(
+              token,
+              gqlQuery,
+              { owner, repo, prNumber, cursor },
+            )
+            const threads: ThreadsResponse['repository']['pullRequest']['reviewThreads'] | undefined =
+              data?.repository?.pullRequest?.reviewThreads
+            if (!threads?.nodes) {
+              break
+            }
+            allNodes.push(...threads.nodes)
+            hasNextPage = threads.pageInfo.hasNextPage
+            cursor = threads.pageInfo.endCursor
           }
-          return nodes.map(
+
+          return allNodes.map(
             (thread) => ({
               id: thread.id,
               isResolved: thread.isResolved,

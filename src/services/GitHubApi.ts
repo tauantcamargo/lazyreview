@@ -9,9 +9,12 @@ export {
 
 export {
   fetchGitHub,
+  fetchGitHubPaginated,
   mutateGitHub,
   graphqlGitHub,
   fetchGitHubSearch,
+  fetchGitHubSearchPaginated,
+  parseLinkHeader,
   buildQueryString,
 } from './GitHubApiHelpers'
 
