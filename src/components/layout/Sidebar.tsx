@@ -3,18 +3,20 @@ import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 
 export const SIDEBAR_ITEMS = [
-  'Pull Requests',
+  'Involved',
   'My PRs',
-  'Review Requests',
+  'For Review',
+  'This Repo',
   'Settings',
 ] as const
 
 export type SidebarItem = (typeof SIDEBAR_ITEMS)[number]
 
 const sidebarIcons: Record<SidebarItem, string> = {
-  'Pull Requests': '◆',
+  Involved: '◆',
   'My PRs': '●',
-  'Review Requests': '◎',
+  'For Review': '◎',
+  'This Repo': '◈',
   Settings: '⚙',
 }
 

@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
+import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
 
 interface TokenInputModalProps {
@@ -15,7 +16,14 @@ export function TokenInputModal({
   error,
 }: TokenInputModalProps): React.ReactElement {
   const theme = useTheme()
+  const { setInputActive } = useInputFocus()
   const [value, setValue] = useState('')
+
+  // Disable global shortcuts while this modal is open
+  useEffect(() => {
+    setInputActive(true)
+    return () => setInputActive(false)
+  }, [setInputActive])
 
   const handleSubmit = (): void => {
     const trimmed = value.trim()
@@ -36,6 +44,8 @@ export function TokenInputModal({
         flexDirection="column"
         borderStyle="round"
         borderColor={theme.colors.accent}
+        // @ts-ignore
+        backgroundColor={theme.colors.bg}
         paddingX={2}
         paddingY={1}
         gap={1}

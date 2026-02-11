@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../theme/index'
-import { useMyPRs } from '../hooks/useGitHub'
+import { useInvolvedPRs } from '../hooks/useGitHub'
 import { useListNavigation } from '../hooks/useListNavigation'
 import { usePagination } from '../hooks/usePagination'
 import { useFilter } from '../hooks/useFilter'
@@ -13,15 +13,15 @@ import { FilterModal } from '../components/common/FilterModal'
 import { SortModal } from '../components/common/SortModal'
 import type { PullRequest } from '../models/pull-request'
 
-interface MyPRsScreenProps {
+interface InvolvedScreenProps {
   readonly onSelect: (pr: PullRequest) => void
 }
 
-export function MyPRsScreen({
+export function InvolvedScreen({
   onSelect,
-}: MyPRsScreenProps): React.ReactElement {
+}: InvolvedScreenProps): React.ReactElement {
   const theme = useTheme()
-  const { data: prs = [], isLoading, error } = useMyPRs()
+  const { data: prs = [], isLoading, error } = useInvolvedPRs()
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
 
@@ -77,7 +77,7 @@ export function MyPRsScreen({
   )
 
   if (isLoading && prs.length === 0) {
-    return <LoadingIndicator message="Loading your PRs..." />
+    return <LoadingIndicator message="Loading involved PRs..." />
   }
 
   if (error) {
@@ -89,7 +89,7 @@ export function MyPRsScreen({
   }
 
   if (prs.length === 0) {
-    return <EmptyState message="You have no open pull requests" />
+    return <EmptyState message="No pull requests you're involved in" />
   }
 
   return (
@@ -97,7 +97,7 @@ export function MyPRsScreen({
       <Box paddingX={1} justifyContent="space-between">
         <Box gap={2}>
           <Text color={theme.colors.accent} bold>
-            My Pull Requests
+            Involved Pull Requests
           </Text>
           {hasActiveFilters && (
             <Text color={theme.colors.warning}>(filtered)</Text>

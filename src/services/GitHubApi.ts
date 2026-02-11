@@ -55,6 +55,8 @@ export interface GitHubApiService {
     readonly PullRequest[],
     ApiError
   >
+
+  readonly getInvolvedPRs: () => Effect.Effect<readonly PullRequest[], ApiError>
 }
 
 export class GitHubApi extends Context.Tag('GitHubApi')<
@@ -113,7 +115,7 @@ function fetchGitHubSearch(
   query: string,
   token: string,
 ): Effect.Effect<readonly PullRequest[], GitHubError | NetworkError> {
-  const url = `${BASE_URL}/search/issues?q=${encodeURIComponent(query)}&per_page=30`
+  const url = `${BASE_URL}/search/issues?q=${encodeURIComponent(query)}&per_page=100`
   const decode = S.decodeUnknownSync(SearchResultSchema)
 
   return Effect.tryPromise({
@@ -169,7 +171,8 @@ export const GitHubApiLive = Layer.effect(
       listPullRequests: (owner, repo, options = {}) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          const qs = buildQueryString(options)
+          const mergedOptions = { ...options, perPage: options.perPage ?? 100 }
+          const qs = buildQueryString(mergedOptions)
           return yield* fetchGitHub(
             `/repos/${owner}/${repo}/pulls${qs}`,
             token,
@@ -230,6 +233,12 @@ export const GitHubApiLive = Layer.effect(
             'is:pr is:open review-requested:@me',
             token,
           )
+        }),
+
+      getInvolvedPRs: () =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          return yield* fetchGitHubSearch('is:pr is:open involves:@me', token)
         }),
     })
   }),

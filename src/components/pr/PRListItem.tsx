@@ -9,6 +9,11 @@ interface PRListItemProps {
   readonly isFocus: boolean
 }
 
+function extractRepoFromUrl(url: string): string | null {
+  const match = url.match(/github\.com\/([^/]+\/[^/]+)\/pull/)
+  return match?.[1] ?? null
+}
+
 export function PRListItem({
   item,
   isFocus,
@@ -22,6 +27,7 @@ export function PRListItem({
       : theme.colors.error
 
   const stateIcon = item.draft ? 'D' : item.state === 'open' ? 'O' : 'C'
+  const repoName = extractRepoFromUrl(item.html_url)
 
   return (
     <Box flexDirection="column" paddingX={1}>
@@ -45,9 +51,23 @@ export function PRListItem({
         </Text>
       </Box>
       <Box gap={1} paddingLeft={3}>
+        {repoName && (
+          <>
+            <Text color={theme.colors.secondary}>{repoName}</Text>
+            <Text color={theme.colors.muted}>|</Text>
+          </>
+        )}
         <Text color={theme.colors.muted}>{item.user.login}</Text>
         <Text color={theme.colors.muted}>|</Text>
         <Text color={theme.colors.muted}>{timeAgo(item.created_at)}</Text>
+        {item.requested_reviewers.length > 0 && (
+          <>
+            <Text color={theme.colors.muted}>|</Text>
+            <Text color={theme.colors.info}>
+              {item.requested_reviewers.map((r) => r.login).join(', ')}
+            </Text>
+          </>
+        )}
         {item.comments > 0 && (
           <>
             <Text color={theme.colors.muted}>|</Text>

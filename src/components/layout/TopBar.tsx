@@ -5,7 +5,7 @@ import { useTheme } from '../../theme/index'
 interface TopBarProps {
   readonly username: string
   readonly provider: string
-  readonly repoPath: string
+  readonly repoPath?: string
 }
 
 export function TopBar({
@@ -27,8 +27,12 @@ export function TopBar({
         <Text color={theme.colors.accent} bold>
           LazyReview
         </Text>
-        <Text color={theme.colors.muted}>│</Text>
-        <Text color={theme.colors.text}>{repoPath}</Text>
+        {repoPath && (
+          <>
+            <Text color={theme.colors.muted}>│</Text>
+            <Text color={theme.colors.text}>{repoPath}</Text>
+          </>
+        )}
       </Box>
       <Box gap={1}>
         <Text color={theme.colors.muted}>{provider}</Text>

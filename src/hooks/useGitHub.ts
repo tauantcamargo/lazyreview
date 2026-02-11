@@ -115,6 +115,19 @@ export function useReviewRequests() {
   })
 }
 
+export function useInvolvedPRs() {
+  return useQuery({
+    queryKey: ['involved-prs'],
+    queryFn: () =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* GitHubApi
+          return yield* api.getInvolvedPRs()
+        }),
+      ),
+  })
+}
+
 // Legacy hook for backwards compatibility during migration
 interface UseGitHubReturn {
   readonly prs: readonly PullRequest[]

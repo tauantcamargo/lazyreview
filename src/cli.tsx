@@ -1,6 +1,7 @@
 import React from 'react'
 import { render } from 'ink'
 import { App } from './app'
+import { detectGitRepo } from './utils/git'
 
 // ANSI escape codes for alternate screen buffer
 const ENTER_ALT_SCREEN = '\x1b[?1049h'
@@ -10,7 +11,12 @@ const CURSOR_HOME = '\x1b[H'
 const HIDE_CURSOR = '\x1b[?25l'
 const SHOW_CURSOR = '\x1b[?25h'
 
-function parseArgs(argv: string[]): { owner: string; repo: string } {
+interface RepoInfo {
+  readonly owner: string | null
+  readonly repo: string | null
+}
+
+function parseArgs(argv: string[]): RepoInfo | null {
   const repoArg = argv[2]
 
   if (repoArg && repoArg.includes('/')) {
@@ -20,30 +26,53 @@ function parseArgs(argv: string[]): { owner: string; repo: string } {
     }
   }
 
-  return {
-    owner: process.env['LAZY_OWNER'] ?? 'facebook',
-    repo: process.env['LAZY_REPO'] ?? 'react',
-  }
+  return null
 }
-
-// Enter alternate screen buffer
-process.stdout.write(ENTER_ALT_SCREEN + CLEAR_SCREEN + CURSOR_HOME + HIDE_CURSOR)
 
 // Cleanup on exit
 function cleanup(): void {
   process.stdout.write(SHOW_CURSOR + EXIT_ALT_SCREEN)
 }
 
-process.on('exit', cleanup)
-process.on('SIGINT', () => {
-  cleanup()
-  process.exit(0)
-})
-process.on('SIGTERM', () => {
-  cleanup()
-  process.exit(0)
-})
+async function main(): Promise<void> {
+  // Enter alternate screen buffer
+  process.stdout.write(
+    ENTER_ALT_SCREEN + CLEAR_SCREEN + CURSOR_HOME + HIDE_CURSOR,
+  )
 
-const { owner, repo } = parseArgs(process.argv)
+  process.on('exit', cleanup)
+  process.on('SIGINT', () => {
+    cleanup()
+    process.exit(0)
+  })
+  process.on('SIGTERM', () => {
+    cleanup()
+    process.exit(0)
+  })
 
-render(<App owner={owner} repo={repo} />)
+  // Check for CLI args first
+  const argsRepo = parseArgs(process.argv)
+
+  // If no args, try to detect from current git repo
+  let repoOwner: string | null = null
+  let repoName: string | null = null
+
+  if (argsRepo) {
+    repoOwner = argsRepo.owner
+    repoName = argsRepo.repo
+  } else {
+    const gitInfo = await detectGitRepo()
+    if (gitInfo.isGitRepo && gitInfo.owner && gitInfo.repo) {
+      repoOwner = gitInfo.owner
+      repoName = gitInfo.repo
+    }
+  }
+
+  render(<App repoOwner={repoOwner} repoName={repoName} />)
+}
+
+main().catch((error) => {
+  cleanup()
+  console.error('Failed to start:', error)
+  process.exit(1)
+})

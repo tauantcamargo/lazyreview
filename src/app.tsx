@@ -9,29 +9,33 @@ import { MainPanel } from './components/layout/MainPanel'
 import { StatusBar } from './components/layout/StatusBar'
 import { HelpModal } from './components/layout/HelpModal'
 import { TokenInputModal } from './components/layout/TokenInputModal'
-import { PRListScreen } from './screens/PRListScreen'
 import { PRDetailScreen } from './screens/PRDetailScreen'
 import { MyPRsScreen } from './screens/MyPRsScreen'
 import { ReviewRequestsScreen } from './screens/ReviewRequestsScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
+import { InvolvedScreen } from './screens/InvolvedScreen'
+import { ThisRepoScreen } from './screens/ThisRepoScreen'
 import { Match } from 'effect'
 import { useAuth } from './hooks/useAuth'
 import { useConfig } from './hooks/useConfig'
 import { useListNavigation } from './hooks/useListNavigation'
 import { useActivePanel } from './hooks/useActivePanel'
+import { InputFocusProvider, useInputFocus } from './hooks/useInputFocus'
 import type { PullRequest } from './models/pull-request'
 
 type AppScreen =
   | { readonly type: 'list' }
   | { readonly type: 'detail'; readonly pr: PullRequest }
 
+interface AppContentProps {
+  readonly repoOwner: string | null
+  readonly repoName: string | null
+}
+
 function AppContent({
-  owner,
-  repo,
-}: {
-  readonly owner: string
-  readonly repo: string
-}): React.ReactElement {
+  repoOwner,
+  repoName,
+}: AppContentProps): React.ReactElement {
   const { exit } = useApp()
   const { stdout } = useStdout()
   const { user, isAuthenticated, loading, saveToken, error } = useAuth()
@@ -48,6 +52,9 @@ function AppContent({
   const { activePanel, setActivePanel } = useActivePanel({
     hasSelection: currentScreen.type === 'detail',
   })
+
+  // Input focus tracking (for disabling shortcuts when typing)
+  const { isInputActive } = useInputFocus()
 
   // Sidebar navigation
   const { selectedIndex: sidebarIndex } = useListNavigation({
@@ -102,7 +109,7 @@ function AppContent({
         setActivePanel('list')
       }
     },
-    { isActive: !showTokenInput },
+    { isActive: !showTokenInput && !isInputActive },
   )
 
   const handleSelectPR = useCallback((pr: PullRequest) => {
@@ -115,37 +122,55 @@ function AppContent({
 
   function renderScreen(): React.ReactElement {
     if (currentScreen.type === 'detail') {
+      // Extract owner/repo from PR URL for detail view
+      const prUrl = currentScreen.pr.html_url
+      const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull/)
+      const prOwner = match?.[1] ?? repoOwner ?? ''
+      const prRepo = match?.[2] ?? repoName ?? ''
+
       return (
         <PRDetailScreen
           pr={currentScreen.pr}
-          owner={owner}
-          repo={repo}
+          owner={prOwner}
+          repo={prRepo}
           onBack={handleBackToList}
         />
       )
     }
 
+    // Navigation:
+    // 0 - Involved (all PRs user is involved in)
+    // 1 - My PRs (PRs user created)
+    // 2 - For Review (PRs requesting user's review)
+    // 3 - This Repo (PRs from current git directory)
+    // 4 - Settings
     return Match.value(sidebarIndex).pipe(
-      Match.when(0, () => (
-        <PRListScreen owner={owner} repo={repo} onSelect={handleSelectPR} />
-      )),
+      Match.when(0, () => <InvolvedScreen onSelect={handleSelectPR} />),
       Match.when(1, () => <MyPRsScreen onSelect={handleSelectPR} />),
       Match.when(2, () => <ReviewRequestsScreen onSelect={handleSelectPR} />),
-      Match.when(3, () => <SettingsScreen />),
-      Match.orElse(() => (
-        <PRListScreen owner={owner} repo={repo} onSelect={handleSelectPR} />
+      Match.when(3, () => (
+        <ThisRepoScreen
+          owner={repoOwner}
+          repo={repoName}
+          onSelect={handleSelectPR}
+        />
       )),
+      Match.when(4, () => <SettingsScreen />),
+      Match.orElse(() => <InvolvedScreen onSelect={handleSelectPR} />),
     )
   }
 
   const terminalHeight = stdout?.rows ?? 24
+
+  const repoPath =
+    repoOwner && repoName ? `${repoOwner}/${repoName}` : undefined
 
   return (
     <Box flexDirection="column" height={terminalHeight}>
       <TopBar
         username={user?.login ?? 'anonymous'}
         provider="github"
-        repoPath={`${owner}/${repo}`}
+        repoPath={repoPath}
       />
       <Box flexDirection="row" flexGrow={1}>
         <Sidebar
@@ -180,26 +205,31 @@ const queryClient = new QueryClient({
 })
 
 interface AppProps {
-  readonly owner: string
-  readonly repo: string
+  readonly repoOwner: string | null
+  readonly repoName: string | null
 }
 
-function AppWithTheme({ owner, repo }: AppProps): React.ReactElement {
+function AppWithTheme({
+  repoOwner,
+  repoName,
+}: AppProps): React.ReactElement {
   const { config } = useConfig()
   const themeName = (config?.theme ?? 'tokyo-night') as ThemeName
   const theme = getThemeByName(themeName)
 
   return (
     <ThemeProvider theme={theme}>
-      <AppContent owner={owner} repo={repo} />
+      <AppContent repoOwner={repoOwner} repoName={repoName} />
     </ThemeProvider>
   )
 }
 
-export function App({ owner, repo }: AppProps): React.ReactElement {
+export function App({ repoOwner, repoName }: AppProps): React.ReactElement {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppWithTheme owner={owner} repo={repo} />
+      <InputFocusProvider>
+        <AppWithTheme repoOwner={repoOwner} repoName={repoName} />
+      </InputFocusProvider>
     </QueryClientProvider>
   )
 }
