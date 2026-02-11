@@ -24,6 +24,7 @@ import { MergeModal } from '../components/pr/MergeModal'
 import { ReReviewModal, buildReviewerList } from '../components/pr/ReReviewModal'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { openInBrowser, copyToClipboard } from '../utils/terminal'
+import { checkoutPR } from '../utils/git'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useManualRefresh } from '../hooks/useManualRefresh'
 import { setScreenContext } from '../hooks/useScreenContext'
@@ -192,6 +193,16 @@ export function PRDetailScreen({
         } else {
           setStatusMessage('Failed to copy to clipboard')
         }
+      } else if (input === 'g') {
+        setStatusMessage('Checking out PR #' + pr.number + '...', 10000)
+        checkoutPR(pr.number).then((result) => {
+          setStatusMessage(
+            result.success
+              ? result.message
+              : result.message,
+            result.success ? 3000 : 5000,
+          )
+        })
       } else if (input === 'q' || key.escape) {
         if (pendingReview.isActive) {
           setShowDiscardConfirm(true)

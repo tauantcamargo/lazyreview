@@ -46,6 +46,95 @@ export async function detectGitRepo(): Promise<GitRepoInfo> {
   }
 }
 
+export interface CheckoutResult {
+  readonly success: boolean
+  readonly message: string
+  readonly branchName: string
+}
+
+/**
+ * Check if the working tree has uncommitted changes (staged or unstaged).
+ */
+export async function hasUncommittedChanges(): Promise<boolean> {
+  try {
+    const { stdout } = await execFileAsync('git', [
+      'status',
+      '--porcelain',
+    ])
+    return stdout.trim().length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Checkout a PR branch by fetching the PR ref and creating a local branch.
+ * Runs: git fetch origin pull/{n}/head:pr-{n} && git checkout pr-{n}
+ */
+export async function checkoutPR(prNumber: number): Promise<CheckoutResult> {
+  const branchName = `pr-${prNumber}`
+
+  try {
+    // Check for uncommitted changes first
+    const dirty = await hasUncommittedChanges()
+    if (dirty) {
+      return {
+        success: false,
+        message: 'Working tree has uncommitted changes. Commit or stash them first.',
+        branchName,
+      }
+    }
+
+    // Fetch the PR ref into a local branch
+    await execFileAsync('git', [
+      'fetch',
+      'origin',
+      `pull/${prNumber}/head:${branchName}`,
+    ])
+
+    // Checkout the branch
+    await execFileAsync('git', ['checkout', branchName])
+
+    return {
+      success: true,
+      message: `Checked out branch ${branchName}`,
+      branchName,
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+
+    // If branch already exists, try checking it out directly
+    if (errorMessage.includes('already exists')) {
+      try {
+        await execFileAsync('git', ['checkout', branchName])
+        // Update the branch with latest PR changes
+        await execFileAsync('git', [
+          'pull',
+          'origin',
+          `pull/${prNumber}/head`,
+        ])
+        return {
+          success: true,
+          message: `Switched to existing branch ${branchName} and updated`,
+          branchName,
+        }
+      } catch (checkoutError) {
+        return {
+          success: false,
+          message: `Failed to checkout ${branchName}: ${checkoutError instanceof Error ? checkoutError.message : String(checkoutError)}`,
+          branchName,
+        }
+      }
+    }
+
+    return {
+      success: false,
+      message: `Failed to checkout PR #${prNumber}: ${errorMessage}`,
+      branchName,
+    }
+  }
+}
+
 export function parseGitHubUrl(
   url: string,
 ): { owner: string; repo: string } | null {
