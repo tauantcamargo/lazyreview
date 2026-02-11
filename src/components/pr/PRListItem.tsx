@@ -4,6 +4,7 @@ import { useTheme } from '../../theme/index'
 import type { PullRequest } from '../../models/pull-request'
 import { timeAgo } from '../../utils/date'
 import { CheckStatusIcon } from './CheckStatusIcon'
+import { ReviewStatusIcon } from './ReviewStatusIcon'
 
 interface PRListItemProps {
   readonly item: PullRequest
@@ -54,6 +55,9 @@ export function PRListItem({
         </Text>
         {ownerRepo && headSha && (
           <CheckStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} sha={headSha} />
+        )}
+        {ownerRepo && (
+          <ReviewStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} prNumber={item.number} />
         )}
         <Text
           color={isFocus ? theme.colors.listSelectedFg : theme.colors.text}
