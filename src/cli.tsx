@@ -47,6 +47,40 @@ async function main(): Promise<void> {
     process.exit(0)
   }
 
+  if (arg === '--help' || arg === '-h') {
+    const { readFileSync } = await import('node:fs')
+    const { resolve, dirname } = await import('node:path')
+    const { fileURLToPath } = await import('node:url')
+    const dir = dirname(fileURLToPath(import.meta.url))
+    const pkg = JSON.parse(readFileSync(resolve(dir, '..', 'package.json'), 'utf-8'))
+    const version = pkg.version as string
+
+    const help = [
+      `lazyreview v${version}`,
+      '',
+      'A TUI code review tool for GitHub PRs.',
+      '',
+      'USAGE:',
+      '  lazyreview                   Launch TUI (auto-detects repo)',
+      '  lazyreview owner/repo        Launch TUI for a specific repo',
+      '  lazyreview --help | -h       Show this help',
+      '  lazyreview --version | -v    Show version',
+      '',
+      'ENVIRONMENT:',
+      '  GITHUB_TOKEN                 GitHub personal access token',
+      '                               (also supports gh CLI token)',
+      '',
+      'CONFIG:',
+      '  ~/.config/lazyreview/config.yaml',
+      '',
+      'IN-APP HELP:',
+      '  Press ? inside the TUI to see all keyboard shortcuts.',
+    ].join('\n')
+
+    console.log(help)
+    process.exit(0)
+  }
+
   // Enter alternate screen buffer
   process.stdout.write(
     ENTER_ALT_SCREEN + CLEAR_SCREEN + CURSOR_HOME + HIDE_CURSOR,
