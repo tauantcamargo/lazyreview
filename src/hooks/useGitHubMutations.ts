@@ -164,7 +164,10 @@ export const useSubmitReview = createGitHubMutation<SubmitReviewParams>({
 
 export const useCreateComment = createGitHubMutation<CreateCommentParams>({
   effect: (api, p) => api.createComment(p.owner, p.repo, p.issueNumber, p.body),
-  invalidateKeys: (p) => [['pr-comments', p.owner, p.repo, p.issueNumber]],
+  invalidateKeys: (p) => [
+    ['pr-comments', p.owner, p.repo, p.issueNumber],
+    ['issue-comments', p.owner, p.repo, p.issueNumber],
+  ],
 })
 
 export const useCreateReviewComment = createGitHubMutation<CreateReviewCommentParams>({
@@ -249,7 +252,10 @@ export const useReopenPullRequest = createGitHubMutation<PRParams>({
 
 export const useEditIssueComment = createGitHubMutation<EditCommentParams>({
   effect: (api, p) => api.editIssueComment(p.owner, p.repo, p.commentId, p.body),
-  invalidateKeys: (p) => invalidatePRComments(p.owner, p.repo, p.prNumber),
+  invalidateKeys: (p) => [
+    ...invalidatePRComments(p.owner, p.repo, p.prNumber),
+    ['issue-comments', p.owner, p.repo, p.prNumber],
+  ],
 })
 
 export const useEditReviewComment = createGitHubMutation<EditCommentParams>({

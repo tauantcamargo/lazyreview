@@ -9,6 +9,7 @@ import {
   usePRCommits,
   useReviewThreads,
   useCurrentUser,
+  useIssueComments,
 } from '../hooks/useGitHub'
 import { usePRDetailModals } from '../hooks/usePRDetailModals'
 import { usePendingReview } from '../hooks/usePendingReview'
@@ -76,6 +77,7 @@ export function PRDetailScreen({
   const { data: reviews = [], isLoading: reviewsLoading } = usePRReviews(owner, repo, pr.number)
   const { data: commits = [], isLoading: commitsLoading } = usePRCommits(owner, repo, pr.number)
   const { data: reviewThreads } = useReviewThreads(owner, repo, pr.number)
+  const { data: issueComments = [] } = useIssueComments(owner, repo, pr.number)
   const { data: currentUser } = useCurrentUser()
 
   const isLoading = filesLoading || commentsLoading || reviewsLoading || commitsLoading
@@ -206,6 +208,7 @@ export function PRDetailScreen({
           comments={comments}
           reviews={reviews}
           reviewThreads={reviewThreads}
+          issueComments={issueComments}
           isActive={!modals.hasModal}
           showResolved={modals.showResolved}
           currentUser={currentUser?.login}
@@ -236,6 +239,7 @@ export function PRDetailScreen({
           comments={comments}
           reviews={reviews}
           reviewThreads={reviewThreads}
+          issueComments={issueComments}
           isActive={!modals.hasModal}
           showResolved={modals.showResolved}
           currentUser={currentUser?.login}

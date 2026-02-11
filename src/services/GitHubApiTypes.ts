@@ -1,6 +1,7 @@
 import { Context, Effect } from 'effect'
 import type { PullRequest } from '../models/pull-request'
 import type { Comment } from '../models/comment'
+import type { IssueComment } from '../models/issue-comment'
 import type { Review } from '../models/review'
 import type { FileChange } from '../models/file-change'
 import type { Commit } from '../models/commit'
@@ -47,6 +48,12 @@ export interface GitHubApiService {
     repo: string,
     number: number,
   ) => Effect.Effect<readonly Comment[], ApiError>
+
+  readonly getIssueComments: (
+    owner: string,
+    repo: string,
+    issueNumber: number,
+  ) => Effect.Effect<readonly IssueComment[], ApiError>
 
   readonly getPullRequestReviews: (
     owner: string,

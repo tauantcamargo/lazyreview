@@ -98,6 +98,23 @@ export function usePRComments(owner: string, repo: string, number: number) {
   })
 }
 
+export function useIssueComments(owner: string, repo: string, issueNumber: number) {
+  const refetchInterval = useRefreshInterval(30)
+
+  return useQuery({
+    queryKey: ['issue-comments', owner, repo, issueNumber],
+    queryFn: () =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* GitHubApi
+          return yield* api.getIssueComments(owner, repo, issueNumber)
+        }),
+      ),
+    enabled: !!owner && !!repo && !!issueNumber,
+    refetchInterval,
+  })
+}
+
 export function usePRReviews(owner: string, repo: string, number: number) {
   const refetchInterval = useRefreshInterval(30)
 

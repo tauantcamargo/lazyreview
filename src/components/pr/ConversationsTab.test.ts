@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { buildTimeline } from './ConversationsTab'
 import type { PullRequest } from '../../models/pull-request'
 import type { Comment } from '../../models/comment'
+import type { IssueComment } from '../../models/issue-comment'
 import type { Review } from '../../models/review'
 import type { ReviewThread } from '../../services/GitHubApiTypes'
 
@@ -51,6 +52,17 @@ function makeReview(id: number, state: string, date: string): Review {
     submitted_at: date,
     html_url: '',
   } as unknown as Review
+}
+
+function makeIssueComment(id: number, date: string, body = 'issue comment body'): IssueComment {
+  return {
+    id,
+    body,
+    user: { login: 'contributor', avatar_url: '' },
+    created_at: date,
+    updated_at: date,
+    html_url: `https://github.com/owner/repo/issues/42#issuecomment-${id}`,
+  } as unknown as IssueComment
 }
 
 describe('buildTimeline', () => {
@@ -127,5 +139,59 @@ describe('buildTimeline', () => {
     const items = buildTimeline(pr, comments, reviews)
     const descriptionItems = items.filter((i) => i.type === 'description')
     expect(descriptionItems).toHaveLength(0)
+  })
+
+  it('adds issue comments to timeline', () => {
+    const pr = makePR()
+    const issueComments = [makeIssueComment(50, '2025-01-02T00:00:00Z')]
+    const items = buildTimeline(pr, [], [], undefined, issueComments)
+    expect(items).toHaveLength(1)
+    expect(items[0]!.type).toBe('issue_comment')
+    expect(items[0]!.body).toBe('issue comment body')
+    expect(items[0]!.user).toBe('contributor')
+    expect(items[0]!.id).toBe('issue-comment-50')
+    expect(items[0]!.commentId).toBe(50)
+  })
+
+  it('sorts issue comments chronologically with other items', () => {
+    const pr = makePR()
+    const comments = [makeComment(1, '2025-01-03T00:00:00Z')]
+    const reviews = [makeReview(1, 'APPROVED', '2025-01-05T00:00:00Z')]
+    const issueComments = [
+      makeIssueComment(10, '2025-01-01T00:00:00Z'),
+      makeIssueComment(11, '2025-01-04T00:00:00Z'),
+    ]
+    const items = buildTimeline(pr, comments, reviews, undefined, issueComments)
+    expect(items).toHaveLength(4)
+    expect(items[0]!.id).toBe('issue-comment-10')
+    expect(items[1]!.id).toBe('comment-1')
+    expect(items[2]!.id).toBe('issue-comment-11')
+    expect(items[3]!.type).toBe('review')
+  })
+
+  it('issue comments have no threadId or isResolved', () => {
+    const pr = makePR()
+    const issueComments = [makeIssueComment(50, '2025-01-02T00:00:00Z')]
+    const items = buildTimeline(pr, [], [], undefined, issueComments)
+    expect(items[0]!.threadId).toBeUndefined()
+    expect(items[0]!.isResolved).toBeUndefined()
+    expect(items[0]!.path).toBeUndefined()
+    expect(items[0]!.line).toBeUndefined()
+  })
+
+  it('handles empty issue comments array', () => {
+    const pr = makePR()
+    const comments = [makeComment(1, '2025-01-02T00:00:00Z')]
+    const items = buildTimeline(pr, comments, [], undefined, [])
+    expect(items).toHaveLength(1)
+    expect(items[0]!.type).toBe('comment')
+  })
+
+  it('handles undefined issue comments (backwards compatible)', () => {
+    const pr = makePR()
+    const comments = [makeComment(1, '2025-01-02T00:00:00Z')]
+    const items = buildTimeline(pr, comments, [])
+    expect(items).toHaveLength(1)
+    expect(items[0]!.type).toBe('comment')
   })
 })

@@ -1,6 +1,7 @@
 import { Effect, Layer, Schema as S } from 'effect'
 import { PullRequest } from '../models/pull-request'
 import { Comment } from '../models/comment'
+import { IssueComment } from '../models/issue-comment'
 import { Review } from '../models/review'
 import { FileChange } from '../models/file-change'
 import { Commit } from '../models/commit'
@@ -61,6 +62,16 @@ export const GitHubApiLive = Layer.effect(
             `/repos/${owner}/${repo}/pulls/${number}/comments`,
             token,
             S.Array(Comment),
+          )
+        }),
+
+      getIssueComments: (owner, repo, issueNumber) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          return yield* fetchGitHub(
+            `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
+            token,
+            S.Array(IssueComment),
           )
         }),
 

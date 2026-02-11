@@ -6,6 +6,7 @@ import { Divider } from '../common/Divider'
 import { useListNavigation } from '../../hooks/useListNavigation'
 import type { PullRequest } from '../../models/pull-request'
 import type { Comment } from '../../models/comment'
+import type { IssueComment } from '../../models/issue-comment'
 import type { Review } from '../../models/review'
 import type { ReviewThread } from '../../services/GitHubApi'
 import { TimelineItemView, type TimelineItem } from './TimelineItemView'
@@ -34,6 +35,7 @@ interface ConversationsTabProps {
   readonly comments: readonly Comment[]
   readonly reviews: readonly Review[]
   readonly reviewThreads?: readonly ReviewThread[]
+  readonly issueComments?: readonly IssueComment[]
   readonly isActive: boolean
   readonly showResolved?: boolean
   readonly currentUser?: string
@@ -49,6 +51,7 @@ export function buildTimeline(
   comments: readonly Comment[],
   reviews: readonly Review[],
   reviewThreads?: readonly ReviewThread[],
+  issueComments?: readonly IssueComment[],
 ): TimelineItem[] {
   const items: TimelineItem[] = []
 
@@ -76,7 +79,7 @@ export function buildTimeline(
     }
   }
 
-  // Add comments
+  // Add review comments (inline/PR comments)
   for (const comment of comments) {
     const thread = threadByCommentId.get(comment.id)
     items.push({
@@ -91,6 +94,20 @@ export function buildTimeline(
       threadId: thread?.id,
       isResolved: thread?.isResolved,
     })
+  }
+
+  // Add issue comments (general PR conversation comments)
+  if (issueComments) {
+    for (const ic of issueComments) {
+      items.push({
+        id: `issue-comment-${ic.id}`,
+        type: 'issue_comment',
+        user: ic.user.login,
+        body: ic.body,
+        date: ic.created_at,
+        commentId: ic.id,
+      })
+    }
   }
 
   // Sort by date
@@ -189,6 +206,7 @@ export function ConversationsTab({
   comments,
   reviews,
   reviewThreads,
+  issueComments,
   isActive,
   showResolved = true,
   currentUser,
@@ -201,7 +219,7 @@ export function ConversationsTab({
   const theme = useTheme()
   const { stdout } = useStdout()
   const listRef = useRef<ScrollListRef>(null)
-  const allTimeline = buildTimeline(pr, comments, reviews, reviewThreads)
+  const allTimeline = buildTimeline(pr, comments, reviews, reviewThreads, issueComments)
   const timeline = showResolved
     ? allTimeline
     : allTimeline.filter((item) => !item.isResolved)
@@ -239,11 +257,15 @@ export function ConversationsTab({
       }
       if (input === 'e' && onEditComment && currentUser) {
         const selected = timeline[selectedIndex]
-        if (selected?.type === 'comment' && selected.commentId != null && selected.user === currentUser) {
+        if (
+          (selected?.type === 'comment' || selected?.type === 'issue_comment') &&
+          selected.commentId != null &&
+          selected.user === currentUser
+        ) {
           onEditComment({
             commentId: selected.commentId,
             body: selected.body ?? '',
-            isReviewComment: !!selected.path,
+            isReviewComment: selected.type === 'comment' && !!selected.path,
           })
         }
       }
