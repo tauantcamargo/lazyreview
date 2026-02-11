@@ -210,7 +210,7 @@ export function PRDetailScreen({
         onNavigate('next')
       } else if (input === '[' && onNavigate) {
         onNavigate('prev')
-      } else if (input === 'g') {
+      } else if (input === 'G') {
         setStatusMessage('Checking out PR #' + pr.number + '...', 10000)
         checkoutPR(pr.number).then((result) => {
           setStatusMessage(
