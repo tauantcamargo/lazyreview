@@ -1,12 +1,19 @@
 import React from 'react'
-import { Box, Text, useListItem } from 'tuir'
+import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import type { PullRequest } from '../../models/pull-request'
 import { timeAgo } from '../../utils/date'
 
-export function PRListItem(): React.ReactElement {
+interface PRListItemProps {
+  readonly item: PullRequest
+  readonly isFocus: boolean
+}
+
+export function PRListItem({
+  item,
+  isFocus,
+}: PRListItemProps): React.ReactElement {
   const theme = useTheme()
-  const { item, isFocus } = useListItem<PullRequest[]>()
 
   const stateColor = item.draft
     ? theme.colors.muted
@@ -17,11 +24,7 @@ export function PRListItem(): React.ReactElement {
   const stateIcon = item.draft ? 'D' : item.state === 'open' ? 'O' : 'C'
 
   return (
-    <Box
-      flexDirection="column"
-      paddingX={1}
-      backgroundColor={isFocus ? theme.colors.listSelectedBg : undefined}
-    >
+    <Box flexDirection="column" paddingX={1}>
       <Box gap={1}>
         <Text color={stateColor} bold>
           {stateIcon}
@@ -29,12 +32,14 @@ export function PRListItem(): React.ReactElement {
         <Text
           color={isFocus ? theme.colors.listSelectedFg : theme.colors.text}
           bold={isFocus}
+          inverse={isFocus}
         >
           #{item.number}
         </Text>
         <Text
           color={isFocus ? theme.colors.listSelectedFg : theme.colors.text}
           bold={isFocus}
+          inverse={isFocus}
         >
           {item.title}
         </Text>
@@ -52,11 +57,13 @@ export function PRListItem(): React.ReactElement {
         {item.labels.length > 0 && (
           <>
             <Text color={theme.colors.muted}>|</Text>
-            {item.labels.map((label) => (
-              <Text key={label.id} color={`#${label.color}`}>
-                [{label.name}]
-              </Text>
-            ))}
+            {item.labels.map(
+              (label: { id: number; name: string; color: string }) => (
+                <Text key={label.id} color={`#${label.color}`}>
+                  [{label.name}]
+                </Text>
+              ),
+            )}
           </>
         )}
       </Box>

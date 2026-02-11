@@ -1,6 +1,7 @@
 import React from 'react'
-import { Box, Text, List, useList, useListItem } from 'tuir'
+import { Box, Text, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
+import { useListNavigation } from '../../hooks/useListNavigation'
 import type { Comment } from '../../models/comment'
 import { timeAgo } from '../../utils/date'
 import { EmptyState } from '../common/EmptyState'
@@ -9,9 +10,13 @@ interface CommentsTabProps {
   readonly comments: readonly Comment[]
 }
 
-function CommentItem(): React.ReactElement {
+interface CommentItemProps {
+  readonly item: Comment
+  readonly isFocus: boolean
+}
+
+function CommentItem({ item, isFocus }: CommentItemProps): React.ReactElement {
   const theme = useTheme()
-  const { item, isFocus } = useListItem<Comment[]>()
 
   return (
     <Box
@@ -48,21 +53,34 @@ function CommentItem(): React.ReactElement {
 export function CommentsTab({
   comments,
 }: CommentsTabProps): React.ReactElement {
-  const mutableComments = [...comments]
-  const { listView } = useList(mutableComments, {
-    navigation: 'vi-vertical',
-    unitSize: 4,
+  const { stdout } = useStdout()
+  // Comments take more vertical space, adjust viewport accordingly
+  const viewportHeight = Math.max(1, Math.floor((stdout?.rows ?? 24) - 8) / 4)
+
+  const { selectedIndex, scrollOffset } = useListNavigation({
+    itemCount: comments.length,
+    viewportHeight,
+    isActive: true,
   })
 
   if (comments.length === 0) {
     return <EmptyState message="No comments yet" />
   }
 
+  const visibleComments = comments.slice(
+    scrollOffset,
+    scrollOffset + viewportHeight,
+  )
+
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <List listView={listView}>
-        <CommentItem />
-      </List>
+      {visibleComments.map((comment, index) => (
+        <CommentItem
+          key={comment.id}
+          item={comment}
+          isFocus={scrollOffset + index === selectedIndex}
+        />
+      ))}
     </Box>
   )
 }

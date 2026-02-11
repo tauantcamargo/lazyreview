@@ -102,6 +102,53 @@ function fetchGitHub<A, I>(
   })
 }
 
+// Schema for GitHub Search API response
+const SearchResultSchema = S.Struct({
+  total_count: S.Number,
+  incomplete_results: S.Boolean,
+  items: S.Array(PullRequest),
+})
+
+function fetchGitHubSearch(
+  query: string,
+  token: string,
+): Effect.Effect<readonly PullRequest[], GitHubError | NetworkError> {
+  const url = `${BASE_URL}/search/issues?q=${encodeURIComponent(query)}&per_page=30`
+  const decode = S.decodeUnknownSync(SearchResultSchema)
+
+  return Effect.tryPromise({
+    try: async () => {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      })
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => '')
+        throw new GitHubError({
+          message: `GitHub API error: ${response.status} ${response.statusText} - ${body}`,
+          status: response.status,
+          url,
+        })
+      }
+
+      const data = await response.json()
+      const result = decode(data)
+      return result.items
+    },
+    catch: (error) => {
+      if (error instanceof GitHubError) return error
+      return new NetworkError({
+        message: `Network request failed: ${String(error)}`,
+        cause: error,
+      })
+    },
+  })
+}
+
 function buildQueryString(options: ListPRsOptions): string {
   const params = new URLSearchParams()
   if (options.state) params.set('state', options.state)
@@ -173,20 +220,15 @@ export const GitHubApiLive = Layer.effect(
       getMyPRs: () =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          return yield* fetchGitHub(
-            '/user/issues?filter=created&state=open&pulls=true&per_page=30',
-            token,
-            S.Array(PullRequest),
-          )
+          return yield* fetchGitHubSearch('is:pr is:open author:@me', token)
         }),
 
       getReviewRequests: () =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          return yield* fetchGitHub(
-            '/user/issues?filter=review-requested&state=open&pulls=true&per_page=30',
+          return yield* fetchGitHubSearch(
+            'is:pr is:open review-requested:@me',
             token,
-            S.Array(PullRequest),
           )
         }),
     })

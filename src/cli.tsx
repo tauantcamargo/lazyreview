@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, preserveScreen } from 'tuir'
+import { render } from 'ink'
 import { App } from './app'
 
 function parseArgs(argv: string[]): { owner: string; repo: string } {
@@ -20,5 +20,4 @@ function parseArgs(argv: string[]): { owner: string; repo: string } {
 
 const { owner, repo } = parseArgs(process.argv)
 
-preserveScreen()
 render(<App owner={owner} repo={repo} />)

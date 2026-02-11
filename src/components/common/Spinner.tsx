@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Text } from 'tuir'
+import { Text } from 'ink'
 import { useTheme } from '../../theme/index'
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']

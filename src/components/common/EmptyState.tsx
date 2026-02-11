@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Text } from 'tuir'
+import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 
 interface EmptyStateProps {

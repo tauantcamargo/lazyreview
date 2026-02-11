@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Text } from 'tuir'
+import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 
 export const SIDEBAR_ITEMS = [
@@ -21,11 +21,13 @@ const sidebarIcons: Record<SidebarItem, string> = {
 interface SidebarProps {
   readonly selectedIndex: number
   readonly visible: boolean
+  readonly isActive: boolean
 }
 
 export function Sidebar({
   selectedIndex,
   visible,
+  isActive,
 }: SidebarProps): React.ReactElement | null {
   const theme = useTheme()
 
@@ -36,29 +38,26 @@ export function Sidebar({
       flexDirection="column"
       width={24}
       borderStyle="single"
-      borderColor={theme.colors.border}
-      borderRight
-      borderLeft={false}
-      borderTop={false}
-      borderBottom={false}
+      borderColor={isActive ? theme.colors.accent : theme.colors.border}
     >
       <Box paddingX={1} paddingY={0}>
-        <Text color={theme.colors.accent} bold>
+        <Text color={theme.colors.accent} bold={isActive} dimColor={!isActive}>
           Navigation
         </Text>
       </Box>
       <Box flexDirection="column" paddingTop={1}>
         {SIDEBAR_ITEMS.map((label, index) => {
-          const isFocus = index === selectedIndex
+          const isSelected = index === selectedIndex
           const icon = sidebarIcons[label]
           return (
             <Box key={label} paddingX={1}>
               <Text
-                color={isFocus ? theme.colors.accent : theme.colors.text}
-                backgroundColor={isFocus ? theme.colors.selection : undefined}
-                bold={isFocus}
+                color={isSelected ? theme.colors.accent : theme.colors.text}
+                backgroundColor={isSelected ? theme.colors.selection : undefined}
+                bold={isSelected}
+                dimColor={!isActive && !isSelected}
               >
-                {isFocus ? '▸ ' : '  '}
+                {isSelected ? '▸ ' : '  '}
                 {icon} {label}
               </Text>
             </Box>

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
-import { Box, Text, List, useList, useListItem } from 'tuir'
+import React from 'react'
+import { Box, Text, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
+import { useListNavigation } from '../../hooks/useListNavigation'
 import type { FileChange } from '../../models/file-change'
-import type { Hunk, DiffLine } from '../../models/diff'
+import type { Hunk } from '../../models/diff'
 import { parseDiffPatch } from '../../models/diff'
 import { EmptyState } from '../common/EmptyState'
 
@@ -10,9 +11,13 @@ interface FilesTabProps {
   readonly files: readonly FileChange[]
 }
 
-function FileItem(): React.ReactElement {
+interface FileItemProps {
+  readonly item: FileChange
+  readonly isFocus: boolean
+}
+
+function FileItem({ item, isFocus }: FileItemProps): React.ReactElement {
   const theme = useTheme()
-  const { item, isFocus } = useListItem<FileChange[]>()
 
   const statusColor =
     item.status === 'added'
@@ -31,10 +36,7 @@ function FileItem(): React.ReactElement {
           : 'M'
 
   return (
-    <Box
-      paddingX={1}
-      backgroundColor={isFocus ? theme.colors.listSelectedBg : undefined}
-    >
+    <Box paddingX={1}>
       <Box gap={1} width="100%">
         <Text color={statusColor} bold>
           {statusIcon}
@@ -42,6 +44,7 @@ function FileItem(): React.ReactElement {
         <Text
           color={isFocus ? theme.colors.listSelectedFg : theme.colors.text}
           bold={isFocus}
+          inverse={isFocus}
         >
           {item.filename}
         </Text>
@@ -105,27 +108,34 @@ function DiffView({
 }
 
 export function FilesTab({ files }: FilesTabProps): React.ReactElement {
-  const mutableFiles = [...files]
-  const { listView, control } = useList(mutableFiles, {
-    navigation: 'vi-vertical',
-    unitSize: 1,
+  const { stdout } = useStdout()
+  const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 10)
+
+  const { selectedIndex, scrollOffset } = useListNavigation({
+    itemCount: files.length,
+    viewportHeight,
+    isActive: true,
   })
 
-  const selectedFile = mutableFiles[control.currentIndex] ?? null
-  const hunks = selectedFile?.patch
-    ? parseDiffPatch(selectedFile.patch)
-    : []
+  const selectedFile = files[selectedIndex] ?? null
+  const hunks = selectedFile?.patch ? parseDiffPatch(selectedFile.patch) : []
 
   if (files.length === 0) {
     return <EmptyState message="No files changed" />
   }
 
+  const visibleFiles = files.slice(scrollOffset, scrollOffset + viewportHeight)
+
   return (
     <Box flexDirection="row" flexGrow={1}>
       <Box flexDirection="column" width="40%">
-        <List listView={listView}>
-          <FileItem />
-        </List>
+        {visibleFiles.map((file, index) => (
+          <FileItem
+            key={file.sha ?? file.filename}
+            item={file}
+            isFocus={scrollOffset + index === selectedIndex}
+          />
+        ))}
       </Box>
       <Box flexDirection="column" flexGrow={1} overflowY="hidden">
         <DiffView hunks={hunks} />

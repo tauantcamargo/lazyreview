@@ -1,5 +1,4 @@
-import { useKeymap } from 'tuir'
-import type { KeyMap } from 'tuir'
+import { useInput } from 'ink'
 
 interface AppKeymapActions {
   readonly toggleSidebar: () => void
@@ -8,18 +7,16 @@ interface AppKeymapActions {
   readonly switchFocus: () => void
 }
 
-const appKeymap = {
-  toggleSidebar: { input: 'b' },
-  toggleHelp: { input: '?' },
-  quit: { input: 'q' },
-  switchFocus: { key: 'tab' },
-} satisfies KeyMap
-
 export function useAppKeymap(actions: AppKeymapActions): void {
-  const { useEvent: useKeymapEvent } = useKeymap(appKeymap)
-
-  useKeymapEvent('toggleSidebar', actions.toggleSidebar)
-  useKeymapEvent('toggleHelp', actions.toggleHelp)
-  useKeymapEvent('quit', actions.quit)
-  useKeymapEvent('switchFocus', actions.switchFocus)
+  useInput((input, key) => {
+    if (input === 'b') {
+      actions.toggleSidebar()
+    } else if (input === '?') {
+      actions.toggleHelp()
+    } else if (input === 'q') {
+      actions.quit()
+    } else if (key.tab) {
+      actions.switchFocus()
+    }
+  })
 }

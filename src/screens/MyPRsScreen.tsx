@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react'
-import { Box, Text, List, useList } from 'tuir'
+import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../theme/index'
 import { useGitHub } from '../hooks/useGitHub'
+import { useListNavigation } from '../hooks/useListNavigation'
 import { PRListItem } from '../components/pr/PRListItem'
 import { EmptyState } from '../components/common/EmptyState'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
@@ -15,16 +16,24 @@ export function MyPRsScreen({
   onSelect,
 }: MyPRsScreenProps): React.ReactElement {
   const theme = useTheme()
+  const { stdout } = useStdout()
   const { prs, loading, error, fetchMyPRs } = useGitHub()
 
   useEffect(() => {
     fetchMyPRs()
   }, [fetchMyPRs])
 
-  const mutablePRs = [...prs]
-  const { listView } = useList(mutablePRs, {
-    navigation: 'vi-vertical',
-    unitSize: 2,
+  const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 6)
+  const { selectedIndex, scrollOffset } = useListNavigation({
+    itemCount: prs.length,
+    viewportHeight,
+    isActive: true,
+  })
+
+  useInput((input, key) => {
+    if (key.return && prs[selectedIndex]) {
+      onSelect(prs[selectedIndex])
+    }
   })
 
   if (loading && prs.length === 0) {
@@ -43,6 +52,8 @@ export function MyPRsScreen({
     return <EmptyState message="You have no open pull requests" />
   }
 
+  const visiblePRs = prs.slice(scrollOffset, scrollOffset + viewportHeight)
+
   return (
     <Box flexDirection="column" flexGrow={1}>
       <Box paddingX={1}>
@@ -51,9 +62,15 @@ export function MyPRsScreen({
         </Text>
         <Text color={theme.colors.muted}> ({prs.length})</Text>
       </Box>
-      <List listView={listView}>
-        <PRListItem />
-      </List>
+      <Box flexDirection="column">
+        {visiblePRs.map((pr, index) => (
+          <PRListItem
+            key={pr.id}
+            item={pr}
+            isFocus={scrollOffset + index === selectedIndex}
+          />
+        ))}
+      </Box>
     </Box>
   )
 }

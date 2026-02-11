@@ -1,19 +1,19 @@
 # LazyReview
 
-TUI code review tool for GitHub PRs built with tuir (Ink fork) + Effect + TypeScript.
+TUI code review tool for GitHub PRs built with Ink + Effect + TypeScript.
 
 ## Project Structure
 
 ```
 src/
 ├── cli.tsx              # Entry point
-├── app.tsx              # Root component with Viewport layout
+├── app.tsx              # Root component with Box layout
 ├── components/
 │   ├── layout/          # TopBar, Sidebar, MainPanel, StatusBar
 │   ├── pr/              # PRListItem, PRHeader, PRTabs, FilesTab, CommentsTab
 │   └── common/          # EmptyState, LoadingIndicator
 ├── screens/             # PRListScreen, PRDetailScreen, MyPRsScreen, ReviewRequestsScreen, SettingsScreen
-├── hooks/               # useGitHub, useAuth, useConfig, useLoading, useTheme, useAppKeymap
+├── hooks/               # useGitHub, useAuth, useConfig, useLoading, useTheme, useListNavigation, useActivePanel
 ├── services/            # Effect services: GitHubApi, Auth, Config, Loading, layers
 ├── models/              # Zod schemas + TS types
 ├── theme/               # Theme types, color palettes, ThemeProvider
@@ -32,7 +32,7 @@ src/
 
 ## Stack
 
-- **UI**: tuir (Ink fork) + @inkjs/ui + React 18
+- **UI**: Ink 6 + @inkjs/ui + React 19
 - **Services**: Effect (typed errors, dependency injection, layers)
 - **Validation**: Zod schemas for API responses
 - **Config**: YAML (~/.config/lazyreview/config.yaml)
@@ -44,7 +44,7 @@ src/
 - Immutable patterns only (no mutation)
 - Effect services with tagged errors
 - Zod schemas for all external data
-- tuir hooks for navigation: useList, usePages, useNodeMap, useKeymap, useModal
-- Vim-style navigation (j/k/h/l) via tuir's `navigation: "vi-vertical"`
+- Custom hooks for navigation: useListNavigation, useActivePanel
+- Vim-style navigation (j/k/h/l) via useInput from ink
 - Small files (<400 lines), high cohesion
 - All user input validated with Zod

@@ -9,8 +9,8 @@ export class Label extends S.Class<Label>('Label')({
 }) {}
 
 export class BranchRef extends S.Class<BranchRef>('BranchRef')({
-  ref: S.String,
-  sha: S.String,
+  ref: S.optionalWith(S.String, { default: () => '' }),
+  sha: S.optionalWith(S.String, { default: () => '' }),
   label: S.optional(S.String),
 }) {}
 
@@ -29,8 +29,8 @@ export class PullRequest extends S.Class<PullRequest>('PullRequest')({
   merged_at: S.optionalWith(S.NullOr(S.String), { default: () => null }),
   closed_at: S.optionalWith(S.NullOr(S.String), { default: () => null }),
   html_url: S.String,
-  head: BranchRef,
-  base: BranchRef,
+  head: S.optionalWith(BranchRef, { default: () => new BranchRef({ ref: '', sha: '' }) }),
+  base: S.optionalWith(BranchRef, { default: () => new BranchRef({ ref: '', sha: '' }) }),
   additions: S.optionalWith(S.Number, { default: () => 0 }),
   deletions: S.optionalWith(S.Number, { default: () => 0 }),
   changed_files: S.optionalWith(S.Number, { default: () => 0 }),

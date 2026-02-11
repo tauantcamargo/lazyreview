@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box } from 'tuir'
+import { Box } from 'ink'
 import { Spinner } from './Spinner'
 
 interface LoadingIndicatorProps {

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Box, Text, Pages, usePages, useKeymap } from 'tuir'
-import type { KeyMap } from 'tuir'
+import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../theme/index'
 import { useGitHub } from '../hooks/useGitHub'
 import { PRHeader } from '../components/pr/PRHeader'
@@ -20,13 +19,6 @@ interface PRDetailScreenProps {
   readonly repo: string
   readonly onBack: () => void
 }
-
-const tabKeymap = {
-  tab1: { input: '1' },
-  tab2: { input: '2' },
-  tab3: { input: '3' },
-  back: { input: 'q' },
-} satisfies KeyMap
 
 function TimelineTab({
   reviews,
@@ -82,20 +74,26 @@ export function PRDetailScreen({
   repo,
   onBack,
 }: PRDetailScreenProps): React.ReactElement {
-  const theme = useTheme()
   const { fetchFiles, fetchComments, fetchReviews } = useGitHub()
   const [files, setFiles] = useState<readonly FileChange[]>([])
   const [comments, setComments] = useState<readonly Comment[]>([])
   const [reviews, setReviews] = useState<readonly Review[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentTab, setCurrentTab] = useState(0)
 
-  const { pageView, control } = usePages(3)
-
-  const { useEvent: useTabEvent } = useKeymap(tabKeymap)
-  useTabEvent('tab1', () => control.goToPage(0))
-  useTabEvent('tab2', () => control.goToPage(1))
-  useTabEvent('tab3', () => control.goToPage(2))
-  useTabEvent('back', onBack)
+  useInput((input, key) => {
+    if (input === '1') {
+      setCurrentTab(0)
+    } else if (input === '2') {
+      setCurrentTab(1)
+    } else if (input === '3') {
+      setCurrentTab(2)
+    } else if (input === 'q' || key.escape) {
+      onBack()
+    } else if (key.tab) {
+      setCurrentTab((prev) => (prev + 1) % 3)
+    }
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -122,21 +120,28 @@ export function PRDetailScreen({
     }
   }, [owner, repo, pr.number, fetchFiles, fetchComments, fetchReviews])
 
+  const renderTabContent = (): React.ReactElement => {
+    if (loading) {
+      return <LoadingIndicator message="Loading PR details..." />
+    }
+
+    switch (currentTab) {
+      case 0:
+        return <FilesTab files={files} />
+      case 1:
+        return <CommentsTab comments={comments} />
+      case 2:
+        return <TimelineTab reviews={reviews} />
+      default:
+        return <FilesTab files={files} />
+    }
+  }
+
   return (
     <Box flexDirection="column" flexGrow={1}>
       <PRHeader pr={pr} />
-      <PRTabs activeIndex={control.currentPage} />
-      <Box flexGrow={1}>
-        {loading ? (
-          <LoadingIndicator message="Loading PR details..." />
-        ) : (
-          <Pages pageView={pageView}>
-            <FilesTab files={files} />
-            <CommentsTab comments={comments} />
-            <TimelineTab reviews={reviews} />
-          </Pages>
-        )}
-      </Box>
+      <PRTabs activeIndex={currentTab} />
+      <Box flexGrow={1}>{renderTabContent()}</Box>
     </Box>
   )
 }

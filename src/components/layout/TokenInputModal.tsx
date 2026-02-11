@@ -1,40 +1,51 @@
-import React from 'react'
-import { Box, Text, Modal, TextInput, useTextInput } from 'tuir'
-import type { ModalData } from 'tuir'
+import React, { useState } from 'react'
+import { Box, Text, useInput } from 'ink'
+import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 
 interface TokenInputModalProps {
-  readonly modal: ModalData
+  readonly onClose: () => void
   readonly onSubmit: (token: string) => void
   readonly error?: string | null
 }
 
 export function TokenInputModal({
-  modal,
+  onClose,
   onSubmit,
   error,
 }: TokenInputModalProps): React.ReactElement {
   const theme = useTheme()
-  const { onChange } = useTextInput('')
+  const [value, setValue] = useState('')
 
-  const handleSubmit = (submittedValue: string): void => {
-    const trimmed = submittedValue.trim()
+  const handleSubmit = (): void => {
+    const trimmed = value.trim()
     if (trimmed) {
       onSubmit(trimmed)
     }
   }
 
+  useInput((input, key) => {
+    if (key.return) {
+      handleSubmit()
+    }
+  })
+
   return (
-    <Modal
-      modal={modal}
-      justifySelf="center"
-      alignSelf="center"
-      borderStyle="round"
-      borderColor={theme.colors.accent}
-      paddingX={2}
-      paddingY={1}
+    <Box
+      position="absolute"
+      justifyContent="center"
+      alignItems="center"
+      width="100%"
+      height="100%"
     >
-      <Box flexDirection="column" gap={1}>
+      <Box
+        flexDirection="column"
+        borderStyle="round"
+        borderColor={theme.colors.accent}
+        paddingX={2}
+        paddingY={1}
+        gap={1}
+      >
         <Text color={theme.colors.accent} bold>
           GitHub Token Required
         </Text>
@@ -53,12 +64,7 @@ export function TokenInputModal({
           paddingX={1}
           width={50}
         >
-          <TextInput
-            onChange={onChange}
-            onEnter={handleSubmit}
-            cursorColor={theme.colors.accent}
-            textStyle={{ color: theme.colors.text }}
-          />
+          <TextInput defaultValue={value} onChange={setValue} />
         </Box>
         <Box flexDirection="column">
           <Text color={theme.colors.muted} dimColor>
@@ -77,6 +83,6 @@ export function TokenInputModal({
           </Text>
         </Box>
       </Box>
-    </Modal>
+    </Box>
   )
 }

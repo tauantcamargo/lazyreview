@@ -1,10 +1,9 @@
 import React from 'react'
-import { Box, Text, Modal } from 'tuir'
-import type { ModalData } from 'tuir'
+import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 
 interface HelpModalProps {
-  readonly modal: ModalData
+  readonly onClose: () => void
 }
 
 const shortcuts = [
@@ -19,20 +18,25 @@ const shortcuts = [
   { key: 'Ctrl+c', description: 'Force quit' },
 ]
 
-export function HelpModal({ modal }: HelpModalProps): React.ReactElement {
+export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
   const theme = useTheme()
 
   return (
-    <Modal
-      modal={modal}
-      justifySelf="center"
-      alignSelf="center"
-      borderStyle="round"
-      borderColor={theme.colors.accent}
-      paddingX={2}
-      paddingY={1}
+    <Box
+      position="absolute"
+      justifyContent="center"
+      alignItems="center"
+      width="100%"
+      height="100%"
     >
-      <Box flexDirection="column" gap={1}>
+      <Box
+        flexDirection="column"
+        borderStyle="round"
+        borderColor={theme.colors.accent}
+        paddingX={2}
+        paddingY={1}
+        gap={1}
+      >
         <Text color={theme.colors.accent} bold>
           Keyboard Shortcuts
         </Text>
@@ -50,6 +54,6 @@ export function HelpModal({ modal }: HelpModalProps): React.ReactElement {
           Press ? to close
         </Text>
       </Box>
-    </Modal>
+    </Box>
   )
 }
