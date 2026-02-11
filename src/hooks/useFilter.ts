@@ -22,12 +22,12 @@ const defaultFilter: FilterState = {
   sortDirection: 'desc',
 }
 
-function extractRepoFromUrl(url: string): string | null {
+export function extractRepoFromUrl(url: string): string | null {
   const match = url.match(/github\.com\/([^/]+\/[^/]+)\/pull/)
   return match?.[1] ?? null
 }
 
-function matchesSearch(pr: PullRequest, search: string): boolean {
+export function matchesSearch(pr: PullRequest, search: string): boolean {
   if (!search) return true
   const lowerSearch = search.toLowerCase()
   return (
@@ -37,24 +37,24 @@ function matchesSearch(pr: PullRequest, search: string): boolean {
   )
 }
 
-function matchesRepo(pr: PullRequest, repo: string | null): boolean {
+export function matchesRepo(pr: PullRequest, repo: string | null): boolean {
   if (!repo) return true
   const prRepo = extractRepoFromUrl(pr.html_url)
   return prRepo?.toLowerCase().includes(repo.toLowerCase()) ?? false
 }
 
-function matchesAuthor(pr: PullRequest, author: string | null): boolean {
+export function matchesAuthor(pr: PullRequest, author: string | null): boolean {
   if (!author) return true
   return pr.user.login.toLowerCase().includes(author.toLowerCase())
 }
 
-function matchesLabel(pr: PullRequest, label: string | null): boolean {
+export function matchesLabel(pr: PullRequest, label: string | null): boolean {
   if (!label) return true
   const lowerLabel = label.toLowerCase()
   return pr.labels.some((l) => l.name.toLowerCase().includes(lowerLabel))
 }
 
-function comparePRs(
+export function comparePRs(
   a: PullRequest,
   b: PullRequest,
   sortBy: SortField,

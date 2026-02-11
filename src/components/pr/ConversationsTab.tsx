@@ -43,7 +43,7 @@ interface ConversationsTabProps {
   readonly onEditComment?: (context: EditCommentContext) => void
 }
 
-function buildTimeline(
+export function buildTimeline(
   pr: PullRequest,
   comments: readonly Comment[],
   reviews: readonly Review[],

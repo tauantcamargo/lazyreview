@@ -46,7 +46,7 @@ export async function detectGitRepo(): Promise<GitRepoInfo> {
   }
 }
 
-function parseGitHubUrl(
+export function parseGitHubUrl(
   url: string,
 ): { owner: string; repo: string } | null {
   // SSH format: git@github.com:owner/repo.git

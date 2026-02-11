@@ -3,7 +3,7 @@ import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import type { Review } from '../../models/review'
 
-function getLatestReviewByUser(
+export function getLatestReviewByUser(
   reviews: readonly Review[],
 ): Map<string, Review> {
   const latest = new Map<string, Review>()

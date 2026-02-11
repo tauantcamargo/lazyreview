@@ -9,6 +9,7 @@ import { MainPanel } from './components/layout/MainPanel'
 import { StatusBar } from './components/layout/StatusBar'
 import { HelpModal } from './components/layout/HelpModal'
 import { TokenInputModal } from './components/layout/TokenInputModal'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { PRDetailScreen } from './screens/PRDetailScreen'
 import { MyPRsScreen } from './screens/MyPRsScreen'
 import { ReviewRequestsScreen } from './screens/ReviewRequestsScreen'
@@ -219,7 +220,9 @@ function AppWithTheme({
 
   return (
     <ThemeProvider theme={theme}>
-      <AppContent repoOwner={repoOwner} repoName={repoName} />
+      <ErrorBoundary>
+        <AppContent repoOwner={repoOwner} repoName={repoName} />
+      </ErrorBoundary>
     </ThemeProvider>
   )
 }

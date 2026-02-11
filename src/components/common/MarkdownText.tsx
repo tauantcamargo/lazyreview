@@ -15,7 +15,7 @@ interface ParsedBlock {
   readonly ordered?: boolean
 }
 
-function parseBlocks(text: string): readonly ParsedBlock[] {
+export function parseBlocks(text: string): readonly ParsedBlock[] {
   const lines = text.split('\n')
   const blocks: ParsedBlock[] = []
   let i = 0
@@ -125,7 +125,7 @@ interface InlineSegment {
   readonly url?: string
 }
 
-function parseInline(text: string): readonly InlineSegment[] {
+export function parseInline(text: string): readonly InlineSegment[] {
   const segments: InlineSegment[] = []
   let remaining = text
 

@@ -107,7 +107,7 @@ export function useListNavigation({
   return { selectedIndex, scrollOffset, setSelectedIndex }
 }
 
-function deriveScrollOffset(
+export function deriveScrollOffset(
   selectedIndex: number,
   viewportHeight: number,
   itemCount: number,
