@@ -104,8 +104,10 @@ function DiffLineView({
           ? ''
           : ' '
 
-  const useSyntaxHighlight =
-    line.type === 'context' && language && line.content.trim().length > 0
+  const canHighlight =
+    (line.type === 'context' || line.type === 'add' || line.type === 'del') &&
+    language !== undefined &&
+    line.content.trim().length > 0
 
   return (
     <Box backgroundColor={bgColor}>
@@ -114,9 +116,9 @@ function DiffLineView({
           {lineNumber != null ? String(lineNumber).padStart(4, ' ') : ''}
         </Text>
       </Box>
-      {useSyntaxHighlight ? (
+      {canHighlight ? (
         <Box flexDirection="row">
-          <Text color={theme.colors.text}>{prefix}</Text>
+          <Text color={textColor}>{prefix}</Text>
           <SyntaxHighlight code={line.content} language={language} />
         </Box>
       ) : (
