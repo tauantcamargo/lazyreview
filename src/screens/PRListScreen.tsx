@@ -60,6 +60,9 @@ export function PRListScreen({
     availableRepos,
     availableAuthors,
     availableLabels,
+    repoFacets,
+    authorFacets,
+    labelFacets,
   } = useFilter(prs)
 
   const {
@@ -164,6 +167,9 @@ export function PRListScreen({
           availableRepos={availableRepos}
           availableAuthors={availableAuthors}
           availableLabels={availableLabels}
+          repoFacets={repoFacets}
+          authorFacets={authorFacets}
+          labelFacets={labelFacets}
           onSearchChange={setSearch}
           onRepoChange={setRepo}
           onAuthorChange={setAuthor}

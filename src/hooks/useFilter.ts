@@ -4,6 +4,11 @@ import type { PullRequest } from '../models/pull-request'
 export type SortField = 'updated' | 'created' | 'repo' | 'author' | 'title'
 export type SortDirection = 'asc' | 'desc'
 
+export interface FacetOption {
+  readonly value: string
+  readonly count: number
+}
+
 export interface FilterState {
   readonly search: string
   readonly repo: string | null
@@ -102,6 +107,9 @@ interface UseFilterResult {
   readonly availableRepos: readonly string[]
   readonly availableAuthors: readonly string[]
   readonly availableLabels: readonly string[]
+  readonly repoFacets: readonly FacetOption[]
+  readonly authorFacets: readonly FacetOption[]
+  readonly labelFacets: readonly FacetOption[]
 }
 
 export function useFilter(items: readonly PullRequest[]): UseFilterResult {
@@ -126,6 +134,39 @@ export function useFilter(items: readonly PullRequest[]): UseFilterResult {
     const labels = new Set<string>()
     items.forEach((pr) => pr.labels.forEach((l) => labels.add(l.name)))
     return Array.from(labels).sort()
+  }, [items])
+
+  const repoFacets = useMemo((): readonly FacetOption[] => {
+    const counts = new Map<string, number>()
+    items.forEach((pr) => {
+      const repo = extractRepoFromUrl(pr.html_url)
+      if (repo) counts.set(repo, (counts.get(repo) ?? 0) + 1)
+    })
+    return Array.from(counts.entries())
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [items])
+
+  const authorFacets = useMemo((): readonly FacetOption[] => {
+    const counts = new Map<string, number>()
+    items.forEach((pr) => {
+      counts.set(pr.user.login, (counts.get(pr.user.login) ?? 0) + 1)
+    })
+    return Array.from(counts.entries())
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [items])
+
+  const labelFacets = useMemo((): readonly FacetOption[] => {
+    const counts = new Map<string, number>()
+    items.forEach((pr) =>
+      pr.labels.forEach((l) => {
+        counts.set(l.name, (counts.get(l.name) ?? 0) + 1)
+      }),
+    )
+    return Array.from(counts.entries())
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count)
   }, [items])
 
   const filteredItems = useMemo(() => {
@@ -188,5 +229,8 @@ export function useFilter(items: readonly PullRequest[]): UseFilterResult {
     availableRepos,
     availableAuthors,
     availableLabels,
+    repoFacets,
+    authorFacets,
+    labelFacets,
   }
 }
