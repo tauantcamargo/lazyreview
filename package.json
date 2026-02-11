@@ -5,6 +5,10 @@
   "type": "module",
   "author": "Tauan Camargo",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tauantcamargo/lazyreview.git"
+  },
   "keywords": [
     "tui",
     "github",
