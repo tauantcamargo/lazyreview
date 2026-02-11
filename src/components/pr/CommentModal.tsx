@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Box, Text, useInput } from 'ink'
-import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
+import { MultiLineInput } from '../common/MultiLineInput'
 
 interface CommentModalProps {
   readonly title: string
@@ -31,18 +31,27 @@ export function CommentModal({
     return () => setInputActive(false)
   }, [setInputActive])
 
+  const handleSubmit = useCallback(() => {
+    const trimmed = body.trim()
+    if (trimmed && !isSubmitting) {
+      onSubmit(trimmed)
+    }
+  }, [body, isSubmitting, onSubmit])
+
   useInput(
     (_input, key) => {
       if (isSubmitting) return
 
       if (key.escape) {
         onClose()
-      } else if (key.return && body.trim()) {
-        onSubmit(body.trim())
+      } else if (key.return && (key.meta || key.ctrl)) {
+        handleSubmit()
       }
     },
     { isActive: true },
   )
+
+  const isInline = title === 'Add Inline Comment'
 
   return (
     <Modal>
@@ -50,12 +59,11 @@ export function CommentModal({
         flexDirection="column"
         borderStyle="round"
         borderColor={theme.colors.accent}
-        // @ts-ignore
         backgroundColor={theme.colors.bg}
         paddingX={2}
         paddingY={1}
         gap={1}
-        width={60}
+        width={70}
       >
         <Text color={theme.colors.accent} bold>
           {title}
@@ -65,12 +73,33 @@ export function CommentModal({
           <Text color={theme.colors.muted}>{context}</Text>
         )}
 
-        <Box borderStyle="single" borderColor={theme.colors.border} paddingX={1}>
-          <TextInput
-            defaultValue={body}
+        <Box
+          borderStyle="single"
+          borderColor={theme.colors.border}
+          paddingX={1}
+          paddingY={0}
+          flexDirection="column"
+        >
+          <MultiLineInput
+            placeholder="Write your comment... (Markdown supported)"
             onChange={setBody}
-            placeholder="Enter your comment..."
+            isActive={!isSubmitting}
+            minHeight={5}
           />
+        </Box>
+
+        <Box flexDirection="column" gap={0}>
+          <Text color={theme.colors.muted} dimColor>
+            Markdown: **bold** *italic* `code` ```lang code block```
+          </Text>
+          {isInline && (
+            <Text color={theme.colors.muted} dimColor>
+              Suggestion: ```suggestion{'\n'}replacement code{'\n'}```
+            </Text>
+          )}
+          <Text color={theme.colors.muted} dimColor>
+            Tab: indent | Enter: new line | Ctrl+Enter: submit | Esc: cancel
+          </Text>
         </Box>
 
         {isSubmitting && (
@@ -80,10 +109,6 @@ export function CommentModal({
         {error && (
           <Text color={theme.colors.error}>{error}</Text>
         )}
-
-        <Text color={theme.colors.muted} dimColor>
-          Enter: submit | Esc: cancel
-        </Text>
       </Box>
     </Modal>
   )

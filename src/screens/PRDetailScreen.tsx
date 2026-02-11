@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { Box, useInput, useStdout } from 'ink'
 import { Match } from 'effect'
 import {
+  usePullRequest,
   usePRFiles,
   usePRComments,
   usePRReviews,
@@ -9,8 +10,9 @@ import {
   useSubmitReview,
   useCreateComment,
   useCreateReviewComment,
+  useMergePR,
 } from '../hooks/useGitHub'
-import type { ReviewEvent } from '../hooks/useGitHub'
+import type { ReviewEvent, MergeMethod } from '../hooks/useGitHub'
 import { PRHeader } from '../components/pr/PRHeader'
 import { PRTabs } from '../components/pr/PRTabs'
 import { FilesTab } from '../components/pr/FilesTab'
@@ -18,9 +20,11 @@ import { ConversationsTab } from '../components/pr/ConversationsTab'
 import { CommitsTab } from '../components/pr/CommitsTab'
 import { ReviewModal } from '../components/pr/ReviewModal'
 import { CommentModal } from '../components/pr/CommentModal'
+import { MergeModal } from '../components/pr/MergeModal'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { openInBrowser } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
+import { useManualRefresh } from '../hooks/useManualRefresh'
 import type { PullRequest } from '../models/pull-request'
 
 export interface InlineCommentContext {
@@ -51,14 +55,25 @@ export function PRDetailScreen({
   const [reviewError, setReviewError] = useState<string | null>(null)
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
+  const [showMergeModal, setShowMergeModal] = useState(false)
+  const [mergeError, setMergeError] = useState<string | null>(null)
   const [inlineContext, setInlineContext] = useState<InlineCommentContext | null>(null)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
 
   const submitReview = useSubmitReview()
   const createComment = useCreateComment()
   const createReviewComment = useCreateReviewComment()
+  const mergePR = useMergePR()
 
-  const hasModal = showReviewModal || showCommentModal
+  const hasModal = showReviewModal || showCommentModal || showMergeModal
+
+  useManualRefresh({
+    isActive: !hasModal,
+  })
+
+  // Fetch full PR data (search API doesn't include head.sha)
+  const { data: fullPR } = usePullRequest(owner, repo, pr.number)
+  const activePR = fullPR ?? pr
 
   // Fetch all PR data
   const { data: files = [], isLoading: filesLoading } = usePRFiles(owner, repo, pr.number)
@@ -110,7 +125,7 @@ export function PRDetailScreen({
             repo,
             prNumber: pr.number,
             body,
-            commitId: pr.head.sha,
+            commitId: activePR.head.sha,
             path: inlineContext.path,
             line: inlineContext.line,
             side: inlineContext.side,
@@ -144,6 +159,26 @@ export function PRDetailScreen({
     [owner, repo, pr.number, inlineContext, createComment, createReviewComment, setStatusMessage],
   )
 
+  const handleMergeSubmit = useCallback(
+    (mergeMethod: MergeMethod, commitTitle?: string) => {
+      setMergeError(null)
+      mergePR.mutate(
+        { owner, repo, prNumber: pr.number, mergeMethod, commitTitle },
+        {
+          onSuccess: () => {
+            setShowMergeModal(false)
+            setStatusMessage('PR merged successfully')
+            onBack()
+          },
+          onError: (err) => {
+            setMergeError(String(err))
+          },
+        },
+      )
+    },
+    [owner, repo, pr.number, mergePR, setStatusMessage, onBack],
+  )
+
   useInput(
     (input, key) => {
       if (input === '1') {
@@ -158,6 +193,9 @@ export function PRDetailScreen({
       } else if (input === 'r') {
         setReviewError(null)
         setShowReviewModal(true)
+      } else if (input === 'm') {
+        setMergeError(null)
+        setShowMergeModal(true)
       } else if (input === 'q' || key.escape) {
         onBack()
       }
@@ -173,7 +211,7 @@ export function PRDetailScreen({
     return Match.value(currentTab).pipe(
       Match.when(0, () => (
         <ConversationsTab
-          pr={pr}
+          pr={activePR}
           comments={comments}
           reviews={reviews}
           isActive={!hasModal}
@@ -190,7 +228,7 @@ export function PRDetailScreen({
       )),
       Match.orElse(() => (
         <ConversationsTab
-          pr={pr}
+          pr={activePR}
           comments={comments}
           reviews={reviews}
           isActive={!hasModal}
@@ -209,7 +247,7 @@ export function PRDetailScreen({
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <PRHeader pr={pr} owner={owner} repo={repo} />
+      <PRHeader pr={activePR} owner={owner} repo={repo} />
       <PRTabs activeIndex={currentTab} onChange={setCurrentTab} />
       <Box height={contentHeight} overflow="hidden" flexDirection="column">
         {renderTabContent()}
@@ -233,6 +271,15 @@ export function PRDetailScreen({
           }}
           isSubmitting={createComment.isPending || createReviewComment.isPending}
           error={commentError}
+        />
+      )}
+      {showMergeModal && (
+        <MergeModal
+          pr={activePR}
+          onSubmit={handleMergeSubmit}
+          onClose={() => setShowMergeModal(false)}
+          isSubmitting={mergePR.isPending}
+          error={mergeError}
         />
       )}
     </Box>

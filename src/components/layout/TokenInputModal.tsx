@@ -44,7 +44,6 @@ export function TokenInputModal({
         flexDirection="column"
         borderStyle="round"
         borderColor={theme.colors.accent}
-        // @ts-ignore
         backgroundColor={theme.colors.bg}
         paddingX={2}
         paddingY={1}

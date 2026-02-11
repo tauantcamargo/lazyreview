@@ -20,6 +20,8 @@ const shortcuts = [
   { key: 'o', description: 'Open PR in browser' },
   { key: 'r', description: 'Submit review (PR detail)' },
   { key: 'c', description: 'Comment (conversations / diff)' },
+  { key: 'm', description: 'Merge PR (PR detail)' },
+  { key: 'R', description: 'Manual refresh' },
   { key: 'q', description: 'Back / Quit' },
   { key: '?', description: 'Toggle this help' },
   { key: 'Ctrl+c', description: 'Force quit' },
@@ -34,7 +36,6 @@ export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
         flexDirection="column"
         borderStyle="round"
         borderColor={theme.colors.accent}
-        // @ts-ignore
         backgroundColor={theme.colors.bg}
         paddingX={2}
         paddingY={1}

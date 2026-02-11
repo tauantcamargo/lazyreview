@@ -285,7 +285,6 @@ function DiffLineView({
     line.type === 'context' && language && line.content.trim().length > 0
 
   return (
-    // @ts-ignore
     <Box backgroundColor={bgColor}>
       <Box width={5}>
         <Text color={theme.colors.muted}>

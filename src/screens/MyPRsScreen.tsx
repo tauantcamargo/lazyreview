@@ -13,6 +13,7 @@ import { FilterModal } from '../components/common/FilterModal'
 import { SortModal } from '../components/common/SortModal'
 import { openInBrowser } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
+import { useManualRefresh } from '../hooks/useManualRefresh'
 import type { PullRequest } from '../models/pull-request'
 
 interface MyPRsScreenProps {
@@ -27,6 +28,10 @@ export function MyPRsScreen({
   const { setStatusMessage } = useStatusMessage()
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
+  useManualRefresh({
+    isActive: !showFilter && !showSort,
+    queryKeys: [['my-prs']],
+  })
 
   const {
     filter,

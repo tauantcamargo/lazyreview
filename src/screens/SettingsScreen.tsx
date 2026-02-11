@@ -76,16 +76,18 @@ type SettingsItem =
   | 'new_token'
   | 'theme'
   | 'page_size'
+  | 'refresh_interval'
   | 'default_owner'
   | 'default_repo'
 
-type EditingField = 'page_size' | 'default_owner' | 'default_repo' | 'new_token' | null
+type EditingField = 'page_size' | 'refresh_interval' | 'default_owner' | 'default_repo' | 'new_token' | null
 
 const SETTINGS_ITEMS: readonly SettingsItem[] = [
   'token_source',
   'new_token',
   'theme',
   'page_size',
+  'refresh_interval',
   'default_owner',
   'default_repo',
 ]
@@ -120,6 +122,8 @@ export function SettingsScreen(): React.ReactElement {
   const startEditing = (field: EditingField): void => {
     if (field === 'page_size') {
       setEditValue(String(config?.pageSize ?? 30))
+    } else if (field === 'refresh_interval') {
+      setEditValue(String(config?.refreshInterval ?? 60))
     } else if (field === 'default_owner') {
       setEditValue(config?.defaultOwner ?? '')
     } else if (field === 'default_repo') {
@@ -142,6 +146,12 @@ export function SettingsScreen(): React.ReactElement {
       const num = parseInt(trimmed, 10)
       if (!Number.isNaN(num) && num >= 1 && num <= 100) {
         updateConfig({ pageSize: num })
+        setStatusMessage('Saved')
+      }
+    } else if (editingField === 'refresh_interval') {
+      const num = parseInt(trimmed, 10)
+      if (!Number.isNaN(num) && num >= 10 && num <= 600) {
+        updateConfig({ refreshInterval: num })
         setStatusMessage('Saved')
       }
     } else if (editingField === 'default_owner') {
@@ -203,6 +213,8 @@ export function SettingsScreen(): React.ReactElement {
           cycleTheme()
         } else if (selectedItem === 'page_size') {
           startEditing('page_size')
+        } else if (selectedItem === 'refresh_interval') {
+          startEditing('refresh_interval')
         } else if (selectedItem === 'default_owner') {
           startEditing('default_owner')
         } else if (selectedItem === 'default_repo') {
@@ -356,6 +368,17 @@ export function SettingsScreen(): React.ReactElement {
         >
           {editingField === 'page_size'
             ? renderEditableField('page_size', '1-100')
+            : undefined}
+        </SettingRow>
+        <SettingRow
+          label="Refresh Interval"
+          value={`${config?.refreshInterval ?? 60}s`}
+          isSelected={selectedItem === 'refresh_interval'}
+          isEditing={editingField === 'refresh_interval'}
+          hint="Enter to edit (10-600s)"
+        >
+          {editingField === 'refresh_interval'
+            ? renderEditableField('refresh_interval', '10-600')
             : undefined}
         </SettingRow>
         <SettingRow

@@ -4,6 +4,7 @@ import { Match } from 'effect'
 import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../../theme/index'
 import { Divider } from '../common/Divider'
+import { MarkdownText } from '../common/MarkdownText'
 import { useListNavigation } from '../../hooks/useListNavigation'
 import type { PullRequest } from '../../models/pull-request'
 import type { Comment } from '../../models/comment'
@@ -144,9 +145,7 @@ function TimelineItemView({
       </Box>
       {item.body ? (
         <Box paddingLeft={isFocus ? 3 : 2} marginTop={0} width="80%">
-          <Text color={theme.colors.text} wrap="wrap">
-            {item.body}
-          </Text>
+          <MarkdownText content={item.body} />
         </Box>
       ) : null}
     </Box>

@@ -7,6 +7,8 @@ import { FileChange } from '../models/file-change'
 import { Commit } from '../models/commit'
 import { CheckRunsResponse } from '../models/check'
 import { Auth } from './Auth'
+import { updateRateLimit } from '../hooks/useRateLimit'
+import { touchLastUpdated } from '../hooks/useLastUpdated'
 
 const BASE_URL = 'https://api.github.com'
 
@@ -97,6 +99,15 @@ export interface GitHubApiService {
     line: number,
     side: 'LEFT' | 'RIGHT',
   ) => Effect.Effect<void, ApiError>
+
+  readonly mergePullRequest: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    mergeMethod: 'merge' | 'squash' | 'rebase',
+    commitTitle?: string,
+    commitMessage?: string,
+  ) => Effect.Effect<void, ApiError>
 }
 
 export class GitHubApi extends Context.Tag('GitHubApi')<
@@ -122,6 +133,8 @@ function fetchGitHub<A, I>(
         },
       })
 
+      updateRateLimit(response.headers)
+
       if (!response.ok) {
         const body = await response.text().catch(() => '')
         throw new GitHubError({
@@ -132,6 +145,7 @@ function fetchGitHub<A, I>(
       }
 
       const data = await response.json()
+      touchLastUpdated()
       return decode(data)
     },
     catch: (error) => {
@@ -144,7 +158,8 @@ function fetchGitHub<A, I>(
   })
 }
 
-function postGitHub(
+function mutateGitHub(
+  method: 'POST' | 'PUT',
   path: string,
   token: string,
   body: Record<string, unknown>,
@@ -154,7 +169,7 @@ function postGitHub(
   return Effect.tryPromise({
     try: async () => {
       const response = await fetch(url, {
-        method: 'POST',
+        method,
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/vnd.github+json',
@@ -164,6 +179,8 @@ function postGitHub(
         body: JSON.stringify(body),
       })
 
+      updateRateLimit(response.headers)
+
       if (!response.ok) {
         const responseBody = await response.text().catch(() => '')
         throw new GitHubError({
@@ -172,6 +189,8 @@ function postGitHub(
           url,
         })
       }
+
+      touchLastUpdated()
     },
     catch: (error) => {
       if (error instanceof GitHubError) return error
@@ -207,6 +226,8 @@ function fetchGitHubSearch(
         },
       })
 
+      updateRateLimit(response.headers)
+
       if (!response.ok) {
         const body = await response.text().catch(() => '')
         throw new GitHubError({
@@ -217,6 +238,7 @@ function fetchGitHubSearch(
       }
 
       const data = await response.json()
+      touchLastUpdated()
       const result = decode(data)
       return result.items
     },
@@ -343,7 +365,8 @@ export const GitHubApiLive = Layer.effect(
       submitReview: (owner, repo, prNumber, body, event) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          yield* postGitHub(
+          yield* mutateGitHub(
+            'POST',
             `/repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
             token,
             { body, event },
@@ -353,7 +376,8 @@ export const GitHubApiLive = Layer.effect(
       createComment: (owner, repo, issueNumber, body) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          yield* postGitHub(
+          yield* mutateGitHub(
+            'POST',
             `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
             token,
             { body },
@@ -363,10 +387,26 @@ export const GitHubApiLive = Layer.effect(
       createReviewComment: (owner, repo, prNumber, body, commitId, path, line, side) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          yield* postGitHub(
+          yield* mutateGitHub(
+            'POST',
             `/repos/${owner}/${repo}/pulls/${prNumber}/comments`,
             token,
             { body, commit_id: commitId, path, line, side },
+          )
+        }),
+
+      mergePullRequest: (owner, repo, prNumber, mergeMethod, commitTitle, commitMessage) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          yield* mutateGitHub(
+            'PUT',
+            `/repos/${owner}/${repo}/pulls/${prNumber}/merge`,
+            token,
+            {
+              merge_method: mergeMethod,
+              ...(commitTitle !== undefined ? { commit_title: commitTitle } : {}),
+              ...(commitMessage !== undefined ? { commit_message: commitMessage } : {}),
+            },
           )
         }),
     })

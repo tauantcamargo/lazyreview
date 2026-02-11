@@ -31,7 +31,6 @@ function CommitItem({
       paddingX={1}
       paddingY={0}
       gap={1}
-      // @ts-ignore
       backgroundColor={isFocus ? theme.colors.selection : undefined}
     >
       <Box width={10}>

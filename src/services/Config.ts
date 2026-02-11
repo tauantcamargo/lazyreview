@@ -21,6 +21,9 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
   pageSize: S.optionalWith(S.Number.pipe(S.int(), S.between(1, 100)), {
     default: () => 30,
   }),
+  refreshInterval: S.optionalWith(S.Number.pipe(S.int(), S.between(10, 600)), {
+    default: () => 60,
+  }),
   keybindings: S.optionalWith(KeybindingsSchema, {
     default: () => ({ toggleSidebar: 'b', help: '?', quit: 'q' }),
   }),
