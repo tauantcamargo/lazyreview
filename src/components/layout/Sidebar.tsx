@@ -50,9 +50,9 @@ export function Sidebar({
       <Box flexDirection="column" paddingTop={1}>
         {SIDEBAR_ITEMS.map((label, index) => {
           const isFocus = index === selectedIndex
-          const icon = sidebarIcons[label] ?? '>'
+          const icon = sidebarIcons[label]
           return (
-            <Box key={label} paddingX={1} height={1}>
+            <Box key={label} paddingX={1}>
               <Text
                 color={isFocus ? theme.colors.accent : theme.colors.text}
                 backgroundColor={isFocus ? theme.colors.selection : undefined}

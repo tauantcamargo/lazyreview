@@ -8,7 +8,7 @@ export class GitHubError extends Data.TaggedError('GitHubError')<{
 
 export class AuthError extends Data.TaggedError('AuthError')<{
   readonly message: string
-  readonly reason: 'no_token' | 'invalid_token' | 'expired_token'
+  readonly reason: 'no_token' | 'invalid_token' | 'expired_token' | 'save_failed'
 }> {}
 
 export class ConfigError extends Data.TaggedError('ConfigError')<{

@@ -18,6 +18,7 @@ import { Sidebar, SIDEBAR_ITEMS } from './components/layout/Sidebar'
 import { MainPanel } from './components/layout/MainPanel'
 import { StatusBar } from './components/layout/StatusBar'
 import { HelpModal } from './components/layout/HelpModal'
+import { TokenInputModal } from './components/layout/TokenInputModal'
 import { PRListScreen } from './screens/PRListScreen'
 import { PRDetailScreen } from './screens/PRDetailScreen'
 import { MyPRsScreen } from './screens/MyPRsScreen'
@@ -45,18 +46,19 @@ function AppContent({
   readonly repo: string
 }): React.ReactElement {
   const { exit } = useApp()
-  const { user } = useAuth()
+  const { user, isAuthenticated, loading, saveToken, error } = useAuth()
   const [sidebarVisible, setSidebarVisible] = useState(true)
   const [currentScreen, setCurrentScreen] = useState<AppScreen>({
     type: 'list',
   })
+  const [tokenError, setTokenError] = useState<string | null>(null)
 
   const sidebarItems = [...SIDEBAR_ITEMS]
   const { listView: sidebarListView, control: sidebarControl } = useList(
     sidebarItems,
     {
       navigation: 'vi-vertical',
-      windowSize: 'fit',
+      windowSize: SIDEBAR_ITEMS.length,
     },
   )
 
@@ -66,10 +68,41 @@ function AppContent({
     navigation: 'arrow',
   })
 
-  const { modal } = useModal({
+  const { modal: helpModal } = useModal({
     show: { input: '?' },
     hide: { input: '?' },
   })
+
+  // Token modal - use null keymaps since we control visibility programmatically
+  const {
+    modal: tokenModal,
+    showModal: showTokenModal,
+    hideModal: hideTokenModal,
+  } = useModal({
+    show: null,
+    hide: null,
+  })
+
+  // Show token modal when not authenticated
+  React.useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      showTokenModal()
+    } else if (isAuthenticated) {
+      hideTokenModal()
+    }
+  }, [loading, isAuthenticated, showTokenModal, hideTokenModal])
+
+  const handleTokenSubmit = useCallback(
+    async (token: string) => {
+      try {
+        setTokenError(null)
+        await saveToken(token)
+      } catch (err) {
+        setTokenError(String(err))
+      }
+    },
+    [saveToken],
+  )
 
   const { useEvent: useAppEvent } = useKeymap(appKeymap)
 
@@ -144,7 +177,12 @@ function AppContent({
         </Node.Box>
       </Box>
       <StatusBar />
-      <HelpModal modal={modal} />
+      <HelpModal modal={helpModal} />
+      <TokenInputModal
+        modal={tokenModal}
+        onSubmit={handleTokenSubmit}
+        error={tokenError ?? error}
+      />
     </Viewport>
   )
 }

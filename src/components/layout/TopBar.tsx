@@ -21,7 +21,7 @@ export function TopBar({
       width="100%"
       justifyContent="space-between"
       paddingX={1}
-      backgroundColor={theme.colors.selection}
+      // backgroundColor={theme.colors.selection}
       marginTop={1}
     >
       <Box gap={1}>
