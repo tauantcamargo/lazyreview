@@ -259,6 +259,7 @@ export function PRDetailScreen({
         <FilesTab
           files={files}
           isActive={!modals.hasModal}
+          prUrl={activePR.html_url}
           onInlineComment={modals.handleOpenInlineComment}
           comments={comments}
           reviewThreads={reviewThreads}

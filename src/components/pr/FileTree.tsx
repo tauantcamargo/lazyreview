@@ -101,12 +101,14 @@ interface FileItemProps {
   readonly item: FileChange
   readonly isFocus: boolean
   readonly isSelected: boolean
+  readonly isViewed?: boolean
 }
 
 export function FileItem({
   item,
   isFocus,
   isSelected,
+  isViewed,
 }: FileItemProps): React.ReactElement {
   const theme = useTheme()
 
@@ -128,9 +130,13 @@ export function FileItem({
 
   const parts = item.filename.split('/')
   const filename = parts[parts.length - 1] ?? item.filename
+  const viewedIndicator = isViewed ? '\u2713' : '\u00B7'
 
   return (
     <Box paddingX={0} gap={1} width="100%">
+      <Text color={isViewed ? theme.colors.success : theme.colors.muted}>
+        {viewedIndicator}
+      </Text>
       <Text color={statusColor} bold>
         {statusIcon}
       </Text>

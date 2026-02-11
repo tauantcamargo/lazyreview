@@ -5,6 +5,7 @@ import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useListNavigation } from '../../hooks/useListNavigation'
 import { useInputFocus } from '../../hooks/useInputFocus'
+import { useViewedFiles } from '../../hooks/useViewedFiles'
 import type { FileChange } from '../../models/file-change'
 import { parseDiffPatch } from '../../models/diff'
 import type { Comment } from '../../models/comment'
@@ -44,6 +45,7 @@ interface EditCommentContext {
 interface FilesTabProps {
   readonly files: readonly FileChange[]
   readonly isActive: boolean
+  readonly prUrl?: string
   readonly onInlineComment?: (context: InlineCommentContext) => void
   readonly comments?: readonly Comment[]
   readonly reviewThreads?: readonly ReviewThread[]
@@ -59,6 +61,7 @@ type DiffMode = 'unified' | 'side-by-side'
 export function FilesTab({
   files,
   isActive,
+  prUrl,
   onInlineComment,
   comments,
   reviewThreads,
@@ -70,6 +73,7 @@ export function FilesTab({
   const { stdout } = useStdout()
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
+  const { markViewed, toggleViewed, isViewed, getViewedCount } = useViewedFiles()
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 10)
 
   const [focusPanel, setFocusPanel] = useState<FocusPanel>('tree')
@@ -127,6 +131,14 @@ export function FilesTab({
       setSelectedFileIndex(treeSelectedIndex)
     }
   }, [treeSelectedIndex, focusPanel])
+
+  // Auto-mark file as viewed when selected
+  React.useEffect(() => {
+    const file = fileOrder[selectedFileIndex]
+    if (file && prUrl) {
+      markViewed(prUrl, file.filename)
+    }
+  }, [selectedFileIndex, fileOrder, prUrl, markViewed])
 
   const selectedFile = fileOrder[selectedFileIndex] ?? fileOrder[0] ?? null
   const hunks = selectedFile?.patch ? parseDiffPatch(selectedFile.patch) : []
@@ -225,6 +237,11 @@ export function FilesTab({
       } else if (input === 'd' && focusPanel === 'diff') {
         setDiffMode((prev) => (prev === 'unified' ? 'side-by-side' : 'unified'))
         setVisualStart(null)
+      } else if (input === 'v' && focusPanel === 'tree' && prUrl) {
+        const file = fileOrder[treeSelectedIndex]
+        if (file) {
+          toggleViewed(prUrl, file.filename)
+        }
       } else if (input === 'v' && focusPanel === 'diff') {
         if (visualStart != null) {
           setVisualStart(null)
@@ -334,6 +351,11 @@ export function FilesTab({
               ? `(${filteredFiles.length} of ${files.length})`
               : `(${files.length})`}
           </Text>
+          {prUrl && (
+            <Text color={theme.colors.success}>
+              {getViewedCount(prUrl)}/{files.length} viewed
+            </Text>
+          )}
           {activeFilter && !isFiltering && (
             <Text color={theme.colors.warning}>[/{activeFilter}]</Text>
           )}
@@ -374,6 +396,7 @@ export function FilesTab({
                       isPanelFocused && row.fileIndex === treeSelectedIndex
                     }
                     isSelected={row.fileIndex === selectedFileIndex}
+                    isViewed={prUrl ? isViewed(prUrl, row.file.filename) : undefined}
                   />
                 </Box>
               ),
