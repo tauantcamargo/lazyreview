@@ -94,12 +94,12 @@ theme: tokyo-night   # tokyo-night | dracula | catppuccin-mocha
 GitHub token can be set via:
 
 - Prompt on first run (stored locally), or
-- Environment variable: `GITHUB_TOKEN`
+- Environment variable: `LAZYREVIEW_GITHUB_TOKEN`
 
 ## Development
 
 ```bash
-git clone https://github.com/your-username/lazyreview.git
+git clone https://github.com/tauantcamargo/lazyreview.git
 cd lazyreview
 pnpm install
 pnpm build
