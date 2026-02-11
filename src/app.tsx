@@ -41,6 +41,7 @@ function AppContent({
   })
   const [tokenError, setTokenError] = useState<string | null>(null)
   const [showHelp, setShowHelp] = useState(false)
+  // Start with modal hidden, show only after auth check fails
   const [showTokenInput, setShowTokenInput] = useState(false)
 
   // Panel focus management
@@ -55,14 +56,14 @@ function AppContent({
     isActive: activePanel === 'sidebar' && !showHelp && !showTokenInput,
   })
 
-  // Show token modal when not authenticated
+  // Show token modal when not authenticated (covers invalid token case)
   React.useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!loading && !isAuthenticated && !showTokenInput) {
       setShowTokenInput(true)
-    } else if (isAuthenticated) {
+    } else if (isAuthenticated && showTokenInput) {
       setShowTokenInput(false)
     }
-  }, [loading, isAuthenticated])
+  }, [loading, isAuthenticated, showTokenInput])
 
   const handleTokenSubmit = useCallback(
     async (token: string) => {
