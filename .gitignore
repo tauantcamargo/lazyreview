@@ -5,3 +5,5 @@ coverage/
 .env.local
 *.tgz
 .DS_Store
+.claude
+CLAUDE.md
