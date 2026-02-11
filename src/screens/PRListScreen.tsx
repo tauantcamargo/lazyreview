@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../theme/index'
 import { useListNavigation } from '../hooks/useListNavigation'
@@ -14,6 +14,7 @@ import { SortModal } from '../components/common/SortModal'
 import { openInBrowser, copyToClipboard } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useManualRefresh } from '../hooks/useManualRefresh'
+import { useReadState } from '../hooks/useReadState'
 import type { PullRequest } from '../models/pull-request'
 import type { PRStateFilter } from '../hooks/useGitHub'
 
@@ -52,8 +53,10 @@ export function PRListScreen({
 }: PRListScreenProps): React.ReactElement {
   const theme = useTheme()
   const { setStatusMessage } = useStatusMessage()
+  const { isUnread } = useReadState()
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false)
   const { refresh } = useManualRefresh({
     isActive: !showFilter && !showSort,
     queryKeys,
@@ -78,6 +81,14 @@ export function PRListScreen({
     labelFacets,
   } = useFilter(prs)
 
+  const displayItems = useMemo(
+    () =>
+      showUnreadOnly
+        ? filteredItems.filter((pr) => isUnread(pr.html_url, pr.updated_at))
+        : filteredItems,
+    [filteredItems, showUnreadOnly, isUnread],
+  )
+
   const {
     currentPage,
     totalPages,
@@ -88,7 +99,7 @@ export function PRListScreen({
     prevPage,
     startIndex,
     endIndex,
-  } = usePagination(filteredItems, { pageSize: 18 })
+  } = usePagination(displayItems, { pageSize: 18 })
 
   const { selectedIndex } = useListNavigation({
     itemCount: pageItems.length,
@@ -99,9 +110,9 @@ export function PRListScreen({
   useInput(
     (input, key) => {
       if (key.return && pageItems[selectedIndex]) {
-        // Pass the full filtered list and absolute index for next/prev navigation
+        // Pass the full display list and absolute index for next/prev navigation
         const absoluteIndex = startIndex + selectedIndex
-        onSelect(pageItems[selectedIndex], filteredItems, absoluteIndex)
+        onSelect(pageItems[selectedIndex], displayItems, absoluteIndex)
       } else if (input === 'n' && hasNextPage) {
         nextPage()
       } else if (input === 'p' && hasPrevPage) {
@@ -120,6 +131,9 @@ export function PRListScreen({
         } else {
           setStatusMessage('Failed to copy to clipboard')
         }
+      } else if (input === 'u') {
+        setShowUnreadOnly((prev) => !prev)
+        setStatusMessage(showUnreadOnly ? 'Showing all PRs' : 'Showing unread PRs only')
       } else if (input === 't' && onStateChange) {
         const currentIdx = STATE_CYCLE.indexOf(stateFilter)
         const nextIdx = (currentIdx + 1) % STATE_CYCLE.length
@@ -153,6 +167,9 @@ export function PRListScreen({
               [{STATE_LABELS[stateFilter]}]
             </Text>
           )}
+          {showUnreadOnly && (
+            <Text color={theme.colors.accent}>[Unread]</Text>
+          )}
           {hasActiveFilters && (
             <Text color={theme.colors.warning}>(filtered)</Text>
           )}
@@ -163,7 +180,7 @@ export function PRListScreen({
         <PaginationBar
           currentPage={currentPage}
           totalPages={totalPages}
-          totalItems={filteredItems.length}
+          totalItems={displayItems.length}
           startIndex={startIndex}
           endIndex={endIndex}
           hasNextPage={hasNextPage}

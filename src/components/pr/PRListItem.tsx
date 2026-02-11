@@ -5,6 +5,7 @@ import type { PullRequest } from '../../models/pull-request'
 import { timeAgo } from '../../utils/date'
 import { CheckStatusIcon } from './CheckStatusIcon'
 import { ReviewStatusIcon } from './ReviewStatusIcon'
+import { useReadState } from '../../hooks/useReadState'
 
 interface PRListItemProps {
   readonly item: PullRequest
@@ -27,6 +28,8 @@ export function PRListItem({
   isFocus,
 }: PRListItemProps): React.ReactElement {
   const theme = useTheme()
+  const { isUnread } = useReadState()
+  const unread = isUnread(item.html_url, item.updated_at)
 
   const stateColor = item.draft
     ? theme.colors.muted
@@ -59,16 +62,19 @@ export function PRListItem({
         {ownerRepo && (
           <ReviewStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} prNumber={item.number} />
         )}
+        {unread && (
+          <Text color={theme.colors.accent} bold>*</Text>
+        )}
         <Text
-          color={isFocus ? theme.colors.listSelectedFg : theme.colors.text}
-          bold={isFocus}
+          color={isFocus ? theme.colors.listSelectedFg : unread ? theme.colors.accent : theme.colors.text}
+          bold={isFocus || unread}
           inverse={isFocus}
         >
           #{item.number}
         </Text>
         <Text
-          color={isFocus ? theme.colors.listSelectedFg : theme.colors.text}
-          bold={isFocus}
+          color={isFocus ? theme.colors.listSelectedFg : unread ? theme.colors.accent : theme.colors.text}
+          bold={isFocus || unread}
           inverse={isFocus}
         >
           {item.title}

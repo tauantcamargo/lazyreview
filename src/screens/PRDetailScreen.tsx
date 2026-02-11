@@ -26,6 +26,7 @@ import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { openInBrowser, copyToClipboard } from '../utils/terminal'
 import { checkoutPR } from '../utils/git'
 import { useStatusMessage } from '../hooks/useStatusMessage'
+import { useReadState } from '../hooks/useReadState'
 import { useManualRefresh } from '../hooks/useManualRefresh'
 import { setScreenContext } from '../hooks/useScreenContext'
 import { useTheme } from '../theme/index'
@@ -59,10 +60,16 @@ export function PRDetailScreen({
 }: PRDetailScreenProps): React.ReactElement {
   const { stdout } = useStdout()
   const { setStatusMessage } = useStatusMessage()
+  const { markAsRead } = useReadState()
   const theme = useTheme()
   const [currentTab, setCurrentTab] = useState(0)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
+
+  // Mark PR as read when entering detail view
+  React.useEffect(() => {
+    markAsRead(pr.html_url, pr.updated_at)
+  }, [pr.html_url, pr.updated_at, markAsRead])
 
   // Set screen context for status bar hints based on active tab
   React.useEffect(() => {

@@ -38,6 +38,7 @@ const shortcutGroups: readonly ShortcutGroup[] = [
       { key: 'n / p', description: 'Next / Previous page' },
       { key: 'o', description: 'Open PR in browser' },
       { key: 'y', description: 'Copy PR URL' },
+      { key: 'u', description: 'Toggle unread only' },
       { key: 't', description: 'Toggle state (Open/Closed/All)' },
       { key: 'R', description: 'Refresh' },
     ],
