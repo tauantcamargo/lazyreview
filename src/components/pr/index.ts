@@ -7,7 +7,6 @@ export type { DiffDisplayRow } from './DiffView'
 export { DiffCommentView } from './DiffComment'
 export type { DiffCommentThread } from './DiffComment'
 export {
-  FileTree,
   FileItem,
   buildFileTree,
   flattenTreeToFiles,

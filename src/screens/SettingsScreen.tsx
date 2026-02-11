@@ -6,6 +6,7 @@ import type { ThemeName } from '../theme/index'
 import { useConfig } from '../hooks/useConfig'
 import { useAuth } from '../hooks/useAuth'
 import { useStatusMessage } from '../hooks/useStatusMessage'
+import { useInputFocus } from '../hooks/useInputFocus'
 import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { SettingRow, TokenSourceLabel } from '../components/settings/SettingRow'
@@ -46,6 +47,7 @@ export function SettingsScreen(): React.ReactElement {
   } = useAuth()
 
   const { setStatusMessage } = useStatusMessage()
+  const { setInputActive } = useInputFocus()
   const [selectedItem, setSelectedItem] = useState<SettingsItem>('token_source')
   const [editingField, setEditingField] = useState<EditingField>(null)
   const [editValue, setEditValue] = useState('')
@@ -74,11 +76,13 @@ export function SettingsScreen(): React.ReactElement {
       setEditValue('')
     }
     setEditingField(field)
+    setInputActive(true)
   }
 
   const cancelEditing = (): void => {
     setEditingField(null)
     setEditValue('')
+    setInputActive(false)
   }
 
   const commitEdit = (): void => {

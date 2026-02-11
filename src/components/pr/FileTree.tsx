@@ -1,6 +1,5 @@
 import React from 'react'
 import { Box, Text } from 'ink'
-import { UnorderedList } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import type { FileChange } from '../../models/file-change'
 
@@ -152,53 +151,3 @@ export function FileItem({
   )
 }
 
-interface FileTreeProps {
-  readonly nodes: TreeNode[]
-  readonly fileIndexRef: { current: number }
-  readonly treeSelectedIndex: number
-  readonly selectedFileIndex: number
-  readonly isPanelFocused: boolean
-}
-
-export function FileTree({
-  nodes,
-  fileIndexRef,
-  treeSelectedIndex,
-  selectedFileIndex,
-  isPanelFocused,
-}: FileTreeProps): React.ReactElement {
-  const theme = useTheme()
-  return (
-    <UnorderedList>
-      {nodes.map((node) => {
-        if (node.type === 'file') {
-          const idx = fileIndexRef.current
-          fileIndexRef.current += 1
-          const isFocus = isPanelFocused && idx === treeSelectedIndex
-          const isSelected = idx === selectedFileIndex
-          return (
-            <UnorderedList.Item key={node.file.filename}>
-              <FileItem
-                item={node.file}
-                isFocus={isFocus}
-                isSelected={isSelected}
-              />
-            </UnorderedList.Item>
-          )
-        }
-        return (
-          <UnorderedList.Item key={node.name}>
-            <Text color={theme.colors.muted}>{node.name}/</Text>
-            <FileTree
-              nodes={node.children}
-              fileIndexRef={fileIndexRef}
-              treeSelectedIndex={treeSelectedIndex}
-              selectedFileIndex={selectedFileIndex}
-              isPanelFocused={isPanelFocused}
-            />
-          </UnorderedList.Item>
-        )
-      })}
-    </UnorderedList>
-  )
-}
