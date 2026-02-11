@@ -1,4 +1,5 @@
 export { PRDetailScreen } from './PRDetailScreen'
+export { PRListScreen } from './PRListScreen'
 export { MyPRsScreen } from './MyPRsScreen'
 export { ReviewRequestsScreen } from './ReviewRequestsScreen'
 export { SettingsScreen } from './SettingsScreen'
