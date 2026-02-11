@@ -6,6 +6,7 @@ import type { PullRequest } from '../models/pull-request'
 import type { FileChange } from '../models/file-change'
 import type { Comment } from '../models/comment'
 import type { Review } from '../models/review'
+import type { Commit } from '../models/commit'
 
 function runEffect<A>(
   effect: Effect.Effect<A, unknown, unknown>,
@@ -83,6 +84,20 @@ export function usePRReviews(owner: string, repo: string, number: number) {
         Effect.gen(function* () {
           const api = yield* GitHubApi
           return yield* api.getPullRequestReviews(owner, repo, number)
+        }),
+      ),
+    enabled: !!owner && !!repo && !!number,
+  })
+}
+
+export function usePRCommits(owner: string, repo: string, number: number) {
+  return useQuery({
+    queryKey: ['pr-commits', owner, repo, number],
+    queryFn: () =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* GitHubApi
+          return yield* api.getPullRequestCommits(owner, repo, number)
         }),
       ),
     enabled: !!owner && !!repo && !!number,

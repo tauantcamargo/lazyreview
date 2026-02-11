@@ -4,6 +4,7 @@ import { PullRequest } from '../models/pull-request'
 import { Comment } from '../models/comment'
 import { Review } from '../models/review'
 import { FileChange } from '../models/file-change'
+import { Commit } from '../models/commit'
 import { Auth } from './Auth'
 
 const BASE_URL = 'https://api.github.com'
@@ -48,6 +49,12 @@ export interface GitHubApiService {
     repo: string,
     number: number,
   ) => Effect.Effect<readonly Review[], ApiError>
+
+  readonly getPullRequestCommits: (
+    owner: string,
+    repo: string,
+    number: number,
+  ) => Effect.Effect<readonly Commit[], ApiError>
 
   readonly getMyPRs: () => Effect.Effect<readonly PullRequest[], ApiError>
 
@@ -217,6 +224,16 @@ export const GitHubApiLive = Layer.effect(
             `/repos/${owner}/${repo}/pulls/${number}/reviews`,
             token,
             S.Array(Review),
+          )
+        }),
+
+      getPullRequestCommits: (owner, repo, number) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          return yield* fetchGitHub(
+            `/repos/${owner}/${repo}/pulls/${number}/commits`,
+            token,
+            S.Array(Commit),
           )
         }),
 

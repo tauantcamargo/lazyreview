@@ -102,7 +102,7 @@ export function MyPRsScreen({
           {hasActiveFilters && (
             <Text color={theme.colors.warning}>(filtered)</Text>
           )}
-          <Text color={theme.colors.muted}>/ filter  s sort</Text>
+          <Text color={theme.colors.muted}>/ filter s sort</Text>
         </Box>
         <PaginationBar
           currentPage={currentPage}

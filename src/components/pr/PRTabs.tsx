@@ -2,7 +2,7 @@ import React from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 
-export const PR_TAB_NAMES = ['Files', 'Comments', 'Timeline'] as const
+export const PR_TAB_NAMES = ['Conversations', 'Commits', 'Files'] as const
 export type PRTabName = (typeof PR_TAB_NAMES)[number]
 
 interface PRTabsProps {

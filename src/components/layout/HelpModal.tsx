@@ -8,11 +8,13 @@ interface HelpModalProps {
 }
 
 const shortcuts = [
-  { key: 'j / Down', description: 'Move down' },
-  { key: 'k / Up', description: 'Move up' },
+  { key: 'j / k', description: 'Move down / up' },
   { key: 'Enter', description: 'Select / Open' },
   { key: 'Tab', description: 'Switch focus panel' },
   { key: 'b', description: 'Toggle sidebar' },
+  { key: '/', description: 'Search / Filter PRs' },
+  { key: 's', description: 'Sort PRs' },
+  { key: 'n / p', description: 'Next / Previous page' },
   { key: '1 / 2 / 3', description: 'Switch PR detail tabs' },
   { key: 'q', description: 'Back / Quit' },
   { key: '?', description: 'Toggle this help' },

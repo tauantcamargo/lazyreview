@@ -54,10 +54,7 @@ export function PRListScreen({
 
   if (prs.length === 0) {
     return (
-      <EmptyState
-        message="No pull requests found"
-        hint={`${owner}/${repo}`}
-      />
+      <EmptyState message="No pull requests found" hint={`${owner}/${repo}`} />
     )
   }
 
