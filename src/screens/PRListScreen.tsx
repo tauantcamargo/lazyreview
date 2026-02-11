@@ -15,6 +15,15 @@ import { openInBrowser, copyToClipboard } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useManualRefresh } from '../hooks/useManualRefresh'
 import type { PullRequest } from '../models/pull-request'
+import type { PRStateFilter } from '../hooks/useGitHub'
+
+const STATE_LABELS: Record<PRStateFilter, string> = {
+  open: 'Open',
+  closed: 'Closed',
+  all: 'All',
+}
+
+const STATE_CYCLE: readonly PRStateFilter[] = ['open', 'closed', 'all']
 
 interface PRListScreenProps {
   readonly title: string
@@ -24,6 +33,8 @@ interface PRListScreenProps {
   readonly emptyMessage: string
   readonly loadingMessage: string
   readonly queryKeys: readonly string[][]
+  readonly stateFilter?: PRStateFilter
+  readonly onStateChange?: (state: PRStateFilter) => void
   readonly onSelect: (pr: PullRequest) => void
 }
 
@@ -35,6 +46,8 @@ export function PRListScreen({
   emptyMessage,
   loadingMessage,
   queryKeys,
+  stateFilter = 'open',
+  onStateChange,
   onSelect,
 }: PRListScreenProps): React.ReactElement {
   const theme = useTheme()
@@ -105,6 +118,10 @@ export function PRListScreen({
         } else {
           setStatusMessage('Failed to copy to clipboard')
         }
+      } else if (input === 't' && onStateChange) {
+        const currentIdx = STATE_CYCLE.indexOf(stateFilter)
+        const nextIdx = (currentIdx + 1) % STATE_CYCLE.length
+        onStateChange(STATE_CYCLE[nextIdx]!)
       }
     },
     { isActive: !showFilter && !showSort },
@@ -129,10 +146,17 @@ export function PRListScreen({
           <Text color={theme.colors.accent} bold>
             {title}
           </Text>
+          {onStateChange && (
+            <Text color={stateFilter === 'open' ? theme.colors.success : stateFilter === 'closed' ? theme.colors.error : theme.colors.info}>
+              [{STATE_LABELS[stateFilter]}]
+            </Text>
+          )}
           {hasActiveFilters && (
             <Text color={theme.colors.warning}>(filtered)</Text>
           )}
-          <Text color={theme.colors.muted}>/ filter s sort</Text>
+          <Text color={theme.colors.muted}>
+            / filter  s sort{onStateChange ? '  t state' : ''}
+          </Text>
         </Box>
         <PaginationBar
           currentPage={currentPage}

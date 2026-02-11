@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { usePullRequests } from '../hooks/useGitHub'
+import type { PRStateFilter } from '../hooks/useGitHub'
 import { PRListScreen } from './PRListScreen'
 import { EmptyState } from '../components/common/EmptyState'
 import type { PullRequest } from '../models/pull-request'
@@ -11,10 +12,11 @@ interface ThisRepoScreenProps {
 }
 
 export function ThisRepoScreen({ owner, repo, onSelect }: ThisRepoScreenProps): React.ReactElement {
+  const [stateFilter, setStateFilter] = useState<PRStateFilter>('open')
   const { data: prs = [], isLoading, error } = usePullRequests(
     owner ?? '',
     repo ?? '',
-    { state: 'open' },
+    { state: stateFilter === 'all' ? 'all' : stateFilter === 'closed' ? 'closed' : 'open' },
   )
 
   if (!owner || !repo) {
@@ -27,9 +29,11 @@ export function ThisRepoScreen({ owner, repo, onSelect }: ThisRepoScreenProps): 
       prs={prs}
       isLoading={isLoading}
       error={error}
-      emptyMessage={`No open PRs in ${owner}/${repo}`}
+      emptyMessage={`No ${stateFilter === 'all' ? '' : stateFilter + ' '}PRs in ${owner}/${repo}`}
       loadingMessage={`Loading PRs for ${owner}/${repo}...`}
       queryKeys={[['prs', owner, repo]]}
+      stateFilter={stateFilter}
+      onStateChange={setStateFilter}
       onSelect={onSelect}
     />
   )

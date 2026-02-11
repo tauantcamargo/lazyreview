@@ -67,14 +67,17 @@ export interface GitHubApiService {
     number: number,
   ) => Effect.Effect<readonly Commit[], ApiError>
 
-  readonly getMyPRs: () => Effect.Effect<readonly PullRequest[], ApiError>
+  readonly getMyPRs: (
+    stateFilter?: 'open' | 'closed' | 'all',
+  ) => Effect.Effect<readonly PullRequest[], ApiError>
 
-  readonly getReviewRequests: () => Effect.Effect<
-    readonly PullRequest[],
-    ApiError
-  >
+  readonly getReviewRequests: (
+    stateFilter?: 'open' | 'closed' | 'all',
+  ) => Effect.Effect<readonly PullRequest[], ApiError>
 
-  readonly getInvolvedPRs: () => Effect.Effect<readonly PullRequest[], ApiError>
+  readonly getInvolvedPRs: (
+    stateFilter?: 'open' | 'closed' | 'all',
+  ) => Effect.Effect<readonly PullRequest[], ApiError>
 
   readonly getCheckRuns: (
     owner: string,

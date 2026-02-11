@@ -1,5 +1,5 @@
-import React from 'react'
-import { useInvolvedPRs } from '../hooks/useGitHub'
+import React, { useState } from 'react'
+import { useInvolvedPRs, type PRStateFilter } from '../hooks/useGitHub'
 import { PRListScreen } from './PRListScreen'
 import type { PullRequest } from '../models/pull-request'
 
@@ -8,7 +8,8 @@ interface InvolvedScreenProps {
 }
 
 export function InvolvedScreen({ onSelect }: InvolvedScreenProps): React.ReactElement {
-  const { data: prs = [], isLoading, error } = useInvolvedPRs()
+  const [stateFilter, setStateFilter] = useState<PRStateFilter>('open')
+  const { data: prs = [], isLoading, error } = useInvolvedPRs(stateFilter)
 
   return (
     <PRListScreen
@@ -16,9 +17,11 @@ export function InvolvedScreen({ onSelect }: InvolvedScreenProps): React.ReactEl
       prs={prs}
       isLoading={isLoading}
       error={error}
-      emptyMessage="No pull requests you're involved in"
+      emptyMessage={`No ${stateFilter === 'all' ? '' : stateFilter + ' '}pull requests you're involved in`}
       loadingMessage="Loading involved PRs..."
-      queryKeys={[['involved-prs']]}
+      queryKeys={[['involved-prs', stateFilter]]}
+      stateFilter={stateFilter}
+      onStateChange={setStateFilter}
       onSelect={onSelect}
     />
   )

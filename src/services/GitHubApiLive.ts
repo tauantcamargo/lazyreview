@@ -17,6 +17,17 @@ import {
   buildQueryString,
 } from './GitHubApiHelpers'
 
+function buildStateQualifier(stateFilter: 'open' | 'closed' | 'all' = 'open'): string {
+  switch (stateFilter) {
+    case 'open':
+      return 'is:open'
+    case 'closed':
+      return 'is:closed'
+    case 'all':
+      return ''
+  }
+}
+
 export const GitHubApiLive = Layer.effect(
   GitHubApi,
   Effect.gen(function* () {
@@ -95,25 +106,28 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      getMyPRs: () =>
+      getMyPRs: (stateFilter = 'open') =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          return yield* fetchGitHubSearch('is:pr is:open author:@me', token)
+          const stateQ = buildStateQualifier(stateFilter)
+          const query = `is:pr ${stateQ} author:@me`.replace(/\s+/g, ' ').trim()
+          return yield* fetchGitHubSearch(query, token)
         }),
 
-      getReviewRequests: () =>
+      getReviewRequests: (stateFilter = 'open') =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          return yield* fetchGitHubSearch(
-            'is:pr is:open review-requested:@me',
-            token,
-          )
+          const stateQ = buildStateQualifier(stateFilter)
+          const query = `is:pr ${stateQ} review-requested:@me`.replace(/\s+/g, ' ').trim()
+          return yield* fetchGitHubSearch(query, token)
         }),
 
-      getInvolvedPRs: () =>
+      getInvolvedPRs: (stateFilter = 'open') =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
-          return yield* fetchGitHubSearch('is:pr is:open involves:@me', token)
+          const stateQ = buildStateQualifier(stateFilter)
+          const query = `is:pr ${stateQ} involves:@me`.replace(/\s+/g, ' ').trim()
+          return yield* fetchGitHubSearch(query, token)
         }),
 
       getCheckRuns: (owner, repo, ref) =>

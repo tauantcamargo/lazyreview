@@ -149,48 +149,50 @@ export function usePRCommits(owner: string, repo: string, number: number) {
   })
 }
 
-export function useMyPRs() {
+export type PRStateFilter = 'open' | 'closed' | 'all'
+
+export function useMyPRs(stateFilter: PRStateFilter = 'open') {
   const refetchInterval = useRefreshInterval()
 
   return useQuery({
-    queryKey: ['my-prs'],
+    queryKey: ['my-prs', stateFilter],
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
           const api = yield* GitHubApi
-          return yield* api.getMyPRs()
+          return yield* api.getMyPRs(stateFilter)
         }),
       ),
     refetchInterval,
   })
 }
 
-export function useReviewRequests() {
+export function useReviewRequests(stateFilter: PRStateFilter = 'open') {
   const refetchInterval = useRefreshInterval()
 
   return useQuery({
-    queryKey: ['review-requests'],
+    queryKey: ['review-requests', stateFilter],
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
           const api = yield* GitHubApi
-          return yield* api.getReviewRequests()
+          return yield* api.getReviewRequests(stateFilter)
         }),
       ),
     refetchInterval,
   })
 }
 
-export function useInvolvedPRs() {
+export function useInvolvedPRs(stateFilter: PRStateFilter = 'open') {
   const refetchInterval = useRefreshInterval()
 
   return useQuery({
-    queryKey: ['involved-prs'],
+    queryKey: ['involved-prs', stateFilter],
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
           const api = yield* GitHubApi
-          return yield* api.getInvolvedPRs()
+          return yield* api.getInvolvedPRs(stateFilter)
         }),
       ),
     refetchInterval,

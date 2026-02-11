@@ -29,11 +29,19 @@ export function PRListItem({
 
   const stateColor = item.draft
     ? theme.colors.muted
-    : item.state === 'open'
-      ? theme.colors.success
-      : theme.colors.error
+    : item.merged
+      ? theme.colors.secondary
+      : item.state === 'open'
+        ? theme.colors.success
+        : theme.colors.error
 
-  const stateIcon = item.draft ? 'D' : item.state === 'open' ? 'O' : 'C'
+  const stateIcon = item.draft
+    ? 'D'
+    : item.merged
+      ? 'M'
+      : item.state === 'open'
+        ? 'O'
+        : 'C'
   const repoName = extractRepoFromUrl(item.html_url)
   const ownerRepo = extractOwnerRepo(item.html_url)
   const headSha = item.head.sha
