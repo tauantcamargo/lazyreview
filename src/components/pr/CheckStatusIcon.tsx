@@ -8,31 +8,33 @@ interface CheckStatusIconProps {
   readonly owner: string
   readonly repo: string
   readonly sha: string
+  readonly enabled?: boolean
 }
 
 export function CheckStatusIcon({
   owner,
   repo,
   sha,
-}: CheckStatusIconProps): React.ReactElement | null {
+  enabled = true,
+}: CheckStatusIconProps): React.ReactElement {
   const theme = useTheme()
-  const { data } = useCheckRuns(owner, repo, sha)
+  const { data } = useCheckRuns(owner, repo, sha, { enabled })
 
   if (!data || data.total_count === 0) {
-    return null
+    return <Text color={theme.colors.muted}>{enabled ? '' : '\u00B7'}</Text>
   }
 
   const summary = summarizeChecks(data.check_runs)
 
   if (summary.conclusion === 'success') {
-    return <Text color={theme.colors.success}>✓</Text>
+    return <Text color={theme.colors.success}>{'\u2713'}</Text>
   }
   if (summary.conclusion === 'failure') {
-    return <Text color={theme.colors.error}>✗</Text>
+    return <Text color={theme.colors.error}>{'\u2717'}</Text>
   }
   if (summary.conclusion === 'pending') {
-    return <Text color={theme.colors.warning}>●</Text>
+    return <Text color={theme.colors.warning}>{'\u25CF'}</Text>
   }
 
-  return null
+  return <Text color={theme.colors.muted}>{'\u00B7'}</Text>
 }

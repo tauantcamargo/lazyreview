@@ -57,10 +57,10 @@ export function PRListItem({
           {stateIcon}
         </Text>
         {ownerRepo && headSha && (
-          <CheckStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} sha={headSha} />
+          <CheckStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} sha={headSha} enabled={isFocus} />
         )}
         {ownerRepo && (
-          <ReviewStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} prNumber={item.number} />
+          <ReviewStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} prNumber={item.number} enabled={isFocus} />
         )}
         {unread && (
           <Text color={theme.colors.accent} bold>*</Text>

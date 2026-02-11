@@ -115,8 +115,14 @@ export function useIssueComments(owner: string, repo: string, issueNumber: numbe
   })
 }
 
-export function usePRReviews(owner: string, repo: string, number: number) {
+export function usePRReviews(
+  owner: string,
+  repo: string,
+  number: number,
+  options?: { readonly enabled?: boolean },
+) {
   const refetchInterval = useRefreshInterval(30)
+  const enabledFlag = options?.enabled ?? true
 
   return useQuery({
     queryKey: ['pr-reviews', owner, repo, number],
@@ -127,7 +133,7 @@ export function usePRReviews(owner: string, repo: string, number: number) {
           return yield* api.getPullRequestReviews(owner, repo, number)
         }),
       ),
-    enabled: !!owner && !!repo && !!number,
+    enabled: enabledFlag && !!owner && !!repo && !!number,
     refetchInterval,
   })
 }
@@ -216,8 +222,14 @@ export function useReviewThreads(owner: string, repo: string, number: number) {
   })
 }
 
-export function useCheckRuns(owner: string, repo: string, ref: string) {
+export function useCheckRuns(
+  owner: string,
+  repo: string,
+  ref: string,
+  options?: { readonly enabled?: boolean },
+) {
   const refetchInterval = useRefreshInterval(30)
+  const enabledFlag = options?.enabled ?? true
 
   return useQuery({
     queryKey: ['check-runs', owner, repo, ref],
@@ -228,7 +240,7 @@ export function useCheckRuns(owner: string, repo: string, ref: string) {
           return yield* api.getCheckRuns(owner, repo, ref)
         }),
       ),
-    enabled: !!owner && !!repo && !!ref,
+    enabled: enabledFlag && !!owner && !!repo && !!ref,
     refetchInterval,
   })
 }

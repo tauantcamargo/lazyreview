@@ -39,18 +39,20 @@ interface ReviewStatusIconProps {
   readonly owner: string
   readonly repo: string
   readonly prNumber: number
+  readonly enabled?: boolean
 }
 
 export function ReviewStatusIcon({
   owner,
   repo,
   prNumber,
-}: ReviewStatusIconProps): React.ReactElement | null {
+  enabled = true,
+}: ReviewStatusIconProps): React.ReactElement {
   const theme = useTheme()
-  const { data: reviews } = usePRReviews(owner, repo, prNumber)
+  const { data: reviews } = usePRReviews(owner, repo, prNumber, { enabled })
 
   if (!reviews || reviews.length === 0) {
-    return null
+    return <Text color={theme.colors.muted}>{enabled ? '' : '\u00B7'}</Text>
   }
 
   const decision = getReviewDecision(reviews)
@@ -65,5 +67,5 @@ export function ReviewStatusIcon({
     return <Text color={theme.colors.warning}>R</Text>
   }
 
-  return null
+  return <Text color={theme.colors.muted}>{'\u00B7'}</Text>
 }
