@@ -56,6 +56,7 @@ function AppContent({
     sidebarItems,
     {
       navigation: 'vi-vertical',
+      windowSize: 'fit',
     },
   )
 
@@ -136,7 +137,7 @@ function AppContent({
       />
       <Box flexDirection="row" flexGrow={1}>
         <Node.Box {...register('sidebar')}>
-          <Sidebar listView={sidebarListView} visible={sidebarVisible} />
+          <Sidebar selectedIndex={sidebarIndex} visible={sidebarVisible} />
         </Node.Box>
         <Node.Box {...register('main')} flexGrow={1}>
           <MainPanel>{renderScreen()}</MainPanel>
