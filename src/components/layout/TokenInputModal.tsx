@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
+import { Modal } from '../common/Modal'
 
 interface TokenInputModalProps {
   readonly onClose: () => void
@@ -10,7 +11,6 @@ interface TokenInputModalProps {
 }
 
 export function TokenInputModal({
-  onClose,
   onSubmit,
   error,
 }: TokenInputModalProps): React.ReactElement {
@@ -24,20 +24,14 @@ export function TokenInputModal({
     }
   }
 
-  useInput((input, key) => {
+  useInput((_input, key) => {
     if (key.return) {
       handleSubmit()
     }
   })
 
   return (
-    <Box
-      position="absolute"
-      justifyContent="center"
-      alignItems="center"
-      width="100%"
-      height="100%"
-    >
+    <Modal>
       <Box
         flexDirection="column"
         borderStyle="round"
@@ -68,10 +62,10 @@ export function TokenInputModal({
         </Box>
         <Box flexDirection="column">
           <Text color={theme.colors.muted} dimColor>
-            The token will be saved to your shell profile.
+            The token will be saved to ~/.config/lazyreview/.token
           </Text>
           <Text color={theme.colors.muted} dimColor>
-            Press Enter to submit, Ctrl+C to cancel.
+            Press Enter to submit, Ctrl+C to quit.
           </Text>
         </Box>
         <Box flexDirection="column" marginTop={1}>
@@ -83,6 +77,6 @@ export function TokenInputModal({
           </Text>
         </Box>
       </Box>
-    </Box>
+    </Modal>
   )
 }

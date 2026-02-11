@@ -1,6 +1,7 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
+import { Modal } from '../common/Modal'
 
 interface HelpModalProps {
   readonly onClose: () => void
@@ -22,13 +23,7 @@ export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
   const theme = useTheme()
 
   return (
-    <Box
-      position="absolute"
-      justifyContent="center"
-      alignItems="center"
-      width="100%"
-      height="100%"
-    >
+    <Modal>
       <Box
         flexDirection="column"
         borderStyle="round"
@@ -54,6 +49,6 @@ export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
           Press ? to close
         </Text>
       </Box>
-    </Box>
+    </Modal>
   )
 }
