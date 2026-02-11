@@ -3,12 +3,15 @@ import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import type { PullRequest } from '../../models/pull-request'
 import { timeAgo } from '../../utils/date'
+import { CheckStatusSummary } from './CheckStatusSummary'
 
 interface PRHeaderProps {
   readonly pr: PullRequest
+  readonly owner?: string
+  readonly repo?: string
 }
 
-export function PRHeader({ pr }: PRHeaderProps): React.ReactElement {
+export function PRHeader({ pr, owner, repo }: PRHeaderProps): React.ReactElement {
   const theme = useTheme()
 
   const stateColor = pr.draft
@@ -63,6 +66,9 @@ export function PRHeader({ pr }: PRHeaderProps): React.ReactElement {
             </Text>
           ))}
         </Box>
+      )}
+      {owner && repo && pr.head.sha && (
+        <CheckStatusSummary owner={owner} repo={repo} sha={pr.head.sha} />
       )}
     </Box>
   )

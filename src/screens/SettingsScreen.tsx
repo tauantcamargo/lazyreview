@@ -2,22 +2,30 @@ import React, { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../theme/index'
+import type { ThemeName } from '../theme/index'
 import { useConfig } from '../hooks/useConfig'
 import { useAuth } from '../hooks/useAuth'
+import { useStatusMessage } from '../hooks/useStatusMessage'
 import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import type { TokenSource } from '../services/Auth'
+
+const THEME_ORDER: readonly ThemeName[] = ['tokyo-night', 'dracula', 'catppuccin-mocha']
 
 function SettingRow({
   label,
   value,
   isSelected,
   isEditing,
+  hint,
+  children,
 }: {
   readonly label: string
   readonly value: string
   readonly isSelected?: boolean
   readonly isEditing?: boolean
+  readonly hint?: string
+  readonly children?: React.ReactNode
 }): React.ReactElement {
   const theme = useTheme()
 
@@ -32,12 +40,19 @@ function SettingRow({
           {label}
         </Text>
       </Box>
-      <Text
-        color={isEditing ? theme.colors.accent : theme.colors.text}
-        inverse={isEditing}
-      >
-        {value}
-      </Text>
+      {children ?? (
+        <Text
+          color={isEditing ? theme.colors.accent : theme.colors.text}
+          inverse={isEditing}
+        >
+          {value}
+        </Text>
+      )}
+      {hint && isSelected && !isEditing && (
+        <Text color={theme.colors.muted} dimColor>
+          ({hint})
+        </Text>
+      )}
     </Box>
   )
 }
@@ -56,11 +71,28 @@ function TokenSourceLabel({ source }: { readonly source: TokenSource }): React.R
   return <Text color={color}>{text}</Text>
 }
 
-type SettingsItem = 'token_source' | 'new_token' | 'theme' | 'page_size'
+type SettingsItem =
+  | 'token_source'
+  | 'new_token'
+  | 'theme'
+  | 'page_size'
+  | 'default_owner'
+  | 'default_repo'
+
+type EditingField = 'page_size' | 'default_owner' | 'default_repo' | 'new_token' | null
+
+const SETTINGS_ITEMS: readonly SettingsItem[] = [
+  'token_source',
+  'new_token',
+  'theme',
+  'page_size',
+  'default_owner',
+  'default_repo',
+]
 
 export function SettingsScreen(): React.ReactElement {
   const theme = useTheme()
-  const { config, loading: configLoading, error: configError } = useConfig()
+  const { config, loading: configLoading, error: configError, updateConfig } = useConfig()
   const {
     tokenInfo,
     availableSources,
@@ -69,45 +101,93 @@ export function SettingsScreen(): React.ReactElement {
     loading: authLoading,
   } = useAuth()
 
+  const { setStatusMessage } = useStatusMessage()
   const [selectedItem, setSelectedItem] = useState<SettingsItem>('token_source')
-  const [isEditingToken, setIsEditingToken] = useState(false)
-  const [newTokenValue, setNewTokenValue] = useState('')
+  const [editingField, setEditingField] = useState<EditingField>(null)
+  const [editValue, setEditValue] = useState('')
   const [tokenMessage, setTokenMessage] = useState<string | null>(null)
 
-  const settingsItems: SettingsItem[] = ['token_source', 'new_token', 'theme', 'page_size']
+  const isEditing = editingField !== null
+
+  const cycleTheme = (): void => {
+    const currentTheme = (config?.theme ?? 'tokyo-night') as ThemeName
+    const currentIndex = THEME_ORDER.indexOf(currentTheme)
+    const nextIndex = (currentIndex + 1) % THEME_ORDER.length
+    updateConfig({ theme: THEME_ORDER[nextIndex] })
+    setStatusMessage('Saved')
+  }
+
+  const startEditing = (field: EditingField): void => {
+    if (field === 'page_size') {
+      setEditValue(String(config?.pageSize ?? 30))
+    } else if (field === 'default_owner') {
+      setEditValue(config?.defaultOwner ?? '')
+    } else if (field === 'default_repo') {
+      setEditValue(config?.defaultRepo ?? '')
+    } else if (field === 'new_token') {
+      setEditValue('')
+    }
+    setEditingField(field)
+  }
+
+  const cancelEditing = (): void => {
+    setEditingField(null)
+    setEditValue('')
+  }
+
+  const commitEdit = (): void => {
+    const trimmed = editValue.trim()
+
+    if (editingField === 'page_size') {
+      const num = parseInt(trimmed, 10)
+      if (!Number.isNaN(num) && num >= 1 && num <= 100) {
+        updateConfig({ pageSize: num })
+        setStatusMessage('Saved')
+      }
+    } else if (editingField === 'default_owner') {
+      updateConfig({ defaultOwner: trimmed || undefined })
+      setStatusMessage('Saved')
+    } else if (editingField === 'default_repo') {
+      updateConfig({ defaultRepo: trimmed || undefined })
+      setStatusMessage('Saved')
+    } else if (editingField === 'new_token' && trimmed) {
+      saveToken(trimmed)
+        .then(() => {
+          setTokenMessage('Token saved successfully!')
+          cancelEditing()
+          setTimeout(() => setTokenMessage(null), 3000)
+        })
+        .catch((err: unknown) => {
+          setTokenMessage(`Error: ${String(err)}`)
+          cancelEditing()
+        })
+      return
+    }
+
+    cancelEditing()
+  }
 
   useInput(
     (input, key) => {
-      if (isEditingToken) {
+      if (isEditing) {
         if (key.escape) {
-          setIsEditingToken(false)
-          setNewTokenValue('')
-        } else if (key.return && newTokenValue.trim()) {
-          saveToken(newTokenValue.trim())
-            .then(() => {
-              setTokenMessage('Token saved successfully!')
-              setIsEditingToken(false)
-              setNewTokenValue('')
-              setTimeout(() => setTokenMessage(null), 3000)
-            })
-            .catch((err) => {
-              setTokenMessage(`Error: ${String(err)}`)
-            })
+          cancelEditing()
+        } else if (key.return) {
+          commitEdit()
         }
         return
       }
 
       if (input === 'j' || key.downArrow) {
-        const currentIndex = settingsItems.indexOf(selectedItem)
-        const nextIndex = Math.min(currentIndex + 1, settingsItems.length - 1)
-        setSelectedItem(settingsItems[nextIndex]!)
+        const currentIndex = SETTINGS_ITEMS.indexOf(selectedItem)
+        const nextIndex = Math.min(currentIndex + 1, SETTINGS_ITEMS.length - 1)
+        setSelectedItem(SETTINGS_ITEMS[nextIndex]!)
       } else if (input === 'k' || key.upArrow) {
-        const currentIndex = settingsItems.indexOf(selectedItem)
+        const currentIndex = SETTINGS_ITEMS.indexOf(selectedItem)
         const prevIndex = Math.max(currentIndex - 1, 0)
-        setSelectedItem(settingsItems[prevIndex]!)
+        setSelectedItem(SETTINGS_ITEMS[prevIndex]!)
       } else if (key.return) {
         if (selectedItem === 'token_source') {
-          // Cycle through available sources
           const currentSource = tokenInfo?.source ?? 'none'
           const sourceOrder: TokenSource[] = ['gh_cli', 'env', 'manual']
           const availableInOrder = sourceOrder.filter((s) => availableSources.includes(s))
@@ -118,7 +198,15 @@ export function SettingsScreen(): React.ReactElement {
             setPreferredSource(availableInOrder[nextIndex]!)
           }
         } else if (selectedItem === 'new_token') {
-          setIsEditingToken(true)
+          startEditing('new_token')
+        } else if (selectedItem === 'theme') {
+          cycleTheme()
+        } else if (selectedItem === 'page_size') {
+          startEditing('page_size')
+        } else if (selectedItem === 'default_owner') {
+          startEditing('default_owner')
+        } else if (selectedItem === 'default_repo') {
+          startEditing('default_repo')
         }
       }
     },
@@ -135,6 +223,24 @@ export function SettingsScreen(): React.ReactElement {
         <Text color={theme.colors.error}>Error: {configError}</Text>
       </Box>
     )
+  }
+
+  const renderEditableField = (
+    field: EditingField,
+    placeholder: string,
+  ): React.ReactElement => {
+    if (editingField === field) {
+      return (
+        <Box borderStyle="single" borderColor={theme.colors.accent} paddingX={1} width={40}>
+          <TextInput
+            defaultValue={editValue}
+            onChange={setEditValue}
+            placeholder={placeholder}
+          />
+        </Box>
+      )
+    }
+    return <></>
   }
 
   return (
@@ -204,14 +310,8 @@ export function SettingsScreen(): React.ReactElement {
               Set New Token
             </Text>
           </Box>
-          {isEditingToken ? (
-            <Box borderStyle="single" borderColor={theme.colors.accent} paddingX={1} width={40}>
-              <TextInput
-                defaultValue={newTokenValue}
-                onChange={setNewTokenValue}
-                placeholder="ghp_xxxx..."
-              />
-            </Box>
+          {editingField === 'new_token' ? (
+            renderEditableField('new_token', 'ghp_xxxx...')
           ) : (
             <Text color={theme.colors.muted} dimColor>
               (Enter to add)
@@ -245,12 +345,19 @@ export function SettingsScreen(): React.ReactElement {
           label="Theme"
           value={config?.theme ?? 'tokyo-night'}
           isSelected={selectedItem === 'theme'}
+          hint="Enter to cycle"
         />
         <SettingRow
           label="Page Size"
           value={String(config?.pageSize ?? 30)}
           isSelected={selectedItem === 'page_size'}
-        />
+          isEditing={editingField === 'page_size'}
+          hint="Enter to edit"
+        >
+          {editingField === 'page_size'
+            ? renderEditableField('page_size', '1-100')
+            : undefined}
+        </SettingRow>
         <SettingRow
           label="Provider"
           value={config?.provider ?? 'github'}
@@ -258,11 +365,25 @@ export function SettingsScreen(): React.ReactElement {
         <SettingRow
           label="Default Owner"
           value={config?.defaultOwner ?? '(not set)'}
-        />
+          isSelected={selectedItem === 'default_owner'}
+          isEditing={editingField === 'default_owner'}
+          hint="Enter to edit"
+        >
+          {editingField === 'default_owner'
+            ? renderEditableField('default_owner', 'owner')
+            : undefined}
+        </SettingRow>
         <SettingRow
           label="Default Repo"
           value={config?.defaultRepo ?? '(not set)'}
-        />
+          isSelected={selectedItem === 'default_repo'}
+          isEditing={editingField === 'default_repo'}
+          hint="Enter to edit"
+        >
+          {editingField === 'default_repo'
+            ? renderEditableField('default_repo', 'repo')
+            : undefined}
+        </SettingRow>
       </Box>
 
       <Box paddingX={1} paddingTop={2} flexDirection="column">

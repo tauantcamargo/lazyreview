@@ -3,6 +3,7 @@ import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import type { PullRequest } from '../../models/pull-request'
 import { timeAgo } from '../../utils/date'
+import { CheckStatusIcon } from './CheckStatusIcon'
 
 interface PRListItemProps {
   readonly item: PullRequest
@@ -12,6 +13,12 @@ interface PRListItemProps {
 function extractRepoFromUrl(url: string): string | null {
   const match = url.match(/github\.com\/([^/]+\/[^/]+)\/pull/)
   return match?.[1] ?? null
+}
+
+function extractOwnerRepo(url: string): { owner: string; repo: string } | null {
+  const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/pull/)
+  if (!match?.[1] || !match?.[2]) return null
+  return { owner: match[1], repo: match[2] }
 }
 
 export function PRListItem({
@@ -28,6 +35,8 @@ export function PRListItem({
 
   const stateIcon = item.draft ? 'D' : item.state === 'open' ? 'O' : 'C'
   const repoName = extractRepoFromUrl(item.html_url)
+  const ownerRepo = extractOwnerRepo(item.html_url)
+  const headSha = item.head.sha
 
   return (
     <Box flexDirection="column" paddingX={1}>
@@ -35,6 +44,9 @@ export function PRListItem({
         <Text color={stateColor} bold>
           {stateIcon}
         </Text>
+        {ownerRepo && headSha && (
+          <CheckStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} sha={headSha} />
+        )}
         <Text
           color={isFocus ? theme.colors.listSelectedFg : theme.colors.text}
           bold={isFocus}

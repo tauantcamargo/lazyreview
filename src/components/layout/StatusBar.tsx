@@ -3,6 +3,7 @@ import { Box, Text } from 'ink'
 import { Spinner } from '../common/Spinner'
 import { useTheme } from '../../theme/index'
 import { useLoading } from '../../hooks/useLoading'
+import { useStatusMessage } from '../../hooks/useStatusMessage'
 import type { Panel } from '../../hooks/useActivePanel'
 
 const PANEL_HINTS: Record<Panel, string> = {
@@ -18,7 +19,18 @@ interface StatusBarProps {
 export function StatusBar({ activePanel = 'sidebar' }: StatusBarProps): React.ReactElement {
   const theme = useTheme()
   const loadingState = useLoading()
+  const { message: statusMessage } = useStatusMessage()
   const hints = PANEL_HINTS[activePanel]
+
+  const renderStatus = (): React.ReactElement => {
+    if (loadingState.isLoading) {
+      return <Spinner label={loadingState.message ?? 'Loading...'} />
+    }
+    if (statusMessage) {
+      return <Text color={theme.colors.info}>{statusMessage}</Text>
+    }
+    return <Text color={theme.colors.success}>Ready</Text>
+  }
 
   return (
     <Box
@@ -28,11 +40,7 @@ export function StatusBar({ activePanel = 'sidebar' }: StatusBarProps): React.Re
       paddingX={1}
     >
       <Box>
-        {loadingState.isLoading ? (
-          <Spinner label={loadingState.message ?? 'Loading...'} />
-        ) : (
-          <Text color={theme.colors.success}>Ready</Text>
-        )}
+        {renderStatus()}
       </Box>
       <Box gap={1}>
         <Text color={theme.colors.muted}>{hints}</Text>

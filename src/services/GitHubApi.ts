@@ -5,6 +5,7 @@ import { Comment } from '../models/comment'
 import { Review } from '../models/review'
 import { FileChange } from '../models/file-change'
 import { Commit } from '../models/commit'
+import { CheckRunsResponse } from '../models/check'
 import { Auth } from './Auth'
 
 const BASE_URL = 'https://api.github.com'
@@ -64,6 +65,38 @@ export interface GitHubApiService {
   >
 
   readonly getInvolvedPRs: () => Effect.Effect<readonly PullRequest[], ApiError>
+
+  readonly getCheckRuns: (
+    owner: string,
+    repo: string,
+    ref: string,
+  ) => Effect.Effect<CheckRunsResponse, ApiError>
+
+  readonly submitReview: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    body: string,
+    event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
+  ) => Effect.Effect<void, ApiError>
+
+  readonly createComment: (
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    body: string,
+  ) => Effect.Effect<void, ApiError>
+
+  readonly createReviewComment: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    body: string,
+    commitId: string,
+    path: string,
+    line: number,
+    side: 'LEFT' | 'RIGHT',
+  ) => Effect.Effect<void, ApiError>
 }
 
 export class GitHubApi extends Context.Tag('GitHubApi')<
@@ -100,6 +133,45 @@ function fetchGitHub<A, I>(
 
       const data = await response.json()
       return decode(data)
+    },
+    catch: (error) => {
+      if (error instanceof GitHubError) return error
+      return new NetworkError({
+        message: `Network request failed: ${String(error)}`,
+        cause: error,
+      })
+    },
+  })
+}
+
+function postGitHub(
+  path: string,
+  token: string,
+  body: Record<string, unknown>,
+): Effect.Effect<void, GitHubError | NetworkError> {
+  const url = `${BASE_URL}${path}`
+
+  return Effect.tryPromise({
+    try: async () => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        body: JSON.stringify(body),
+      })
+
+      if (!response.ok) {
+        const responseBody = await response.text().catch(() => '')
+        throw new GitHubError({
+          message: `GitHub API error: ${response.status} ${response.statusText} - ${responseBody}`,
+          status: response.status,
+          url,
+        })
+      }
     },
     catch: (error) => {
       if (error instanceof GitHubError) return error
@@ -256,6 +328,46 @@ export const GitHubApiLive = Layer.effect(
         Effect.gen(function* () {
           const token = yield* auth.getToken()
           return yield* fetchGitHubSearch('is:pr is:open involves:@me', token)
+        }),
+
+      getCheckRuns: (owner, repo, ref) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          return yield* fetchGitHub(
+            `/repos/${owner}/${repo}/commits/${ref}/check-runs`,
+            token,
+            CheckRunsResponse,
+          )
+        }),
+
+      submitReview: (owner, repo, prNumber, body, event) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          yield* postGitHub(
+            `/repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+            token,
+            { body, event },
+          )
+        }),
+
+      createComment: (owner, repo, issueNumber, body) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          yield* postGitHub(
+            `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
+            token,
+            { body },
+          )
+        }),
+
+      createReviewComment: (owner, repo, prNumber, body, commitId, path, line, side) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          yield* postGitHub(
+            `/repos/${owner}/${repo}/pulls/${prNumber}/comments`,
+            token,
+            { body, commit_id: commitId, path, line, side },
+          )
         }),
     })
   }),

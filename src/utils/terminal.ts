@@ -1,3 +1,28 @@
+import { execFile } from 'node:child_process'
+import { platform } from 'node:os'
+
+export function openInBrowser(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return false
+    }
+  } catch {
+    return false
+  }
+
+  const os = platform()
+  if (os === 'darwin') {
+    execFile('open', [url])
+  } else if (os === 'win32') {
+    execFile('cmd', ['/c', 'start', '', url])
+  } else {
+    execFile('xdg-open', [url])
+  }
+
+  return true
+}
+
 export function truncate(text: string, maxWidth: number): string {
   if (text.length <= maxWidth) return text
   if (maxWidth <= 3) return text.slice(0, maxWidth)

@@ -11,6 +11,8 @@ import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { PaginationBar } from '../components/common/PaginationBar'
 import { FilterModal } from '../components/common/FilterModal'
 import { SortModal } from '../components/common/SortModal'
+import { openInBrowser } from '../utils/terminal'
+import { useStatusMessage } from '../hooks/useStatusMessage'
 import type { PullRequest } from '../models/pull-request'
 
 interface MyPRsScreenProps {
@@ -22,6 +24,7 @@ export function MyPRsScreen({
 }: MyPRsScreenProps): React.ReactElement {
   const theme = useTheme()
   const { data: prs = [], isLoading, error } = useMyPRs()
+  const { setStatusMessage } = useStatusMessage()
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
 
@@ -71,6 +74,9 @@ export function MyPRsScreen({
         setShowFilter(true)
       } else if (input === 's') {
         setShowSort(true)
+      } else if (input === 'o' && pageItems[selectedIndex]) {
+        openInBrowser(pageItems[selectedIndex].html_url)
+        setStatusMessage('Opened in browser')
       }
     },
     { isActive: !showFilter && !showSort },

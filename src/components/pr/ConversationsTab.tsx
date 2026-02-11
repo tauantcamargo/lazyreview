@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { Box, Text, useStdout } from 'ink'
+import { Box, Text, useInput, useStdout } from 'ink'
 import { Match } from 'effect'
 import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../../theme/index'
@@ -15,6 +15,7 @@ interface ConversationsTabProps {
   readonly comments: readonly Comment[]
   readonly reviews: readonly Review[]
   readonly isActive: boolean
+  readonly onComment?: () => void
 }
 
 interface TimelineItem {
@@ -214,6 +215,7 @@ export function ConversationsTab({
   comments,
   reviews,
   isActive,
+  onComment,
 }: ConversationsTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
@@ -226,6 +228,15 @@ export function ConversationsTab({
     viewportHeight,
     isActive,
   })
+
+  useInput(
+    (input) => {
+      if (input === 'c' && onComment) {
+        onComment()
+      }
+    },
+    { isActive },
+  )
 
   useEffect(() => {
     const handleResize = (): void => {

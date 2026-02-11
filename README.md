@@ -77,6 +77,13 @@ You can switch between sources anytime in **Settings**.
 - **Commits** — Commit history with message, author, and date
 - **Files** — File tree with syntax-highlighted diffs
 
+**Review Actions** — Complete your review without leaving the terminal:
+
+- **Submit Review** — Approve, request changes, or comment (`r`)
+- **Post Comments** — Reply to conversations or add inline diff comments (`c`)
+- **Open in Browser** — Quick escape hatch to GitHub (`o`)
+- **CI Status** — See check run results on PRs at a glance
+
 **Themes** — Ships with three color schemes:
 
 - `tokyo-night` (default)
@@ -113,6 +120,12 @@ You can switch between sources anytime in **Settings**.
 | `s` | Sort |
 | `n` / `p` | Next / previous page |
 
+### PR List
+
+| Key | Action |
+|-----|--------|
+| `o` | Open PR in browser |
+
 ### PR Detail
 
 | Key | Action |
@@ -120,6 +133,9 @@ You can switch between sources anytime in **Settings**.
 | `1` | Conversations tab |
 | `2` | Commits tab |
 | `3` | Files tab |
+| `o` | Open PR in browser |
+| `r` | Submit review (approve / request changes / comment) |
+| `c` | Post comment (conversations tab or diff line) |
 | `?` | Help overlay |
 
 ## Configuration

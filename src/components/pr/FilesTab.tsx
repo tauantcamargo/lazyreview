@@ -127,9 +127,16 @@ function getLanguageFromFilename(filename: string): string | undefined {
   return ext ? map[ext] : undefined
 }
 
+interface InlineCommentContext {
+  readonly path: string
+  readonly line: number
+  readonly side: 'LEFT' | 'RIGHT'
+}
+
 interface FilesTabProps {
   readonly files: readonly FileChange[]
   readonly isActive: boolean
+  readonly onInlineComment?: (context: InlineCommentContext) => void
 }
 
 type FocusPanel = 'tree' | 'diff'
@@ -366,6 +373,7 @@ function DiffView({
 export function FilesTab({
   files,
   isActive,
+  onInlineComment,
 }: FilesTabProps): React.ReactElement {
   const { stdout } = useStdout()
   const theme = useTheme()
@@ -428,6 +436,24 @@ export function FilesTab({
         setFocusPanel('tree')
       } else if (input === 'l' || key.rightArrow) {
         setFocusPanel('diff')
+      } else if (input === 'c' && focusPanel === 'diff' && onInlineComment && selectedFile) {
+        const allLines: { line: DiffLine; lineNumber: number }[] = []
+        let ln = 1
+        for (const hunk of hunks) {
+          for (const line of hunk.lines) {
+            allLines.push({ line, lineNumber: ln })
+            if (line.type !== 'header') ln++
+          }
+        }
+        const selected = allLines[diffSelectedLine]
+        if (selected && selected.line.type !== 'header') {
+          const side = selected.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
+          onInlineComment({
+            path: selectedFile.filename,
+            line: selected.lineNumber,
+            side,
+          })
+        }
       }
     },
     { isActive },
