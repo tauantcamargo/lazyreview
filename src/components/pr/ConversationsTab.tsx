@@ -9,14 +9,31 @@ import { useListNavigation } from '../../hooks/useListNavigation'
 import type { PullRequest } from '../../models/pull-request'
 import type { Comment } from '../../models/comment'
 import type { Review } from '../../models/review'
+import type { ReviewThread } from '../../services/GitHubApi'
 import { timeAgo } from '../../utils/date'
+
+export interface ReplyContext {
+  readonly commentId: number
+  readonly user: string
+  readonly body: string | null
+}
+
+export interface ResolveContext {
+  readonly threadId: string
+  readonly isResolved: boolean
+}
 
 interface ConversationsTabProps {
   readonly pr: PullRequest
   readonly comments: readonly Comment[]
   readonly reviews: readonly Review[]
+  readonly reviewThreads?: readonly ReviewThread[]
   readonly isActive: boolean
+  readonly showResolved?: boolean
   readonly onComment?: () => void
+  readonly onReply?: (context: ReplyContext) => void
+  readonly onToggleResolve?: (context: ResolveContext) => void
+  readonly onToggleShowResolved?: () => void
 }
 
 interface TimelineItem {
@@ -28,14 +45,28 @@ interface TimelineItem {
   readonly state?: string
   readonly path?: string
   readonly line?: number | null
+  readonly commentId?: number
+  readonly threadId?: string
+  readonly isResolved?: boolean
 }
 
 function buildTimeline(
   pr: PullRequest,
   comments: readonly Comment[],
   reviews: readonly Review[],
+  reviewThreads?: readonly ReviewThread[],
 ): TimelineItem[] {
   const items: TimelineItem[] = []
+
+  // Build a map from comment database ID to thread info
+  const threadByCommentId = new Map<number, ReviewThread>()
+  if (reviewThreads) {
+    for (const thread of reviewThreads) {
+      for (const comment of thread.comments) {
+        threadByCommentId.set(comment.databaseId, thread)
+      }
+    }
+  }
 
   // Add PR description first
   items.push({
@@ -62,6 +93,7 @@ function buildTimeline(
 
   // Add comments
   for (const comment of comments) {
+    const thread = threadByCommentId.get(comment.id)
     items.push({
       id: `comment-${comment.id}`,
       type: 'comment',
@@ -70,6 +102,9 @@ function buildTimeline(
       date: comment.created_at,
       path: comment.path,
       line: comment.line,
+      commentId: comment.id,
+      threadId: thread?.id,
+      isResolved: thread?.isResolved,
     })
   }
 
@@ -131,7 +166,7 @@ function TimelineItemView({
         {isFocus && <Text color={theme.colors.accent}>{'▸ '}</Text>}
         <Text color={color}>{icon}</Text>
         <Text> </Text>
-        <Text color={theme.colors.secondary} bold>
+        <Text color={item.isResolved ? theme.colors.muted : theme.colors.secondary} bold dimColor={item.isResolved}>
           {item.user}
         </Text>
         {stateLabel ? (
@@ -140,12 +175,18 @@ function TimelineItemView({
             <Text color={color}>{stateLabel}</Text>
           </>
         ) : null}
+        {item.isResolved && (
+          <>
+            <Text> </Text>
+            <Text color={theme.colors.muted} dimColor>[Resolved]</Text>
+          </>
+        )}
         {location ? <Text color={theme.colors.muted}>{location}</Text> : null}
         <Text color={theme.colors.muted}> · {timeAgo(item.date)}</Text>
       </Box>
       {item.body ? (
         <Box paddingLeft={isFocus ? 3 : 2} marginTop={0} width="80%">
-          <MarkdownText content={item.body} />
+          <MarkdownText content={item.isResolved ? `~~${item.body}~~` : item.body} />
         </Box>
       ) : null}
     </Box>
@@ -207,19 +248,115 @@ function PRInfoSection({
   )
 }
 
+function getLatestReviewByUser(
+  reviews: readonly Review[],
+): Map<string, Review> {
+  const latest = new Map<string, Review>()
+  for (const review of reviews) {
+    if (review.state === 'PENDING') continue
+    const existing = latest.get(review.user.login)
+    if (
+      !existing ||
+      new Date(review.submitted_at ?? '').getTime() >
+        new Date(existing.submitted_at ?? '').getTime()
+    ) {
+      latest.set(review.user.login, review)
+    }
+  }
+  return latest
+}
+
+function ReviewSummary({
+  reviews,
+}: {
+  readonly reviews: readonly Review[]
+}): React.ReactElement | null {
+  const theme = useTheme()
+  const latestByUser = getLatestReviewByUser(reviews)
+
+  if (latestByUser.size === 0) return null
+
+  const approved = [...latestByUser.values()].filter(
+    (r) => r.state === 'APPROVED',
+  )
+  const changesRequested = [...latestByUser.values()].filter(
+    (r) => r.state === 'CHANGES_REQUESTED',
+  )
+  const total = latestByUser.size
+
+  return (
+    <Box
+      flexDirection="column"
+      paddingX={1}
+      paddingY={0}
+      marginBottom={1}
+    >
+      <Box flexDirection="row" gap={1}>
+        <Text color={theme.colors.muted} bold>
+          Reviews:
+        </Text>
+        <Text>
+          {approved.length > 0 && (
+            <Text color={theme.colors.success}>
+              {approved.length} of {total} approvals
+            </Text>
+          )}
+          {approved.length > 0 && changesRequested.length > 0 && (
+            <Text color={theme.colors.muted}> · </Text>
+          )}
+          {changesRequested.length > 0 && (
+            <Text color={theme.colors.error}>
+              {changesRequested.length} changes requested
+            </Text>
+          )}
+        </Text>
+      </Box>
+      <Box flexDirection="row" gap={1} paddingLeft={2}>
+        {[...latestByUser.entries()].map(([login, review]) => {
+          const color =
+            review.state === 'APPROVED'
+              ? theme.colors.success
+              : review.state === 'CHANGES_REQUESTED'
+                ? theme.colors.error
+                : theme.colors.warning
+          const icon =
+            review.state === 'APPROVED'
+              ? '+'
+              : review.state === 'CHANGES_REQUESTED'
+                ? 'x'
+                : '~'
+          return (
+            <Text key={login} color={color}>
+              [{icon} {login}]
+            </Text>
+          )
+        })}
+      </Box>
+    </Box>
+  )
+}
+
 const CONVERSATIONS_RESERVED_LINES = 18
 
 export function ConversationsTab({
   pr,
   comments,
   reviews,
+  reviewThreads,
   isActive,
+  showResolved = true,
   onComment,
+  onReply,
+  onToggleResolve,
+  onToggleShowResolved,
 }: ConversationsTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
   const listRef = useRef<ScrollListRef>(null)
-  const timeline = buildTimeline(pr, comments, reviews)
+  const allTimeline = buildTimeline(pr, comments, reviews, reviewThreads)
+  const timeline = showResolved
+    ? allTimeline
+    : allTimeline.filter((item) => !item.isResolved)
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - CONVERSATIONS_RESERVED_LINES)
 
   const { selectedIndex } = useListNavigation({
@@ -232,6 +369,28 @@ export function ConversationsTab({
     (input) => {
       if (input === 'c' && onComment) {
         onComment()
+      }
+      if (input === 'r' && onReply) {
+        const selected = timeline[selectedIndex]
+        if (selected?.type === 'comment' && selected.commentId != null) {
+          onReply({
+            commentId: selected.commentId,
+            user: selected.user,
+            body: selected.body,
+          })
+        }
+      }
+      if (input === 'x' && onToggleResolve) {
+        const selected = timeline[selectedIndex]
+        if (selected?.type === 'comment' && selected.threadId) {
+          onToggleResolve({
+            threadId: selected.threadId,
+            isResolved: selected.isResolved ?? false,
+          })
+        }
+      }
+      if (input === 'f' && onToggleShowResolved) {
+        onToggleShowResolved()
       }
     },
     { isActive },
@@ -250,6 +409,8 @@ export function ConversationsTab({
   return (
     <Box flexDirection="column" flexGrow={1}>
       <PRInfoSection pr={pr} />
+
+      <ReviewSummary reviews={reviews} />
 
       <Box flexDirection="row" paddingX={1} paddingY={0} marginBottom={1}>
         <Text color={theme.colors.accent} bold>

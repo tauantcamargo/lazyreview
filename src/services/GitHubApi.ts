@@ -98,6 +98,37 @@ export interface GitHubApiService {
     path: string,
     line: number,
     side: 'LEFT' | 'RIGHT',
+    startLine?: number,
+    startSide?: 'LEFT' | 'RIGHT',
+  ) => Effect.Effect<void, ApiError>
+
+  readonly getReviewThreads: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ) => Effect.Effect<readonly ReviewThread[], ApiError>
+
+  readonly resolveReviewThread: (
+    threadId: string,
+  ) => Effect.Effect<void, ApiError>
+
+  readonly unresolveReviewThread: (
+    threadId: string,
+  ) => Effect.Effect<void, ApiError>
+
+  readonly replyToReviewComment: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    body: string,
+    inReplyTo: number,
+  ) => Effect.Effect<void, ApiError>
+
+  readonly requestReReview: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    reviewers: readonly string[],
   ) => Effect.Effect<void, ApiError>
 
   readonly mergePullRequest: (
@@ -200,6 +231,65 @@ function mutateGitHub(
       })
     },
   })
+}
+
+function graphqlGitHub<T>(
+  token: string,
+  query: string,
+  variables: Record<string, unknown>,
+): Effect.Effect<T, GitHubError | NetworkError> {
+  const url = 'https://api.github.com/graphql'
+
+  return Effect.tryPromise({
+    try: async () => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        body: JSON.stringify({ query, variables }),
+      })
+
+      updateRateLimit(response.headers)
+
+      if (!response.ok) {
+        const responseBody = await response.text().catch(() => '')
+        throw new GitHubError({
+          message: `GitHub GraphQL error: ${response.status} ${response.statusText} - ${responseBody}`,
+          status: response.status,
+          url,
+        })
+      }
+
+      const data = await response.json()
+      if (data.errors) {
+        throw new GitHubError({
+          message: `GitHub GraphQL error: ${JSON.stringify(data.errors)}`,
+          status: 200,
+          url,
+        })
+      }
+
+      touchLastUpdated()
+      return data.data as T
+    },
+    catch: (error) => {
+      if (error instanceof GitHubError) return error
+      return new NetworkError({
+        message: `Network request failed: ${String(error)}`,
+        cause: error,
+      })
+    },
+  })
+}
+
+export interface ReviewThread {
+  readonly id: string
+  readonly isResolved: boolean
+  readonly comments: readonly { readonly databaseId: number }[]
 }
 
 // Schema for GitHub Search API response
@@ -384,14 +474,128 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      createReviewComment: (owner, repo, prNumber, body, commitId, path, line, side) =>
+      createReviewComment: (owner, repo, prNumber, body, commitId, path, line, side, startLine, startSide) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'POST',
             `/repos/${owner}/${repo}/pulls/${prNumber}/comments`,
             token,
-            { body, commit_id: commitId, path, line, side },
+            {
+              body,
+              commit_id: commitId,
+              path,
+              line,
+              side,
+              ...(startLine != null ? { start_line: startLine, start_side: startSide ?? side } : {}),
+            },
+          )
+        }),
+
+      getReviewThreads: (owner, repo, prNumber) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          const query = `
+            query($owner: String!, $repo: String!, $prNumber: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $prNumber) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      id
+                      isResolved
+                      comments(first: 1) {
+                        nodes {
+                          databaseId
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `
+          interface ThreadsResponse {
+            repository: {
+              pullRequest: {
+                reviewThreads: {
+                  nodes: {
+                    id: string
+                    isResolved: boolean
+                    comments: {
+                      nodes: { databaseId: number }[]
+                    }
+                  }[]
+                }
+              }
+            }
+          }
+          const data = yield* graphqlGitHub<ThreadsResponse>(
+            token,
+            query,
+            { owner, repo, prNumber },
+          )
+          const nodes = data?.repository?.pullRequest?.reviewThreads?.nodes
+          if (!nodes) {
+            return []
+          }
+          return nodes.map(
+            (thread) => ({
+              id: thread.id,
+              isResolved: thread.isResolved,
+              comments: thread.comments.nodes.map((c) => ({
+                databaseId: c.databaseId,
+              })),
+            }),
+          )
+        }),
+
+      resolveReviewThread: (threadId) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          yield* graphqlGitHub<unknown>(
+            token,
+            `mutation($threadId: ID!) {
+              resolveReviewThread(input: { threadId: $threadId }) {
+                thread { isResolved }
+              }
+            }`,
+            { threadId },
+          )
+        }),
+
+      unresolveReviewThread: (threadId) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          yield* graphqlGitHub<unknown>(
+            token,
+            `mutation($threadId: ID!) {
+              unresolveReviewThread(input: { threadId: $threadId }) {
+                thread { isResolved }
+              }
+            }`,
+            { threadId },
+          )
+        }),
+
+      replyToReviewComment: (owner, repo, prNumber, body, inReplyTo) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          yield* mutateGitHub(
+            'POST',
+            `/repos/${owner}/${repo}/pulls/${prNumber}/comments`,
+            token,
+            { body, in_reply_to: inReplyTo },
+          )
+        }),
+
+      requestReReview: (owner, repo, prNumber, reviewers) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          yield* mutateGitHub(
+            'POST',
+            `/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`,
+            token,
+            { reviewers: [...reviewers] },
           )
         }),
 

@@ -75,10 +75,36 @@ const catppuccinMocha: Theme = {
   },
 }
 
+const gruvbox: Theme = {
+  name: 'gruvbox',
+  colors: {
+    bg: '#282828',
+    text: '#ebdbb2',
+    accent: '#458588',
+    muted: '#928374',
+    border: '#3c3836',
+    primary: '#458588',
+    secondary: '#b16286',
+
+    success: '#98971a',
+    error: '#cc241d',
+    warning: '#d79921',
+    info: '#689d6a',
+
+    diffAdd: '#98971a',
+    diffDel: '#cc241d',
+
+    selection: '#3c3836',
+    listSelectedFg: '#ebdbb2',
+    listSelectedBg: '#3c3836',
+  },
+}
+
 export const themes: Record<ThemeName, Theme> = {
   'tokyo-night': tokyoNight,
   dracula,
   'catppuccin-mocha': catppuccinMocha,
+  gruvbox,
 }
 
 export const defaultTheme: Theme = tokyoNight

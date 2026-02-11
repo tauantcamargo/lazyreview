@@ -233,22 +233,122 @@ interface CreateReviewCommentParams {
   readonly path: string
   readonly line: number
   readonly side: 'LEFT' | 'RIGHT'
+  readonly startLine?: number
+  readonly startSide?: 'LEFT' | 'RIGHT'
 }
 
 export function useCreateReviewComment() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ owner, repo, prNumber, body, commitId, path, line, side }: CreateReviewCommentParams) =>
+    mutationFn: ({ owner, repo, prNumber, body, commitId, path, line, side, startLine, startSide }: CreateReviewCommentParams) =>
       runEffect(
         Effect.gen(function* () {
           const api = yield* GitHubApi
-          yield* api.createReviewComment(owner, repo, prNumber, body, commitId, path, line, side)
+          yield* api.createReviewComment(owner, repo, prNumber, body, commitId, path, line, side, startLine, startSide)
         }),
       ),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ['pr-comments', variables.owner, variables.repo, variables.prNumber],
+      })
+    },
+  })
+}
+
+export function useReviewThreads(owner: string, repo: string, number: number) {
+  const refetchInterval = useRefreshInterval(30)
+
+  return useQuery({
+    queryKey: ['pr-review-threads', owner, repo, number],
+    queryFn: () =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* GitHubApi
+          return yield* api.getReviewThreads(owner, repo, number)
+        }),
+      ),
+    enabled: !!owner && !!repo && !!number,
+    refetchInterval,
+  })
+}
+
+interface ResolveThreadParams {
+  readonly owner: string
+  readonly repo: string
+  readonly prNumber: number
+  readonly threadId: string
+}
+
+export function useResolveReviewThread() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ threadId }: ResolveThreadParams) =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* GitHubApi
+          yield* api.resolveReviewThread(threadId)
+        }),
+      ),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['pr-review-threads', variables.owner, variables.repo, variables.prNumber],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['pr-comments', variables.owner, variables.repo, variables.prNumber],
+      })
+    },
+  })
+}
+
+export function useUnresolveReviewThread() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ threadId }: ResolveThreadParams) =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* GitHubApi
+          yield* api.unresolveReviewThread(threadId)
+        }),
+      ),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['pr-review-threads', variables.owner, variables.repo, variables.prNumber],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['pr-comments', variables.owner, variables.repo, variables.prNumber],
+      })
+    },
+  })
+}
+
+interface ReplyToReviewCommentParams {
+  readonly owner: string
+  readonly repo: string
+  readonly prNumber: number
+  readonly body: string
+  readonly inReplyTo: number
+}
+
+export function useReplyToReviewComment() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ owner, repo, prNumber, body, inReplyTo }: ReplyToReviewCommentParams) =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* GitHubApi
+          yield* api.replyToReviewComment(owner, repo, prNumber, body, inReplyTo)
+        }),
+      ),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['pr-comments', variables.owner, variables.repo, variables.prNumber],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['pr-review-threads', variables.owner, variables.repo, variables.prNumber],
       })
     },
   })
@@ -268,6 +368,35 @@ export function useCheckRuns(owner: string, repo: string, ref: string) {
       ),
     enabled: !!owner && !!repo && !!ref,
     refetchInterval,
+  })
+}
+
+interface RequestReReviewParams {
+  readonly owner: string
+  readonly repo: string
+  readonly prNumber: number
+  readonly reviewers: readonly string[]
+}
+
+export function useRequestReReview() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ owner, repo, prNumber, reviewers }: RequestReReviewParams) =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* GitHubApi
+          yield* api.requestReReview(owner, repo, prNumber, reviewers)
+        }),
+      ),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['pr', variables.owner, variables.repo, variables.prNumber],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['pr-reviews', variables.owner, variables.repo, variables.prNumber],
+      })
+    },
   })
 }
 

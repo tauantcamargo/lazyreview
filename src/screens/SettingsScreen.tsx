@@ -10,7 +10,7 @@ import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import type { TokenSource } from '../services/Auth'
 
-const THEME_ORDER: readonly ThemeName[] = ['tokyo-night', 'dracula', 'catppuccin-mocha']
+const THEME_ORDER: readonly ThemeName[] = ['tokyo-night', 'dracula', 'catppuccin-mocha', 'gruvbox']
 
 function SettingRow({
   label,

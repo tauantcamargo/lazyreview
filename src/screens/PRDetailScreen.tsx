@@ -7,20 +7,26 @@ import {
   usePRComments,
   usePRReviews,
   usePRCommits,
+  useReviewThreads,
   useSubmitReview,
   useCreateComment,
   useCreateReviewComment,
+  useReplyToReviewComment,
+  useResolveReviewThread,
+  useUnresolveReviewThread,
+  useRequestReReview,
   useMergePR,
 } from '../hooks/useGitHub'
 import type { ReviewEvent, MergeMethod } from '../hooks/useGitHub'
 import { PRHeader } from '../components/pr/PRHeader'
 import { PRTabs } from '../components/pr/PRTabs'
 import { FilesTab } from '../components/pr/FilesTab'
-import { ConversationsTab } from '../components/pr/ConversationsTab'
+import { ConversationsTab, type ReplyContext, type ResolveContext } from '../components/pr/ConversationsTab'
 import { CommitsTab } from '../components/pr/CommitsTab'
 import { ReviewModal } from '../components/pr/ReviewModal'
 import { CommentModal } from '../components/pr/CommentModal'
 import { MergeModal } from '../components/pr/MergeModal'
+import { ReReviewModal, buildReviewerList } from '../components/pr/ReReviewModal'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { openInBrowser } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
@@ -31,6 +37,8 @@ export interface InlineCommentContext {
   readonly path: string
   readonly line: number
   readonly side: 'LEFT' | 'RIGHT'
+  readonly startLine?: number
+  readonly startSide?: 'LEFT' | 'RIGHT'
 }
 
 interface PRDetailScreenProps {
@@ -57,15 +65,23 @@ export function PRDetailScreen({
   const [commentError, setCommentError] = useState<string | null>(null)
   const [showMergeModal, setShowMergeModal] = useState(false)
   const [mergeError, setMergeError] = useState<string | null>(null)
+  const [showReReviewModal, setShowReReviewModal] = useState(false)
+  const [reReviewError, setReReviewError] = useState<string | null>(null)
   const [inlineContext, setInlineContext] = useState<InlineCommentContext | null>(null)
+  const [replyContext, setReplyContext] = useState<ReplyContext | null>(null)
+  const [showResolved, setShowResolved] = useState(true)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
 
   const submitReview = useSubmitReview()
   const createComment = useCreateComment()
   const createReviewComment = useCreateReviewComment()
+  const replyToReviewComment = useReplyToReviewComment()
+  const resolveThread = useResolveReviewThread()
+  const unresolveThread = useUnresolveReviewThread()
+  const requestReReview = useRequestReReview()
   const mergePR = useMergePR()
 
-  const hasModal = showReviewModal || showCommentModal || showMergeModal
+  const hasModal = showReviewModal || showCommentModal || showMergeModal || showReReviewModal
 
   useManualRefresh({
     isActive: !hasModal,
@@ -80,6 +96,7 @@ export function PRDetailScreen({
   const { data: comments = [], isLoading: commentsLoading } = usePRComments(owner, repo, pr.number)
   const { data: reviews = [], isLoading: reviewsLoading } = usePRReviews(owner, repo, pr.number)
   const { data: commits = [], isLoading: commitsLoading } = usePRCommits(owner, repo, pr.number)
+  const { data: reviewThreads } = useReviewThreads(owner, repo, pr.number)
 
   const isLoading = filesLoading || commentsLoading || reviewsLoading || commitsLoading
 
@@ -105,20 +122,95 @@ export function PRDetailScreen({
   const handleOpenGeneralComment = useCallback(() => {
     setCommentError(null)
     setInlineContext(null)
+    setReplyContext(null)
     setShowCommentModal(true)
   }, [])
 
   const handleOpenInlineComment = useCallback((context: InlineCommentContext) => {
     setCommentError(null)
     setInlineContext(context)
+    setReplyContext(null)
     setShowCommentModal(true)
   }, [])
+
+  const handleOpenReply = useCallback((context: ReplyContext) => {
+    setCommentError(null)
+    setInlineContext(null)
+    setReplyContext(context)
+    setShowCommentModal(true)
+  }, [])
+
+  const handleToggleResolve = useCallback(
+    (context: ResolveContext) => {
+      if (context.isResolved) {
+        unresolveThread.mutate(
+          { owner, repo, prNumber: pr.number, threadId: context.threadId },
+          {
+            onSuccess: () => setStatusMessage('Thread unresolved'),
+            onError: (err) => setStatusMessage(`Error: ${String(err)}`),
+          },
+        )
+      } else {
+        resolveThread.mutate(
+          { owner, repo, prNumber: pr.number, threadId: context.threadId },
+          {
+            onSuccess: () => setStatusMessage('Thread resolved'),
+            onError: (err) => setStatusMessage(`Error: ${String(err)}`),
+          },
+        )
+      }
+    },
+    [owner, repo, pr.number, resolveThread, unresolveThread, setStatusMessage],
+  )
+
+  const handleToggleShowResolved = useCallback(() => {
+    setShowResolved((prev) => !prev)
+  }, [])
+
+  const handleReReviewSubmit = useCallback(
+    (reviewers: readonly string[]) => {
+      setReReviewError(null)
+      requestReReview.mutate(
+        { owner, repo, prNumber: pr.number, reviewers },
+        {
+          onSuccess: () => {
+            setShowReReviewModal(false)
+            setStatusMessage(`Re-review requested from ${reviewers.join(', ')}`)
+          },
+          onError: (err) => {
+            setReReviewError(String(err))
+          },
+        },
+      )
+    },
+    [owner, repo, pr.number, requestReReview, setStatusMessage],
+  )
 
   const handleCommentSubmit = useCallback(
     (body: string) => {
       setCommentError(null)
 
-      if (inlineContext) {
+      if (replyContext) {
+        replyToReviewComment.mutate(
+          {
+            owner,
+            repo,
+            prNumber: pr.number,
+            body,
+            inReplyTo: replyContext.commentId,
+          },
+          {
+            onSuccess: () => {
+              setShowCommentModal(false)
+              setReplyContext(null)
+              setStatusMessage('Reply posted')
+            },
+            onError: (err) => {
+              setCommentError(String(err))
+            },
+          },
+        )
+      } else if (inlineContext) {
         createReviewComment.mutate(
           {
             owner,
@@ -129,6 +221,8 @@ export function PRDetailScreen({
             path: inlineContext.path,
             line: inlineContext.line,
             side: inlineContext.side,
+            startLine: inlineContext.startLine,
+            startSide: inlineContext.startSide,
           },
           {
             onSuccess: () => {
@@ -156,7 +250,7 @@ export function PRDetailScreen({
         )
       }
     },
-    [owner, repo, pr.number, inlineContext, createComment, createReviewComment, setStatusMessage],
+    [owner, repo, pr.number, replyContext, inlineContext, createComment, createReviewComment, replyToReviewComment, setStatusMessage],
   )
 
   const handleMergeSubmit = useCallback(
@@ -190,9 +284,15 @@ export function PRDetailScreen({
       } else if (input === 'o') {
         openInBrowser(pr.html_url)
         setStatusMessage('Opened in browser')
-      } else if (input === 'r') {
+      } else if (input === 'r' && currentTab !== 0) {
         setReviewError(null)
         setShowReviewModal(true)
+      } else if (input === 'R') {
+        setReviewError(null)
+        setShowReviewModal(true)
+      } else if (input === 'e') {
+        setReReviewError(null)
+        setShowReReviewModal(true)
       } else if (input === 'm') {
         setMergeError(null)
         setShowMergeModal(true)
@@ -214,8 +314,13 @@ export function PRDetailScreen({
           pr={activePR}
           comments={comments}
           reviews={reviews}
+          reviewThreads={reviewThreads}
           isActive={!hasModal}
+          showResolved={showResolved}
           onComment={handleOpenGeneralComment}
+          onReply={handleOpenReply}
+          onToggleResolve={handleToggleResolve}
+          onToggleShowResolved={handleToggleShowResolved}
         />
       )),
       Match.when(1, () => <CommitsTab commits={commits} isActive={!hasModal} />),
@@ -231,19 +336,28 @@ export function PRDetailScreen({
           pr={activePR}
           comments={comments}
           reviews={reviews}
+          reviewThreads={reviewThreads}
           isActive={!hasModal}
+          showResolved={showResolved}
           onComment={handleOpenGeneralComment}
+          onReply={handleOpenReply}
+          onToggleResolve={handleToggleResolve}
+          onToggleShowResolved={handleToggleShowResolved}
         />
       ))
     )
   }
 
-  const commentModalTitle = inlineContext
-    ? 'Add Inline Comment'
-    : 'Add Comment'
-  const commentModalContext = inlineContext
-    ? `${inlineContext.path}:${inlineContext.line}`
-    : undefined
+  const commentModalTitle = replyContext
+    ? `Reply to ${replyContext.user}`
+    : inlineContext
+      ? 'Add Inline Comment'
+      : 'Add Comment'
+  const commentModalContext = replyContext
+    ? (replyContext.body ? replyContext.body.slice(0, 100) + (replyContext.body.length > 100 ? '...' : '') : undefined)
+    : inlineContext
+      ? `${inlineContext.path}:${inlineContext.line}`
+      : undefined
 
   return (
     <Box flexDirection="column" flexGrow={1}>
@@ -268,8 +382,9 @@ export function PRDetailScreen({
           onClose={() => {
             setShowCommentModal(false)
             setInlineContext(null)
+            setReplyContext(null)
           }}
-          isSubmitting={createComment.isPending || createReviewComment.isPending}
+          isSubmitting={createComment.isPending || createReviewComment.isPending || replyToReviewComment.isPending}
           error={commentError}
         />
       )}
@@ -280,6 +395,15 @@ export function PRDetailScreen({
           onClose={() => setShowMergeModal(false)}
           isSubmitting={mergePR.isPending}
           error={mergeError}
+        />
+      )}
+      {showReReviewModal && (
+        <ReReviewModal
+          reviewers={buildReviewerList(reviews, activePR.requested_reviewers)}
+          onSubmit={handleReReviewSubmit}
+          onClose={() => setShowReReviewModal(false)}
+          isSubmitting={requestReReview.isPending}
+          error={reReviewError}
         />
       )}
     </Box>

@@ -131,6 +131,8 @@ interface InlineCommentContext {
   readonly path: string
   readonly line: number
   readonly side: 'LEFT' | 'RIGHT'
+  readonly startLine?: number
+  readonly startSide?: 'LEFT' | 'RIGHT'
 }
 
 interface FilesTabProps {
@@ -250,6 +252,7 @@ interface DiffLineViewProps {
   readonly line: DiffLine
   readonly lineNumber: number
   readonly isFocus: boolean
+  readonly isInSelection: boolean
   readonly language?: string
 }
 
@@ -257,11 +260,16 @@ function DiffLineView({
   line,
   lineNumber,
   isFocus,
+  isInSelection,
   language,
 }: DiffLineViewProps): React.ReactElement {
   const theme = useTheme()
 
-  const bgColor = isFocus ? theme.colors.selection : undefined
+  const bgColor = isFocus
+    ? theme.colors.selection
+    : isInSelection
+      ? theme.colors.listSelectedBg
+      : undefined
 
   const textColor =
     line.type === 'add'
@@ -313,6 +321,7 @@ interface DiffViewProps {
   readonly viewportHeight: number
   readonly isActive: boolean
   readonly filename?: string
+  readonly visualStart?: number | null
 }
 
 function DiffView({
@@ -322,6 +331,7 @@ function DiffView({
   viewportHeight,
   isActive,
   filename,
+  visualStart,
 }: DiffViewProps): React.ReactElement {
   const language = filename ? getLanguageFromFilename(filename) : undefined
   const theme = useTheme()
@@ -354,17 +364,26 @@ function DiffView({
     scrollOffset + viewportHeight,
   )
 
+  const selMin = visualStart != null ? Math.min(visualStart, selectedLine) : -1
+  const selMax = visualStart != null ? Math.max(visualStart, selectedLine) : -1
+
   return (
     <Box flexDirection="column" flexGrow={1}>
-      {visibleLines.map((item, index) => (
-        <DiffLineView
-          key={`${item.hunkIndex}-${scrollOffset + index}`}
-          line={item.line}
-          lineNumber={item.lineNumber}
-          isFocus={isActive && scrollOffset + index === selectedLine}
-          language={language}
-        />
-      ))}
+      {visibleLines.map((item, index) => {
+        const absIndex = scrollOffset + index
+        const isInSelection =
+          visualStart != null && absIndex >= selMin && absIndex <= selMax
+        return (
+          <DiffLineView
+            key={`${item.hunkIndex}-${absIndex}`}
+            line={item.line}
+            lineNumber={item.lineNumber}
+            isFocus={isActive && absIndex === selectedLine}
+            isInSelection={isInSelection}
+            language={language}
+          />
+        )
+      })}
     </Box>
   )
 }
@@ -380,6 +399,7 @@ export function FilesTab({
 
   const [focusPanel, setFocusPanel] = useState<FocusPanel>('tree')
   const [selectedFileIndex, setSelectedFileIndex] = useState(0)
+  const [visualStart, setVisualStart] = useState<number | null>(null)
 
   const tree = useMemo(() => buildFileTree(files), [files])
   const fileOrder = useMemo(() => flattenTreeToFiles(tree), [tree])
@@ -429,12 +449,25 @@ export function FilesTab({
 
   useInput(
     (input, key) => {
+      if (key.escape && visualStart != null) {
+        setVisualStart(null)
+        return
+      }
+
       if (key.tab) {
+        setVisualStart(null)
         setFocusPanel((prev) => (prev === 'tree' ? 'diff' : 'tree'))
       } else if (input === 'h' || key.leftArrow) {
+        setVisualStart(null)
         setFocusPanel('tree')
       } else if (input === 'l' || key.rightArrow) {
         setFocusPanel('diff')
+      } else if (input === 'v' && focusPanel === 'diff') {
+        if (visualStart != null) {
+          setVisualStart(null)
+        } else {
+          setVisualStart(diffSelectedLine)
+        }
       } else if (input === 'c' && focusPanel === 'diff' && onInlineComment && selectedFile) {
         const allLines: { line: DiffLine; lineNumber: number }[] = []
         let ln = 1
@@ -444,14 +477,34 @@ export function FilesTab({
             if (line.type !== 'header') ln++
           }
         }
-        const selected = allLines[diffSelectedLine]
-        if (selected && selected.line.type !== 'header') {
-          const side = selected.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
-          onInlineComment({
-            path: selectedFile.filename,
-            line: selected.lineNumber,
-            side,
-          })
+
+        if (visualStart != null) {
+          const selMin = Math.min(visualStart, diffSelectedLine)
+          const selMax = Math.max(visualStart, diffSelectedLine)
+          const startItem = allLines[selMin]
+          const endItem = allLines[selMax]
+          if (startItem && endItem && startItem.line.type !== 'header' && endItem.line.type !== 'header') {
+            const endSide = endItem.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
+            const startSide = startItem.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
+            onInlineComment({
+              path: selectedFile.filename,
+              line: endItem.lineNumber,
+              side: endSide,
+              startLine: startItem.lineNumber,
+              startSide,
+            })
+            setVisualStart(null)
+          }
+        } else {
+          const selected = allLines[diffSelectedLine]
+          if (selected && selected.line.type !== 'header') {
+            const side = selected.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
+            onInlineComment({
+              path: selectedFile.filename,
+              line: selected.lineNumber,
+              side,
+            })
+          }
         }
       }
     },
@@ -540,6 +593,11 @@ export function FilesTab({
               </Text>
             </Box>
           )}
+          {visualStart != null && focusPanel === 'diff' && (
+            <Text color={theme.colors.warning} bold>
+              -- VISUAL LINE --
+            </Text>
+          )}
         </Box>
         <Box flexDirection="column" flexGrow={1} overflowY="hidden">
           <DiffView
@@ -549,6 +607,7 @@ export function FilesTab({
             viewportHeight={viewportHeight - 2}
             isActive={isActive && focusPanel === 'diff'}
             filename={selectedFile?.filename}
+            visualStart={focusPanel === 'diff' ? visualStart : null}
           />
         </Box>
       </Box>

@@ -3,6 +3,7 @@ import { User } from './user'
 
 export class Comment extends S.Class<Comment>('Comment')({
   id: S.Number,
+  node_id: S.optional(S.String),
   body: S.String,
   user: User,
   created_at: S.String,
