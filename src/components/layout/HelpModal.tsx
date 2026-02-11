@@ -1,6 +1,7 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
+import { Divider } from '../common/Divider'
 import { Modal } from '../common/Modal'
 
 interface HelpModalProps {
@@ -39,6 +40,7 @@ export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
         <Text color={theme.colors.accent} bold>
           Keyboard Shortcuts
         </Text>
+        <Divider />
         <Box flexDirection="column">
           {shortcuts.map((s) => (
             <Box key={s.key} gap={2}>
@@ -49,6 +51,7 @@ export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
             </Box>
           ))}
         </Box>
+        <Divider />
         <Text color={theme.colors.muted} dimColor>
           Press ? to close
         </Text>

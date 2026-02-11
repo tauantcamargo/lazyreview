@@ -30,24 +30,55 @@ export function FilterModal({
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
   const [searchValue, setSearchValue] = useState(filter.search)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
-  // Disable global shortcuts while this modal is open
   useEffect(() => {
     setInputActive(true)
     return () => setInputActive(false)
   }, [setInputActive])
 
   useInput((input, key) => {
+    if (showClearConfirm) {
+      if (input === 'y' || input === 'Y') {
+        onClear()
+        onClose()
+      } else if (input === 'n' || input === 'N' || key.escape) {
+        setShowClearConfirm(false)
+      }
+      return
+    }
+
     if (key.escape) {
       onClose()
     } else if (key.return) {
       onSearchChange(searchValue)
       onClose()
-    } else if (input === 'c' && !searchValue) {
-      onClear()
-      onClose()
+    } else if (input === 'c' && filter.search) {
+      setShowClearConfirm(true)
     }
   })
+
+  if (showClearConfirm) {
+    return (
+      <Modal>
+        <Box
+          flexDirection="column"
+          borderStyle="round"
+          borderColor={theme.colors.accent}
+          // @ts-ignore
+          backgroundColor={theme.colors.bg}
+          paddingX={2}
+          paddingY={1}
+          gap={1}
+        >
+          <Text color={theme.colors.accent} bold>
+            Clear all filters?
+          </Text>
+          <Text color={theme.colors.text}>y: Yes, n: No</Text>
+        </Box>
+      </Modal>
+    )
+  }
 
   return (
     <Modal>

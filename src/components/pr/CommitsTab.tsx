@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Box, Text, useStdout } from 'ink'
+import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../../theme/index'
 import { useListNavigation } from '../../hooks/useListNavigation'
 import type { Commit } from '../../models/commit'
@@ -65,17 +66,24 @@ export function CommitsTab({
   const theme = useTheme()
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 10)
 
-  const { selectedIndex, scrollOffset } = useListNavigation({
+  const listRef = useRef<ScrollListRef>(null)
+  const { selectedIndex } = useListNavigation({
     itemCount: commits.length,
     viewportHeight,
     isActive,
   })
 
+  useEffect(() => {
+    const handleResize = (): void => listRef.current?.remeasure()
+    stdout?.on('resize', handleResize)
+    return () => {
+      stdout?.off('resize', handleResize)
+    }
+  }, [stdout])
+
   if (commits.length === 0) {
     return <EmptyState message="No commits found" />
   }
-
-  const visibleCommits = commits.slice(scrollOffset, scrollOffset + viewportHeight)
 
   return (
     <Box flexDirection="column" flexGrow={1}>
@@ -118,14 +126,16 @@ export function CommitsTab({
         </Box>
       </Box>
 
-      <Box flexDirection="column">
-        {visibleCommits.map((commit, index) => (
-          <CommitItem
-            key={commit.sha}
-            commit={commit}
-            isFocus={scrollOffset + index === selectedIndex}
-          />
-        ))}
+      <Box flexDirection="column" overflow="hidden" height={viewportHeight}>
+        <ScrollList ref={listRef} selectedIndex={selectedIndex} scrollAlignment="auto">
+          {commits.map((commit, index) => (
+            <CommitItem
+              key={commit.sha}
+              commit={commit}
+              isFocus={index === selectedIndex}
+            />
+          ))}
+        </ScrollList>
       </Box>
     </Box>
   )

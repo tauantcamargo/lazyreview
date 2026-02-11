@@ -4,6 +4,7 @@ import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../theme/index'
 import { useConfig } from '../hooks/useConfig'
 import { useAuth } from '../hooks/useAuth'
+import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import type { TokenSource } from '../services/Auth'
 
@@ -143,6 +144,9 @@ export function SettingsScreen(): React.ReactElement {
           Settings
         </Text>
       </Box>
+      <Box paddingX={1}>
+        <Divider />
+      </Box>
 
       {/* Token Section */}
       <Box flexDirection="column" paddingX={1} marginBottom={1}>
@@ -226,8 +230,11 @@ export function SettingsScreen(): React.ReactElement {
         )}
       </Box>
 
+      <Box paddingX={1} marginTop={1}>
+        <Divider title="Configuration" />
+      </Box>
       {/* Config Section */}
-      <Box flexDirection="column" paddingX={1} marginTop={2} marginBottom={1}>
+      <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
         <Text color={theme.colors.secondary} bold>
           Configuration
         </Text>

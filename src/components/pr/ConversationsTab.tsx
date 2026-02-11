@@ -1,6 +1,9 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Box, Text, useStdout } from 'ink'
+import { Match } from 'effect'
+import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../../theme/index'
+import { Divider } from '../common/Divider'
 import { useListNavigation } from '../../hooks/useListNavigation'
 import type { PullRequest } from '../../models/pull-request'
 import type { Comment } from '../../models/comment'
@@ -83,59 +86,68 @@ function TimelineItemView({
 }): React.ReactElement {
   const theme = useTheme()
 
-  const getStateIcon = (state?: string): { icon: string; color: string } => {
-    switch (state) {
-      case 'APPROVED':
-        return { icon: '✓', color: theme.colors.success }
-      case 'CHANGES_REQUESTED':
-        return { icon: '✗', color: theme.colors.error }
-      case 'COMMENTED':
-        return { icon: '💬', color: theme.colors.info }
-      case 'DISMISSED':
-        return { icon: '—', color: theme.colors.muted }
-      default:
-        return { icon: '•', color: theme.colors.muted }
-    }
-  }
+  const getStateIcon = (state?: string): { icon: string; color: string } =>
+    Match.value(state).pipe(
+      Match.when('APPROVED', () => ({
+        icon: '✓',
+        color: theme.colors.success,
+      })),
+      Match.when('CHANGES_REQUESTED', () => ({
+        icon: '✗',
+        color: theme.colors.error,
+      })),
+      Match.when('COMMENTED', () => ({ icon: '💬', color: theme.colors.info })),
+      Match.when('DISMISSED', () => ({ icon: '—', color: theme.colors.muted })),
+      Match.orElse(() => ({ icon: '•', color: theme.colors.muted })),
+    )
 
-  const { icon, color } = item.type === 'review'
-    ? getStateIcon(item.state)
-    : item.type === 'description'
-      ? { icon: '📝', color: theme.colors.accent }
-      : { icon: '💬', color: theme.colors.info }
+  const { icon, color } =
+    item.type === 'review'
+      ? getStateIcon(item.state)
+      : item.type === 'description'
+        ? { icon: '📝', color: theme.colors.accent }
+        : { icon: '💬', color: theme.colors.info }
+
+  const stateLabel =
+    item.type === 'review' && item.state
+      ? item.state.toLowerCase().replace('_', ' ')
+      : ''
+  const location =
+    item.type === 'comment' && item.path
+      ? ` on ${item.path}${item.line != null ? `:${item.line}` : ''}`
+      : ''
 
   return (
     <Box
       flexDirection="column"
       paddingX={1}
       paddingY={1}
-      borderStyle={isFocus ? 'single' : undefined}
-      borderColor={isFocus ? theme.colors.accent : undefined}
+      marginBottom={2}
+      gap={1}
     >
-      <Box gap={1}>
+      <Box flexDirection="row">
+        {isFocus && <Text color={theme.colors.accent}>{'▸ '}</Text>}
         <Text color={color}>{icon}</Text>
+        <Text> </Text>
         <Text color={theme.colors.secondary} bold>
           {item.user}
         </Text>
-        {item.type === 'review' && item.state && (
-          <Text color={color}>{item.state.toLowerCase().replace('_', ' ')}</Text>
-        )}
-        {item.type === 'comment' && item.path && (
-          <Text color={theme.colors.muted}>
-            on {item.path}
-            {item.line ? `:${item.line}` : ''}
-          </Text>
-        )}
-        <Text color={theme.colors.muted}>{timeAgo(item.date)}</Text>
+        {stateLabel ? (
+          <>
+            <Text> </Text>
+            <Text color={color}>{stateLabel}</Text>
+          </>
+        ) : null}
+        {location ? <Text color={theme.colors.muted}>{location}</Text> : null}
+        <Text color={theme.colors.muted}> · {timeAgo(item.date)}</Text>
       </Box>
-      {item.body && (
-        <Box paddingLeft={2} marginTop={1}>
+      {item.body ? (
+        <Box paddingLeft={isFocus ? 3 : 2} marginTop={0} width="80%">
           <Text color={theme.colors.text} wrap="wrap">
-            {item.body.slice(0, 500)}
-            {item.body.length > 500 ? '...' : ''}
+            {item.body}
           </Text>
         </Box>
-      )}
+      ) : null}
     </Box>
   )
 }
@@ -148,40 +160,46 @@ function PRInfoSection({
   const theme = useTheme()
 
   return (
-    <Box flexDirection="column" paddingX={1} paddingBottom={1} borderStyle="single" borderColor={theme.colors.border}>
-      <Box gap={2} marginBottom={1}>
-        <Text color={theme.colors.muted}>Author:</Text>
+    <Box
+      flexDirection="column"
+      paddingX={1}
+      paddingY={1}
+      borderStyle="single"
+      borderColor={theme.colors.border}
+    >
+      <Box flexDirection="row">
+        <Text color={theme.colors.muted}>Author: </Text>
         <Text color={theme.colors.secondary} bold>
           {pr.user.login}
         </Text>
       </Box>
-
-      {pr.requested_reviewers.length > 0 && (
-        <Box gap={2} marginBottom={1}>
-          <Text color={theme.colors.muted}>Reviewers:</Text>
+      {pr.requested_reviewers.length > 0 ? (
+        <Box flexDirection="row" marginTop={0}>
+          <Text color={theme.colors.muted}>Reviewers: </Text>
           <Text color={theme.colors.text}>
             {pr.requested_reviewers.map((r) => r.login).join(', ')}
           </Text>
         </Box>
-      )}
-
-      {pr.labels.length > 0 && (
-        <Box gap={2} marginBottom={1}>
-          <Text color={theme.colors.muted}>Labels:</Text>
-          <Box gap={1}>
-            {pr.labels.map((label) => (
-              <Text key={label.id} color={`#${label.color}`}>
-                [{label.name}]
-              </Text>
-            ))}
-          </Box>
+      ) : null}
+      {pr.labels.length > 0 ? (
+        <Box flexDirection="row" marginTop={0}>
+          <Text color={theme.colors.muted}>Labels: </Text>
+          {pr.labels.map((label) => (
+            <Text key={label.id} color={`#${label.color}`}>
+              [{label.name}]{' '}
+            </Text>
+          ))}
         </Box>
-      )}
-
-      <Box gap={2}>
+      ) : null}
+      <Box paddingY={0}>
+        <Divider />
+      </Box>
+      <Box flexDirection="row" marginTop={0}>
         <Text color={theme.colors.diffAdd}>+{pr.additions}</Text>
+        <Text> </Text>
         <Text color={theme.colors.diffDel}>-{pr.deletions}</Text>
         <Text color={theme.colors.muted}>
+          {' '}
           {pr.changed_files} files changed
         </Text>
       </Box>
@@ -189,52 +207,65 @@ function PRInfoSection({
   )
 }
 
+const CONVERSATIONS_RESERVED_LINES = 18
+
 export function ConversationsTab({
   pr,
   comments,
   reviews,
   isActive,
 }: ConversationsTabProps): React.ReactElement {
-  const { stdout } = useStdout()
   const theme = useTheme()
-  const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 12)
-
+  const { stdout } = useStdout()
+  const listRef = useRef<ScrollListRef>(null)
   const timeline = buildTimeline(pr, comments, reviews)
+  const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - CONVERSATIONS_RESERVED_LINES)
 
-  const { selectedIndex, scrollOffset } = useListNavigation({
+  const { selectedIndex } = useListNavigation({
     itemCount: timeline.length,
-    viewportHeight: Math.max(1, viewportHeight - 6),
+    viewportHeight,
     isActive,
   })
 
-  const visibleItems = timeline.slice(
-    scrollOffset,
-    scrollOffset + viewportHeight - 6,
-  )
+  useEffect(() => {
+    const handleResize = (): void => {
+      listRef.current?.remeasure()
+    }
+    stdout?.on('resize', handleResize)
+    return () => {
+      stdout?.off('resize', handleResize)
+    }
+  }, [stdout])
 
   return (
     <Box flexDirection="column" flexGrow={1}>
       <PRInfoSection pr={pr} />
 
-      <Box paddingX={1} paddingY={1}>
+      <Box flexDirection="row" paddingX={1} paddingY={0} marginBottom={1}>
         <Text color={theme.colors.accent} bold>
           Timeline ({timeline.length} items)
         </Text>
       </Box>
 
-      <Box flexDirection="column" flexGrow={1}>
-        {visibleItems.length === 0 ? (
+      <Box flexDirection="column" flexGrow={1} overflow="hidden" height={viewportHeight}>
+        {timeline.length === 0 ? (
           <Box paddingX={1}>
             <Text color={theme.colors.muted}>No conversations yet</Text>
           </Box>
         ) : (
-          visibleItems.map((item, index) => (
-            <TimelineItemView
-              key={item.id}
-              item={item}
-              isFocus={scrollOffset + index === selectedIndex}
-            />
-          ))
+          <ScrollList
+            ref={listRef}
+            selectedIndex={selectedIndex}
+            scrollAlignment="auto"
+          >
+            {timeline.map((item, index) => (
+              <TimelineItemView
+                key={item.id}
+                item={item}
+                isFocus={index === selectedIndex}
+              />
+            ))}
+          </ScrollList>
         )}
       </Box>
     </Box>

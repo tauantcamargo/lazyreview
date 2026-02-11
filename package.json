@@ -3,6 +3,16 @@
   "version": "0.1.0",
   "description": "A TUI code review tool for GitHub PRs",
   "type": "module",
+  "author": "Tauan Camargo",
+  "license": "MIT",
+  "keywords": [
+    "tui",
+    "github",
+    "pr",
+    "code review",
+    "lazyreview",
+    "terminal"
+  ],
   "bin": {
     "lazyreview": "dist/cli.js"
   },
@@ -24,6 +34,13 @@
     "date-fns": "^4.1.0",
     "effect": "^3.14.0",
     "ink": "^6.7.0",
+    "ink-confirm-input": "^2.0.0",
+    "ink-divider": "^4.1.1",
+    "ink-select-input": "^6.2.0",
+    "ink-scroll-list": "^0.4.1",
+    "ink-scroll-view": "^0.3.5",
+    "ink-syntax-highlight": "^2.0.2",
+    "ink-tab": "^5.2.0",
     "react": "^19.0.0",
     "yaml": "^2.7.0"
   },

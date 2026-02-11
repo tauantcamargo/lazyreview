@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
+import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../theme/index'
 import { useGitHub } from '../hooks/useGitHub'
 import { useListNavigation } from '../hooks/useListNavigation'
@@ -27,12 +28,21 @@ export function PRListScreen({
     fetchPRs(owner, repo)
   }, [owner, repo, fetchPRs])
 
+  const listRef = useRef<ScrollListRef>(null)
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 6)
-  const { selectedIndex, scrollOffset } = useListNavigation({
+  const { selectedIndex } = useListNavigation({
     itemCount: prs.length,
     viewportHeight,
     isActive: true,
   })
+
+  useEffect(() => {
+    const handleResize = (): void => listRef.current?.remeasure()
+    stdout?.on('resize', handleResize)
+    return () => {
+      stdout?.off('resize', handleResize)
+    }
+  }, [stdout])
 
   useInput((input, key) => {
     if (key.return && prs[selectedIndex]) {
@@ -58,8 +68,6 @@ export function PRListScreen({
     )
   }
 
-  const visiblePRs = prs.slice(scrollOffset, scrollOffset + viewportHeight)
-
   return (
     <Box flexDirection="column" flexGrow={1}>
       <Box paddingX={1}>
@@ -72,14 +80,16 @@ export function PRListScreen({
           - {owner}/{repo}
         </Text>
       </Box>
-      <Box flexDirection="column">
-        {visiblePRs.map((pr, index) => (
-          <PRListItem
-            key={pr.id}
-            item={pr}
-            isFocus={scrollOffset + index === selectedIndex}
-          />
-        ))}
+      <Box flexDirection="column" overflow="hidden" height={viewportHeight}>
+        <ScrollList ref={listRef} selectedIndex={selectedIndex} scrollAlignment="auto">
+          {prs.map((pr, index) => (
+            <PRListItem
+              key={pr.id}
+              item={pr}
+              isFocus={index === selectedIndex}
+            />
+          ))}
+        </ScrollList>
       </Box>
     </Box>
   )

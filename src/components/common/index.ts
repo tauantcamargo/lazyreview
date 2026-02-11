@@ -1,5 +1,6 @@
 export { LoadingIndicator } from './LoadingIndicator'
 export { EmptyState } from './EmptyState'
+export { Divider } from './Divider'
 export { Spinner } from './Spinner'
 export { BorderedBox } from './BorderedBox'
 export { Modal } from './Modal'

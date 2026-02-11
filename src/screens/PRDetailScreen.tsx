@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Box, useInput } from 'ink'
+import { Box, useInput, useStdout } from 'ink'
 import { Match } from 'effect'
 import { usePRFiles, usePRComments, usePRReviews, usePRCommits } from '../hooks/useGitHub'
 import { PRHeader } from '../components/pr/PRHeader'
@@ -17,13 +17,17 @@ interface PRDetailScreenProps {
   readonly onBack: () => void
 }
 
+const PR_DETAIL_RESERVED_LINES = 12
+
 export function PRDetailScreen({
   pr,
   owner,
   repo,
   onBack,
 }: PRDetailScreenProps): React.ReactElement {
+  const { stdout } = useStdout()
   const [currentTab, setCurrentTab] = useState(0)
+  const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
 
   // Fetch all PR data
   const { data: files = [], isLoading: filesLoading } = usePRFiles(owner, repo, pr.number)
@@ -75,8 +79,10 @@ export function PRDetailScreen({
   return (
     <Box flexDirection="column" flexGrow={1}>
       <PRHeader pr={pr} />
-      <PRTabs activeIndex={currentTab} />
-      <Box flexGrow={1}>{renderTabContent()}</Box>
+      <PRTabs activeIndex={currentTab} onChange={setCurrentTab} />
+      <Box height={contentHeight} overflow="hidden" flexDirection="column">
+        {renderTabContent()}
+      </Box>
     </Box>
   )
 }

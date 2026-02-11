@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useMemo } from 'react'
 import { Box, Text, useInput } from 'ink'
+import SelectInput from 'ink-select-input'
 import { useTheme } from '../../theme/index'
 import { Modal } from './Modal'
 import type { SortField, SortDirection } from '../../hooks/useFilter'
@@ -28,28 +29,35 @@ export function SortModal({
   onClose,
 }: SortModalProps): React.ReactElement {
   const theme = useTheme()
-  const currentIndex = SORT_OPTIONS.findIndex((o) => o.key === currentSort)
-  const [selectedIndex, setSelectedIndex] = useState(
-    currentIndex >= 0 ? currentIndex : 0,
-  )
 
   useInput((input, key) => {
     if (key.escape || input === 's') {
       onClose()
-    } else if (input === 'j' || key.downArrow) {
-      setSelectedIndex((prev) => Math.min(prev + 1, SORT_OPTIONS.length - 1))
-    } else if (input === 'k' || key.upArrow) {
-      setSelectedIndex((prev) => Math.max(prev - 1, 0))
-    } else if (key.return) {
-      const selected = SORT_OPTIONS[selectedIndex]
-      if (selected.key === currentSort) {
-        onSortDirectionToggle()
-      } else {
-        onSortChange(selected.key)
-      }
-      onClose()
     }
   })
+
+  const items = useMemo(
+    () =>
+      SORT_OPTIONS.map((option) => ({
+        label: `${option.label}${option.key === currentSort ? (sortDirection === 'desc' ? ' ↓' : ' ↑') : ''}`,
+        value: option.key,
+      })),
+    [currentSort, sortDirection],
+  )
+
+  const initialIndex = Math.max(
+    0,
+    SORT_OPTIONS.findIndex((o) => o.key === currentSort),
+  )
+
+  const handleSelect = (item: { label: string; value: SortField }) => {
+    if (item.value === currentSort) {
+      onSortDirectionToggle()
+    } else {
+      onSortChange(item.value)
+    }
+    onClose()
+  }
 
   return (
     <Modal>
@@ -67,34 +75,12 @@ export function SortModal({
           Sort by
         </Text>
 
-        <Box flexDirection="column">
-          {SORT_OPTIONS.map((option, idx) => {
-            const isSelected = idx === selectedIndex
-            const isCurrent = option.key === currentSort
-            const arrow = sortDirection === 'desc' ? '↓' : '↑'
-
-            return (
-              <Box key={option.key} gap={2}>
-                <Box width={20}>
-                  <Text
-                    color={
-                      isCurrent
-                        ? theme.colors.success
-                        : isSelected
-                          ? theme.colors.accent
-                          : theme.colors.text
-                    }
-                    bold={isSelected}
-                  >
-                    {isSelected ? '▸ ' : '  '}
-                    {option.label}
-                  </Text>
-                </Box>
-                {isCurrent && <Text color={theme.colors.warning}>{arrow}</Text>}
-              </Box>
-            )
-          })}
-        </Box>
+        <SelectInput
+          items={items}
+          initialIndex={initialIndex}
+          onSelect={handleSelect}
+          isFocused={true}
+        />
 
         <Text color={theme.colors.muted} dimColor>
           j/k: move | Enter: select | Esc: close

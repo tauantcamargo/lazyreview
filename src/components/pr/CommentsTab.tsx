@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Box, Text, useStdout } from 'ink'
+import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../../theme/index'
 import { useListNavigation } from '../../hooks/useListNavigation'
 import type { Comment } from '../../models/comment'
@@ -54,33 +55,38 @@ export function CommentsTab({
   comments,
 }: CommentsTabProps): React.ReactElement {
   const { stdout } = useStdout()
-  // Comments take more vertical space, adjust viewport accordingly
+  const listRef = useRef<ScrollListRef>(null)
   const viewportHeight = Math.max(1, Math.floor((stdout?.rows ?? 24) - 8) / 4)
 
-  const { selectedIndex, scrollOffset } = useListNavigation({
+  const { selectedIndex } = useListNavigation({
     itemCount: comments.length,
     viewportHeight,
     isActive: true,
   })
 
+  useEffect(() => {
+    const handleResize = (): void => listRef.current?.remeasure()
+    stdout?.on('resize', handleResize)
+    return () => {
+      stdout?.off('resize', handleResize)
+    }
+  }, [stdout])
+
   if (comments.length === 0) {
     return <EmptyState message="No comments yet" />
   }
 
-  const visibleComments = comments.slice(
-    scrollOffset,
-    scrollOffset + viewportHeight,
-  )
-
   return (
-    <Box flexDirection="column" flexGrow={1}>
-      {visibleComments.map((comment, index) => (
-        <CommentItem
-          key={comment.id}
-          item={comment}
-          isFocus={scrollOffset + index === selectedIndex}
-        />
-      ))}
+    <Box flexDirection="column" flexGrow={1} overflow="hidden" height={viewportHeight}>
+      <ScrollList ref={listRef} selectedIndex={selectedIndex} scrollAlignment="auto">
+        {comments.map((comment, index) => (
+          <CommentItem
+            key={comment.id}
+            item={comment}
+            isFocus={index === selectedIndex}
+          />
+        ))}
+      </ScrollList>
     </Box>
   )
 }
