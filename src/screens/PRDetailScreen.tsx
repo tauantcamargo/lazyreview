@@ -41,6 +41,9 @@ interface PRDetailScreenProps {
   readonly owner: string
   readonly repo: string
   readonly onBack: () => void
+  readonly onNavigate?: (direction: 'next' | 'prev') => void
+  readonly prIndex?: number
+  readonly prTotal?: number
 }
 
 const PR_DETAIL_RESERVED_LINES = 12
@@ -50,6 +53,9 @@ export function PRDetailScreen({
   owner,
   repo,
   onBack,
+  onNavigate,
+  prIndex,
+  prTotal,
 }: PRDetailScreenProps): React.ReactElement {
   const { stdout } = useStdout()
   const { setStatusMessage } = useStatusMessage()
@@ -193,6 +199,10 @@ export function PRDetailScreen({
         } else {
           setStatusMessage('Failed to copy to clipboard')
         }
+      } else if (input === ']' && onNavigate) {
+        onNavigate('next')
+      } else if (input === '[' && onNavigate) {
+        onNavigate('prev')
       } else if (input === 'g') {
         setStatusMessage('Checking out PR #' + pr.number + '...', 10000)
         checkoutPR(pr.number).then((result) => {
@@ -273,7 +283,7 @@ export function PRDetailScreen({
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <PRHeader pr={activePR} owner={owner} repo={repo} />
+      <PRHeader pr={activePR} owner={owner} repo={repo} prIndex={prIndex} prTotal={prTotal} />
       <PRTabs activeIndex={currentTab} onChange={setCurrentTab} />
       <Box height={contentHeight} overflow="hidden" flexDirection="column">
         {renderTabContent()}

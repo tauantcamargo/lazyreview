@@ -35,7 +35,7 @@ interface PRListScreenProps {
   readonly queryKeys: readonly string[][]
   readonly stateFilter?: PRStateFilter
   readonly onStateChange?: (state: PRStateFilter) => void
-  readonly onSelect: (pr: PullRequest) => void
+  readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
 }
 
 export function PRListScreen({
@@ -99,7 +99,9 @@ export function PRListScreen({
   useInput(
     (input, key) => {
       if (key.return && pageItems[selectedIndex]) {
-        onSelect(pageItems[selectedIndex])
+        // Pass the full filtered list and absolute index for next/prev navigation
+        const absoluteIndex = startIndex + selectedIndex
+        onSelect(pageItems[selectedIndex], filteredItems, absoluteIndex)
       } else if (input === 'n' && hasNextPage) {
         nextPage()
       } else if (input === 'p' && hasPrevPage) {

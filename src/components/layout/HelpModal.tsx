@@ -54,6 +54,7 @@ const shortcutGroups: readonly ShortcutGroup[] = [
       { key: 'm', description: 'Merge PR' },
       { key: 'X', description: 'Close / Reopen PR' },
       { key: 'g', description: 'Checkout PR branch locally' },
+      { key: '] / [', description: 'Next / Previous PR' },
     ],
   },
   {

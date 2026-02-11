@@ -4,7 +4,7 @@ import { PRListScreen } from './PRListScreen'
 import type { PullRequest } from '../models/pull-request'
 
 interface InvolvedScreenProps {
-  readonly onSelect: (pr: PullRequest) => void
+  readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
 }
 
 export function InvolvedScreen({ onSelect }: InvolvedScreenProps): React.ReactElement {

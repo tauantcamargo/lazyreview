@@ -8,7 +8,7 @@ import type { PullRequest } from '../models/pull-request'
 interface ThisRepoScreenProps {
   readonly owner: string | null
   readonly repo: string | null
-  readonly onSelect: (pr: PullRequest) => void
+  readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
 }
 
 export function ThisRepoScreen({ owner, repo, onSelect }: ThisRepoScreenProps): React.ReactElement {

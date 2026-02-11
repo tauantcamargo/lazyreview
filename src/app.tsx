@@ -27,7 +27,12 @@ import type { PullRequest } from './models/pull-request'
 
 type AppScreen =
   | { readonly type: 'list' }
-  | { readonly type: 'detail'; readonly pr: PullRequest }
+  | {
+      readonly type: 'detail'
+      readonly pr: PullRequest
+      readonly prList: readonly PullRequest[]
+      readonly prIndex: number
+    }
 
 interface AppContentProps {
   readonly repoOwner: string | null
@@ -114,13 +119,45 @@ function AppContent({
     { isActive: !showTokenInput && !isInputActive },
   )
 
-  const handleSelectPR = useCallback((pr: PullRequest) => {
-    setCurrentScreen({ type: 'detail', pr })
-  }, [])
+  const handleSelectPR = useCallback(
+    (pr: PullRequest, list?: readonly PullRequest[], index?: number) => {
+      setCurrentScreen({
+        type: 'detail',
+        pr,
+        prList: list ?? [pr],
+        prIndex: index ?? 0,
+      })
+    },
+    [],
+  )
 
   const handleBackToList = useCallback(() => {
     setCurrentScreen({ type: 'list' })
   }, [])
+
+  const handleNavigatePR = useCallback(
+    (direction: 'next' | 'prev') => {
+      if (currentScreen.type !== 'detail') return
+      const { prList, prIndex } = currentScreen
+      if (prList.length <= 1) return
+
+      const newIndex =
+        direction === 'next'
+          ? (prIndex + 1) % prList.length
+          : (prIndex - 1 + prList.length) % prList.length
+
+      const newPR = prList[newIndex]
+      if (newPR) {
+        setCurrentScreen({
+          type: 'detail',
+          pr: newPR,
+          prList,
+          prIndex: newIndex,
+        })
+      }
+    },
+    [currentScreen],
+  )
 
   function renderScreen(): React.ReactElement {
     if (currentScreen.type === 'detail') {
@@ -136,6 +173,9 @@ function AppContent({
           owner={prOwner}
           repo={prRepo}
           onBack={handleBackToList}
+          onNavigate={handleNavigatePR}
+          prIndex={currentScreen.prIndex}
+          prTotal={currentScreen.prList.length}
         />
       )
     }

@@ -9,9 +9,11 @@ interface PRHeaderProps {
   readonly pr: PullRequest
   readonly owner?: string
   readonly repo?: string
+  readonly prIndex?: number
+  readonly prTotal?: number
 }
 
-export function PRHeader({ pr, owner, repo }: PRHeaderProps): React.ReactElement {
+export function PRHeader({ pr, owner, repo, prIndex, prTotal }: PRHeaderProps): React.ReactElement {
   const theme = useTheme()
 
   const stateColor = pr.draft
@@ -40,6 +42,11 @@ export function PRHeader({ pr, owner, repo }: PRHeaderProps): React.ReactElement
         <Text color={theme.colors.text} bold>
           {pr.title}
         </Text>
+        {prTotal !== undefined && prIndex !== undefined && prTotal > 1 && (
+          <Text color={theme.colors.muted}>
+            ({prIndex + 1}/{prTotal})
+          </Text>
+        )}
       </Box>
       <Box gap={1} paddingLeft={2}>
         <Text color={theme.colors.secondary}>{pr.user.login}</Text>
