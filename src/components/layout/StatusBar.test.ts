@@ -19,6 +19,7 @@ describe('getContextHints', () => {
     expect(hints).toContain('/:filter')
     expect(hints).toContain('s:sort')
     expect(hints).toContain('o:browser')
+    expect(hints).toContain('y:copy-url')
   })
 
   it('returns files tab hints for pr-detail-files', () => {
@@ -33,12 +34,14 @@ describe('getContextHints', () => {
     expect(hints).toContain('c:comment')
     expect(hints).toContain('r:reply')
     expect(hints).toContain('x:resolve')
+    expect(hints).toContain('y:copy-url')
   })
 
   it('returns commits tab hints for pr-detail-commits', () => {
     const hints = getContextHints('detail', 'pr-detail-commits')
     expect(hints).toContain('j/k:nav')
     expect(hints).toContain('Tab:tabs')
+    expect(hints).toContain('y:copy-sha')
   })
 
   it('returns settings hints for settings context', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { truncate, padRight, pluralize, formatCount, openInBrowser } from './terminal'
+import { truncate, padRight, pluralize, formatCount, openInBrowser, copyToClipboard } from './terminal'
 
 describe('truncate', () => {
   it('returns text unchanged when shorter than maxWidth', () => {
@@ -90,5 +90,29 @@ describe('openInBrowser', () => {
 
   it('accepts http URLs', () => {
     expect(openInBrowser('http://github.com/foo/bar')).toBe(true)
+  })
+})
+
+describe('copyToClipboard', () => {
+  it('returns false for empty string', () => {
+    expect(copyToClipboard('')).toBe(false)
+  })
+
+  it('copies text to clipboard on macOS', () => {
+    // This test actually invokes pbcopy on macOS CI/dev
+    const result = copyToClipboard('test-copy-value')
+    expect(result).toBe(true)
+  })
+
+  it('copies URL to clipboard', () => {
+    const url = 'https://github.com/owner/repo/pull/42'
+    const result = copyToClipboard(url)
+    expect(result).toBe(true)
+  })
+
+  it('copies SHA to clipboard', () => {
+    const sha = 'abc123def456789'
+    const result = copyToClipboard(sha)
+    expect(result).toBe(true)
   })
 })

@@ -23,7 +23,7 @@ import { CommentModal } from '../components/pr/CommentModal'
 import { MergeModal } from '../components/pr/MergeModal'
 import { ReReviewModal, buildReviewerList } from '../components/pr/ReReviewModal'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
-import { openInBrowser } from '../utils/terminal'
+import { openInBrowser, copyToClipboard } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useManualRefresh } from '../hooks/useManualRefresh'
 import { setScreenContext } from '../hooks/useScreenContext'
@@ -185,6 +185,13 @@ export function PRDetailScreen({
         modals.openReReviewModal()
       } else if (input === 'm') {
         modals.openMergeModal()
+      } else if (input === 'y') {
+        const url = pr.html_url
+        if (copyToClipboard(url)) {
+          setStatusMessage('Copied PR URL to clipboard')
+        } else {
+          setStatusMessage('Failed to copy to clipboard')
+        }
       } else if (input === 'q' || key.escape) {
         if (pendingReview.isActive) {
           setShowDiscardConfirm(true)

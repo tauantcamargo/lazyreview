@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react'
-import { Box, Text, useStdout } from 'ink'
+import { Box, Text, useInput, useStdout } from 'ink'
 import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../../theme/index'
 import { useListNavigation } from '../../hooks/useListNavigation'
+import { copyToClipboard } from '../../utils/terminal'
+import { useStatusMessage } from '../../hooks/useStatusMessage'
 import type { Commit } from '../../models/commit'
 import { timeAgo } from '../../utils/date'
 import { EmptyState } from '../common/EmptyState'
@@ -63,6 +65,7 @@ export function CommitsTab({
 }: CommitsTabProps): React.ReactElement {
   const { stdout } = useStdout()
   const theme = useTheme()
+  const { setStatusMessage } = useStatusMessage()
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 10)
 
   const listRef = useRef<ScrollListRef>(null)
@@ -71,6 +74,20 @@ export function CommitsTab({
     viewportHeight,
     isActive,
   })
+
+  useInput(
+    (input) => {
+      if (input === 'y' && commits[selectedIndex]) {
+        const sha = commits[selectedIndex].sha
+        if (copyToClipboard(sha)) {
+          setStatusMessage(`Copied SHA ${sha.slice(0, 7)} to clipboard`)
+        } else {
+          setStatusMessage('Failed to copy to clipboard')
+        }
+      }
+    },
+    { isActive },
+  )
 
   useEffect(() => {
     const handleResize = (): void => listRef.current?.remeasure()

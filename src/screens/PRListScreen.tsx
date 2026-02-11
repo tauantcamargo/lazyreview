@@ -11,7 +11,7 @@ import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { PaginationBar } from '../components/common/PaginationBar'
 import { FilterModal } from '../components/common/FilterModal'
 import { SortModal } from '../components/common/SortModal'
-import { openInBrowser } from '../utils/terminal'
+import { openInBrowser, copyToClipboard } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useManualRefresh } from '../hooks/useManualRefresh'
 import type { PullRequest } from '../models/pull-request'
@@ -95,6 +95,13 @@ export function PRListScreen({
       } else if (input === 'o' && pageItems[selectedIndex]) {
         openInBrowser(pageItems[selectedIndex].html_url)
         setStatusMessage('Opened in browser')
+      } else if (input === 'y' && pageItems[selectedIndex]) {
+        const url = pageItems[selectedIndex].html_url
+        if (copyToClipboard(url)) {
+          setStatusMessage('Copied PR URL to clipboard')
+        } else {
+          setStatusMessage('Failed to copy to clipboard')
+        }
       }
     },
     { isActive: !showFilter && !showSort },

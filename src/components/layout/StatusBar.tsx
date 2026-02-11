@@ -22,10 +22,10 @@ const PANEL_HINTS: Record<Panel, string> = {
 }
 
 const SCREEN_CONTEXT_HINTS: Record<ScreenContext, string> = {
-  'pr-list': 'j/k:nav  Enter:open  /:filter  s:sort  o:browser  n/p:page  R:refresh',
+  'pr-list': 'j/k:nav  Enter:open  /:filter  s:sort  o:browser  y:copy-url  n/p:page  R:refresh',
   'pr-detail-files': 'j/k:nav  Enter:expand  d:diff  /:filter  Tab:tabs  Esc:back',
-  'pr-detail-conversations': 'j/k:nav  c:comment  r:reply  e:edit  x:resolve  f:toggle-resolved',
-  'pr-detail-commits': 'j/k:nav  Tab:tabs  Esc:back',
+  'pr-detail-conversations': 'j/k:nav  c:comment  r:reply  e:edit  x:resolve  f:toggle-resolved  y:copy-url',
+  'pr-detail-commits': 'j/k:nav  y:copy-sha  Tab:tabs  Esc:back',
   'settings': 'j/k:nav  Enter:edit/toggle  Esc:cancel',
 }
 

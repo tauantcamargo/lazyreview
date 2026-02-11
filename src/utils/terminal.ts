@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { platform } from 'node:os'
 
 export function openInBrowser(url: string): boolean {
@@ -21,6 +21,29 @@ export function openInBrowser(url: string): boolean {
   }
 
   return true
+}
+
+export function copyToClipboard(text: string): boolean {
+  if (!text) return false
+
+  try {
+    const os = platform()
+    if (os === 'darwin') {
+      execFileSync('pbcopy', { input: text })
+    } else if (os === 'win32') {
+      execFileSync('clip', { input: text })
+    } else {
+      // Try xclip first, then xsel
+      try {
+        execFileSync('xclip', ['-selection', 'clipboard'], { input: text })
+      } catch {
+        execFileSync('xsel', ['--clipboard', '--input'], { input: text })
+      }
+    }
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function truncate(text: string, maxWidth: number): string {
