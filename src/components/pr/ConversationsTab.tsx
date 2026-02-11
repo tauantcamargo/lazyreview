@@ -10,6 +10,7 @@ import type { Review } from '../../models/review'
 import type { ReviewThread } from '../../services/GitHubApi'
 import { TimelineItemView, type TimelineItem } from './TimelineItemView'
 import { ReviewSummary } from './ReviewSummary'
+import { MarkdownText } from '../common/MarkdownText'
 
 export interface ReplyContext {
   readonly commentId: number
@@ -60,15 +61,6 @@ export function buildTimeline(
       }
     }
   }
-
-  // Add PR description first
-  items.push({
-    id: 'description',
-    type: 'description',
-    user: pr.user.login,
-    body: pr.body,
-    date: pr.created_at,
-  })
 
   // Add reviews
   for (const review of reviews) {
@@ -162,6 +154,34 @@ function PRInfoSection({
   )
 }
 
+function PRDescriptionSection({
+  pr,
+}: {
+  readonly pr: PullRequest
+}): React.ReactElement {
+  const theme = useTheme()
+
+  return (
+    <Box flexDirection="column" paddingX={1} paddingY={1}>
+      <Box flexDirection="row" marginBottom={1}>
+        <Text color={theme.colors.accent} bold>
+          Description
+        </Text>
+        <Text color={theme.colors.muted}> by </Text>
+        <Text color={theme.colors.secondary} bold>
+          {pr.user.login}
+        </Text>
+      </Box>
+      <Box paddingLeft={1}>
+        <MarkdownText content={pr.body} />
+      </Box>
+      <Box paddingY={1}>
+        <Divider title="Timeline" />
+      </Box>
+    </Box>
+  )
+}
+
 const CONVERSATIONS_RESERVED_LINES = 18
 
 export function ConversationsTab({
@@ -247,6 +267,8 @@ export function ConversationsTab({
   return (
     <Box flexDirection="column" flexGrow={1}>
       <PRInfoSection pr={pr} />
+
+      <PRDescriptionSection pr={pr} />
 
       <ReviewSummary reviews={reviews} />
 

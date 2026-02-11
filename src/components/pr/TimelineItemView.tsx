@@ -7,7 +7,7 @@ import { timeAgo } from '../../utils/date'
 
 export interface TimelineItem {
   readonly id: string
-  readonly type: 'description' | 'review' | 'comment'
+  readonly type: 'review' | 'comment'
   readonly user: string
   readonly body: string | null
   readonly date: string
@@ -46,9 +46,7 @@ export function TimelineItemView({
   const { icon, color } =
     item.type === 'review'
       ? getStateIcon(item.state)
-      : item.type === 'description'
-        ? { icon: '#', color: theme.colors.accent }
-        : { icon: '~', color: theme.colors.info }
+      : { icon: '~', color: theme.colors.info }
 
   const stateLabel =
     item.type === 'review' && item.state
