@@ -20,6 +20,9 @@
   "bin": {
     "lazyreview": "dist/cli.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "start": "node dist/cli.js",
@@ -31,10 +34,13 @@
     "lint": "prettier --check 'src/**/*.{ts,tsx}'",
     "format": "prettier --write 'src/**/*.{ts,tsx}'"
   },
-  "dependencies": {
+  "devDependencies": {
     "@effect/platform": "^0.77.0",
     "@inkjs/ui": "^2.0.0",
     "@tanstack/react-query": "^5.66.0",
+    "@types/node": "^22.13.0",
+    "@types/react": "^19.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
     "date-fns": "^4.1.0",
     "effect": "^3.14.0",
     "ink": "^6.7.0",
@@ -45,18 +51,13 @@
     "ink-scroll-view": "^0.3.5",
     "ink-syntax-highlight": "^2.0.2",
     "ink-tab": "^5.2.0",
-    "react": "^19.0.0",
-    "yaml": "^2.7.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.13.0",
-    "@types/react": "^19.0.0",
-    "@vitest/coverage-v8": "^3.0.0",
     "ink-testing-library": "^4.0.0",
     "prettier": "^3.5.0",
+    "react": "^19.0.0",
     "tsup": "^8.4.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "yaml": "^2.7.0"
   },
   "engines": {
     "node": ">=20"

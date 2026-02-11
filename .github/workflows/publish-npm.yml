@@ -10,6 +10,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      changed: ${{ steps.version.outputs.changed }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,6 +25,7 @@ jobs:
           NEW=$(jq -r .version package.json)
           if [ "$OLD" != "$NEW" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "version=$NEW" >> "$GITHUB_OUTPUT"
             echo "Version changed: $OLD -> $NEW"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -49,3 +53,72 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
+
+  update-homebrew:
+    needs: publish
+    if: needs.publish.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for npm registry
+        run: sleep 30
+
+      - name: Get tarball SHA256
+        id: sha
+        run: |
+          VERSION="${{ needs.publish.outputs.version }}"
+          URL="https://registry.npmjs.org/lazyreview/-/lazyreview-${VERSION}.tgz"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          SHA=$(curl -sL "$URL" | sha256sum | awk '{print $1}')
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "SHA256: $SHA"
+
+      - name: Update Homebrew formula
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.publish.outputs.version }}"
+          SHA256="${{ steps.sha.outputs.sha256 }}"
+          URL="${{ steps.sha.outputs.url }}"
+
+          FORMULA=$(cat <<RUBY
+          class Lazyreview < Formula
+            desc "TUI code review tool for GitHub PRs"
+            homepage "https://github.com/tauantcamargo/lazyreview"
+            url "${URL}"
+            sha256 "${SHA256}"
+            license "MIT"
+
+            depends_on "node"
+
+            def install
+              system "npm", "install", *std_npm_args
+              bin.install_symlink Dir["#{libexec}/bin/*"]
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/lazyreview --version 2>&1", 1)
+            end
+          end
+          RUBY
+          )
+
+          # Base64 encode the formula
+          CONTENT=$(echo "$FORMULA" | base64 -w 0)
+
+          # Get current file SHA for update
+          FILE_SHA=$(curl -s \
+            -H "Authorization: token ${TAP_TOKEN}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/tauantcamargo/homebrew-tap/contents/Formula/lazyreview.rb" \
+            | jq -r '.sha')
+
+          # Update formula in homebrew-tap repo
+          curl -s -X PUT \
+            -H "Authorization: token ${TAP_TOKEN}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/tauantcamargo/homebrew-tap/contents/Formula/lazyreview.rb" \
+            -d "{
+              \"message\": \"chore: update lazyreview to ${VERSION}\",
+              \"content\": \"${CONTENT}\",
+              \"sha\": \"${FILE_SHA}\"
+            }"

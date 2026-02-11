@@ -35,6 +35,18 @@ function cleanup(): void {
 }
 
 async function main(): Promise<void> {
+  const arg = process.argv[2]
+
+  if (arg === '--version' || arg === '-v') {
+    const { readFileSync } = await import('node:fs')
+    const { resolve, dirname } = await import('node:path')
+    const { fileURLToPath } = await import('node:url')
+    const dir = dirname(fileURLToPath(import.meta.url))
+    const pkg = JSON.parse(readFileSync(resolve(dir, '..', 'package.json'), 'utf-8'))
+    console.log(pkg.version)
+    process.exit(0)
+  }
+
   // Enter alternate screen buffer
   process.stdout.write(
     ENTER_ALT_SCREEN + CLEAR_SCREEN + CURSOR_HOME + HIDE_CURSOR,
