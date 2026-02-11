@@ -2,7 +2,7 @@ import { useReviewActions } from './useReviewActions'
 import { useCommentActions } from './useCommentActions'
 import { usePRStateActions } from './usePRStateActions'
 
-export type { EditCommentContext } from './useCommentActions'
+export type { EditCommentContext, EditDescriptionContext } from './useCommentActions'
 
 interface UsePRDetailModalsOptions {
   readonly owner: string
@@ -66,6 +66,7 @@ export function usePRDetailModals({
     handleOpenInlineComment: comments.handleOpenInlineComment,
     handleOpenReply: comments.handleOpenReply,
     handleOpenEditComment: comments.handleOpenEditComment,
+    handleOpenEditDescription: comments.handleOpenEditDescription,
     closeCommentModal: comments.closeCommentModal,
     // PR state actions
     showMergeModal: prState.showMergeModal,

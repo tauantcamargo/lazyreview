@@ -5,6 +5,7 @@ import {
   useReplyToReviewComment,
   useEditIssueComment,
   useEditReviewComment,
+  useUpdatePRDescription,
 } from './useGitHubMutations'
 import type { InlineCommentContext } from '../models/inline-comment'
 import type { ReplyContext } from '../components/pr/ConversationsTab'
@@ -13,6 +14,10 @@ export interface EditCommentContext {
   readonly commentId: number
   readonly body: string
   readonly isReviewComment: boolean
+}
+
+export interface EditDescriptionContext {
+  readonly body: string
 }
 
 interface UseCommentActionsOptions {
@@ -35,18 +40,21 @@ export function useCommentActions({
   const [inlineContext, setInlineContext] = useState<InlineCommentContext | null>(null)
   const [replyContext, setReplyContext] = useState<ReplyContext | null>(null)
   const [editContext, setEditContext] = useState<EditCommentContext | null>(null)
+  const [descriptionEditContext, setDescriptionEditContext] = useState<EditDescriptionContext | null>(null)
 
   const createComment = useCreateComment()
   const createReviewComment = useCreateReviewComment()
   const replyToReviewComment = useReplyToReviewComment()
   const editIssueComment = useEditIssueComment()
   const editReviewCommentMutation = useEditReviewComment()
+  const updatePRDescription = useUpdatePRDescription()
 
   const handleOpenGeneralComment = useCallback(() => {
     setCommentError(null)
     setInlineContext(null)
     setReplyContext(null)
     setEditContext(null)
+    setDescriptionEditContext(null)
     setShowCommentModal(true)
   }, [])
 
@@ -55,6 +63,7 @@ export function useCommentActions({
     setInlineContext(context)
     setReplyContext(null)
     setEditContext(null)
+    setDescriptionEditContext(null)
     setShowCommentModal(true)
   }, [])
 
@@ -63,6 +72,7 @@ export function useCommentActions({
     setInlineContext(null)
     setReplyContext(context)
     setEditContext(null)
+    setDescriptionEditContext(null)
     setShowCommentModal(true)
   }, [])
 
@@ -71,6 +81,16 @@ export function useCommentActions({
     setInlineContext(null)
     setReplyContext(null)
     setEditContext(context)
+    setDescriptionEditContext(null)
+    setShowCommentModal(true)
+  }, [])
+
+  const handleOpenEditDescription = useCallback((context: EditDescriptionContext) => {
+    setCommentError(null)
+    setInlineContext(null)
+    setReplyContext(null)
+    setEditContext(null)
+    setDescriptionEditContext(context)
     setShowCommentModal(true)
   }, [])
 
@@ -94,9 +114,33 @@ export function useCommentActions({
     [owner, repo, prNumber, editContext, editIssueComment, editReviewCommentMutation, setStatusMessage],
   )
 
+  const handleEditDescriptionSubmit = useCallback(
+    (body: string) => {
+      if (!descriptionEditContext) return
+      setCommentError(null)
+      updatePRDescription.mutate(
+        { owner, repo, prNumber, body },
+        {
+          onSuccess: () => {
+            setShowCommentModal(false)
+            setDescriptionEditContext(null)
+            setStatusMessage('Description updated')
+          },
+          onError: (err) => setCommentError(String(err)),
+        },
+      )
+    },
+    [owner, repo, prNumber, descriptionEditContext, updatePRDescription, setStatusMessage],
+  )
+
   const handleCommentSubmit = useCallback(
     (body: string) => {
       setCommentError(null)
+
+      if (descriptionEditContext) {
+        handleEditDescriptionSubmit(body)
+        return
+      }
 
       if (editContext) {
         handleEditCommentSubmit(body)
@@ -144,8 +188,8 @@ export function useCommentActions({
         )
       }
     },
-    [owner, repo, prNumber, replyContext, inlineContext, editContext, headSha,
-      createComment, createReviewComment, replyToReviewComment, handleEditCommentSubmit, setStatusMessage],
+    [owner, repo, prNumber, replyContext, inlineContext, editContext, descriptionEditContext, headSha,
+      createComment, createReviewComment, replyToReviewComment, handleEditCommentSubmit, handleEditDescriptionSubmit, setStatusMessage],
   )
 
   const closeCommentModal = useCallback(() => {
@@ -153,25 +197,30 @@ export function useCommentActions({
     setInlineContext(null)
     setReplyContext(null)
     setEditContext(null)
+    setDescriptionEditContext(null)
   }, [])
 
-  const commentModalTitle = editContext
-    ? 'Edit Comment'
-    : replyContext
-      ? `Reply to ${replyContext.user}`
-      : inlineContext
-        ? 'Add Inline Comment'
-        : 'Add Comment'
+  const commentModalTitle = descriptionEditContext
+    ? 'Edit Description'
+    : editContext
+      ? 'Edit Comment'
+      : replyContext
+        ? `Reply to ${replyContext.user}`
+        : inlineContext
+          ? 'Add Inline Comment'
+          : 'Add Comment'
 
-  const commentModalContext = editContext
+  const commentModalContext = descriptionEditContext
     ? undefined
-    : replyContext
-      ? (replyContext.body ? replyContext.body.slice(0, 100) + (replyContext.body.length > 100 ? '...' : '') : undefined)
-      : inlineContext
-        ? `${inlineContext.path}:${inlineContext.line}`
-        : undefined
+    : editContext
+      ? undefined
+      : replyContext
+        ? (replyContext.body ? replyContext.body.slice(0, 100) + (replyContext.body.length > 100 ? '...' : '') : undefined)
+        : inlineContext
+          ? `${inlineContext.path}:${inlineContext.line}`
+          : undefined
 
-  const commentModalDefaultValue = editContext?.body
+  const commentModalDefaultValue = descriptionEditContext?.body ?? editContext?.body
 
   return {
     showCommentModal,
@@ -179,14 +228,16 @@ export function useCommentActions({
     commentModalTitle,
     commentModalContext,
     commentModalDefaultValue,
-    commentSubmitPending: createComment.isPending || createReviewComment.isPending || replyToReviewComment.isPending,
+    commentSubmitPending: createComment.isPending || createReviewComment.isPending || replyToReviewComment.isPending || updatePRDescription.isPending,
     inlineContext,
     editContext,
+    descriptionEditContext,
     handleCommentSubmit,
     handleOpenGeneralComment,
     handleOpenInlineComment,
     handleOpenReply,
     handleOpenEditComment,
+    handleOpenEditDescription,
     closeCommentModal,
   } as const
 }

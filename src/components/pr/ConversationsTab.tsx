@@ -30,6 +30,10 @@ export interface EditCommentContext {
   readonly isReviewComment: boolean
 }
 
+export interface EditDescriptionContext {
+  readonly body: string
+}
+
 interface ConversationsTabProps {
   readonly pr: PullRequest
   readonly comments: readonly Comment[]
@@ -44,6 +48,7 @@ interface ConversationsTabProps {
   readonly onToggleResolve?: (context: ResolveContext) => void
   readonly onToggleShowResolved?: () => void
   readonly onEditComment?: (context: EditCommentContext) => void
+  readonly onEditDescription?: (context: EditDescriptionContext) => void
 }
 
 export function buildTimeline(
@@ -215,6 +220,7 @@ export function ConversationsTab({
   onToggleResolve,
   onToggleShowResolved,
   onEditComment,
+  onEditDescription,
 }: ConversationsTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
@@ -268,6 +274,9 @@ export function ConversationsTab({
             isReviewComment: selected.type === 'comment' && !!selected.path,
           })
         }
+      }
+      if (input === 'D' && onEditDescription && currentUser && pr.user.login === currentUser) {
+        onEditDescription({ body: pr.body ?? '' })
       }
       if (input === 'f' && onToggleShowResolved) {
         onToggleShowResolved()

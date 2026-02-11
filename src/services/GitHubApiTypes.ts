@@ -218,6 +218,13 @@ export interface GitHubApiService {
     body: string,
   ) => Effect.Effect<void, ApiError>
 
+  readonly updatePRDescription: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    body: string,
+  ) => Effect.Effect<void, ApiError>
+
   readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>
 }
 

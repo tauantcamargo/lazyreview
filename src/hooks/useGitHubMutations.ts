@@ -145,6 +145,10 @@ interface DiscardPendingReviewParams extends PRParams {
   readonly reviewId: number
 }
 
+interface UpdatePRDescriptionParams extends PRParams {
+  readonly body: string
+}
+
 interface EditCommentParams extends PRParams {
   readonly commentId: number
   readonly body: string
@@ -244,6 +248,14 @@ export const useClosePullRequest = createGitHubMutation<PRParams>({
 
 export const useReopenPullRequest = createGitHubMutation<PRParams>({
   effect: (api, p) => api.reopenPullRequest(p.owner, p.repo, p.prNumber),
+  invalidateKeys: (p) => [
+    ['pr', p.owner, p.repo, p.prNumber],
+    ...invalidatePRLists(),
+  ],
+})
+
+export const useUpdatePRDescription = createGitHubMutation<UpdatePRDescriptionParams>({
+  effect: (api, p) => api.updatePRDescription(p.owner, p.repo, p.prNumber, p.body),
   invalidateKeys: (p) => [
     ['pr', p.owner, p.repo, p.prNumber],
     ...invalidatePRLists(),

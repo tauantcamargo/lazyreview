@@ -35,7 +35,7 @@ import type { InlineCommentContext } from '../models/inline-comment'
 
 export type { InlineCommentContext }
 export type { ReplyContext, ResolveContext } from '../components/pr/ConversationsTab'
-export type { EditCommentContext } from '../hooks/usePRDetailModals'
+export type { EditCommentContext, EditDescriptionContext } from '../hooks/usePRDetailModals'
 
 interface PRDetailScreenProps {
   readonly pr: PullRequest
@@ -252,6 +252,7 @@ export function PRDetailScreen({
           onToggleResolve={modals.handleToggleResolve}
           onToggleShowResolved={modals.handleToggleShowResolved}
           onEditComment={modals.handleOpenEditComment}
+          onEditDescription={modals.handleOpenEditDescription}
         />
       )),
       Match.when(1, () => <CommitsTab commits={commits} isActive={!modals.hasModal} />),
@@ -284,6 +285,7 @@ export function PRDetailScreen({
           onToggleResolve={modals.handleToggleResolve}
           onToggleShowResolved={modals.handleToggleShowResolved}
           onEditComment={modals.handleOpenEditComment}
+          onEditDescription={modals.handleOpenEditDescription}
         />
       ))
     )

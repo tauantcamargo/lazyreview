@@ -64,6 +64,7 @@ const shortcutGroups: readonly ShortcutGroup[] = [
       { key: 'c', description: 'New comment' },
       { key: 'r', description: 'Reply to comment' },
       { key: 'e', description: 'Edit own comment' },
+      { key: 'D', description: 'Edit PR description (author only)' },
       { key: 'x', description: 'Resolve / unresolve thread' },
       { key: 'f', description: 'Toggle resolved comments' },
     ],
