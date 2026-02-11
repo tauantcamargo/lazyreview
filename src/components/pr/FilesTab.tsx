@@ -11,6 +11,11 @@ import type { Comment } from '../../models/comment'
 import type { ReviewThread } from '../../services/GitHubApiTypes'
 import { EmptyState } from '../common/EmptyState'
 import { DiffView, buildDiffRows } from './DiffView'
+import {
+  SideBySideDiffView,
+  buildSideBySideRows,
+  SIDE_BY_SIDE_MIN_WIDTH,
+} from './SideBySideDiffView'
 import type { DiffCommentThread } from './DiffComment'
 import {
   buildFileTree,
@@ -49,6 +54,7 @@ interface FilesTabProps {
 }
 
 type FocusPanel = 'tree' | 'diff'
+type DiffMode = 'unified' | 'side-by-side'
 
 export function FilesTab({
   files,
@@ -69,6 +75,14 @@ export function FilesTab({
   const [focusPanel, setFocusPanel] = useState<FocusPanel>('tree')
   const [selectedFileIndex, setSelectedFileIndex] = useState(0)
   const [visualStart, setVisualStart] = useState<number | null>(null)
+  const [diffMode, setDiffMode] = useState<DiffMode>('unified')
+
+  // Fall back to unified if terminal is too narrow
+  const terminalWidth = stdout?.columns ?? 120
+  const effectiveDiffMode =
+    diffMode === 'side-by-side' && terminalWidth < SIDE_BY_SIDE_MIN_WIDTH
+      ? 'unified'
+      : diffMode
   const [isFiltering, setIsFiltering] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('')
@@ -152,7 +166,12 @@ export function FilesTab({
     () => buildDiffRows(hunks, commentsByLine),
     [hunks, commentsByLine],
   )
-  const totalDiffLines = allRows.length
+  const sideBySideRows = useMemo(
+    () => (effectiveDiffMode === 'side-by-side' ? buildSideBySideRows(hunks) : []),
+    [hunks, effectiveDiffMode],
+  )
+  const totalDiffLines =
+    effectiveDiffMode === 'side-by-side' ? sideBySideRows.length : allRows.length
 
   const { selectedIndex: diffSelectedLine, scrollOffset: diffScrollOffset } =
     useListNavigation({
@@ -203,6 +222,9 @@ export function FilesTab({
         setFocusPanel('tree')
       } else if (input === 'l' || key.rightArrow) {
         setFocusPanel('diff')
+      } else if (input === 'd' && focusPanel === 'diff') {
+        setDiffMode((prev) => (prev === 'unified' ? 'side-by-side' : 'unified'))
+        setVisualStart(null)
       } else if (input === 'v' && focusPanel === 'diff') {
         if (visualStart != null) {
           setVisualStart(null)
@@ -383,6 +405,9 @@ export function FilesTab({
               </Text>
             </Box>
           )}
+          {effectiveDiffMode === 'side-by-side' && (
+            <Text color={theme.colors.info}>[split]</Text>
+          )}
           {visualStart != null && focusPanel === 'diff' && (
             <Text color={theme.colors.warning} bold>
               -- VISUAL LINE --
@@ -390,15 +415,26 @@ export function FilesTab({
           )}
         </Box>
         <Box flexDirection="column" flexGrow={1} overflowY="hidden">
-          <DiffView
-            allRows={allRows}
-            selectedLine={diffSelectedLine}
-            scrollOffset={diffScrollOffset}
-            viewportHeight={viewportHeight - 2}
-            isActive={isActive && focusPanel === 'diff'}
-            filename={selectedFile?.filename}
-            visualStart={focusPanel === 'diff' ? visualStart : null}
-          />
+          {effectiveDiffMode === 'side-by-side' ? (
+            <SideBySideDiffView
+              rows={sideBySideRows}
+              selectedLine={diffSelectedLine}
+              scrollOffset={diffScrollOffset}
+              viewportHeight={viewportHeight - 2}
+              isActive={isActive && focusPanel === 'diff'}
+              filename={selectedFile?.filename}
+            />
+          ) : (
+            <DiffView
+              allRows={allRows}
+              selectedLine={diffSelectedLine}
+              scrollOffset={diffScrollOffset}
+              viewportHeight={viewportHeight - 2}
+              isActive={isActive && focusPanel === 'diff'}
+              filename={selectedFile?.filename}
+              visualStart={focusPanel === 'diff' ? visualStart : null}
+            />
+          )}
         </Box>
       </Box>
     </Box>
