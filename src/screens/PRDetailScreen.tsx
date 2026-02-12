@@ -19,6 +19,7 @@ import { DescriptionTab } from '../components/pr/DescriptionTab'
 import { FilesTab } from '../components/pr/FilesTab'
 import { ConversationsTab } from '../components/pr/ConversationsTab'
 import { CommitsTab } from '../components/pr/CommitsTab'
+import { ChecksTab } from '../components/pr/ChecksTab'
 import { ReviewModal } from '../components/pr/ReviewModal'
 import { CommentModal } from '../components/pr/CommentModal'
 import { MergeModal } from '../components/pr/MergeModal'
@@ -78,6 +79,7 @@ export function PRDetailScreen({
       'pr-detail-conversations',
       'pr-detail-commits',
       'pr-detail-files',
+      'pr-detail-checks',
     ] as const
     setScreenContext(tabContexts[currentTab] ?? 'pr-detail-description')
   }, [currentTab])
@@ -181,6 +183,8 @@ export function PRDetailScreen({
         setCurrentTab(2)
       } else if (input === '4') {
         setCurrentTab(3)
+      } else if (input === '5') {
+        setCurrentTab(4)
       } else if (input === 'o') {
         openInBrowser(pr.html_url)
         setStatusMessage('Opened in browser')
@@ -282,6 +286,14 @@ export function PRDetailScreen({
           onEditComment={modals.handleOpenEditComment}
         />
       )),
+      Match.when(4, () => (
+        <ChecksTab
+          owner={owner}
+          repo={repo}
+          sha={activePR.head.sha}
+          isActive={!modals.hasModal}
+        />
+      )),
       Match.orElse(() => (
         <DescriptionTab
           pr={activePR}
@@ -296,7 +308,7 @@ export function PRDetailScreen({
   return (
     <Box flexDirection="column" flexGrow={1} minHeight={0}>
       <Box flexShrink={0} flexDirection="column">
-        <PRHeader pr={activePR} owner={owner} repo={repo} prIndex={prIndex} prTotal={prTotal} />
+        <PRHeader pr={activePR} prIndex={prIndex} prTotal={prTotal} />
         <PRTabs activeIndex={currentTab} onChange={setCurrentTab} />
       </Box>
       <Box
