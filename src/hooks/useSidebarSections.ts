@@ -6,8 +6,8 @@ export interface SidebarSection {
 }
 
 export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
-  { name: 'Reviews', itemIndices: [0, 1, 2, 3] },
-  { name: 'App', itemIndices: [4] },
+  { name: 'Reviews', itemIndices: [0, 1, 2, 3, 4] },
+  { name: 'App', itemIndices: [5] },
 ]
 
 export type NavigableEntry =

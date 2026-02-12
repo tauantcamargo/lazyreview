@@ -112,6 +112,7 @@ describe('Sidebar', () => {
     expect(frame).toContain('Involved')
     expect(frame).toContain('My PRs')
     expect(frame).toContain('For Review')
+    expect(frame).toContain('Browse')
     expect(frame).toContain('Settings')
   })
 
@@ -137,6 +138,7 @@ describe('Sidebar', () => {
       forReview: 2,
       forReviewUnread: null,
       thisRepo: 10,
+      browse: null,
     }
     const { lastFrame } = render(
       themed(<Sidebar selectedIndex={0} visible={true} isActive={true} counts={counts} />),
@@ -155,6 +157,7 @@ describe('Sidebar', () => {
       forReview: 4,
       forReviewUnread: 2,
       thisRepo: null,
+      browse: null,
     }
     const { lastFrame } = render(
       themed(<Sidebar selectedIndex={0} visible={true} isActive={true} counts={counts} />),
@@ -170,6 +173,7 @@ describe('Sidebar', () => {
       forReview: null,
       forReviewUnread: null,
       thisRepo: null,
+      browse: null,
     }
     const { lastFrame } = render(
       themed(<Sidebar selectedIndex={0} visible={true} isActive={true} counts={counts} />),
@@ -186,9 +190,10 @@ describe('Sidebar', () => {
       forReview: 2,
       forReviewUnread: null,
       thisRepo: 10,
+      browse: null,
     }
     const { lastFrame } = render(
-      themed(<Sidebar selectedIndex={4} visible={true} isActive={true} counts={counts} />),
+      themed(<Sidebar selectedIndex={5} visible={true} isActive={true} counts={counts} />),
     )
     const frame = lastFrame() ?? ''
     // Settings line should not have a count number next to it
@@ -214,8 +219,9 @@ describe('Sidebar', () => {
       { type: 'item', itemIndex: 1 },
       { type: 'item', itemIndex: 2 },
       { type: 'item', itemIndex: 3 },
-      { type: 'section', sectionName: 'App' },
       { type: 'item', itemIndex: 4 },
+      { type: 'section', sectionName: 'App' },
+      { type: 'item', itemIndex: 5 },
     ]
     const { lastFrame } = render(
       themed(
@@ -233,6 +239,7 @@ describe('Sidebar', () => {
     expect(frame).toContain('Reviews')
     expect(frame).toContain('App')
     expect(frame).toContain('Involved')
+    expect(frame).toContain('Browse')
     expect(frame).toContain('Settings')
   })
 
@@ -240,12 +247,12 @@ describe('Sidebar', () => {
     const entries: NavigableEntry[] = [
       { type: 'section', sectionName: 'Reviews' },
       { type: 'section', sectionName: 'App' },
-      { type: 'item', itemIndex: 4 },
+      { type: 'item', itemIndex: 5 },
     ]
     const { lastFrame } = render(
       themed(
         <Sidebar
-          selectedIndex={4}
+          selectedIndex={5}
           visible={true}
           isActive={true}
           collapsedSections={new Set(['Reviews'])}
@@ -262,18 +269,19 @@ describe('Sidebar', () => {
     expect(frame).not.toContain('Involved')
     expect(frame).not.toContain('My PRs')
     expect(frame).not.toContain('For Review')
+    expect(frame).not.toContain('Browse')
   })
 
   it('shows collapse indicator for collapsed section', () => {
     const entries: NavigableEntry[] = [
       { type: 'section', sectionName: 'Reviews' },
       { type: 'section', sectionName: 'App' },
-      { type: 'item', itemIndex: 4 },
+      { type: 'item', itemIndex: 5 },
     ]
     const { lastFrame } = render(
       themed(
         <Sidebar
-          selectedIndex={4}
+          selectedIndex={5}
           visible={true}
           isActive={true}
           collapsedSections={new Set(['Reviews'])}

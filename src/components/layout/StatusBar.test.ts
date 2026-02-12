@@ -59,6 +59,22 @@ describe('getContextHints', () => {
     expect(hints).toContain('Esc:cancel')
   })
 
+  it('returns browse-picker hints for browse-picker context', () => {
+    const hints = getContextHints('list', 'browse-picker')
+    expect(hints).toContain('Enter:search')
+    expect(hints).toContain('j/k:recent')
+    expect(hints).toContain('x:remove')
+    expect(hints).toContain('Esc:back')
+  })
+
+  it('returns browse-list hints for browse-list context', () => {
+    const hints = getContextHints('list', 'browse-list')
+    expect(hints).toContain('Enter:open')
+    expect(hints).toContain('Esc:picker')
+    expect(hints).toContain('/:filter')
+    expect(hints).toContain('R:refresh')
+  })
+
   it('falls back to default panel hints when no screen context', () => {
     const listHints = getContextHints('list')
     expect(listHints).toContain('Enter:detail')

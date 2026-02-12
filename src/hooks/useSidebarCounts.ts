@@ -8,6 +8,7 @@ export interface SidebarCounts {
   readonly forReview: number | null
   readonly forReviewUnread: number | null
   readonly thisRepo: number | null
+  readonly browse: number | null
 }
 
 const EMPTY_COUNTS: SidebarCounts = {
@@ -16,6 +17,7 @@ const EMPTY_COUNTS: SidebarCounts = {
   forReview: null,
   forReviewUnread: null,
   thisRepo: null,
+  browse: null,
 }
 
 function extractCount(
@@ -87,7 +89,10 @@ export function useSidebarCounts(
       forReviewUnread = unreadCount > 0 ? unreadCount : null
     }
 
-    return { involved, myPrs, forReview, forReviewUnread, thisRepo }
+    // Browse count comes from browse-prs query key
+    const browse = extractCount(queryClient, 'browse-prs')
+
+    return { involved, myPrs, forReview, forReviewUnread, thisRepo, browse }
   }, [queryClient, isUnread])
 
   // Subscribe to query cache changes
@@ -102,7 +107,8 @@ export function useSidebarCounts(
           next.myPrs !== prev.myPrs ||
           next.forReview !== prev.forReview ||
           next.forReviewUnread !== prev.forReviewUnread ||
-          next.thisRepo !== prev.thisRepo
+          next.thisRepo !== prev.thisRepo ||
+          next.browse !== prev.browse
         ) {
           countsRef.current = next
           onStoreChange()

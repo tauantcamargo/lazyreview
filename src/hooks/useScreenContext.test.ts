@@ -26,6 +26,8 @@ describe('setScreenContext', () => {
       'pr-detail-conversations',
       'pr-detail-commits',
       'settings',
+      'browse-picker',
+      'browse-list',
     ] as const
 
     for (const ctx of contexts) {

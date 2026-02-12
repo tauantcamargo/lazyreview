@@ -17,6 +17,7 @@ import { ReviewRequestsScreen } from './screens/ReviewRequestsScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { InvolvedScreen } from './screens/InvolvedScreen'
 import { ThisRepoScreen } from './screens/ThisRepoScreen'
+import { BrowseRepoScreen } from './screens/BrowseRepoScreen'
 import { Match } from 'effect'
 import { useAuth } from './hooks/useAuth'
 import { useConfig } from './hooks/useConfig'
@@ -206,7 +207,8 @@ function AppContent({
     // 1 - My PRs (PRs user created)
     // 2 - For Review (PRs requesting user's review)
     // 3 - This Repo (PRs from current git directory)
-    // 4 - Settings
+    // 4 - Browse (browse arbitrary repos)
+    // 5 - Settings
     return Match.value(sidebarIndex).pipe(
       Match.when(0, () => <InvolvedScreen onSelect={handleSelectPR} />),
       Match.when(1, () => <MyPRsScreen onSelect={handleSelectPR} />),
@@ -218,7 +220,10 @@ function AppContent({
           onSelect={handleSelectPR}
         />
       )),
-      Match.when(4, () => <SettingsScreen />),
+      Match.when(4, () => (
+        <BrowseRepoScreen onSelect={handleSelectPR} />
+      )),
+      Match.when(5, () => <SettingsScreen />),
       Match.orElse(() => <InvolvedScreen onSelect={handleSelectPR} />),
     )
   }
@@ -237,7 +242,13 @@ function AppContent({
   // PRDetailScreen sets its own context based on active tab
   React.useEffect(() => {
     if (currentScreen.type !== 'detail') {
-      setScreenContext(sidebarIndex === 4 ? 'settings' : 'pr-list')
+      if (sidebarIndex === 5) {
+        setScreenContext('settings')
+      } else if (sidebarIndex === 4) {
+        setScreenContext('browse-picker')
+      } else {
+        setScreenContext('pr-list')
+      }
     }
   }, [currentScreen.type, sidebarIndex])
 
@@ -257,6 +268,7 @@ function AppContent({
     'My PRs',
     'For Review',
     'This Repo',
+    'Browse',
     'Settings',
   ]
   const currentScreenName =

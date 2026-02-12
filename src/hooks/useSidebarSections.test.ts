@@ -6,16 +6,16 @@ import {
 import type { NavigableEntry } from './useSidebarSections'
 
 describe('SIDEBAR_SECTIONS', () => {
-  it('defines Reviews section with items 0-3', () => {
+  it('defines Reviews section with items 0-4', () => {
     const reviews = SIDEBAR_SECTIONS[0]
     expect(reviews?.name).toBe('Reviews')
-    expect(reviews?.itemIndices).toEqual([0, 1, 2, 3])
+    expect(reviews?.itemIndices).toEqual([0, 1, 2, 3, 4])
   })
 
-  it('defines App section with item 4', () => {
+  it('defines App section with item 5', () => {
     const app = SIDEBAR_SECTIONS[1]
     expect(app?.name).toBe('App')
-    expect(app?.itemIndices).toEqual([4])
+    expect(app?.itemIndices).toEqual([5])
   })
 })
 
@@ -53,12 +53,12 @@ describe('NavigableEntry type', () => {
         entries.push({ type: 'item', itemIndex: idx })
       }
     }
-    // 2 section headers + 5 items = 7
-    expect(entries).toHaveLength(7)
+    // 2 section headers + 6 items = 8
+    expect(entries).toHaveLength(8)
     expect(entries[0]).toEqual({ type: 'section', sectionName: 'Reviews' })
     expect(entries[1]).toEqual({ type: 'item', itemIndex: 0 })
-    expect(entries[5]).toEqual({ type: 'section', sectionName: 'App' })
-    expect(entries[6]).toEqual({ type: 'item', itemIndex: 4 })
+    expect(entries[6]).toEqual({ type: 'section', sectionName: 'App' })
+    expect(entries[7]).toEqual({ type: 'item', itemIndex: 5 })
   })
 
   it('builds collapsed list for Reviews', () => {
@@ -76,7 +76,7 @@ describe('NavigableEntry type', () => {
     expect(entries).toHaveLength(3)
     expect(entries[0]).toEqual({ type: 'section', sectionName: 'Reviews' })
     expect(entries[1]).toEqual({ type: 'section', sectionName: 'App' })
-    expect(entries[2]).toEqual({ type: 'item', itemIndex: 4 })
+    expect(entries[2]).toEqual({ type: 'item', itemIndex: 5 })
   })
 
   it('builds collapsed list for both sections', () => {

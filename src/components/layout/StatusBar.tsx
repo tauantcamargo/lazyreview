@@ -13,6 +13,8 @@ export type ScreenContext =
   | 'pr-detail-conversations'
   | 'pr-detail-commits'
   | 'settings'
+  | 'browse-picker'
+  | 'browse-list'
 
 const PANEL_HINTS: Record<Panel, string> = {
   sidebar: 'j/k:nav  Enter:select  Tab:list  b:sidebar  ?:help  q:quit',
@@ -27,6 +29,8 @@ const SCREEN_CONTEXT_HINTS: Record<ScreenContext, string> = {
   'pr-detail-conversations': 'j/k:nav  c:comment  r:reply  e:edit  D:edit-desc  x:resolve  f:resolved  R:review  S:batch  E:re-review  G:checkout  [/]:pr',
   'pr-detail-commits': 'j/k:nav  y:copy-sha  R:review  S:batch  E:re-review  m:merge  G:checkout  [/]:pr',
   'settings': 'j/k:nav  Enter:edit/toggle  Esc:cancel',
+  'browse-picker': 'Enter:search  j/k:recent  x:remove  Esc:back',
+  'browse-list': 'j/k:nav  Enter:open  Esc:picker  /:filter  s:sort  R:refresh',
 }
 
 export function getContextHints(
