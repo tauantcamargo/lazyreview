@@ -75,16 +75,19 @@ export function Sidebar({
   if (!visible) return null
 
   // Determine if we're in section mode or legacy mode
-  const hasSections = collapsedSections !== undefined && navigableEntries !== undefined
+  const hasSections =
+    collapsedSections !== undefined && navigableEntries !== undefined
 
   // Determine which entry is currently highlighted in navigable list
   const currentNavEntry =
-    hasSections && navIndex !== undefined ? navigableEntries[navIndex] : undefined
+    hasSections && navIndex !== undefined
+      ? navigableEntries[navIndex]
+      : undefined
 
   return (
     <Box
       flexDirection="column"
-      width={28}
+      width={40}
       borderStyle="single"
       borderColor={isActive ? theme.colors.accent : theme.colors.border}
     >
@@ -129,9 +132,13 @@ function renderSections(
     elements.push(
       <Box key={`section-${section.name}`} paddingX={1}>
         <Text
-          color={isSectionSelected ? theme.colors.accent : theme.colors.secondary}
+          color={
+            isSectionSelected ? theme.colors.accent : theme.colors.secondary
+          }
           bold
-          backgroundColor={isSectionSelected ? theme.colors.selection : undefined}
+          backgroundColor={
+            isSectionSelected ? theme.colors.selection : undefined
+          }
         >
           {isSectionSelected ? '▸ ' : '  '}
           {isCollapsed ? '▸' : '▾'} {section.name}
@@ -145,8 +152,7 @@ function renderSections(
         const label = SIDEBAR_ITEMS[idx]
         if (!label) continue
         const isSelected =
-          currentNavEntry?.type === 'item' &&
-          currentNavEntry.itemIndex === idx
+          currentNavEntry?.type === 'item' && currentNavEntry.itemIndex === idx
         const icon = sidebarIcons[label]
         const count = getCountForItem(label, counts)
         const unread = getUnreadForItem(label, counts)
@@ -163,14 +169,10 @@ function renderSections(
               {icon} {label}
             </Text>
             {count !== null && (
-              <Text color={theme.colors.muted}>
-                {' '}({count})
-              </Text>
+              <Text color={theme.colors.muted}> ({count})</Text>
             )}
             {unread !== null && (
-              <Text color={theme.colors.accent}>
-                {' '}*{unread} new*
-              </Text>
+              <Text color={theme.colors.accent}> *{unread} new*</Text>
             )}
           </Box>,
         )
@@ -203,15 +205,9 @@ function renderFlatItems(
           {isSelected ? '▸ ' : '  '}
           {icon} {label}
         </Text>
-        {count !== null && (
-          <Text color={theme.colors.muted}>
-            {' '}({count})
-          </Text>
-        )}
+        {count !== null && <Text color={theme.colors.muted}> ({count})</Text>}
         {unread !== null && (
-          <Text color={theme.colors.accent}>
-            {' '}*{unread} new*
-          </Text>
+          <Text color={theme.colors.accent}> *{unread} new*</Text>
         )}
       </Box>
     )

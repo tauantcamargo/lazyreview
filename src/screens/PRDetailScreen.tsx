@@ -15,6 +15,7 @@ import { usePRDetailModals } from '../hooks/usePRDetailModals'
 import { usePendingReview } from '../hooks/usePendingReview'
 import { PRHeader } from '../components/pr/PRHeader'
 import { PRTabs } from '../components/pr/PRTabs'
+import { DescriptionTab } from '../components/pr/DescriptionTab'
 import { FilesTab } from '../components/pr/FilesTab'
 import { ConversationsTab } from '../components/pr/ConversationsTab'
 import { CommitsTab } from '../components/pr/CommitsTab'
@@ -47,7 +48,7 @@ interface PRDetailScreenProps {
   readonly prTotal?: number
 }
 
-const PR_DETAIL_RESERVED_LINES = 12
+const PR_DETAIL_RESERVED_LINES = 18
 
 export function PRDetailScreen({
   pr,
@@ -71,14 +72,14 @@ export function PRDetailScreen({
     markAsRead(pr.html_url, pr.updated_at)
   }, [pr.html_url, pr.updated_at, markAsRead])
 
-  // Set screen context for status bar hints based on active tab
   React.useEffect(() => {
     const tabContexts = [
+      'pr-detail-description',
       'pr-detail-conversations',
       'pr-detail-commits',
       'pr-detail-files',
     ] as const
-    setScreenContext(tabContexts[currentTab] ?? 'pr-detail-conversations')
+    setScreenContext(tabContexts[currentTab] ?? 'pr-detail-description')
   }, [currentTab])
 
   // Fetch full PR data (search API doesn't include head.sha)
@@ -178,6 +179,8 @@ export function PRDetailScreen({
         setCurrentTab(1)
       } else if (input === '3') {
         setCurrentTab(2)
+      } else if (input === '4') {
+        setCurrentTab(3)
       } else if (input === 'o') {
         openInBrowser(pr.html_url)
         setStatusMessage('Opened in browser')
@@ -239,6 +242,14 @@ export function PRDetailScreen({
 
     return Match.value(currentTab).pipe(
       Match.when(0, () => (
+        <DescriptionTab
+          pr={activePR}
+          reviews={reviews}
+          isActive={!modals.hasModal}
+          onEditDescription={modals.handleOpenEditDescription}
+        />
+      )),
+      Match.when(1, () => (
         <ConversationsTab
           pr={activePR}
           comments={comments}
@@ -256,8 +267,8 @@ export function PRDetailScreen({
           onEditDescription={modals.handleOpenEditDescription}
         />
       )),
-      Match.when(1, () => <CommitsTab commits={commits} isActive={!modals.hasModal} />),
-      Match.when(2, () => (
+      Match.when(2, () => <CommitsTab commits={commits} isActive={!modals.hasModal} />),
+      Match.when(3, () => (
         <FilesTab
           files={files}
           isActive={!modals.hasModal}
@@ -272,20 +283,10 @@ export function PRDetailScreen({
         />
       )),
       Match.orElse(() => (
-        <ConversationsTab
+        <DescriptionTab
           pr={activePR}
-          comments={comments}
           reviews={reviews}
-          reviewThreads={reviewThreads}
-          issueComments={issueComments}
           isActive={!modals.hasModal}
-          showResolved={modals.showResolved}
-          currentUser={currentUser?.login}
-          onComment={modals.handleOpenGeneralComment}
-          onReply={modals.handleOpenReply}
-          onToggleResolve={modals.handleToggleResolve}
-          onToggleShowResolved={modals.handleToggleShowResolved}
-          onEditComment={modals.handleOpenEditComment}
           onEditDescription={modals.handleOpenEditDescription}
         />
       ))
@@ -293,10 +294,18 @@ export function PRDetailScreen({
   }
 
   return (
-    <Box flexDirection="column" flexGrow={1}>
-      <PRHeader pr={activePR} owner={owner} repo={repo} prIndex={prIndex} prTotal={prTotal} />
-      <PRTabs activeIndex={currentTab} onChange={setCurrentTab} />
-      <Box height={contentHeight} overflow="hidden" flexDirection="column">
+    <Box flexDirection="column" flexGrow={1} minHeight={0}>
+      <Box flexShrink={0}>
+        <PRHeader pr={activePR} owner={owner} repo={repo} prIndex={prIndex} prTotal={prTotal} />
+        <PRTabs activeIndex={currentTab} onChange={setCurrentTab} />
+      </Box>
+      <Box
+        flexShrink={0}
+        height={contentHeight}
+        minHeight={0}
+        overflow="hidden"
+        flexDirection="column"
+      >
         {renderTabContent()}
       </Box>
       {pendingReview.isActive && (

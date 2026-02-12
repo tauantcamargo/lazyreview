@@ -66,17 +66,30 @@ function getFocusedLine(
     const row = sideBySideRows[index]
     if (!row || row.type === 'comment') return undefined
     if (row.type === 'header') {
-      if (row.left) return { line: row.left, oldLineNumber: row.left.oldLineNumber, newLineNumber: row.left.newLineNumber }
+      if (row.left)
+        return {
+          line: row.left,
+          oldLineNumber: row.left.oldLineNumber,
+          newLineNumber: row.left.newLineNumber,
+        }
       return undefined
     }
     // For paired rows: prefer right (add/context), fall back to left (del)
     const activeLine = row.right ?? row.left
     if (!activeLine) return undefined
-    return { line: activeLine, oldLineNumber: activeLine.oldLineNumber, newLineNumber: activeLine.newLineNumber }
+    return {
+      line: activeLine,
+      oldLineNumber: activeLine.oldLineNumber,
+      newLineNumber: activeLine.newLineNumber,
+    }
   }
   const row = allRows[index]
   if (!row || row.type !== 'line') return undefined
-  return { line: row.line, oldLineNumber: row.oldLineNumber, newLineNumber: row.newLineNumber }
+  return {
+    line: row.line,
+    oldLineNumber: row.oldLineNumber,
+    newLineNumber: row.newLineNumber,
+  }
 }
 
 export function fuzzyMatch(filename: string, query: string): boolean {
@@ -103,8 +116,15 @@ interface FilesTabProps {
   readonly comments?: readonly Comment[]
   readonly reviewThreads?: readonly ReviewThread[]
   readonly currentUser?: string
-  readonly onReply?: (context: { readonly commentId: number; readonly user: string; readonly body: string | null }) => void
-  readonly onToggleResolve?: (context: { readonly threadId: string; readonly isResolved: boolean }) => void
+  readonly onReply?: (context: {
+    readonly commentId: number
+    readonly user: string
+    readonly body: string | null
+  }) => void
+  readonly onToggleResolve?: (context: {
+    readonly threadId: string
+    readonly isResolved: boolean
+  }) => void
   readonly onEditComment?: (context: EditCommentContext) => void
 }
 
@@ -126,8 +146,14 @@ export function FilesTab({
   const { stdout } = useStdout()
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
-  const { markViewed, toggleViewed, isViewed, getViewedCount } = useViewedFiles()
+  const { markViewed, toggleViewed, isViewed, getViewedCount } =
+    useViewedFiles()
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 13)
+  const FILES_TREE_HEADER_LINES = 4
+  const treeViewportMaxHeight = Math.max(
+    1,
+    (stdout?.rows ?? 24) - 18 - FILES_TREE_HEADER_LINES,
+  )
 
   const [focusPanel, setFocusPanel] = useState<FocusPanel>('tree')
   const [selectedFileIndex, setSelectedFileIndex] = useState(0)
@@ -151,14 +177,23 @@ export function FilesTab({
     return files.filter((f) => fuzzyMatch(f.filename, query))
   }, [files, activeFilter, filterQuery, isFiltering])
 
-  const filteredTree = useMemo(() => buildFileTree(filteredFiles), [filteredFiles])
-  const fileOrder = useMemo(() => flattenTreeToFiles(filteredTree), [filteredTree])
+  const filteredTree = useMemo(
+    () => buildFileTree(filteredFiles),
+    [filteredFiles],
+  )
+  const fileOrder = useMemo(
+    () => flattenTreeToFiles(filteredTree),
+    [filteredTree],
+  )
   const displayRows = useMemo(
     () => buildDisplayRows(filteredTree, 0, { current: 0 }),
     [filteredTree],
   )
 
-  const treeViewportHeight = viewportHeight - 2
+  const treeViewportHeight = Math.min(
+    viewportHeight - 2,
+    treeViewportMaxHeight - (isFiltering ? 1 : 0),
+  )
   const fileTreeListRef = useRef<ScrollListRef>(null)
 
   const { selectedIndex: treeSelectedIndex } = useListNavigation({
@@ -196,22 +231,37 @@ export function FilesTab({
   const selectedFile = fileOrder[selectedFileIndex] ?? fileOrder[0] ?? null
   const hunks = selectedFile?.patch ? parseDiffPatch(selectedFile.patch) : []
 
-  const commentsByLine = useMemo((): ReadonlyMap<string, DiffCommentThread> | undefined => {
+  const commentsByLine = useMemo(():
+    | ReadonlyMap<string, DiffCommentThread>
+    | undefined => {
     if (!comments || comments.length === 0 || !selectedFile) return undefined
     const fileComments = comments.filter(
-      (c) => c.path === selectedFile.filename && c.line != null && c.in_reply_to_id == null,
+      (c) =>
+        c.path === selectedFile.filename &&
+        c.line != null &&
+        c.in_reply_to_id == null,
     )
     if (fileComments.length === 0) return undefined
-    const threadMap = new Map<number, { id: string; isResolved: boolean } | undefined>()
+    const threadMap = new Map<
+      number,
+      { id: string; isResolved: boolean } | undefined
+    >()
     if (reviewThreads) {
       for (const thread of reviewThreads) {
-        for (const tc of thread.comments) threadMap.set(tc.databaseId, { id: thread.id, isResolved: thread.isResolved })
+        for (const tc of thread.comments)
+          threadMap.set(tc.databaseId, {
+            id: thread.id,
+            isResolved: thread.isResolved,
+          })
       }
     }
     const replyMap = new Map<number, Comment[]>()
     for (const c of comments) {
       if (c.path === selectedFile.filename && c.in_reply_to_id != null) {
-        replyMap.set(c.in_reply_to_id, [...(replyMap.get(c.in_reply_to_id) ?? []), c])
+        replyMap.set(c.in_reply_to_id, [
+          ...(replyMap.get(c.in_reply_to_id) ?? []),
+          c,
+        ])
       }
     }
     const result = new Map<string, DiffCommentThread>()
@@ -221,7 +271,8 @@ export function FilesTab({
       const key = `${side}:${rc.line!}`
       result.set(key, {
         comments: [rc, ...(replyMap.get(rc.id) ?? [])],
-        threadId: threadInfo?.id, isResolved: threadInfo?.isResolved,
+        threadId: threadInfo?.id,
+        isResolved: threadInfo?.isResolved,
       })
     }
     return result
@@ -232,11 +283,16 @@ export function FilesTab({
     [hunks, commentsByLine],
   )
   const sideBySideRows = useMemo(
-    () => (effectiveDiffMode === 'side-by-side' ? buildSideBySideRows(hunks, commentsByLine) : []),
+    () =>
+      effectiveDiffMode === 'side-by-side'
+        ? buildSideBySideRows(hunks, commentsByLine)
+        : [],
     [hunks, effectiveDiffMode, commentsByLine],
   )
   const totalDiffLines =
-    effectiveDiffMode === 'side-by-side' ? sideBySideRows.length : allRows.length
+    effectiveDiffMode === 'side-by-side'
+      ? sideBySideRows.length
+      : allRows.length
 
   const { selectedIndex: diffSelectedLine, scrollOffset: diffScrollOffset } =
     useListNavigation({
@@ -302,7 +358,12 @@ export function FilesTab({
           setVisualStart(diffSelectedLine)
         }
       } else if (input === 'r' && focusPanel === 'diff' && onReply) {
-        const thread = getFocusedCommentThread(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+        const thread = getFocusedCommentThread(
+          effectiveDiffMode,
+          diffSelectedLine,
+          allRows,
+          sideBySideRows,
+        )
         if (thread) {
           const lastComment = thread.comments[thread.comments.length - 1]
           if (lastComment) {
@@ -314,17 +375,34 @@ export function FilesTab({
           }
         }
       } else if (input === 'x' && focusPanel === 'diff' && onToggleResolve) {
-        const thread = getFocusedCommentThread(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+        const thread = getFocusedCommentThread(
+          effectiveDiffMode,
+          diffSelectedLine,
+          allRows,
+          sideBySideRows,
+        )
         if (thread?.threadId) {
           onToggleResolve({
             threadId: thread.threadId,
             isResolved: thread.isResolved ?? false,
           })
         }
-      } else if (input === 'e' && focusPanel === 'diff' && onEditComment && currentUser) {
-        const thread = getFocusedCommentThread(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+      } else if (
+        input === 'e' &&
+        focusPanel === 'diff' &&
+        onEditComment &&
+        currentUser
+      ) {
+        const thread = getFocusedCommentThread(
+          effectiveDiffMode,
+          diffSelectedLine,
+          allRows,
+          sideBySideRows,
+        )
         if (thread) {
-          const ownComment = thread.comments.find((c) => c.user.login === currentUser)
+          const ownComment = thread.comments.find(
+            (c) => c.user.login === currentUser,
+          )
           if (ownComment) {
             onEditComment({
               commentId: ownComment.id,
@@ -333,20 +411,47 @@ export function FilesTab({
             })
           }
         }
-      } else if (input === 'c' && focusPanel === 'diff' && onInlineComment && selectedFile) {
+      } else if (
+        input === 'c' &&
+        focusPanel === 'diff' &&
+        onInlineComment &&
+        selectedFile
+      ) {
         if (visualStart != null) {
           const selMin = Math.min(visualStart, diffSelectedLine)
           const selMax = Math.max(visualStart, diffSelectedLine)
-          const startInfo = getFocusedLine(effectiveDiffMode, selMin, allRows, sideBySideRows)
-          const endInfo = getFocusedLine(effectiveDiffMode, selMax, allRows, sideBySideRows)
+          const startInfo = getFocusedLine(
+            effectiveDiffMode,
+            selMin,
+            allRows,
+            sideBySideRows,
+          )
+          const endInfo = getFocusedLine(
+            effectiveDiffMode,
+            selMax,
+            allRows,
+            sideBySideRows,
+          )
           if (
-            startInfo && endInfo &&
-            startInfo.line.type !== 'header' && endInfo.line.type !== 'header'
+            startInfo &&
+            endInfo &&
+            startInfo.line.type !== 'header' &&
+            endInfo.line.type !== 'header'
           ) {
-            const endSide = endInfo.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
-            const startSide = startInfo.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
-            const endLine = endSide === 'LEFT' ? endInfo.oldLineNumber : endInfo.newLineNumber
-            const startLine = startSide === 'LEFT' ? startInfo.oldLineNumber : startInfo.newLineNumber
+            const endSide =
+              endInfo.line.type === 'del'
+                ? ('LEFT' as const)
+                : ('RIGHT' as const)
+            const startSide =
+              startInfo.line.type === 'del'
+                ? ('LEFT' as const)
+                : ('RIGHT' as const)
+            const endLine =
+              endSide === 'LEFT' ? endInfo.oldLineNumber : endInfo.newLineNumber
+            const startLine =
+              startSide === 'LEFT'
+                ? startInfo.oldLineNumber
+                : startInfo.newLineNumber
             if (endLine != null && startLine != null) {
               onInlineComment({
                 path: selectedFile.filename,
@@ -359,10 +464,19 @@ export function FilesTab({
             }
           }
         } else {
-          const lineInfo = getFocusedLine(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+          const lineInfo = getFocusedLine(
+            effectiveDiffMode,
+            diffSelectedLine,
+            allRows,
+            sideBySideRows,
+          )
           if (lineInfo && lineInfo.line.type !== 'header') {
-            const side = lineInfo.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
-            const line = side === 'LEFT' ? lineInfo.oldLineNumber : lineInfo.newLineNumber
+            const side =
+              lineInfo.line.type === 'del'
+                ? ('LEFT' as const)
+                : ('RIGHT' as const)
+            const line =
+              side === 'LEFT' ? lineInfo.oldLineNumber : lineInfo.newLineNumber
             if (line != null) {
               onInlineComment({
                 path: selectedFile.filename,
@@ -388,6 +502,8 @@ export function FilesTab({
       <Box
         flexDirection="column"
         width="30%"
+        minHeight={0}
+        overflow="hidden"
         borderStyle="single"
         borderColor={
           focusPanel === 'tree' && isActive
@@ -427,14 +543,15 @@ export function FilesTab({
           flexDirection="column"
           paddingX={1}
           overflow="hidden"
-          height={isFiltering ? treeViewportHeight - 1 : treeViewportHeight}
-          minHeight={isFiltering ? treeViewportHeight - 1 : treeViewportHeight}
-          flexShrink={0}
+          height={treeViewportHeight}
+          minHeight={0}
+          flexShrink={1}
         >
           <ScrollList
             ref={fileTreeListRef}
             selectedIndex={effectiveRowIndex}
             scrollAlignment="auto"
+            height={treeViewportHeight}
           >
             {displayRows.map((row, rowIndex) =>
               row.type === 'dir' ? (
@@ -449,7 +566,9 @@ export function FilesTab({
                       isPanelFocused && row.fileIndex === treeSelectedIndex
                     }
                     isSelected={row.fileIndex === selectedFileIndex}
-                    isViewed={prUrl ? isViewed(prUrl, row.file.filename) : undefined}
+                    isViewed={
+                      prUrl ? isViewed(prUrl, row.file.filename) : undefined
+                    }
                   />
                 </Box>
               ),

@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../../theme/index'
-import { Divider } from '../common/Divider'
 import { useListNavigation } from '../../hooks/useListNavigation'
 import type { PullRequest } from '../../models/pull-request'
 import type { Comment } from '../../models/comment'
@@ -10,8 +9,6 @@ import type { IssueComment } from '../../models/issue-comment'
 import type { Review } from '../../models/review'
 import type { ReviewThread } from '../../services/GitHubApi'
 import { TimelineItemView, type TimelineItem } from './TimelineItemView'
-import { ReviewSummary } from './ReviewSummary'
-import { MarkdownText } from '../common/MarkdownText'
 
 export interface ReplyContext {
   readonly commentId: number
@@ -121,91 +118,8 @@ export function buildTimeline(
   return items
 }
 
-function PRInfoSection({
-  pr,
-}: {
-  readonly pr: PullRequest
-}): React.ReactElement {
-  const theme = useTheme()
-
-  return (
-    <Box
-      flexDirection="column"
-      paddingX={1}
-      paddingY={1}
-      borderStyle="single"
-      borderColor={theme.colors.border}
-      overflow="hidden"
-    >
-      <Box flexDirection="row">
-        <Text color={theme.colors.muted}>Author: </Text>
-        <Text color={theme.colors.secondary} bold>
-          {pr.user.login}
-        </Text>
-      </Box>
-      {pr.requested_reviewers.length > 0 ? (
-        <Box flexDirection="row" marginTop={0}>
-          <Text color={theme.colors.muted}>Reviewers: </Text>
-          <Text color={theme.colors.text}>
-            {pr.requested_reviewers.map((r) => r.login).join(', ')}
-          </Text>
-        </Box>
-      ) : null}
-      {pr.labels.length > 0 ? (
-        <Box flexDirection="row" marginTop={0}>
-          <Text color={theme.colors.muted}>Labels: </Text>
-          {pr.labels.map((label) => (
-            <Text key={label.id} color={`#${label.color}`}>
-              [{label.name}]{' '}
-            </Text>
-          ))}
-        </Box>
-      ) : null}
-      <Box paddingY={0}>
-        <Divider />
-      </Box>
-      <Box flexDirection="row" marginTop={0}>
-        <Text color={theme.colors.diffAdd}>+{pr.additions}</Text>
-        <Text> </Text>
-        <Text color={theme.colors.diffDel}>-{pr.deletions}</Text>
-        <Text color={theme.colors.muted}>
-          {' '}
-          {pr.changed_files} files changed
-        </Text>
-      </Box>
-    </Box>
-  )
-}
-
-function PRDescriptionSection({
-  pr,
-}: {
-  readonly pr: PullRequest
-}): React.ReactElement {
-  const theme = useTheme()
-
-  return (
-    <Box flexDirection="column" paddingX={1} paddingY={1}>
-      <Box flexDirection="row" marginBottom={1}>
-        <Text color={theme.colors.accent} bold>
-          Description
-        </Text>
-        <Text color={theme.colors.muted}> by </Text>
-        <Text color={theme.colors.secondary} bold>
-          {pr.user.login}
-        </Text>
-      </Box>
-      <Box paddingLeft={1} width="85%">
-        <MarkdownText content={pr.body} />
-      </Box>
-      <Box paddingY={1}>
-        <Divider title="Timeline" />
-      </Box>
-    </Box>
-  )
-}
-
-const CONVERSATIONS_RESERVED_LINES = 18
+const PR_DETAIL_CONTENT_HEIGHT_RESERVED = 18
+const CONVERSATIONS_TIMELINE_HEADER_LINES = 3
 
 export function ConversationsTab({
   pr,
@@ -230,7 +144,8 @@ export function ConversationsTab({
   const timeline = showResolved
     ? allTimeline
     : allTimeline.filter((item) => !item.isResolved)
-  const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - CONVERSATIONS_RESERVED_LINES)
+  const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_CONTENT_HEIGHT_RESERVED)
+  const viewportHeight = Math.max(1, contentHeight - CONVERSATIONS_TIMELINE_HEADER_LINES)
 
   const { selectedIndex } = useListNavigation({
     itemCount: timeline.length,
@@ -297,20 +212,26 @@ export function ConversationsTab({
   }, [stdout])
 
   return (
-    <Box flexDirection="column" flexGrow={1} overflow="hidden">
-      <PRInfoSection pr={pr} />
-
-      <PRDescriptionSection pr={pr} />
-
-      <ReviewSummary reviews={reviews} />
-
-      <Box flexDirection="row" paddingX={1} paddingY={0} marginBottom={1}>
+    <Box flexDirection="column" flexGrow={1} minHeight={0} overflow="hidden">
+      <Box
+        flexDirection="row"
+        flexShrink={0}
+        paddingX={1}
+        paddingY={0}
+        marginBottom={1}
+      >
         <Text color={theme.colors.accent} bold>
           Timeline ({timeline.length} items)
         </Text>
       </Box>
 
-      <Box flexDirection="column" flexGrow={1} overflow="hidden" height={viewportHeight}>
+      <Box
+        flexDirection="column"
+        flexShrink={0}
+        overflow="hidden"
+        height={viewportHeight}
+        minHeight={viewportHeight}
+      >
         {timeline.length === 0 ? (
           <Box paddingX={1}>
             <Text color={theme.colors.muted}>No conversations yet</Text>
@@ -320,6 +241,7 @@ export function ConversationsTab({
             ref={listRef}
             selectedIndex={selectedIndex}
             scrollAlignment="auto"
+            height={viewportHeight}
           >
             {timeline.map((item, index) => (
               <TimelineItemView

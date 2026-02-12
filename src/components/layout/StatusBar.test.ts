@@ -22,6 +22,13 @@ describe('getContextHints', () => {
     expect(hints).toContain('y:copy-url')
   })
 
+  it('returns description tab hints for pr-detail-description', () => {
+    const hints = getContextHints('detail', 'pr-detail-description')
+    expect(hints).toContain('j/k:nav')
+    expect(hints).toContain('D:edit-desc')
+    expect(hints).toContain('Tab:tabs')
+  })
+
   it('returns files tab hints for pr-detail-files', () => {
     const hints = getContextHints('detail', 'pr-detail-files')
     expect(hints).toContain('h/l:tree/diff')

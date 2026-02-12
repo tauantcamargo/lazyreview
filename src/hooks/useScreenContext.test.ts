@@ -21,6 +21,7 @@ describe('setScreenContext', () => {
   it('accepts all valid screen contexts', () => {
     const contexts = [
       'pr-list',
+      'pr-detail-description',
       'pr-detail-files',
       'pr-detail-conversations',
       'pr-detail-commits',
