@@ -191,7 +191,7 @@ export function PRDetailScreen({
         if (!pendingReview.isActive) {
           pendingReview.startReview()
         }
-      } else if (input === 'r' && currentTab !== 0) {
+      } else if (input === 'r' && currentTab !== 0 && currentTab !== 2) {
         modals.openReviewModal()
       } else if (input === 'R') {
         modals.openReviewModal()
