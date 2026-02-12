@@ -17,6 +17,21 @@ const GitLabConfigSchema = S.Struct({
   host: S.optionalWith(S.String, { default: () => 'https://gitlab.com' }),
 })
 
+const RecentRepoSchema = S.Struct({
+  owner: S.String,
+  repo: S.String,
+  lastUsed: S.String,
+})
+
+export type RecentRepo = S.Schema.Type<typeof RecentRepoSchema>
+
+const BookmarkedRepoSchema = S.Struct({
+  owner: S.String,
+  repo: S.String,
+})
+
+export type BookmarkedRepo = S.Schema.Type<typeof BookmarkedRepoSchema>
+
 export class AppConfig extends S.Class<AppConfig>('AppConfig')({
   provider: S.optionalWith(S.Union(S.Literal('github'), S.Literal('gitlab')), {
     default: () => 'github' as const,
@@ -33,6 +48,12 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
   }),
   keybindings: S.optionalWith(KeybindingsSchema, {
     default: () => ({ toggleSidebar: 'b', help: '?', quit: 'q' }),
+  }),
+  recentRepos: S.optionalWith(S.Array(RecentRepoSchema), {
+    default: () => [],
+  }),
+  bookmarkedRepos: S.optionalWith(S.Array(BookmarkedRepoSchema), {
+    default: () => [],
   }),
 }) {}
 
