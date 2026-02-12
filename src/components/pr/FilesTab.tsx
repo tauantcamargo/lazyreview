@@ -16,15 +16,68 @@ import {
   SideBySideDiffView,
   buildSideBySideRows,
   SIDE_BY_SIDE_MIN_WIDTH,
+  type SideBySideRow,
 } from './SideBySideDiffView'
 import type { DiffCommentThread } from './DiffComment'
+import type { DiffDisplayRow } from './DiffView'
 import {
   buildFileTree,
   flattenTreeToFiles,
   buildDisplayRows,
   FileItem,
 } from './FileTree'
+import type { DiffLine } from '../../models/diff'
 import type { InlineCommentContext } from '../../models/inline-comment'
+
+/**
+ * Resolve the focused DiffCommentThread from either unified or side-by-side rows.
+ */
+function getFocusedCommentThread(
+  effectiveDiffMode: DiffMode,
+  diffSelectedLine: number,
+  allRows: readonly DiffDisplayRow[],
+  sideBySideRows: readonly SideBySideRow[],
+): DiffCommentThread | undefined {
+  if (effectiveDiffMode === 'side-by-side') {
+    const row = sideBySideRows[diffSelectedLine]
+    return row?.type === 'comment' ? row.thread : undefined
+  }
+  const row = allRows[diffSelectedLine]
+  return row?.type === 'comment' ? row.thread : undefined
+}
+
+interface FocusedLineInfo {
+  readonly line: DiffLine
+  readonly oldLineNumber: number | undefined
+  readonly newLineNumber: number | undefined
+}
+
+/**
+ * Resolve the focused diff line from either unified or side-by-side rows.
+ * For side-by-side paired rows, prefers the right (new) side, falls back to left.
+ */
+function getFocusedLine(
+  effectiveDiffMode: DiffMode,
+  index: number,
+  allRows: readonly DiffDisplayRow[],
+  sideBySideRows: readonly SideBySideRow[],
+): FocusedLineInfo | undefined {
+  if (effectiveDiffMode === 'side-by-side') {
+    const row = sideBySideRows[index]
+    if (!row || row.type === 'comment') return undefined
+    if (row.type === 'header') {
+      if (row.left) return { line: row.left, oldLineNumber: row.left.oldLineNumber, newLineNumber: row.left.newLineNumber }
+      return undefined
+    }
+    // For paired rows: prefer right (add/context), fall back to left (del)
+    const activeLine = row.right ?? row.left
+    if (!activeLine) return undefined
+    return { line: activeLine, oldLineNumber: activeLine.oldLineNumber, newLineNumber: activeLine.newLineNumber }
+  }
+  const row = allRows[index]
+  if (!row || row.type !== 'line') return undefined
+  return { line: row.line, oldLineNumber: row.oldLineNumber, newLineNumber: row.newLineNumber }
+}
 
 export function fuzzyMatch(filename: string, query: string): boolean {
   const lower = filename.toLowerCase()
@@ -249,9 +302,9 @@ export function FilesTab({
           setVisualStart(diffSelectedLine)
         }
       } else if (input === 'r' && focusPanel === 'diff' && onReply) {
-        const focusedRow = allRows[diffSelectedLine]
-        if (focusedRow?.type === 'comment') {
-          const lastComment = focusedRow.thread.comments[focusedRow.thread.comments.length - 1]
+        const thread = getFocusedCommentThread(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+        if (thread) {
+          const lastComment = thread.comments[thread.comments.length - 1]
           if (lastComment) {
             onReply({
               commentId: lastComment.id,
@@ -261,17 +314,17 @@ export function FilesTab({
           }
         }
       } else if (input === 'x' && focusPanel === 'diff' && onToggleResolve) {
-        const focusedRow = allRows[diffSelectedLine]
-        if (focusedRow?.type === 'comment' && focusedRow.thread.threadId) {
+        const thread = getFocusedCommentThread(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+        if (thread?.threadId) {
           onToggleResolve({
-            threadId: focusedRow.thread.threadId,
-            isResolved: focusedRow.thread.isResolved ?? false,
+            threadId: thread.threadId,
+            isResolved: thread.isResolved ?? false,
           })
         }
       } else if (input === 'e' && focusPanel === 'diff' && onEditComment && currentUser) {
-        const focusedRow = allRows[diffSelectedLine]
-        if (focusedRow?.type === 'comment') {
-          const ownComment = focusedRow.thread.comments.find((c) => c.user.login === currentUser)
+        const thread = getFocusedCommentThread(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+        if (thread) {
+          const ownComment = thread.comments.find((c) => c.user.login === currentUser)
           if (ownComment) {
             onEditComment({
               commentId: ownComment.id,
@@ -284,16 +337,16 @@ export function FilesTab({
         if (visualStart != null) {
           const selMin = Math.min(visualStart, diffSelectedLine)
           const selMax = Math.max(visualStart, diffSelectedLine)
-          const startRow = allRows[selMin]
-          const endRow = allRows[selMax]
+          const startInfo = getFocusedLine(effectiveDiffMode, selMin, allRows, sideBySideRows)
+          const endInfo = getFocusedLine(effectiveDiffMode, selMax, allRows, sideBySideRows)
           if (
-            startRow?.type === 'line' && endRow?.type === 'line' &&
-            startRow.line.type !== 'header' && endRow.line.type !== 'header'
+            startInfo && endInfo &&
+            startInfo.line.type !== 'header' && endInfo.line.type !== 'header'
           ) {
-            const endSide = endRow.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
-            const startSide = startRow.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
-            const endLine = endSide === 'LEFT' ? endRow.oldLineNumber : endRow.newLineNumber
-            const startLine = startSide === 'LEFT' ? startRow.oldLineNumber : startRow.newLineNumber
+            const endSide = endInfo.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
+            const startSide = startInfo.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
+            const endLine = endSide === 'LEFT' ? endInfo.oldLineNumber : endInfo.newLineNumber
+            const startLine = startSide === 'LEFT' ? startInfo.oldLineNumber : startInfo.newLineNumber
             if (endLine != null && startLine != null) {
               onInlineComment({
                 path: selectedFile.filename,
@@ -306,10 +359,10 @@ export function FilesTab({
             }
           }
         } else {
-          const selectedRow = allRows[diffSelectedLine]
-          if (selectedRow?.type === 'line' && selectedRow.line.type !== 'header') {
-            const side = selectedRow.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
-            const line = side === 'LEFT' ? selectedRow.oldLineNumber : selectedRow.newLineNumber
+          const lineInfo = getFocusedLine(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+          if (lineInfo && lineInfo.line.type !== 'header') {
+            const side = lineInfo.line.type === 'del' ? 'LEFT' as const : 'RIGHT' as const
+            const line = side === 'LEFT' ? lineInfo.oldLineNumber : lineInfo.newLineNumber
             if (line != null) {
               onInlineComment({
                 path: selectedFile.filename,
