@@ -75,8 +75,8 @@ export function PRDetailScreen({
   React.useEffect(() => {
     const tabContexts = [
       'pr-detail-conversations',
-      'pr-detail-files',
       'pr-detail-commits',
+      'pr-detail-files',
     ] as const
     setScreenContext(tabContexts[currentTab] ?? 'pr-detail-conversations')
   }, [currentTab])
