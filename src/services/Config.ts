@@ -11,10 +11,17 @@ const KeybindingsSchema = S.Struct({
   quit: S.optionalWith(S.String, { default: () => 'q' }),
 })
 
+export type Provider = 'github' | 'gitlab'
+
+const GitLabConfigSchema = S.Struct({
+  host: S.optionalWith(S.String, { default: () => 'https://gitlab.com' }),
+})
+
 export class AppConfig extends S.Class<AppConfig>('AppConfig')({
-  provider: S.optionalWith(S.Literal('github'), {
+  provider: S.optionalWith(S.Union(S.Literal('github'), S.Literal('gitlab')), {
     default: () => 'github' as const,
   }),
+  gitlab: S.optional(GitLabConfigSchema),
   theme: S.optionalWith(S.String, { default: () => 'tokyo-night' }),
   defaultOwner: S.optional(S.String),
   defaultRepo: S.optional(S.String),

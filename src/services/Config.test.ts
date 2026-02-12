@@ -107,10 +107,41 @@ describe('AppConfig schema', () => {
     expect(config.defaultRepo).toBeUndefined()
   })
 
-  it('provider only accepts github', () => {
+  it('accepts github provider', () => {
+    const config = S.decodeUnknownSync(AppConfig)({ provider: 'github' })
+    expect(config.provider).toBe('github')
+  })
+
+  it('accepts gitlab provider', () => {
+    const config = S.decodeUnknownSync(AppConfig)({ provider: 'gitlab' })
+    expect(config.provider).toBe('gitlab')
+  })
+
+  it('rejects unknown provider', () => {
     expect(() =>
-      S.decodeUnknownSync(AppConfig)({ provider: 'gitlab' }),
+      S.decodeUnknownSync(AppConfig)({ provider: 'bitbucket' }),
     ).toThrow()
+  })
+
+  it('accepts gitlab config block with defaults', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      provider: 'gitlab',
+      gitlab: {},
+    })
+    expect(config.gitlab?.host).toBe('https://gitlab.com')
+  })
+
+  it('accepts gitlab config with custom host', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      provider: 'gitlab',
+      gitlab: { host: 'https://gitlab.example.com' },
+    })
+    expect(config.gitlab?.host).toBe('https://gitlab.example.com')
+  })
+
+  it('gitlab config is optional', () => {
+    const config = S.decodeUnknownSync(AppConfig)({ provider: 'gitlab' })
+    expect(config.gitlab).toBeUndefined()
   })
 
   it('accepts partial keybindings with defaults', () => {
@@ -128,5 +159,19 @@ describe('AppConfig schema', () => {
       const config = S.decodeUnknownSync(AppConfig)({ theme })
       expect(config.theme).toBe(theme)
     }
+  })
+
+  it('config with gitlab round-trips through encode/decode', () => {
+    const input = {
+      provider: 'gitlab' as const,
+      gitlab: { host: 'https://my.gitlab.com' },
+      theme: 'dracula',
+    }
+    const config = S.decodeUnknownSync(AppConfig)(input)
+    const encoded = S.encodeSync(AppConfig)(config)
+    const decoded = S.decodeUnknownSync(AppConfig)(encoded)
+    expect(decoded.provider).toBe('gitlab')
+    expect(decoded.gitlab?.host).toBe('https://my.gitlab.com')
+    expect(decoded.theme).toBe('dracula')
   })
 })

@@ -312,6 +312,21 @@ interface AppProps {
   readonly repoName: string | null
 }
 
+function GitLabUnsupportedScreen(): React.ReactElement {
+  return (
+    <Box flexDirection="column" padding={2}>
+      <Text color="red" bold>
+        GitLab provider not yet supported
+      </Text>
+      <Text>
+        Your config (~/.config/lazyreview/config.yaml) has provider set to
+        &quot;gitlab&quot;. Please change it to &quot;github&quot; or remove the
+        provider field to use the default.
+      </Text>
+    </Box>
+  )
+}
+
 function AppWithTheme({
   repoOwner,
   repoName,
@@ -319,6 +334,14 @@ function AppWithTheme({
   const { config } = useConfig()
   const themeName = (config?.theme ?? 'tokyo-night') as ThemeName
   const theme = getThemeByName(themeName)
+
+  if (config?.provider === 'gitlab') {
+    return (
+      <ThemeProvider theme={theme}>
+        <GitLabUnsupportedScreen />
+      </ThemeProvider>
+    )
+  }
 
   return (
     <ThemeProvider theme={theme}>

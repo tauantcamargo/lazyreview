@@ -330,6 +330,7 @@ export function SettingsScreen(): React.ReactElement {
         <SettingRow
           label="Provider"
           value={config?.provider ?? 'github'}
+          hint={config?.provider === 'gitlab' ? '(gitlab support coming soon)' : undefined}
         />
         <SettingRow
           label="Default Owner"
