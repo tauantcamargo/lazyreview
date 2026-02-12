@@ -14,6 +14,11 @@ vi.mock('node:fs', () => ({
   mkdirSync: vi.fn(),
 }))
 
+vi.mock('node:fs/promises', () => ({
+  writeFile: vi.fn(() => Promise.resolve()),
+  mkdir: vi.fn(() => Promise.resolve()),
+}))
+
 describe('pruneOldEntries', () => {
   beforeEach(() => {
     vi.useFakeTimers()

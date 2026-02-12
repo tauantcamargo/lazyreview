@@ -1,7 +1,8 @@
 import { useCallback, useSyncExternalStore } from 'react'
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { createDebouncedWriter } from '../utils/debouncedWriter'
 
 const CONFIG_DIR = join(homedir(), '.config', 'lazyreview')
 const VIEWED_FILES_PATH = join(CONFIG_DIR, 'viewed-files.json')
@@ -37,15 +38,6 @@ function loadFromDisk(): ViewedFilesData {
   }
 }
 
-function saveToDisk(data: ViewedFilesData): void {
-  try {
-    mkdirSync(CONFIG_DIR, { recursive: true })
-    writeFileSync(VIEWED_FILES_PATH, JSON.stringify(data, null, 2), 'utf-8')
-  } catch {
-    // Silently fail on write errors
-  }
-}
-
 export function pruneOldEntries(data: ViewedFilesData): ViewedFilesData {
   const now = Date.now()
   const result: Record<string, ViewedEntry> = {}
@@ -61,11 +53,12 @@ export function pruneOldEntries(data: ViewedFilesData): ViewedFilesData {
 }
 
 export function createViewedFilesStore(): ViewedFilesStore {
+  const writer = createDebouncedWriter<ViewedFilesData>(VIEWED_FILES_PATH)
   let data: ViewedFilesData = pruneOldEntries(loadFromDisk())
   let listeners: readonly Listener[] = []
 
   // Save pruned data if entries were removed
-  saveToDisk(data)
+  writer.schedule(data)
 
   const notify = (): void => {
     listeners.forEach((l) => l())
@@ -95,7 +88,7 @@ export function createViewedFilesStore(): ViewedFilesStore {
           lastUpdated: new Date().toISOString(),
         },
       }
-      saveToDisk(data)
+      writer.schedule(data)
       notify()
     },
 
@@ -111,7 +104,7 @@ export function createViewedFilesStore(): ViewedFilesStore {
           lastUpdated: new Date().toISOString(),
         },
       }
-      saveToDisk(data)
+      writer.schedule(data)
       notify()
     },
 

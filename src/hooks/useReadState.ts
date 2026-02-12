@@ -1,7 +1,8 @@
 import { useCallback, useSyncExternalStore } from 'react'
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { createDebouncedWriter } from '../utils/debouncedWriter'
 
 const CONFIG_DIR = join(homedir(), '.config', 'lazyreview')
 const READ_STATE_FILE = join(CONFIG_DIR, 'read-state.json')
@@ -34,15 +35,6 @@ function loadFromDisk(): ReadStateData {
   }
 }
 
-function saveToDisk(data: ReadStateData): void {
-  try {
-    mkdirSync(CONFIG_DIR, { recursive: true })
-    writeFileSync(READ_STATE_FILE, JSON.stringify(data, null, 2), 'utf-8')
-  } catch {
-    // Silently fail on write errors
-  }
-}
-
 function pruneOldEntries(data: ReadStateData): ReadStateData {
   const now = Date.now()
   const result: Record<string, ReadEntry> = {}
@@ -58,11 +50,12 @@ function pruneOldEntries(data: ReadStateData): ReadStateData {
 }
 
 function createReadStateStore(): ReadStateStore {
+  const writer = createDebouncedWriter<ReadStateData>(READ_STATE_FILE)
   let data: ReadStateData = pruneOldEntries(loadFromDisk())
   let listeners: readonly Listener[] = []
 
   // Save pruned data if entries were removed
-  saveToDisk(data)
+  writer.schedule(data)
 
   const notify = (): void => {
     listeners.forEach((l) => l())
@@ -86,7 +79,7 @@ function createReadStateStore(): ReadStateStore {
         ...data,
         [htmlUrl]: { lastSeenAt: now, prUpdatedAt },
       }
-      saveToDisk(data)
+      writer.schedule(data)
       notify()
     },
 
