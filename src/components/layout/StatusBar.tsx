@@ -1,8 +1,6 @@
 import React from 'react'
 import { Box, Text } from 'ink'
-import { Spinner } from '../common/Spinner'
 import { useTheme } from '../../theme/index'
-import { useLoading } from '../../hooks/useLoading'
 import { useStatusMessage } from '../../hooks/useStatusMessage'
 import { useLastUpdated } from '../../hooks/useLastUpdated'
 import { useRateLimit } from '../../hooks/useRateLimit'
@@ -54,7 +52,6 @@ export function StatusBar({
   screenContext,
 }: StatusBarProps): React.ReactElement {
   const theme = useTheme()
-  const loadingState = useLoading()
   const { message: statusMessage } = useStatusMessage()
   const { label: lastUpdatedLabel } = useLastUpdated()
   const rateLimit = useRateLimit()
@@ -63,9 +60,6 @@ export function StatusBar({
   const showRateLimitWarning = rateLimit.remaining < RATE_LIMIT_WARNING_THRESHOLD
 
   const renderStatus = (): React.ReactElement => {
-    if (loadingState.isLoading) {
-      return <Spinner label={loadingState.message ?? 'Loading...'} />
-    }
     if (statusMessage) {
       return <Text color={theme.colors.info}>{statusMessage}</Text>
     }
