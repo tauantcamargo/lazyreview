@@ -6,6 +6,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { AuthError } from '../models/errors'
 import { User } from '../models/user'
+import type { Provider } from './Config'
 
 const execFileAsync = promisify(execFile)
 
@@ -24,6 +25,7 @@ const TOKEN_FILE = join(CONFIG_DIR, '.token')
 // In-memory token storage for current session
 let sessionToken: string | null = null
 let preferredSource: TokenSource | null = null
+let currentProvider: Provider = 'github'
 
 // Load saved token from file on startup
 async function loadSavedToken(): Promise<string | null> {
@@ -70,6 +72,27 @@ async function tryGetGhToken(): Promise<string | null> {
   }
 }
 
+async function tryGetGlabToken(): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('glab', ['auth', 'token'])
+    return stdout.trim() || null
+  } catch {
+    return null
+  }
+}
+
+export function getEnvVarName(provider: Provider): string {
+  return provider === 'gitlab' ? 'LAZYREVIEW_GITLAB_TOKEN' : 'LAZYREVIEW_GITHUB_TOKEN'
+}
+
+export function setAuthProvider(provider: Provider): void {
+  currentProvider = provider
+}
+
+export function getAuthProvider(): Provider {
+  return currentProvider
+}
+
 export interface AuthService {
   readonly getToken: () => Effect.Effect<string, AuthError>
   readonly getUser: () => Effect.Effect<User, AuthError>
@@ -83,7 +106,11 @@ export interface AuthService {
 
 export class Auth extends Context.Tag('Auth')<Auth, AuthService>() {}
 
-function resolveToken(): Effect.Effect<string, AuthError> {
+// ---------------------------------------------------------------------------
+// GitHub token resolution (default)
+// ---------------------------------------------------------------------------
+
+function resolveGitHubToken(): Effect.Effect<string, AuthError> {
   return Effect.gen(function* () {
     // If preferred source is set, use only that source
     if (preferredSource === 'manual') {
@@ -144,7 +171,60 @@ function resolveToken(): Effect.Effect<string, AuthError> {
   })
 }
 
-function resolveTokenInfo(): Effect.Effect<TokenInfo, never> {
+// ---------------------------------------------------------------------------
+// GitLab token resolution (stub)
+// ---------------------------------------------------------------------------
+
+function resolveGitLabToken(): Effect.Effect<string, AuthError> {
+  return Effect.gen(function* () {
+    // 1. Check LAZYREVIEW_GITLAB_TOKEN env var
+    const envToken = process.env['LAZYREVIEW_GITLAB_TOKEN']
+    if (envToken) {
+      return yield* Effect.fail(
+        new AuthError({
+          message: 'GitLab not yet supported',
+          reason: 'no_token',
+        }),
+      )
+    }
+
+    // 2. Try glab CLI
+    const glabToken = yield* Effect.tryPromise({
+      try: tryGetGlabToken,
+      catch: () =>
+        new AuthError({
+          message: 'GitLab not yet supported',
+          reason: 'no_token',
+        }),
+    })
+
+    if (glabToken) {
+      return yield* Effect.fail(
+        new AuthError({
+          message: 'GitLab not yet supported',
+          reason: 'no_token',
+        }),
+      )
+    }
+
+    return yield* Effect.fail(
+      new AuthError({
+        message: 'GitLab not yet supported',
+        reason: 'no_token',
+      }),
+    )
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Provider-dispatched token resolution
+// ---------------------------------------------------------------------------
+
+function resolveToken(): Effect.Effect<string, AuthError> {
+  return currentProvider === 'gitlab' ? resolveGitLabToken() : resolveGitHubToken()
+}
+
+function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
   return Effect.gen(function* () {
     // Check preferred source first
     if (preferredSource === 'manual') {
@@ -219,40 +299,71 @@ function resolveTokenInfo(): Effect.Effect<TokenInfo, never> {
   })
 }
 
+function resolveTokenInfo(): Effect.Effect<TokenInfo, never> {
+  // For gitlab, always return none (not yet supported)
+  if (currentProvider === 'gitlab') {
+    return Effect.succeed({
+      source: 'none' as TokenSource,
+      token: null,
+      maskedToken: null,
+    })
+  }
+  return resolveGitHubTokenInfo()
+}
+
+// ---------------------------------------------------------------------------
+// Provider-dispatched getUser
+// ---------------------------------------------------------------------------
+
+function getGitHubUser(token: string): Effect.Effect<User, AuthError> {
+  return Effect.tryPromise({
+    try: async () => {
+      const response = await fetch('https://api.github.com/user', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`GitHub API returned ${response.status}`)
+      }
+
+      const data = await response.json()
+      return S.decodeUnknownSync(User)(data)
+    },
+    catch: (error) =>
+      new AuthError({
+        message: `Failed to get user: ${String(error)}`,
+        reason: 'invalid_token',
+      }),
+  })
+}
+
+function getGitLabUser(_token: string): Effect.Effect<User, AuthError> {
+  return Effect.fail(
+    new AuthError({
+      message: 'GitLab not yet supported',
+      reason: 'no_token',
+    }),
+  )
+}
+
+function getUser(): Effect.Effect<User, AuthError> {
+  return Effect.gen(function* () {
+    const token = yield* resolveToken()
+    return currentProvider === 'gitlab'
+      ? yield* getGitLabUser(token)
+      : yield* getGitHubUser(token)
+  })
+}
+
 export const AuthLive = Layer.succeed(
   Auth,
   Auth.of({
     getToken: resolveToken,
 
-    getUser: () =>
-      Effect.gen(function* () {
-        const token = yield* resolveToken()
-
-        const user = yield* Effect.tryPromise({
-          try: async () => {
-            const response = await fetch('https://api.github.com/user', {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/vnd.github+json',
-              },
-            })
-
-            if (!response.ok) {
-              throw new Error(`GitHub API returned ${response.status}`)
-            }
-
-            const data = await response.json()
-            return S.decodeUnknownSync(User)(data)
-          },
-          catch: (error) =>
-            new AuthError({
-              message: `Failed to get user: ${String(error)}`,
-              reason: 'invalid_token',
-            }),
-        })
-
-        return user
-      }),
+    getUser,
 
     isAuthenticated: () =>
       Effect.gen(function* () {
@@ -280,7 +391,20 @@ export const AuthLive = Layer.succeed(
       Effect.gen(function* () {
         const sources: TokenSource[] = []
 
-        // Check LAZYREVIEW_GITHUB_TOKEN only
+        if (currentProvider === 'gitlab') {
+          // GitLab: check LAZYREVIEW_GITLAB_TOKEN and glab CLI
+          const envToken = process.env['LAZYREVIEW_GITLAB_TOKEN']
+          if (envToken) {
+            sources.push('env')
+          }
+          const glabToken = yield* Effect.promise(tryGetGlabToken)
+          if (glabToken) {
+            sources.push('gh_cli')
+          }
+          return sources
+        }
+
+        // GitHub: check LAZYREVIEW_GITHUB_TOKEN and gh CLI
         const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
         if (envToken) {
           sources.push('env')

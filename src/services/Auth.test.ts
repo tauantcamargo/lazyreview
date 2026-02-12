@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { maskToken } from './Auth'
+import { maskToken, getEnvVarName, setAuthProvider, getAuthProvider } from './Auth'
 
 describe('maskToken', () => {
   it('masks short tokens with ****', () => {
@@ -50,5 +50,37 @@ describe('maskToken', () => {
   it('handles exactly 9-char token (boundary above 8)', () => {
     const result = maskToken('abcdefghi')
     expect(result).toBe('abcd...fghi')
+  })
+})
+
+describe('getEnvVarName', () => {
+  it('returns LAZYREVIEW_GITHUB_TOKEN for github provider', () => {
+    expect(getEnvVarName('github')).toBe('LAZYREVIEW_GITHUB_TOKEN')
+  })
+
+  it('returns LAZYREVIEW_GITLAB_TOKEN for gitlab provider', () => {
+    expect(getEnvVarName('gitlab')).toBe('LAZYREVIEW_GITLAB_TOKEN')
+  })
+})
+
+describe('setAuthProvider / getAuthProvider', () => {
+  afterEach(() => {
+    // Reset to default
+    setAuthProvider('github')
+  })
+
+  it('defaults to github', () => {
+    expect(getAuthProvider()).toBe('github')
+  })
+
+  it('can be set to gitlab', () => {
+    setAuthProvider('gitlab')
+    expect(getAuthProvider()).toBe('gitlab')
+  })
+
+  it('can be switched back to github', () => {
+    setAuthProvider('gitlab')
+    setAuthProvider('github')
+    expect(getAuthProvider()).toBe('github')
   })
 })

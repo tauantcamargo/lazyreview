@@ -4,11 +4,26 @@ import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
+import { getAuthProvider, getEnvVarName } from '../../services/Auth'
 
 interface TokenInputModalProps {
   readonly onClose: () => void
   readonly onSubmit: (token: string) => void
   readonly error?: string | null
+}
+
+function getProviderLabel(provider: string): string {
+  return provider === 'gitlab' ? 'GitLab' : 'GitHub'
+}
+
+function getTokenUrl(provider: string): string {
+  return provider === 'gitlab'
+    ? 'gitlab.com/-/user_settings/personal_access_tokens'
+    : 'github.com/settings/tokens'
+}
+
+function getRequiredScopes(provider: string): string {
+  return provider === 'gitlab' ? 'api, read_user' : 'repo, read:user'
 }
 
 export function TokenInputModal({
@@ -18,6 +33,10 @@ export function TokenInputModal({
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
   const [value, setValue] = useState('')
+
+  const provider = getAuthProvider()
+  const providerLabel = getProviderLabel(provider)
+  const envVarName = getEnvVarName(provider)
 
   // Disable global shortcuts while this modal is open
   useEffect(() => {
@@ -50,14 +69,19 @@ export function TokenInputModal({
         gap={1}
       >
         <Text color={theme.colors.accent} bold>
-          GitHub Token Required
+          {providerLabel} Token Required
         </Text>
         <Box flexDirection="column">
           <Text color={theme.colors.text}>
-            No GitHub token found in your environment.
+            No {providerLabel} token found in your environment.
           </Text>
           <Text color={theme.colors.muted}>
-            Please enter your GitHub Personal Access Token:
+            Please enter your {providerLabel} Personal Access Token:
+          </Text>
+        </Box>
+        <Box flexDirection="column">
+          <Text color={theme.colors.muted} dimColor>
+            You can also set {envVarName} in your environment.
           </Text>
         </Box>
         {error && <Text color={theme.colors.error}>Error: {error}</Text>}
@@ -79,10 +103,10 @@ export function TokenInputModal({
         </Box>
         <Box flexDirection="column" marginTop={1}>
           <Text color={theme.colors.info}>
-            Get a token at: github.com/settings/tokens
+            Get a token at: {getTokenUrl(provider)}
           </Text>
           <Text color={theme.colors.muted}>
-            Required scopes: repo, read:user
+            Required scopes: {getRequiredScopes(provider)}
           </Text>
         </Box>
       </Box>
