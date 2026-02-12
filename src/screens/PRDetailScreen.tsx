@@ -48,7 +48,7 @@ interface PRDetailScreenProps {
   readonly prTotal?: number
 }
 
-const PR_DETAIL_RESERVED_LINES = 18
+const PR_DETAIL_RESERVED_LINES = 12
 
 export function PRDetailScreen({
   pr,
