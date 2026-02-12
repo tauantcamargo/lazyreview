@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { truncate, padRight, pluralize, formatCount, openInBrowser, copyToClipboard } from './terminal'
+
+vi.mock('node:child_process', () => ({
+  execFile: vi.fn(),
+  execFileSync: vi.fn(),
+}))
 
 describe('truncate', () => {
   it('returns text unchanged when shorter than maxWidth', () => {
