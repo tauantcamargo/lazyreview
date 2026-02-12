@@ -9,15 +9,17 @@ src/
 ├── cli.tsx              # Entry point
 ├── app.tsx              # Root component with Box layout
 ├── components/
-│   ├── layout/          # TopBar, Sidebar, MainPanel, StatusBar
-│   ├── pr/              # PRListItem, PRHeader, PRTabs, FilesTab, CommentsTab
-│   └── common/          # EmptyState, LoadingIndicator
-├── screens/             # PRListScreen, PRDetailScreen, MyPRsScreen, ReviewRequestsScreen, SettingsScreen
-├── hooks/               # useGitHub, useAuth, useConfig, useLoading, useTheme, useListNavigation, useActivePanel
-├── services/            # Effect services: GitHubApi, Auth, Config, Loading, layers
+│   ├── layout/          # TopBar, Sidebar, MainPanel, StatusBar, HelpModal, TokenInputModal
+│   ├── pr/              # PRListItem, PRHeader, PRTabs, FilesTab, ConversationsTab, DescriptionTab, SideBySideDiffView
+│   └── common/          # EmptyState, LoadingIndicator, ErrorBoundary, MarkdownText
+├── screens/             # PRListScreen, PRDetailScreen, BrowseRepoScreen, SettingsScreen
+├── hooks/               # useGitHub, useGitHubMutations, useAuth, useConfig, useRepoContext, useRecentRepos,
+│                        #   useBookmarkedRepos, useSidebarCounts, useSidebarSections, useListNavigation,
+│                        #   useActivePanel, useFilter, useViewedFiles, useReadState, useScreenContext
+├── services/            # Effect services: CodeReviewApi, GitHubApiLive, Auth, Config, layers
 ├── models/              # Zod schemas + TS types
 ├── theme/               # Theme types, color palettes, ThemeProvider
-└── utils/               # date formatting, terminal helpers
+└── utils/               # date formatting, terminal helpers, git helpers
 ```
 
 ## Commands

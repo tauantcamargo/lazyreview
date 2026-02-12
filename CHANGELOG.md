@@ -2,6 +2,44 @@
 
 All notable changes to LazyReview are documented here.
 
+## 1.0.8
+
+### Browse Any Repo
+- Browse any GitHub repo's PRs in-app without restarting (`Browse` sidebar item)
+- Text input for `owner/repo` entry with validation
+- Recent repos list (persisted, capped at 10, auto-bumped)
+- Bookmarked repos management in Settings (add/remove, shown above recents)
+- RepoContext for runtime repo switching (TopBar breadcrumbs update)
+
+### Multi-Provider Foundation
+- Extracted provider-agnostic `CodeReviewApi` interface from GitHub-specific code
+- Config schema accepts `github | gitlab` provider (GitLab stubbed for future)
+- Auth service dispatches token resolution by provider
+- TokenInputModal shows provider-correct labels and hints
+
+### TUI Improvements
+- Sidebar PR counts and unread badges (auto-updating)
+- TopBar breadcrumbs with screen name and connection status indicator
+- Collapsible sidebar sections (Reviews / App) with keyboard toggle
+- Sidebar widened to 40 chars for counts/badges
+- Extracted DescriptionTab as dedicated PR description view
+
+### Bug Fixes & Polish
+- Fixed unhandled promise rejection in PR checkout (`G` key)
+- Fixed side-by-side diff comment actions targeting wrong rows
+- Removed redundant lowercase `r` review handler (capital `R` works everywhere)
+- Debounced file I/O in useViewedFiles and useReadState (no more micro-stutters)
+- Mocked child_process in terminal tests (no more Chrome tabs opening during tests)
+- Raised test coverage thresholds to 58/58/60/88
+
+### CI/CD
+- GitHub Actions now creates GitHub Releases with auto-generated notes on version bump
+- Release notes include install/update instructions for npm and Homebrew
+- Tests run before publishing
+
+### Stats
+- 611 tests across 53 test files
+
 ## 1.0.0
 
 - Add MIT LICENSE file

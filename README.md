@@ -40,6 +40,16 @@ npm install -g lazyreview
 npx lazyreview
 ```
 
+### Update
+
+```bash
+# npm
+npm update -g lazyreview
+
+# Homebrew
+brew upgrade lazyreview
+```
+
 **Requires Node.js 20 or later.**
 
 ## Quick Start
@@ -72,6 +82,7 @@ Browse open PRs with search, sort, and pagination across multiple views:
 - **My PRs** — PRs you opened
 - **For Review** — PRs awaiting your review
 - **This Repo** — All open PRs in the current repo
+- **Browse** — Browse any GitHub repo's PRs (e.g., `facebook/react`) with recent history and bookmarks
 - **CI Status** — Check run results displayed inline on each PR
 
 ### PR Detail
@@ -122,6 +133,23 @@ Fully configurable from the TUI — no need to edit files manually:
 - Page size (1-100)
 - Refresh interval (10-600s)
 - Default owner/repo
+
+### Browse Any Repo
+
+Browse PRs from any public GitHub repo without leaving the app:
+
+- Navigate to the **Browse** sidebar item
+- Type `owner/repo` (e.g., `facebook/react`) and press Enter
+- Recent repos are saved automatically (up to 10)
+- Bookmark frequently used repos in **Settings** for quick access
+- Full PR list with filtering, sorting, and detail view — same as local repo
+
+### Sidebar
+
+- **PR counts** and **unread badges** update automatically
+- **Collapsible sections** (Reviews / App) with Enter to toggle
+- **Breadcrumb trail** in TopBar shows current screen and PR context
+- **Connection status** indicator (green/yellow/red) in TopBar
 
 ### Other
 
@@ -228,9 +256,11 @@ Example:
 theme: tokyo-night        # tokyo-night | dracula | catppuccin-mocha | gruvbox
 pageSize: 30              # PRs per page (1-100)
 refreshInterval: 60       # Auto-refresh interval in seconds (10-600)
-provider: github          # git provider
+provider: github          # github | gitlab (gitlab coming soon)
 defaultOwner: myorg       # skip auto-detection
 defaultRepo: myrepo       # skip auto-detection
+recentRepos: []           # auto-populated from Browse (max 10)
+bookmarkedRepos: []       # manually managed in Settings
 ```
 
 ## Development
