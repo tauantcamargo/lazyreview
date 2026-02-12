@@ -74,7 +74,7 @@ export function FilesTab({
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
   const { markViewed, toggleViewed, isViewed, getViewedCount } = useViewedFiles()
-  const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 10)
+  const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 13)
 
   const [focusPanel, setFocusPanel] = useState<FocusPanel>('tree')
   const [selectedFileIndex, setSelectedFileIndex] = useState(0)
@@ -105,14 +105,14 @@ export function FilesTab({
     [filteredTree],
   )
 
-  const { selectedIndex: treeSelectedIndex } = useListNavigation({
-    itemCount: fileOrder.length,
-    viewportHeight,
-    isActive: isActive && focusPanel === 'tree' && !isFiltering,
-  })
-
   const treeViewportHeight = viewportHeight - 2
   const fileTreeListRef = useRef<ScrollListRef>(null)
+
+  const { selectedIndex: treeSelectedIndex } = useListNavigation({
+    itemCount: fileOrder.length,
+    viewportHeight: treeViewportHeight,
+    isActive: isActive && focusPanel === 'tree' && !isFiltering,
+  })
   const selectedRowIndex = displayRows.findIndex(
     (r) => r.type === 'file' && r.fileIndex === treeSelectedIndex,
   )

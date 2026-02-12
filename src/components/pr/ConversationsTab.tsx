@@ -135,6 +135,7 @@ function PRInfoSection({
       paddingY={1}
       borderStyle="single"
       borderColor={theme.colors.border}
+      overflow="hidden"
     >
       <Box flexDirection="row">
         <Text color={theme.colors.muted}>Author: </Text>
@@ -194,7 +195,7 @@ function PRDescriptionSection({
           {pr.user.login}
         </Text>
       </Box>
-      <Box paddingLeft={1}>
+      <Box paddingLeft={1} width="85%">
         <MarkdownText content={pr.body} />
       </Box>
       <Box paddingY={1}>
@@ -296,7 +297,7 @@ export function ConversationsTab({
   }, [stdout])
 
   return (
-    <Box flexDirection="column" flexGrow={1}>
+    <Box flexDirection="column" flexGrow={1} overflow="hidden">
       <PRInfoSection pr={pr} />
 
       <PRDescriptionSection pr={pr} />

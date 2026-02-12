@@ -68,6 +68,7 @@ export function TimelineItemView({
       paddingY={1}
       marginBottom={2}
       gap={1}
+      overflow="hidden"
     >
       <Box flexDirection="row">
         {isFocus && <Text color={theme.colors.accent}>{'> '}</Text>}
