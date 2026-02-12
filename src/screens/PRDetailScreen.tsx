@@ -214,10 +214,13 @@ export function PRDetailScreen({
         setStatusMessage('Checking out PR #' + pr.number + '...', 10000)
         checkoutPR(pr.number).then((result) => {
           setStatusMessage(
-            result.success
-              ? result.message
-              : result.message,
+            result.message,
             result.success ? 3000 : 5000,
+          )
+        }).catch((error: unknown) => {
+          setStatusMessage(
+            `Checkout failed: ${error instanceof Error ? error.message : String(error)}`,
+            5000,
           )
         })
       } else if (input === 'q' || key.escape) {
