@@ -1,6 +1,7 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
+import type { SidebarCounts } from '../../hooks/useSidebarCounts'
 
 export const SIDEBAR_ITEMS = [
   'Involved',
@@ -20,16 +21,46 @@ const sidebarIcons: Record<SidebarItem, string> = {
   Settings: '⚙',
 }
 
+function getCountForItem(
+  label: SidebarItem,
+  counts: SidebarCounts | undefined,
+): number | null {
+  if (!counts) return null
+  switch (label) {
+    case 'Involved':
+      return counts.involved
+    case 'My PRs':
+      return counts.myPrs
+    case 'For Review':
+      return counts.forReview
+    case 'This Repo':
+      return counts.thisRepo
+    case 'Settings':
+      return null
+  }
+}
+
+function getUnreadForItem(
+  label: SidebarItem,
+  counts: SidebarCounts | undefined,
+): number | null {
+  if (!counts) return null
+  if (label === 'For Review') return counts.forReviewUnread
+  return null
+}
+
 interface SidebarProps {
   readonly selectedIndex: number
   readonly visible: boolean
   readonly isActive: boolean
+  readonly counts?: SidebarCounts
 }
 
 export function Sidebar({
   selectedIndex,
   visible,
   isActive,
+  counts,
 }: SidebarProps): React.ReactElement | null {
   const theme = useTheme()
 
@@ -38,7 +69,7 @@ export function Sidebar({
   return (
     <Box
       flexDirection="column"
-      width={24}
+      width={28}
       borderStyle="single"
       borderColor={isActive ? theme.colors.accent : theme.colors.border}
     >
@@ -51,6 +82,8 @@ export function Sidebar({
         {SIDEBAR_ITEMS.map((label, index) => {
           const isSelected = index === selectedIndex
           const icon = sidebarIcons[label]
+          const count = getCountForItem(label, counts)
+          const unread = getUnreadForItem(label, counts)
           return (
             <Box key={label} paddingX={1}>
               <Text
@@ -62,6 +95,16 @@ export function Sidebar({
                 {isSelected ? '▸ ' : '  '}
                 {icon} {label}
               </Text>
+              {count !== null && (
+                <Text color={theme.colors.muted}>
+                  {' '}({count})
+                </Text>
+              )}
+              {unread !== null && (
+                <Text color={theme.colors.accent}>
+                  {' '}*{unread} new*
+                </Text>
+              )}
             </Box>
           )
         })}

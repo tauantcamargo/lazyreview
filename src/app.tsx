@@ -23,6 +23,8 @@ import { useConfig } from './hooks/useConfig'
 import { useListNavigation } from './hooks/useListNavigation'
 import { useActivePanel } from './hooks/useActivePanel'
 import { InputFocusProvider, useInputFocus } from './hooks/useInputFocus'
+import { useSidebarCounts } from './hooks/useSidebarCounts'
+import { useReadState } from './hooks/useReadState'
 import type { PullRequest } from './models/pull-request'
 
 type AppScreen =
@@ -69,6 +71,10 @@ function AppContent({
     viewportHeight: SIDEBAR_ITEMS.length,
     isActive: activePanel === 'sidebar' && !showHelp && !showTokenInput,
   })
+
+  // Sidebar counts from query cache
+  const { isUnread } = useReadState()
+  const sidebarCounts = useSidebarCounts(isUnread)
 
   // Show token modal when not authenticated (covers invalid token case)
   React.useEffect(() => {
@@ -229,6 +235,7 @@ function AppContent({
           selectedIndex={sidebarIndex}
           visible={sidebarVisible}
           isActive={activePanel === 'sidebar'}
+          counts={sidebarCounts}
         />
         <MainPanel isActive={activePanel === 'list'}>
           {renderScreen()}
