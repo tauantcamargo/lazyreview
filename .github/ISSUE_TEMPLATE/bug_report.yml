@@ -1,7 +1,7 @@
 name: Bug Report
 description: Report a bug or unexpected behavior in LazyReview
-title: "[Bug]: "
-labels: ["bug"]
+title: '[Bug]: '
+labels: ['bug']
 body:
   - type: markdown
     attributes:
@@ -62,7 +62,7 @@ body:
         - LazyReview version: 
         - Node.js version: 
         - Operating System: 
-        - Terminal: 
+        - Terminal:
     validations:
       required: true
 
