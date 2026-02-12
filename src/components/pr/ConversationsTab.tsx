@@ -1,8 +1,7 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
-import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../../theme/index'
-import { useListNavigation } from '../../hooks/useListNavigation'
+import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
 import type { PullRequest } from '../../models/pull-request'
 import type { Comment } from '../../models/comment'
 import type { IssueComment } from '../../models/issue-comment'
@@ -139,7 +138,6 @@ export function ConversationsTab({
 }: ConversationsTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
-  const listRef = useRef<ScrollListRef>(null)
   const allTimeline = buildTimeline(pr, comments, reviews, reviewThreads, issueComments)
   const timeline = showResolved
     ? allTimeline
@@ -201,15 +199,8 @@ export function ConversationsTab({
     { isActive },
   )
 
-  useEffect(() => {
-    const handleResize = (): void => {
-      listRef.current?.remeasure()
-    }
-    stdout?.on('resize', handleResize)
-    return () => {
-      stdout?.off('resize', handleResize)
-    }
-  }, [stdout])
+  const scrollOffset = deriveScrollOffset(selectedIndex, viewportHeight, timeline.length)
+  const visibleItems = timeline.slice(scrollOffset, scrollOffset + viewportHeight)
 
   return (
     <Box flexDirection="column" flexGrow={1} minHeight={0} overflow="hidden">
@@ -237,20 +228,13 @@ export function ConversationsTab({
             <Text color={theme.colors.muted}>No conversations yet</Text>
           </Box>
         ) : (
-          <ScrollList
-            ref={listRef}
-            selectedIndex={selectedIndex}
-            scrollAlignment="auto"
-            height={viewportHeight}
-          >
-            {timeline.map((item, index) => (
-              <TimelineItemView
-                key={item.id}
-                item={item}
-                isFocus={index === selectedIndex}
-              />
-            ))}
-          </ScrollList>
+          visibleItems.map((item, i) => (
+            <TimelineItemView
+              key={item.id}
+              item={item}
+              isFocus={scrollOffset + i === selectedIndex}
+            />
+          ))
         )}
       </Box>
     </Box>

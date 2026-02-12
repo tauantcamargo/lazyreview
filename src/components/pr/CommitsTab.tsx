@@ -1,8 +1,7 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
-import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../../theme/index'
-import { useListNavigation } from '../../hooks/useListNavigation'
+import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
 import { copyToClipboard } from '../../utils/terminal'
 import { useStatusMessage } from '../../hooks/useStatusMessage'
 import type { Commit } from '../../models/commit'
@@ -68,7 +67,6 @@ export function CommitsTab({
   const { setStatusMessage } = useStatusMessage()
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 10)
 
-  const listRef = useRef<ScrollListRef>(null)
   const { selectedIndex } = useListNavigation({
     itemCount: commits.length,
     viewportHeight,
@@ -89,13 +87,8 @@ export function CommitsTab({
     { isActive },
   )
 
-  useEffect(() => {
-    const handleResize = (): void => listRef.current?.remeasure()
-    stdout?.on('resize', handleResize)
-    return () => {
-      stdout?.off('resize', handleResize)
-    }
-  }, [stdout])
+  const scrollOffset = deriveScrollOffset(selectedIndex, viewportHeight, commits.length)
+  const visibleCommits = commits.slice(scrollOffset, scrollOffset + viewportHeight)
 
   if (commits.length === 0) {
     return <EmptyState message="No commits found" />
@@ -143,15 +136,13 @@ export function CommitsTab({
       </Box>
 
       <Box flexDirection="column" overflow="hidden" height={viewportHeight}>
-        <ScrollList ref={listRef} selectedIndex={selectedIndex} scrollAlignment="auto">
-          {commits.map((commit, index) => (
-            <CommitItem
-              key={commit.sha}
-              commit={commit}
-              isFocus={index === selectedIndex}
-            />
-          ))}
-        </ScrollList>
+        {visibleCommits.map((commit, i) => (
+          <CommitItem
+            key={commit.sha}
+            commit={commit}
+            isFocus={scrollOffset + i === selectedIndex}
+          />
+        ))}
       </Box>
     </Box>
   )

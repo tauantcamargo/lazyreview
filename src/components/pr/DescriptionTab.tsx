@@ -1,6 +1,5 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
-import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { useTheme } from '../../theme/index'
 import { Divider } from '../common/Divider'
 import { useListNavigation } from '../../hooks/useListNavigation'
@@ -108,7 +107,6 @@ export function DescriptionTab({
 }: DescriptionTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
-  const listRef = useRef<ScrollListRef>(null)
   const contentHeight = Math.max(
     1,
     (stdout?.rows ?? 24) - PR_DETAIL_CONTENT_HEIGHT_RESERVED,
@@ -118,9 +116,14 @@ export function DescriptionTab({
     contentHeight - DESCRIPTION_HEADER_LINES,
   )
 
-  const sectionCount = 3
+  const sections = [
+    <PRInfoSection key="info" pr={pr} />,
+    <PRDescriptionSection key="desc" pr={pr} />,
+    <ReviewSummary key="reviews" reviews={reviews} />,
+  ]
+
   const { selectedIndex } = useListNavigation({
-    itemCount: sectionCount,
+    itemCount: sections.length,
     viewportHeight,
     isActive,
   })
@@ -133,14 +136,6 @@ export function DescriptionTab({
     },
     { isActive },
   )
-
-  useEffect(() => {
-    const handleResize = (): void => listRef.current?.remeasure()
-    stdout?.on('resize', handleResize)
-    return () => {
-      stdout?.off('resize', handleResize)
-    }
-  }, [stdout])
 
   return (
     <Box flexDirection="column" flexGrow={1} minHeight={0} overflow="hidden">
@@ -156,16 +151,7 @@ export function DescriptionTab({
         overflow="hidden"
         height={viewportHeight}
       >
-        <ScrollList
-          ref={listRef}
-          selectedIndex={selectedIndex}
-          scrollAlignment="auto"
-          height={viewportHeight}
-        >
-          <PRInfoSection pr={pr} />
-          <PRDescriptionSection pr={pr} />
-          <ReviewSummary reviews={reviews} />
-        </ScrollList>
+        {sections.slice(selectedIndex)}
       </Box>
     </Box>
   )
