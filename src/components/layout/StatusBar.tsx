@@ -17,7 +17,7 @@ export type ScreenContext =
   | 'browse-list'
 
 const PANEL_HINTS: Record<Panel, string> = {
-  sidebar: 'j/k:nav  Enter:select  Tab:list  b:sidebar  ?:help  q:quit',
+  sidebar: 'j/k:nav  Enter:select  Tab:list  ^b:sidebar  ?:help  q:quit',
   list: 'j/k:nav  Enter:detail  /:filter  s:sort  o:open  R:refresh  q:back',
   detail: 'j/k:scroll  Tab:tabs  Esc:list  ?:help  R:refresh',
 }

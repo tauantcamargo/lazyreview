@@ -138,7 +138,7 @@ function BrowsePicker({ onSelectRepo, isActive }: BrowsePickerProps): React.Reac
         setIsInputFocused(true)
       }
     },
-    { isActive: true },
+    { isActive: isActive },
   )
 
   return (

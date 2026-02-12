@@ -24,7 +24,7 @@ const shortcutGroups: readonly ShortcutGroup[] = [
     items: [
       { key: 'j / k', description: 'Move down / up' },
       { key: 'Enter', description: 'Select / Open' },
-      { key: 'b', description: 'Toggle sidebar' },
+      { key: 'Ctrl+b', description: 'Toggle sidebar' },
       { key: '?', description: 'Toggle this help' },
       { key: 'q / Esc', description: 'Back / Quit' },
       { key: 'Ctrl+c', description: 'Force quit' },

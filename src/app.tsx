@@ -121,7 +121,7 @@ function AppContent({
         return
       }
 
-      if (input === 'b') {
+      if (key.ctrl && input === 'b') {
         setSidebarVisible((prev) => !prev)
       } else if (input === '?') {
         setShowHelp(true)
