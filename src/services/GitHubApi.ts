@@ -8,6 +8,11 @@ export {
 } from './GitHubApiTypes'
 
 export {
+  CodeReviewApi,
+  type CodeReviewApiService,
+} from './CodeReviewApiTypes'
+
+export {
   fetchGitHub,
   fetchGitHubPaginated,
   mutateGitHub,

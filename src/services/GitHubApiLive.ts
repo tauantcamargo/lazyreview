@@ -7,7 +7,7 @@ import { FileChange } from '../models/file-change'
 import { Commit } from '../models/commit'
 import { CheckRunsResponse } from '../models/check'
 import { Auth } from './Auth'
-import { GitHubApi } from './GitHubApiTypes'
+import { CodeReviewApi } from './CodeReviewApiTypes'
 import {
   fetchGitHub,
   fetchGitHubPaginated,
@@ -30,11 +30,11 @@ function buildStateQualifier(stateFilter: 'open' | 'closed' | 'all' = 'open'): s
 }
 
 export const GitHubApiLive = Layer.effect(
-  GitHubApi,
+  CodeReviewApi,
   Effect.gen(function* () {
     const auth = yield* Auth
 
-    return GitHubApi.of({
+    return CodeReviewApi.of({
       listPullRequests: (owner, repo, options = {}) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()

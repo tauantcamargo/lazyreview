@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { Box, useApp, useInput, useStdout } from 'ink'
+import { Box, Text, useApp, useInput, useStdout } from 'ink'
 import { ThemeProvider, getThemeByName } from './theme/index'
 import type { ThemeName } from './theme/index'
 import { TopBar } from './components/layout/TopBar'

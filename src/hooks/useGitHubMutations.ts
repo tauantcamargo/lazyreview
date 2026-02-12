@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Effect } from 'effect'
-import { GitHubApi } from '../services/GitHubApi'
-import type { GitHubApiService } from '../services/GitHubApiTypes'
-import type { ApiError } from '../services/GitHubApiTypes'
+import { CodeReviewApi } from '../services/GitHubApi'
+import type { CodeReviewApiService } from '../services/CodeReviewApiTypes'
+import type { ApiError } from '../services/CodeReviewApiTypes'
 import { runEffect } from '../utils/effect'
 
 // ---------------------------------------------------------------------------
@@ -10,7 +10,7 @@ import { runEffect } from '../utils/effect'
 // ---------------------------------------------------------------------------
 
 interface CreateMutationOptions<TParams, TResult> {
-  readonly effect: (api: GitHubApiService, params: TParams) => Effect.Effect<TResult, ApiError>
+  readonly effect: (api: CodeReviewApiService, params: TParams) => Effect.Effect<TResult, ApiError>
   readonly invalidateKeys?: (params: TParams) => readonly (readonly (string | number)[])[]
 }
 
@@ -23,7 +23,7 @@ export function createGitHubMutation<TParams, TResult = void>(
       mutationFn: (params: TParams) =>
         runEffect(
           Effect.gen(function* () {
-            const api = yield* GitHubApi
+            const api = yield* CodeReviewApi
             return yield* options.effect(api, params)
           }),
         ),

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Effect } from 'effect'
-import { GitHubApi, type ListPRsOptions } from '../services/GitHubApi'
+import { CodeReviewApi, type ListPRsOptions } from '../services/GitHubApi'
 import { runEffect } from '../utils/effect'
 import { useRefreshInterval } from './useRefreshInterval'
 
@@ -38,7 +38,7 @@ export function usePullRequests(
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.listPullRequests(owner, repo, options)
         }),
       ),
@@ -55,7 +55,7 @@ export function usePullRequest(owner: string, repo: string, number: number) {
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getPullRequest(owner, repo, number)
         }),
       ),
@@ -72,7 +72,7 @@ export function usePRFiles(owner: string, repo: string, number: number) {
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getPullRequestFiles(owner, repo, number)
         }),
       ),
@@ -89,7 +89,7 @@ export function usePRComments(owner: string, repo: string, number: number) {
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getPullRequestComments(owner, repo, number)
         }),
       ),
@@ -106,7 +106,7 @@ export function useIssueComments(owner: string, repo: string, issueNumber: numbe
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getIssueComments(owner, repo, issueNumber)
         }),
       ),
@@ -129,7 +129,7 @@ export function usePRReviews(
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getPullRequestReviews(owner, repo, number)
         }),
       ),
@@ -146,7 +146,7 @@ export function usePRCommits(owner: string, repo: string, number: number) {
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getPullRequestCommits(owner, repo, number)
         }),
       ),
@@ -165,7 +165,7 @@ export function useMyPRs(stateFilter: PRStateFilter = 'open') {
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getMyPRs(stateFilter)
         }),
       ),
@@ -181,7 +181,7 @@ export function useReviewRequests(stateFilter: PRStateFilter = 'open') {
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getReviewRequests(stateFilter)
         }),
       ),
@@ -197,7 +197,7 @@ export function useInvolvedPRs(stateFilter: PRStateFilter = 'open') {
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getInvolvedPRs(stateFilter)
         }),
       ),
@@ -213,7 +213,7 @@ export function useReviewThreads(owner: string, repo: string, number: number) {
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getReviewThreads(owner, repo, number)
         }),
       ),
@@ -236,7 +236,7 @@ export function useCheckRuns(
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getCheckRuns(owner, repo, ref)
         }),
       ),
@@ -251,7 +251,7 @@ export function useCurrentUser() {
     queryFn: () =>
       runEffect(
         Effect.gen(function* () {
-          const api = yield* GitHubApi
+          const api = yield* CodeReviewApi
           return yield* api.getCurrentUser()
         }),
       ),
