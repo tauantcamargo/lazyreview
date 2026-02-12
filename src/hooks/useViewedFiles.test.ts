@@ -1,8 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { pruneOldEntries, createViewedFilesStore, type ViewedFilesData } from './useViewedFiles'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import {
+  pruneOldEntries,
+  createViewedFilesStore,
+  type ViewedFilesData,
+} from './useViewedFiles'
 
 vi.mock('node:fs', () => ({
-  readFileSync: vi.fn(() => { throw new Error('ENOENT') }),
+  readFileSync: vi.fn(() => {
+    throw new Error('ENOENT')
+  }),
   writeFileSync: vi.fn(),
   mkdirSync: vi.fn(),
 }))
@@ -10,6 +16,10 @@ vi.mock('node:fs', () => ({
 describe('pruneOldEntries', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('keeps entries newer than 30 days', () => {
@@ -147,6 +157,64 @@ describe('ViewedFilesStore', () => {
 
     const unsub = store.subscribe(listener)
     unsub()
+    store.markViewed('https://github.com/owner/repo/pull/1', 'src/foo.ts')
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('markUnviewed on non-existent PR is a no-op', () => {
+    const store = createViewedFilesStore()
+    const prUrl = 'https://github.com/owner/repo/pull/999'
+
+    // Should not throw
+    store.markUnviewed(prUrl, 'src/foo.ts')
+    expect(store.isViewed(prUrl, 'src/foo.ts')).toBe(false)
+  })
+
+  it('returns 0 count for unknown PR', () => {
+    const store = createViewedFilesStore()
+    expect(
+      store.getViewedCount('https://github.com/owner/repo/pull/unknown'),
+    ).toBe(0)
+  })
+
+  it('notifies on markUnviewed', () => {
+    const store = createViewedFilesStore()
+    const prUrl = 'https://github.com/owner/repo/pull/1'
+    store.markViewed(prUrl, 'src/foo.ts')
+
+    const listener = vi.fn()
+    store.subscribe(listener)
+    store.markUnviewed(prUrl, 'src/foo.ts')
+    expect(listener).toHaveBeenCalledOnce()
+  })
+
+  it('notifies on toggleViewed', () => {
+    const store = createViewedFilesStore()
+    const listener = vi.fn()
+    store.subscribe(listener)
+    store.toggleViewed('https://github.com/owner/repo/pull/1', 'src/foo.ts')
+    expect(listener).toHaveBeenCalledOnce()
+  })
+
+  it('snapshot reflects current state', () => {
+    const store = createViewedFilesStore()
+    const prUrl = 'https://github.com/owner/repo/pull/1'
+
+    store.markViewed(prUrl, 'src/a.ts')
+    store.markViewed(prUrl, 'src/b.ts')
+
+    const snapshot = store.getSnapshot()
+    expect(snapshot[prUrl]?.viewedFiles).toContain('src/a.ts')
+    expect(snapshot[prUrl]?.viewedFiles).toContain('src/b.ts')
+    expect(snapshot[prUrl]?.viewedFiles).toHaveLength(2)
+  })
+
+  it('multiple unsubscribes are idempotent', () => {
+    const store = createViewedFilesStore()
+    const listener = vi.fn()
+    const unsub = store.subscribe(listener)
+    unsub()
+    unsub() // Should not throw
     store.markViewed('https://github.com/owner/repo/pull/1', 'src/foo.ts')
     expect(listener).not.toHaveBeenCalled()
   })

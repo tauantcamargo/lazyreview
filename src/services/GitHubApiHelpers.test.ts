@@ -12,23 +12,63 @@ describe('parseLinkHeader', () => {
   })
 
   it('extracts next URL from Link header', () => {
-    const header = '<https://api.github.com/repos/owner/repo/pulls?page=2>; rel="next", <https://api.github.com/repos/owner/repo/pulls?page=5>; rel="last"'
-    expect(parseLinkHeader(header)).toBe('https://api.github.com/repos/owner/repo/pulls?page=2')
+    const header =
+      '<https://api.github.com/repos/owner/repo/pulls?page=2>; rel="next", <https://api.github.com/repos/owner/repo/pulls?page=5>; rel="last"'
+    expect(parseLinkHeader(header)).toBe(
+      'https://api.github.com/repos/owner/repo/pulls?page=2',
+    )
   })
 
   it('returns null when no next link exists', () => {
-    const header = '<https://api.github.com/repos/owner/repo/pulls?page=1>; rel="prev", <https://api.github.com/repos/owner/repo/pulls?page=5>; rel="last"'
+    const header =
+      '<https://api.github.com/repos/owner/repo/pulls?page=1>; rel="prev", <https://api.github.com/repos/owner/repo/pulls?page=5>; rel="last"'
     expect(parseLinkHeader(header)).toBeNull()
   })
 
   it('handles header with only next link', () => {
-    const header = '<https://api.github.com/repos/owner/repo/pulls?page=3>; rel="next"'
-    expect(parseLinkHeader(header)).toBe('https://api.github.com/repos/owner/repo/pulls?page=3')
+    const header =
+      '<https://api.github.com/repos/owner/repo/pulls?page=3>; rel="next"'
+    expect(parseLinkHeader(header)).toBe(
+      'https://api.github.com/repos/owner/repo/pulls?page=3',
+    )
   })
 
   it('handles header with multiple parameters in URL', () => {
-    const header = '<https://api.github.com/repos/owner/repo/pulls?state=open&per_page=100&page=2>; rel="next"'
-    expect(parseLinkHeader(header)).toBe('https://api.github.com/repos/owner/repo/pulls?state=open&per_page=100&page=2')
+    const header =
+      '<https://api.github.com/repos/owner/repo/pulls?state=open&per_page=100&page=2>; rel="next"'
+    expect(parseLinkHeader(header)).toBe(
+      'https://api.github.com/repos/owner/repo/pulls?state=open&per_page=100&page=2',
+    )
+  })
+
+  it('handles header with extra whitespace', () => {
+    const header =
+      '<https://api.github.com/repos/owner/repo/pulls?page=2>;  rel="next" , <https://api.github.com/repos/owner/repo/pulls?page=5>; rel="last"'
+    expect(parseLinkHeader(header)).toBe(
+      'https://api.github.com/repos/owner/repo/pulls?page=2',
+    )
+  })
+
+  it('handles header with prev, next, first, and last links', () => {
+    const header = [
+      '<https://api.github.com/repos/owner/repo/pulls?page=1>; rel="prev"',
+      '<https://api.github.com/repos/owner/repo/pulls?page=3>; rel="next"',
+      '<https://api.github.com/repos/owner/repo/pulls?page=1>; rel="first"',
+      '<https://api.github.com/repos/owner/repo/pulls?page=10>; rel="last"',
+    ].join(', ')
+    expect(parseLinkHeader(header)).toBe(
+      'https://api.github.com/repos/owner/repo/pulls?page=3',
+    )
+  })
+
+  it('returns null for malformed link header', () => {
+    expect(parseLinkHeader('not a valid link header')).toBeNull()
+  })
+
+  it('returns null when only rel="prev" present', () => {
+    const header =
+      '<https://api.github.com/repos/owner/repo/pulls?page=1>; rel="prev"'
+    expect(parseLinkHeader(header)).toBeNull()
   })
 })
 
@@ -86,5 +126,35 @@ describe('buildQueryString', () => {
     expect(result).not.toContain('direction=')
     expect(result).not.toContain('per_page=')
     expect(result).not.toContain('page=')
+  })
+
+  it('handles state=all', () => {
+    const result = buildQueryString({ state: 'all' })
+    expect(result).toBe('?state=all')
+  })
+
+  it('handles state=closed', () => {
+    const result = buildQueryString({ state: 'closed' })
+    expect(result).toBe('?state=closed')
+  })
+
+  it('handles sort=updated', () => {
+    const result = buildQueryString({ sort: 'updated' })
+    expect(result).toBe('?sort=updated')
+  })
+
+  it('handles direction=desc', () => {
+    const result = buildQueryString({ direction: 'desc' })
+    expect(result).toBe('?direction=desc')
+  })
+
+  it('handles page=1', () => {
+    const result = buildQueryString({ page: 1 })
+    expect(result).toBe('?page=1')
+  })
+
+  it('handles perPage=100', () => {
+    const result = buildQueryString({ perPage: 100 })
+    expect(result).toBe('?per_page=100')
   })
 })

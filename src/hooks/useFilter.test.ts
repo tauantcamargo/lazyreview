@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { PullRequest } from '../models/pull-request'
 
-// Since useFilter uses React hooks internally, we test the pure helper functions
-// that compose the filter logic. These are module-scoped in useFilter.ts.
-// We need to export them or test indirectly.
-// For now, we'll export the pure functions and test them.
-
 import {
   extractRepoFromUrl,
   matchesSearch,
@@ -51,6 +46,26 @@ describe('extractRepoFromUrl', () => {
   it('returns null for non-matching URLs', () => {
     expect(extractRepoFromUrl('https://example.com')).toBeNull()
   })
+
+  it('returns null for empty string', () => {
+    expect(extractRepoFromUrl('')).toBeNull()
+  })
+
+  it('extracts from URL with nested repo name', () => {
+    expect(
+      extractRepoFromUrl('https://github.com/my-org/my-repo/pull/123'),
+    ).toBe('my-org/my-repo')
+  })
+
+  it('returns null for a GitHub URL without /pull/', () => {
+    expect(extractRepoFromUrl('https://github.com/owner/repo/issues/5')).toBeNull()
+  })
+
+  it('handles URL with query parameters', () => {
+    expect(
+      extractRepoFromUrl('https://github.com/owner/repo/pull/42?diff=unified'),
+    ).toBe('owner/repo')
+  })
 })
 
 describe('matchesSearch', () => {
@@ -77,6 +92,18 @@ describe('matchesSearch', () => {
   it('returns false when nothing matches', () => {
     expect(matchesSearch(makePR(), 'nonexistent')).toBe(false)
   })
+
+  it('matches partial title substring', () => {
+    expect(matchesSearch(makePR({ title: 'refactor authentication' }), 'auth')).toBe(true)
+  })
+
+  it('matches partial user login substring', () => {
+    expect(matchesSearch(makePR({ user: { login: 'alice-smith', avatar_url: '' } }), 'smith')).toBe(true)
+  })
+
+  it('matches partial PR number', () => {
+    expect(matchesSearch(makePR({ number: 1234 }), '23')).toBe(true)
+  })
 })
 
 describe('matchesRepo', () => {
@@ -95,6 +122,15 @@ describe('matchesRepo', () => {
   it('returns false when repo does not match', () => {
     expect(matchesRepo(makePR(), 'other/thing')).toBe(false)
   })
+
+  it('is case insensitive', () => {
+    expect(matchesRepo(makePR(), 'OWNER/REPO')).toBe(true)
+  })
+
+  it('returns false for non-github URL with repo filter', () => {
+    const pr = makePR({ html_url: 'https://example.com/pull/1' })
+    expect(matchesRepo(pr, 'owner/repo')).toBe(false)
+  })
 })
 
 describe('matchesAuthor', () => {
@@ -112,6 +148,10 @@ describe('matchesAuthor', () => {
 
   it('returns false when author does not match', () => {
     expect(matchesAuthor(makePR(), 'bob')).toBe(false)
+  })
+
+  it('matches partial author name', () => {
+    expect(matchesAuthor(makePR({ user: { login: 'alice-smith', avatar_url: '' } }), 'alice')).toBe(true)
   })
 })
 
@@ -137,6 +177,30 @@ describe('matchesLabel', () => {
   it('returns false when no matching label', () => {
     expect(matchesLabel(makePR(), 'bug')).toBe(false)
   })
+
+  it('matches partial label name', () => {
+    const pr = makePR({
+      labels: [{ id: 1, name: 'enhancement', color: '00ff00', description: null }],
+    })
+    expect(matchesLabel(pr, 'enhance')).toBe(true)
+  })
+
+  it('matches among multiple labels', () => {
+    const pr = makePR({
+      labels: [
+        { id: 1, name: 'feature', color: '00ff00', description: null },
+        { id: 2, name: 'bug', color: 'ff0000', description: null },
+      ],
+    })
+    expect(matchesLabel(pr, 'bug')).toBe(true)
+  })
+
+  it('returns false when labels exist but none match', () => {
+    const pr = makePR({
+      labels: [{ id: 1, name: 'feature', color: '00ff00', description: null }],
+    })
+    expect(matchesLabel(pr, 'bug')).toBe(false)
+  })
 })
 
 describe('comparePRs', () => {
@@ -152,31 +216,64 @@ describe('comparePRs', () => {
     expect(comparePRs(a, b, 'updated', 'asc')).toBeLessThan(0)
   })
 
-  it('sorts by created date', () => {
+  it('sorts by created date descending', () => {
     const a = makePR({ created_at: '2025-01-01T00:00:00Z' })
     const b = makePR({ created_at: '2025-01-02T00:00:00Z' })
     expect(comparePRs(a, b, 'created', 'desc')).toBeGreaterThan(0)
   })
 
-  it('sorts by author login', () => {
+  it('sorts by created date ascending', () => {
+    const a = makePR({ created_at: '2025-01-01T00:00:00Z' })
+    const b = makePR({ created_at: '2025-01-02T00:00:00Z' })
+    expect(comparePRs(a, b, 'created', 'asc')).toBeLessThan(0)
+  })
+
+  it('sorts by author login descending', () => {
     const a = makePR({ user: { login: 'alice', avatar_url: '' } })
     const b = makePR({ user: { login: 'bob', avatar_url: '' } })
     expect(comparePRs(a, b, 'author', 'desc')).toBeLessThan(0)
   })
 
-  it('sorts by title', () => {
+  it('sorts by author login ascending', () => {
+    const a = makePR({ user: { login: 'alice', avatar_url: '' } })
+    const b = makePR({ user: { login: 'bob', avatar_url: '' } })
+    expect(comparePRs(a, b, 'author', 'asc')).toBeGreaterThan(0)
+  })
+
+  it('sorts by title descending', () => {
     const a = makePR({ title: 'Alpha' })
     const b = makePR({ title: 'Beta' })
     expect(comparePRs(a, b, 'title', 'desc')).toBeLessThan(0)
   })
 
-  it('sorts by repo', () => {
-    const a = makePR({
-      html_url: 'https://github.com/aaa/repo/pull/1',
-    })
-    const b = makePR({
-      html_url: 'https://github.com/bbb/repo/pull/1',
-    })
+  it('sorts by title ascending', () => {
+    const a = makePR({ title: 'Alpha' })
+    const b = makePR({ title: 'Beta' })
+    expect(comparePRs(a, b, 'title', 'asc')).toBeGreaterThan(0)
+  })
+
+  it('sorts by repo descending', () => {
+    const a = makePR({ html_url: 'https://github.com/aaa/repo/pull/1' })
+    const b = makePR({ html_url: 'https://github.com/bbb/repo/pull/1' })
     expect(comparePRs(a, b, 'repo', 'desc')).toBeLessThan(0)
+  })
+
+  it('sorts by repo ascending', () => {
+    const a = makePR({ html_url: 'https://github.com/aaa/repo/pull/1' })
+    const b = makePR({ html_url: 'https://github.com/bbb/repo/pull/1' })
+    expect(comparePRs(a, b, 'repo', 'asc')).toBeGreaterThan(0)
+  })
+
+  it('returns 0 for equal values', () => {
+    const a = makePR({ title: 'Same' })
+    const b = makePR({ title: 'Same' })
+    expect(comparePRs(a, b, 'title', 'desc')).toBe(0)
+  })
+
+  it('handles repo sort when URLs are not GitHub URLs', () => {
+    const a = makePR({ html_url: 'https://example.com/pull/1' })
+    const b = makePR({ html_url: 'https://example.com/pull/2' })
+    // Both resolve to empty string, so comparison is 0
+    expect(comparePRs(a, b, 'repo', 'desc')).toBe(0)
   })
 })
