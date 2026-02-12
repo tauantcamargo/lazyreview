@@ -1,6 +1,7 @@
 import React from 'react'
 import { describe, it, expect } from 'vitest'
 import { render } from 'ink-testing-library'
+import { Text } from 'ink'
 import { ThemeProvider, defaultTheme } from '../../theme/index'
 import { TopBar } from './TopBar'
 import { Sidebar, SIDEBAR_ITEMS } from './Sidebar'
@@ -297,7 +298,7 @@ describe('MainPanel', () => {
     const { lastFrame } = render(
       themed(
         <MainPanel isActive={true}>
-          <>{`Panel content`}</>
+          <Text>Panel content</Text>
         </MainPanel>,
       ),
     )
