@@ -133,26 +133,31 @@ Fully configurable from the TUI — no need to edit files manually:
 
 ## Keyboard Shortcuts
 
-### Navigation
+> **Case matters.** Uppercase and lowercase keys trigger different actions (e.g. `R` = submit review, `r` = reply; `E` = re-review, `e` = edit comment; `S` = batch review, `s` = sort).
+
+### Global
 
 | Key | Action |
 |-----|--------|
 | `j` / `k` | Move down / up |
-| `h` / `l` | Focus file tree / diff (Files tab) |
 | `Enter` | Select / open |
-| `Tab` | Switch focus between panels |
 | `b` | Toggle sidebar |
-| `q` | Back / quit |
+| `?` | Toggle help overlay |
+| `q` / `Esc` | Back / quit |
 | `Ctrl+c` | Force quit |
-| `?` | Help overlay |
 
 ### PR List
 
 | Key | Action |
 |-----|--------|
-| `/` | Search / filter PRs |
+| `/` | Filter PRs |
 | `s` | Sort PRs |
 | `n` / `p` | Next / previous page |
+| `o` | Open PR in browser |
+| `y` | Copy PR URL |
+| `u` | Toggle unread only |
+| `t` | Toggle state (Open / Closed / All) |
+| `R` | Refresh |
 
 ### PR Detail
 
@@ -160,28 +165,45 @@ Fully configurable from the TUI — no need to edit files manually:
 |-----|--------|
 | `1` / `2` / `3` | Switch tabs (Conversations / Commits / Files) |
 | `o` | Open PR in browser |
-| `r` | Reply to comment (conversations) / submit review (other tabs) |
-| `R` | Submit review (any tab) |
-| `c` | Post comment (conversations or diff line) |
+| `y` | Copy PR URL |
+| `R` | Submit review |
+| `S` | Start batch review |
+| `E` | Request re-review |
 | `m` | Merge PR |
-| `e` | Request re-review |
-
-### Diff View (Files Tab)
-
-| Key | Action |
-|-----|--------|
-| `v` | Enter visual line selection mode |
-| `c` | Add inline comment (single line or visual selection) |
-| `Esc` | Cancel visual selection |
+| `X` | Close / reopen PR |
+| `G` | Checkout PR branch locally |
+| `]` / `[` | Next / previous PR |
 
 ### Conversations Tab
 
 | Key | Action |
 |-----|--------|
-| `r` | Reply to focused comment thread |
-| `c` | Add general comment |
+| `c` | New comment |
+| `r` | Reply to comment |
+| `e` | Edit own comment |
+| `D` | Edit PR description (author only) |
 | `x` | Resolve / unresolve thread |
-| `f` | Toggle showing resolved comments |
+| `f` | Toggle resolved comments |
+
+### Files Tab
+
+| Key | Action |
+|-----|--------|
+| `h` / `l` | Focus tree / diff |
+| `Tab` | Switch tree / diff panel |
+| `/` | Filter files (tree panel) |
+| `d` | Toggle side-by-side diff |
+| `v` | Visual line select (diff) |
+| `c` | Inline comment (diff) |
+| `r` | Reply to diff comment |
+| `e` | Edit own diff comment |
+| `x` | Resolve / unresolve (diff) |
+
+### Commits Tab
+
+| Key | Action |
+|-----|--------|
+| `y` | Copy commit SHA |
 
 ### Comment / Review Input
 
