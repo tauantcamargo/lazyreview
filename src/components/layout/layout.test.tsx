@@ -28,6 +28,76 @@ describe('TopBar', () => {
     )
     expect(lastFrame()).toContain('owner/repo')
   })
+
+  it('renders breadcrumb with screen name', () => {
+    const { lastFrame } = render(
+      themed(<TopBar username="alice" provider="github" screenName="For Review" />),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('LazyReview')
+    expect(frame).toContain('>')
+    expect(frame).toContain('For Review')
+  })
+
+  it('renders breadcrumb with PR detail', () => {
+    const { lastFrame } = render(
+      themed(
+        <TopBar
+          username="alice"
+          provider="github"
+          screenName="For Review"
+          prNumber={42}
+          prTitle="Fix auth bug"
+        />,
+      ),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('LazyReview')
+    expect(frame).toContain('For Review')
+    expect(frame).toContain('PR #42: Fix auth bug')
+  })
+
+  it('truncates long PR titles', () => {
+    const longTitle = 'A'.repeat(50)
+    const { lastFrame } = render(
+      themed(
+        <TopBar
+          username="alice"
+          provider="github"
+          screenName="My PRs"
+          prNumber={1}
+          prTitle={longTitle}
+        />,
+      ),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('~')
+    expect(frame).not.toContain(longTitle)
+  })
+
+  it('shows connection status indicator green by default', () => {
+    const { lastFrame } = render(
+      themed(<TopBar username="alice" provider="github" />),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('connected')
+  })
+
+  it('shows rate-limited connection status', () => {
+    const { lastFrame } = render(
+      themed(<TopBar username="alice" provider="github" connectionStatus="rate-limited" />),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('rate limited')
+  })
+
+  it('shows error connection status', () => {
+    const { lastFrame } = render(
+      themed(<TopBar username="alice" provider="github" connectionStatus="error" />),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('disconnected')
+  })
 })
 
 describe('Sidebar', () => {

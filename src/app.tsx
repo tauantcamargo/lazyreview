@@ -25,6 +25,8 @@ import { useActivePanel } from './hooks/useActivePanel'
 import { InputFocusProvider, useInputFocus } from './hooks/useInputFocus'
 import { useSidebarCounts } from './hooks/useSidebarCounts'
 import { useReadState } from './hooks/useReadState'
+import { useRateLimit } from './hooks/useRateLimit'
+import type { ConnectionStatus } from './components/layout/TopBar'
 import type { PullRequest } from './models/pull-request'
 
 type AppScreen =
@@ -223,12 +225,39 @@ function AppContent({
 
   const screenContext = useScreenContext()
 
+  // Connection status from rate limit + auth
+  const rateLimit = useRateLimit()
+  const connectionStatus: ConnectionStatus = !isAuthenticated
+    ? 'error'
+    : rateLimit.remaining < 100
+      ? 'rate-limited'
+      : 'connected'
+
+  // Screen name from sidebar context
+  const screenNames: readonly string[] = [
+    'Involved',
+    'My PRs',
+    'For Review',
+    'This Repo',
+    'Settings',
+  ]
+  const currentScreenName =
+    currentScreen.type === 'list' ? screenNames[sidebarIndex] : screenNames[sidebarIndex]
+
+  // PR detail info for breadcrumbs
+  const prTitle = currentScreen.type === 'detail' ? currentScreen.pr.title : undefined
+  const prNumber = currentScreen.type === 'detail' ? currentScreen.pr.number : undefined
+
   return (
     <Box flexDirection="column" height={terminalHeight}>
       <TopBar
         username={user?.login ?? 'anonymous'}
         provider="github"
         repoPath={repoPath}
+        screenName={currentScreenName}
+        prTitle={prTitle}
+        prNumber={prNumber}
+        connectionStatus={connectionStatus}
       />
       <Box flexDirection="row" flexGrow={1}>
         <Sidebar
