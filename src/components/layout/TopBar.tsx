@@ -8,6 +8,7 @@ interface TopBarProps {
   readonly username: string
   readonly provider: string
   readonly repoPath?: string
+  readonly browseRepoPath?: string
   readonly screenName?: string
   readonly prTitle?: string
   readonly prNumber?: number
@@ -45,6 +46,7 @@ export function TopBar({
   username,
   provider,
   repoPath,
+  browseRepoPath,
   screenName,
   prTitle,
   prNumber,
@@ -56,6 +58,7 @@ export function TopBar({
   const breadcrumbs: readonly string[] = [
     'LazyReview',
     ...(screenName ? [screenName] : repoPath ? [repoPath] : []),
+    ...(browseRepoPath ? [browseRepoPath] : []),
     ...(prNumber !== undefined && prTitle
       ? [`PR #${prNumber}: ${truncate(prTitle, 40)}`]
       : []),

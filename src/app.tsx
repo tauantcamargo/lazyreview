@@ -23,6 +23,7 @@ import { useConfig } from './hooks/useConfig'
 import { useListNavigation } from './hooks/useListNavigation'
 import { useActivePanel } from './hooks/useActivePanel'
 import { InputFocusProvider, useInputFocus } from './hooks/useInputFocus'
+import { RepoContextProvider, useRepoContext } from './hooks/useRepoContext'
 import { useSidebarCounts } from './hooks/useSidebarCounts'
 import { useReadState } from './hooks/useReadState'
 import { useRateLimit } from './hooks/useRateLimit'
@@ -224,8 +225,13 @@ function AppContent({
 
   const terminalHeight = stdout?.rows ?? 24
 
+  const { browseRepo } = useRepoContext()
+
   const repoPath =
     repoOwner && repoName ? `${repoOwner}/${repoName}` : undefined
+  const browseRepoPath = browseRepo
+    ? `${browseRepo.owner}/${browseRepo.repo}`
+    : undefined
 
   // Set screen context for list-level screens
   // PRDetailScreen sets its own context based on active tab
@@ -266,6 +272,7 @@ function AppContent({
         username={user?.login ?? 'anonymous'}
         provider="github"
         repoPath={repoPath}
+        browseRepoPath={browseRepoPath}
         screenName={currentScreenName}
         prTitle={prTitle}
         prNumber={prNumber}
@@ -343,11 +350,16 @@ function AppWithTheme({
     )
   }
 
+  const localRepo =
+    repoOwner && repoName ? { owner: repoOwner, repo: repoName } : null
+
   return (
     <ThemeProvider theme={theme}>
-      <ErrorBoundary>
-        <AppContent repoOwner={repoOwner} repoName={repoName} />
-      </ErrorBoundary>
+      <RepoContextProvider localRepo={localRepo}>
+        <ErrorBoundary>
+          <AppContent repoOwner={repoOwner} repoName={repoName} />
+        </ErrorBoundary>
+      </RepoContextProvider>
     </ThemeProvider>
   )
 }
