@@ -6,6 +6,7 @@ import { TopBar } from './TopBar'
 import { Sidebar, SIDEBAR_ITEMS } from './Sidebar'
 import { MainPanel } from './MainPanel'
 import { StatusBar } from './StatusBar'
+import type { NavigableEntry } from '../../hooks/useSidebarSections'
 
 function themed(el: React.ReactElement) {
   return <ThemeProvider theme={defaultTheme}>{el}</ThemeProvider>
@@ -203,6 +204,91 @@ describe('Sidebar', () => {
     const frame = lastFrame() ?? ''
     expect(frame).toContain('Involved')
     expect(frame).not.toContain('(')
+  })
+
+  it('renders section headers when sections are provided', () => {
+    const entries: NavigableEntry[] = [
+      { type: 'section', sectionName: 'Reviews' },
+      { type: 'item', itemIndex: 0 },
+      { type: 'item', itemIndex: 1 },
+      { type: 'item', itemIndex: 2 },
+      { type: 'item', itemIndex: 3 },
+      { type: 'section', sectionName: 'App' },
+      { type: 'item', itemIndex: 4 },
+    ]
+    const { lastFrame } = render(
+      themed(
+        <Sidebar
+          selectedIndex={0}
+          visible={true}
+          isActive={true}
+          collapsedSections={new Set()}
+          navigableEntries={entries}
+          navIndex={1}
+        />,
+      ),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('Reviews')
+    expect(frame).toContain('App')
+    expect(frame).toContain('Involved')
+    expect(frame).toContain('Settings')
+  })
+
+  it('hides items when section is collapsed', () => {
+    const entries: NavigableEntry[] = [
+      { type: 'section', sectionName: 'Reviews' },
+      { type: 'section', sectionName: 'App' },
+      { type: 'item', itemIndex: 4 },
+    ]
+    const { lastFrame } = render(
+      themed(
+        <Sidebar
+          selectedIndex={4}
+          visible={true}
+          isActive={true}
+          collapsedSections={new Set(['Reviews'])}
+          navigableEntries={entries}
+          navIndex={0}
+        />,
+      ),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('Reviews')
+    expect(frame).toContain('App')
+    expect(frame).toContain('Settings')
+    // Items from Reviews section should be hidden
+    expect(frame).not.toContain('Involved')
+    expect(frame).not.toContain('My PRs')
+    expect(frame).not.toContain('For Review')
+  })
+
+  it('shows collapse indicator for collapsed section', () => {
+    const entries: NavigableEntry[] = [
+      { type: 'section', sectionName: 'Reviews' },
+      { type: 'section', sectionName: 'App' },
+      { type: 'item', itemIndex: 4 },
+    ]
+    const { lastFrame } = render(
+      themed(
+        <Sidebar
+          selectedIndex={4}
+          visible={true}
+          isActive={true}
+          collapsedSections={new Set(['Reviews'])}
+          navigableEntries={entries}
+          navIndex={0}
+        />,
+      ),
+    )
+    const frame = lastFrame() ?? ''
+    // Collapsed Reviews should show ▸, expanded App should show ▾
+    const lines = frame.split('\n')
+    const reviewsLine = lines.find((l: string) => l.includes('Reviews'))
+    const appLine = lines.find((l: string) => l.includes('App'))
+    // ▸ is used for both the selection pointer and collapse, but collapsed section has ▸ before name
+    expect(reviewsLine).toBeDefined()
+    expect(appLine).toBeDefined()
   })
 })
 

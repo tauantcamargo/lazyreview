@@ -26,6 +26,7 @@ import { InputFocusProvider, useInputFocus } from './hooks/useInputFocus'
 import { useSidebarCounts } from './hooks/useSidebarCounts'
 import { useReadState } from './hooks/useReadState'
 import { useRateLimit } from './hooks/useRateLimit'
+import { useSidebarSections, getItemIndex } from './hooks/useSidebarSections'
 import type { ConnectionStatus } from './components/layout/TopBar'
 import type { PullRequest } from './models/pull-request'
 
@@ -67,12 +68,19 @@ function AppContent({
   // Input focus tracking (for disabling shortcuts when typing)
   const { isInputActive } = useInputFocus()
 
-  // Sidebar navigation
-  const { selectedIndex: sidebarIndex } = useListNavigation({
-    itemCount: SIDEBAR_ITEMS.length,
-    viewportHeight: SIDEBAR_ITEMS.length,
+  // Sidebar sections (collapsible groups)
+  const { collapsedSections, toggleSection, navigableEntries } = useSidebarSections()
+
+  // Sidebar navigation over navigable entries (section headers + visible items)
+  const { selectedIndex: navIndex } = useListNavigation({
+    itemCount: navigableEntries.length,
+    viewportHeight: navigableEntries.length,
     isActive: activePanel === 'sidebar' && !showHelp && !showTokenInput,
   })
+
+  // Map navigation index to actual sidebar item index
+  const currentEntry = navigableEntries[navIndex]
+  const sidebarIndex = currentEntry ? (getItemIndex(currentEntry) ?? 0) : 0
 
   // Sidebar counts from query cache
   const { isUnread } = useReadState()
@@ -121,7 +129,11 @@ function AppContent({
           exit()
         }
       } else if (key.return && activePanel === 'sidebar') {
-        setActivePanel('list')
+        if (currentEntry?.type === 'section') {
+          toggleSection(currentEntry.sectionName)
+        } else {
+          setActivePanel('list')
+        }
       }
     },
     { isActive: !showTokenInput && !isInputActive },
@@ -265,6 +277,9 @@ function AppContent({
           visible={sidebarVisible}
           isActive={activePanel === 'sidebar'}
           counts={sidebarCounts}
+          collapsedSections={collapsedSections}
+          navigableEntries={navigableEntries}
+          navIndex={navIndex}
         />
         <MainPanel isActive={activePanel === 'list'}>
           {renderScreen()}
