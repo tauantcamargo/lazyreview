@@ -31,26 +31,37 @@ function validateRepoInput(input: string): { readonly valid: boolean; readonly o
 
 interface BrowseRepoScreenProps {
   readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
+  readonly isActive?: boolean
 }
 
 interface BrowsePickerProps {
   readonly onSelectRepo: (owner: string, repo: string) => void
+  readonly isActive: boolean
 }
 
-function BrowsePicker({ onSelectRepo }: BrowsePickerProps): React.ReactElement {
+function BrowsePicker({ onSelectRepo, isActive }: BrowsePickerProps): React.ReactElement {
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
   const { recentRepos, removeRecentRepo } = useRecentRepos()
   const { bookmarkedRepos } = useBookmarkedRepos()
   const [inputValue, setInputValue] = useState('')
   const [inputError, setInputError] = useState<string | null>(null)
-  const [isInputFocused, setIsInputFocused] = useState(true)
+  const [isInputFocused, setIsInputFocused] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
 
   // Combined list: bookmarks first, then recent repos (excluding bookmarked ones)
   const bookmarkSet = new Set(bookmarkedRepos.map((b) => `${b.owner}/${b.repo}`))
   const filteredRecent = recentRepos.filter((r) => !bookmarkSet.has(`${r.owner}/${r.repo}`))
   const totalListItems = bookmarkedRepos.length + filteredRecent.length
+
+  // Focus the input when panel becomes active, unfocus when it loses focus
+  useEffect(() => {
+    if (isActive) {
+      setIsInputFocused(true)
+    } else {
+      setIsInputFocused(false)
+    }
+  }, [isActive])
 
   useEffect(() => {
     setInputActive(isInputFocused)
@@ -274,7 +285,7 @@ function BrowseList({ owner, repo, onBack, onSelect }: BrowseListProps): React.R
   )
 }
 
-export function BrowseRepoScreen({ onSelect }: BrowseRepoScreenProps): React.ReactElement {
+export function BrowseRepoScreen({ onSelect, isActive = true }: BrowseRepoScreenProps): React.ReactElement {
   const { setBrowseRepo, clearBrowseRepo } = useRepoContext()
   const { addRecentRepo } = useRecentRepos()
   const [selectedRepo, setSelectedRepo] = useState<{ readonly owner: string; readonly repo: string } | null>(null)
@@ -304,7 +315,7 @@ export function BrowseRepoScreen({ onSelect }: BrowseRepoScreenProps): React.Rea
     )
   }
 
-  return <BrowsePicker onSelectRepo={handleSelectRepo} />
+  return <BrowsePicker onSelectRepo={handleSelectRepo} isActive={isActive} />
 }
 
 export { validateRepoInput }

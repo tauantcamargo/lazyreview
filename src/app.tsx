@@ -222,7 +222,7 @@ function AppContent({
         />
       )),
       Match.when(4, () => (
-        <BrowseRepoScreen onSelect={handleSelectPR} />
+        <BrowseRepoScreen onSelect={handleSelectPR} isActive={activePanel !== 'sidebar'} />
       )),
       Match.when(5, () => <SettingsScreen />),
       Match.orElse(() => <InvolvedScreen onSelect={handleSelectPR} />),
