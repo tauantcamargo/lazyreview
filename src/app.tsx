@@ -62,13 +62,14 @@ function AppContent({
   // Start with modal hidden, show only after auth check fails
   const [showTokenInput, setShowTokenInput] = useState(false)
 
+  // Input focus tracking (for disabling shortcuts when typing)
+  const { isInputActive } = useInputFocus()
+
   // Panel focus management
   const { activePanel, setActivePanel } = useActivePanel({
     hasSelection: currentScreen.type === 'detail',
+    isInputActive,
   })
-
-  // Input focus tracking (for disabling shortcuts when typing)
-  const { isInputActive } = useInputFocus()
 
   // Sidebar sections (collapsible groups)
   const { collapsedSections, toggleSection, navigableEntries } = useSidebarSections()
@@ -77,7 +78,7 @@ function AppContent({
   const { selectedIndex: navIndex } = useListNavigation({
     itemCount: navigableEntries.length,
     viewportHeight: navigableEntries.length,
-    isActive: activePanel === 'sidebar' && !showHelp && !showTokenInput,
+    isActive: activePanel === 'sidebar' && !showHelp && !showTokenInput && !isInputActive,
   })
 
   // Map navigation index to actual sidebar item index

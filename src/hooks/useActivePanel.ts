@@ -5,6 +5,7 @@ export type Panel = 'sidebar' | 'list' | 'detail'
 
 interface UseActivePanelOptions {
   readonly hasSelection: boolean
+  readonly isInputActive?: boolean
 }
 
 interface UseActivePanelResult {
@@ -14,6 +15,7 @@ interface UseActivePanelResult {
 
 export function useActivePanel({
   hasSelection,
+  isInputActive = false,
 }: UseActivePanelOptions): UseActivePanelResult {
   const [activePanel, setActivePanel] = useState<Panel>('sidebar')
 
@@ -42,13 +44,16 @@ export function useActivePanel({
     }
   }, [activePanel, hasSelection])
 
-  useInput((_input, key) => {
-    if (key.escape) {
-      handleEscape()
-    } else if (key.tab) {
-      handleTab()
-    }
-  })
+  useInput(
+    (_input, key) => {
+      if (key.escape) {
+        handleEscape()
+      } else if (key.tab) {
+        handleTab()
+      }
+    },
+    { isActive: !isInputActive },
+  )
 
   return { activePanel, setActivePanel }
 }
