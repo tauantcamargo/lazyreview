@@ -84,14 +84,17 @@ Browse open PRs with search, sort, and pagination across multiple views:
 - **This Repo** — All open PRs in the current repo
 - **Browse** — Browse any GitHub repo's PRs (e.g., `facebook/react`) with recent history and bookmarks
 - **CI Status** — Check run results displayed inline on each PR
+- **Read/Unread** — Track which PRs have new activity since last viewed
 
 ### PR Detail
 
-Deep-dive into any PR with three tabs:
+Deep-dive into any PR with five tabs:
 
-- **Conversations** — Full timeline with description, reviews, and comments rendered as markdown. Includes a review summary showing approval status per reviewer.
+- **Description** — PR body rendered as markdown with additions/deletions stats, labels, and edit support
+- **Conversations** — Full timeline with reviews and comments rendered as markdown. Includes a review summary showing approval status per reviewer.
 - **Commits** — Commit history with message, author, and date
-- **Files** — File tree with syntax-highlighted diffs and vim-style visual line selection
+- **Files** — File tree with syntax-highlighted diffs, side-by-side view, and vim-style visual line selection
+- **Checks** — CI/CD check run results with pass/fail/pending summary
 
 ### Review Actions
 
@@ -104,7 +107,11 @@ Complete your entire review workflow without leaving the terminal:
 - **Resolve Threads** — Toggle resolve/unresolve on review threads (`x`)
 - **Filter Resolved** — Show or hide resolved comment threads (`f`)
 - **Merge PR** — Merge, squash, or rebase with confirmation and custom commit title (`m`)
-- **Request Re-review** — Multi-select reviewers to re-request reviews from (`e`)
+- **Close / Reopen PR** — Close or reopen PRs directly (`X`)
+- **Edit PR Description** — Edit the PR body as the author (`D`)
+- **Edit Comments** — Edit your own comments inline (`e`)
+- **Request Re-review** — Multi-select reviewers to re-request reviews from (`E`)
+- **File Viewed Tracking** — Mark files as viewed to track review progress (`v`)
 - **Open in Browser** — Quick escape hatch to GitHub (`o`)
 
 ### Auto-Refresh
@@ -154,10 +161,12 @@ Browse PRs from any public GitHub repo without leaving the app:
 ### Other
 
 - Git remote auto-detection
-- Collapsible sidebar
+- Collapsible sidebar (`Ctrl+b`)
+- Side-by-side diff view (`d` in Files tab)
 - Markdown rendering in PR bodies and comments
 - Multi-line text input with cursor navigation and tab indentation
 - Built-in help overlay (`?`)
+- PR branch checkout directly from terminal (`G`)
 
 ## Keyboard Shortcuts
 
@@ -169,7 +178,7 @@ Browse PRs from any public GitHub repo without leaving the app:
 |-----|--------|
 | `j` / `k` | Move down / up |
 | `Enter` | Select / open |
-| `b` | Toggle sidebar |
+| `Ctrl+b` | Toggle sidebar |
 | `?` | Toggle help overlay |
 | `q` / `Esc` | Back / quit |
 | `Ctrl+c` | Force quit |
@@ -191,11 +200,12 @@ Browse PRs from any public GitHub repo without leaving the app:
 
 | Key | Action |
 |-----|--------|
-| `1` / `2` / `3` | Switch tabs (Conversations / Commits / Files) |
+| `1`-`5` | Switch tabs (Description / Conversations / Commits / Files / Checks) |
 | `o` | Open PR in browser |
 | `y` | Copy PR URL |
 | `R` | Submit review |
 | `S` | Start batch review |
+| `D` | Edit PR description |
 | `E` | Request re-review |
 | `m` | Merge PR |
 | `X` | Close / reopen PR |
@@ -232,6 +242,12 @@ Browse PRs from any public GitHub repo without leaving the app:
 | Key | Action |
 |-----|--------|
 | `y` | Copy commit SHA |
+
+### Checks Tab
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` | Navigate check runs |
 
 ### Comment / Review Input
 

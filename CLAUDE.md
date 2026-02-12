@@ -10,12 +10,20 @@ src/
 ├── app.tsx              # Root component with Box layout
 ├── components/
 │   ├── layout/          # TopBar, Sidebar, MainPanel, StatusBar, HelpModal, TokenInputModal
-│   ├── pr/              # PRListItem, PRHeader, PRTabs, FilesTab, ConversationsTab, DescriptionTab, SideBySideDiffView
-│   └── common/          # EmptyState, LoadingIndicator, ErrorBoundary, MarkdownText
+│   ├── pr/              # PRListItem, PRHeader, PRTabs, DescriptionTab, ConversationsTab, CommitsTab,
+│   │                    #   FilesTab, ChecksTab, DiffView, SideBySideDiffView, FileTree, DiffComment,
+│   │                    #   ReviewModal, CommentModal, MergeModal, ReReviewModal, ReviewSummary,
+│   │                    #   CheckStatusSummary, CheckStatusIcon, ReviewStatusIcon, TimelineItemView
+│   └── common/          # EmptyState, LoadingIndicator, ErrorBoundary, ErrorWithRetry, MarkdownText,
+│                        #   BorderedBox, Divider, FilterModal, SortModal, Modal, MultiLineInput,
+│                        #   PaginationBar, Spinner
 ├── screens/             # PRListScreen, PRDetailScreen, BrowseRepoScreen, SettingsScreen
-├── hooks/               # useGitHub, useGitHubMutations, useAuth, useConfig, useRepoContext, useRecentRepos,
+├── hooks/               # useGitHub, useGitHubMutations, useAuth, useConfig, useRecentRepos,
 │                        #   useBookmarkedRepos, useSidebarCounts, useSidebarSections, useListNavigation,
-│                        #   useActivePanel, useFilter, useViewedFiles, useReadState, useScreenContext
+│                        #   useActivePanel, useFilter, useViewedFiles, useReadState, useScreenContext,
+│                        #   usePendingReview, usePRDetailModals, useReviewActions, useCommentActions,
+│                        #   usePRStateActions, usePagination, useStatusMessage, useLastUpdated,
+│                        #   useRateLimit, useRefreshInterval, useManualRefresh
 ├── services/            # Effect services: CodeReviewApi, GitHubApiLive, Auth, Config, layers
 ├── models/              # Zod schemas + TS types
 ├── theme/               # Theme types, color palettes, ThemeProvider
