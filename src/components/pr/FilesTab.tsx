@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
-import { ScrollList, type ScrollListRef } from 'ink-scroll-list'
 import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
-import { useListNavigation } from '../../hooks/useListNavigation'
+import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { useViewedFiles } from '../../hooks/useViewedFiles'
 import type { FileChange } from '../../models/file-change'
@@ -194,7 +193,6 @@ export function FilesTab({
     viewportHeight - 2,
     treeViewportMaxHeight - (isFiltering ? 1 : 0),
   )
-  const fileTreeListRef = useRef<ScrollListRef>(null)
 
   const { selectedIndex: treeSelectedIndex } = useListNavigation({
     itemCount: fileOrder.length,
@@ -205,14 +203,15 @@ export function FilesTab({
     (r) => r.type === 'file' && r.fileIndex === treeSelectedIndex,
   )
   const effectiveRowIndex = selectedRowIndex >= 0 ? selectedRowIndex : 0
-
-  useEffect(() => {
-    const handleResize = (): void => fileTreeListRef.current?.remeasure()
-    stdout?.on('resize', handleResize)
-    return () => {
-      stdout?.off('resize', handleResize)
-    }
-  }, [stdout])
+  const treeScrollOffset = deriveScrollOffset(
+    effectiveRowIndex,
+    treeViewportHeight,
+    displayRows.length,
+  )
+  const visibleRows = displayRows.slice(
+    treeScrollOffset,
+    treeScrollOffset + treeViewportHeight,
+  )
 
   React.useEffect(() => {
     if (focusPanel === 'tree') {
@@ -547,33 +546,27 @@ export function FilesTab({
           minHeight={0}
           flexShrink={1}
         >
-          <ScrollList
-            ref={fileTreeListRef}
-            selectedIndex={effectiveRowIndex}
-            scrollAlignment="auto"
-            height={treeViewportHeight}
-          >
-            {displayRows.map((row, rowIndex) =>
-              row.type === 'dir' ? (
-                <Box key={`row-${rowIndex}`} paddingLeft={row.indent * 2}>
-                  <Text color={theme.colors.muted}>{row.name}/</Text>
-                </Box>
-              ) : (
-                <Box key={`row-${rowIndex}`} paddingLeft={row.indent * 2}>
-                  <FileItem
-                    item={row.file}
-                    isFocus={
-                      isPanelFocused && row.fileIndex === treeSelectedIndex
-                    }
-                    isSelected={row.fileIndex === selectedFileIndex}
-                    isViewed={
-                      prUrl ? isViewed(prUrl, row.file.filename) : undefined
-                    }
-                  />
-                </Box>
-              ),
-            )}
-          </ScrollList>
+          {visibleRows.map((row, i) => {
+            const rowIndex = treeScrollOffset + i
+            return row.type === 'dir' ? (
+              <Box key={`row-${rowIndex}`} paddingLeft={row.indent * 2}>
+                <Text color={theme.colors.muted}>{row.name}/</Text>
+              </Box>
+            ) : (
+              <Box key={`row-${rowIndex}`} paddingLeft={row.indent * 2}>
+                <FileItem
+                  item={row.file}
+                  isFocus={
+                    isPanelFocused && row.fileIndex === treeSelectedIndex
+                  }
+                  isSelected={row.fileIndex === selectedFileIndex}
+                  isViewed={
+                    prUrl ? isViewed(prUrl, row.file.filename) : undefined
+                  }
+                />
+              </Box>
+            )
+          })}
         </Box>
       </Box>
       <Box
