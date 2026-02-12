@@ -15,13 +15,7 @@ export function PRTabs({ activeIndex, onChange }: PRTabsProps): React.ReactEleme
   const theme = useTheme()
 
   return (
-    <Box
-      flexDirection="row"
-      paddingX={1}
-      paddingY={1}
-      borderStyle="single"
-      borderColor={theme.colors.border}
-    >
+    <Box flexDirection="row" paddingX={1}>
       <Tabs
         key={activeIndex}
         defaultValue={PR_TAB_NAMES[activeIndex]}

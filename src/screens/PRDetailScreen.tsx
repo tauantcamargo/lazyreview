@@ -295,7 +295,7 @@ export function PRDetailScreen({
 
   return (
     <Box flexDirection="column" flexGrow={1} minHeight={0}>
-      <Box flexShrink={0}>
+      <Box flexShrink={0} flexDirection="column">
         <PRHeader pr={activePR} owner={owner} repo={repo} prIndex={prIndex} prTotal={prTotal} />
         <PRTabs activeIndex={currentTab} onChange={setCurrentTab} />
       </Box>
@@ -305,6 +305,9 @@ export function PRDetailScreen({
         minHeight={0}
         overflow="hidden"
         flexDirection="column"
+        borderStyle="single"
+        borderColor={theme.colors.border}
+        paddingX={1}
       >
         {renderTabContent()}
       </Box>
