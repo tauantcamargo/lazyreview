@@ -7,6 +7,7 @@ import { useConfig } from '../hooks/useConfig'
 import { useAuth } from '../hooks/useAuth'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useInputFocus } from '../hooks/useInputFocus'
+import { useBookmarkedRepos, validateBookmarkInput } from '../hooks/useBookmarkedRepos'
 import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { SettingRow, TokenSourceLabel } from '../components/settings/SettingRow'
@@ -22,8 +23,9 @@ type SettingsItem =
   | 'refresh_interval'
   | 'default_owner'
   | 'default_repo'
+  | 'bookmarked_repos'
 
-type EditingField = 'page_size' | 'refresh_interval' | 'default_owner' | 'default_repo' | 'new_token' | null
+type EditingField = 'page_size' | 'refresh_interval' | 'default_owner' | 'default_repo' | 'new_token' | 'bookmark_add' | null
 
 const SETTINGS_ITEMS: readonly SettingsItem[] = [
   'token_source',
@@ -33,6 +35,7 @@ const SETTINGS_ITEMS: readonly SettingsItem[] = [
   'refresh_interval',
   'default_owner',
   'default_repo',
+  'bookmarked_repos',
 ]
 
 export function SettingsScreen(): React.ReactElement {
@@ -48,12 +51,16 @@ export function SettingsScreen(): React.ReactElement {
 
   const { setStatusMessage } = useStatusMessage()
   const { setInputActive } = useInputFocus()
+  const { bookmarkedRepos, addBookmark, removeBookmark } = useBookmarkedRepos()
   const [selectedItem, setSelectedItem] = useState<SettingsItem>('token_source')
   const [editingField, setEditingField] = useState<EditingField>(null)
   const [editValue, setEditValue] = useState('')
   const [tokenMessage, setTokenMessage] = useState<string | null>(null)
+  const [bookmarkSelectedIndex, setBookmarkSelectedIndex] = useState(0)
+  const [bookmarkError, setBookmarkError] = useState<string | null>(null)
 
   const isEditing = editingField !== null
+  const isBookmarkSection = selectedItem === 'bookmarked_repos'
 
   const cycleTheme = (): void => {
     const currentTheme = (config?.theme ?? 'tokyo-night') as ThemeName
@@ -74,6 +81,9 @@ export function SettingsScreen(): React.ReactElement {
       setEditValue(config?.defaultRepo ?? '')
     } else if (field === 'new_token') {
       setEditValue('')
+    } else if (field === 'bookmark_add') {
+      setEditValue('')
+      setBookmarkError(null)
     }
     setEditingField(field)
     setInputActive(true)
@@ -82,6 +92,7 @@ export function SettingsScreen(): React.ReactElement {
   const cancelEditing = (): void => {
     setEditingField(null)
     setEditValue('')
+    setBookmarkError(null)
     setInputActive(false)
   }
 
@@ -118,6 +129,17 @@ export function SettingsScreen(): React.ReactElement {
           cancelEditing()
         })
       return
+    } else if (editingField === 'bookmark_add' && trimmed) {
+      const validation = validateBookmarkInput(trimmed)
+      if (!validation.valid) {
+        setBookmarkError(validation.error)
+        return
+      }
+      const parts = trimmed.split('/')
+      const owner = parts[0]?.trim() ?? ''
+      const repo = parts.slice(1).join('/').trim()
+      addBookmark(owner, repo)
+      setStatusMessage('Bookmark added')
     }
 
     cancelEditing()
@@ -166,9 +188,32 @@ export function SettingsScreen(): React.ReactElement {
         } else if (selectedItem === 'default_repo') {
           startEditing('default_repo')
         }
+      } else if (isBookmarkSection && input === 'a') {
+        startEditing('bookmark_add')
+      } else if (isBookmarkSection && (input === 'x' || input === 'd')) {
+        const bookmark = bookmarkedRepos[bookmarkSelectedIndex]
+        if (bookmark) {
+          removeBookmark(bookmark.owner, bookmark.repo)
+          setStatusMessage('Bookmark removed')
+          if (bookmarkSelectedIndex >= bookmarkedRepos.length - 1) {
+            setBookmarkSelectedIndex(Math.max(0, bookmarkedRepos.length - 2))
+          }
+        }
       }
     },
     { isActive: true },
+  )
+
+  // Sub-navigation for bookmark list when bookmark section is selected
+  useInput(
+    (input, key) => {
+      if (input === 'J' || (key.downArrow && key.shift)) {
+        setBookmarkSelectedIndex((prev) => Math.min(prev + 1, bookmarkedRepos.length - 1))
+      } else if (input === 'K' || (key.upArrow && key.shift)) {
+        setBookmarkSelectedIndex((prev) => Math.max(prev - 1, 0))
+      }
+    },
+    { isActive: isBookmarkSection && !isEditing && bookmarkedRepos.length > 0 },
   )
 
   if (configLoading || authLoading) {
@@ -354,6 +399,67 @@ export function SettingsScreen(): React.ReactElement {
             ? renderEditableField('default_repo', 'repo')
             : undefined}
         </SettingRow>
+      </Box>
+
+      <Box paddingX={1} marginTop={1}>
+        <Divider title="Bookmarked Repos" />
+      </Box>
+      {/* Bookmarked Repos Section */}
+      <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
+        <Box gap={2}>
+          <Text
+            color={isBookmarkSection ? theme.colors.accent : theme.colors.secondary}
+            bold
+          >
+            {isBookmarkSection ? '> ' : '  '}
+            Bookmarked Repos
+          </Text>
+          {isBookmarkSection && (
+            <Text color={theme.colors.muted} dimColor>
+              a:add  x:remove  J/K:select
+            </Text>
+          )}
+        </Box>
+      </Box>
+
+      {editingField === 'bookmark_add' && (
+        <Box paddingX={2} flexDirection="column">
+          <Box gap={1}>
+            <Text color={theme.colors.secondary}>owner/repo:</Text>
+            {renderEditableField('bookmark_add', 'e.g. facebook/react')}
+          </Box>
+          {bookmarkError && (
+            <Box paddingLeft={2}>
+              <Text color={theme.colors.error}>{bookmarkError}</Text>
+            </Box>
+          )}
+        </Box>
+      )}
+
+      <Box flexDirection="column" paddingX={2}>
+        {bookmarkedRepos.length === 0 ? (
+          <Box paddingX={1}>
+            <Text color={theme.colors.muted} dimColor>
+              No bookmarked repos. {isBookmarkSection ? 'Press a to add.' : ''}
+            </Text>
+          </Box>
+        ) : (
+          bookmarkedRepos.map((bookmark, index) => {
+            const isBmSelected = isBookmarkSection && index === bookmarkSelectedIndex
+            return (
+              <Box key={`${bookmark.owner}/${bookmark.repo}`} paddingX={1}>
+                <Text
+                  color={isBmSelected ? theme.colors.accent : theme.colors.text}
+                  bold={isBmSelected}
+                  backgroundColor={isBmSelected ? theme.colors.selection : undefined}
+                >
+                  {isBmSelected ? '> ' : '  '}
+                  {bookmark.owner}/{bookmark.repo}
+                </Text>
+              </Box>
+            )
+          })
+        )}
       </Box>
 
       <Box paddingX={1} paddingTop={2} flexDirection="column">
