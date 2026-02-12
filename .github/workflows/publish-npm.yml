@@ -66,6 +66,10 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           TAG="v${VERSION}"
 
+          # Configure git identity for tagging
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           # Find previous version tag for release notes range
           PREV_TAG=$(git tag --list 'v*' --sort=-v:refname | head -1)
 
