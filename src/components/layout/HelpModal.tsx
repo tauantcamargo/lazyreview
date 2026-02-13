@@ -46,7 +46,7 @@ const shortcutGroups: readonly ShortcutGroup[] = [
   {
     title: 'PR Detail',
     items: [
-      { key: '1 / 2 / 3', description: 'Switch tabs (Conversations/Commits/Files)' },
+      { key: '1-5', description: 'Switch tabs (Desc/Conv/Commits/Files/Checks)' },
       { key: 'o', description: 'Open PR in browser' },
       { key: 'y', description: 'Copy PR URL' },
       { key: 'R', description: 'Submit review' },
@@ -87,6 +87,15 @@ const shortcutGroups: readonly ShortcutGroup[] = [
     title: 'Commits Tab',
     items: [
       { key: 'y', description: 'Copy commit SHA' },
+    ],
+  },
+  {
+    title: 'Comment / Review Input',
+    items: [
+      { key: 'Enter', description: 'New line' },
+      { key: 'Tab', description: 'Insert indent (2 spaces)' },
+      { key: 'Ctrl+S', description: 'Submit' },
+      { key: 'Esc', description: 'Cancel / Back' },
     ],
   },
 ]
