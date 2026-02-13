@@ -27,7 +27,7 @@ src/
 ├── services/            # Effect services: CodeReviewApi, GitHubApiLive, Auth, Config, layers
 ├── models/              # Zod schemas + TS types
 ├── theme/               # Theme types, color palettes, ThemeProvider
-└── utils/               # date formatting, terminal helpers, git helpers
+└── utils/               # date formatting, terminal helpers, git helpers, sanitize (stripAnsi)
 ```
 
 ## Commands

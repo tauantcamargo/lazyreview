@@ -255,7 +255,7 @@ Browse PRs from any public GitHub repo without leaving the app:
 |-----|--------|
 | `Enter` | New line |
 | `Tab` | Insert indent (2 spaces) |
-| `Ctrl+Enter` | Submit |
+| `Ctrl+S` | Submit |
 | `Esc` | Cancel |
 
 ## Configuration
@@ -304,7 +304,7 @@ pnpm start      # run the TUI
 
 - **UI**: [Ink](https://github.com/vadimdemedes/ink) + React 19
 - **Services**: [Effect](https://effect.website/) (typed errors, dependency injection)
-- **Validation**: Effect Schema
+- **Validation**: Zod + Effect Schema
 - **Config**: YAML
 - **Build**: tsup (bundled ESM, Node 20 target)
 - **Test**: Vitest
