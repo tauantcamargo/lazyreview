@@ -37,7 +37,7 @@ import type { InlineCommentContext } from '../models/inline-comment'
 
 export type { InlineCommentContext }
 export type { ReplyContext, ResolveContext } from '../components/pr/ConversationsTab'
-export type { EditCommentContext, EditDescriptionContext } from '../hooks/usePRDetailModals'
+export type { EditCommentContext, EditDescriptionContext, EditTitleContext } from '../hooks/usePRDetailModals'
 
 interface PRDetailScreenProps {
   readonly pr: PullRequest
@@ -252,6 +252,8 @@ export function PRDetailScreen({
         onNavigate('next')
       } else if (input === '[' && onNavigate) {
         onNavigate('prev')
+      } else if (input === 'T') {
+        modals.handleOpenEditTitle({ title: activePR.title })
       } else if (input === 'G') {
         setStatusMessage('Checking out PR #' + pr.number + '...', 10000)
         checkoutPR(pr.number).then((result) => {

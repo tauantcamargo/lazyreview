@@ -225,6 +225,13 @@ export interface CodeReviewApiService {
     body: string,
   ) => Effect.Effect<void, ApiError>
 
+  readonly updatePRTitle: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    title: string,
+  ) => Effect.Effect<void, ApiError>
+
   readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>
 }
 

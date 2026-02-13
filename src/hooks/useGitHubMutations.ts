@@ -149,6 +149,10 @@ interface UpdatePRDescriptionParams extends PRParams {
   readonly body: string
 }
 
+interface UpdatePRTitleParams extends PRParams {
+  readonly title: string
+}
+
 interface EditCommentParams extends PRParams {
   readonly commentId: number
   readonly body: string
@@ -256,6 +260,14 @@ export const useReopenPullRequest = createGitHubMutation<PRParams>({
 
 export const useUpdatePRDescription = createGitHubMutation<UpdatePRDescriptionParams>({
   effect: (api, p) => api.updatePRDescription(p.owner, p.repo, p.prNumber, p.body),
+  invalidateKeys: (p) => [
+    ['pr', p.owner, p.repo, p.prNumber],
+    ...invalidatePRLists(),
+  ],
+})
+
+export const useUpdatePRTitle = createGitHubMutation<UpdatePRTitleParams>({
+  effect: (api, p) => api.updatePRTitle(p.owner, p.repo, p.prNumber, p.title),
   invalidateKeys: (p) => [
     ['pr', p.owner, p.repo, p.prNumber],
     ...invalidatePRLists(),

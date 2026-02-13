@@ -53,6 +53,7 @@ const shortcutGroups: readonly ShortcutGroup[] = [
       { key: 'S', description: 'Start batch review' },
       { key: 'E', description: 'Request re-review' },
       { key: 'm', description: 'Merge PR' },
+      { key: 'T', description: 'Edit PR title' },
       { key: 'X', description: 'Close / Reopen PR' },
       { key: 'G', description: 'Checkout PR branch locally' },
       { key: '] / [', description: 'Next / Previous PR' },

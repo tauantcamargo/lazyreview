@@ -520,6 +520,20 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
+      updatePRTitle: (owner, repo, prNumber, title) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
+          const token = yield* auth.getToken()
+          yield* mutateGitHub(
+            'PATCH',
+            `/repos/${owner}/${repo}/pulls/${prNumber}`,
+            token,
+            { title },
+          )
+        }),
+
       getCurrentUser: () =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()

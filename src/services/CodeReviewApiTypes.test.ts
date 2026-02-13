@@ -42,6 +42,7 @@ describe('CodeReviewApi', () => {
       editIssueComment: () => Effect.succeed(undefined as void),
       editReviewComment: () => Effect.succeed(undefined as void),
       updatePRDescription: () => Effect.succeed(undefined as void),
+      updatePRTitle: () => Effect.succeed(undefined as void),
       getCurrentUser: () => Effect.succeed({ login: 'test' }),
     } satisfies CodeReviewApiService
 
