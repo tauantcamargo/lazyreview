@@ -55,6 +55,9 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
   bookmarkedRepos: S.optionalWith(S.Array(BookmarkedRepoSchema), {
     default: () => [],
   }),
+  hasOnboarded: S.optionalWith(S.Boolean, {
+    default: () => false,
+  }),
 }) {}
 
 const defaultConfig = S.decodeUnknownSync(AppConfig)({})

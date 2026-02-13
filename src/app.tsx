@@ -10,6 +10,7 @@ import { StatusBar } from './components/layout/StatusBar'
 import { useScreenContext, setScreenContext } from './hooks/useScreenContext'
 import { HelpModal } from './components/layout/HelpModal'
 import { TokenInputModal } from './components/layout/TokenInputModal'
+import { OnboardingScreen } from './components/layout/OnboardingScreen'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { PRDetailScreen } from './screens/PRDetailScreen'
 import { MyPRsScreen } from './screens/MyPRsScreen'
@@ -55,6 +56,7 @@ function AppContent({
   const { exit } = useApp()
   const { stdout } = useStdout()
   const { user, isAuthenticated, loading, saveToken, error } = useAuth()
+  const { config, updateConfig } = useConfig()
   const queryClient = useQueryClient()
   const [sidebarVisible, setSidebarVisible] = useState(true)
   const [currentScreen, setCurrentScreen] = useState<AppScreen>({
@@ -64,6 +66,8 @@ function AppContent({
   const [showHelp, setShowHelp] = useState(false)
   // Start with modal hidden, show only after auth check fails
   const [showTokenInput, setShowTokenInput] = useState(false)
+  // First-run onboarding
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   // Global 401 detection — shows token modal when token expires mid-session
   const { isTokenExpired } = useTokenExpired()
@@ -84,7 +88,7 @@ function AppContent({
   const { selectedIndex: navIndex } = useListNavigation({
     itemCount: navigableEntries.length,
     viewportHeight: navigableEntries.length,
-    isActive: activePanel === 'sidebar' && !showHelp && !showTokenInput && !isInputActive,
+    isActive: activePanel === 'sidebar' && !showHelp && !showTokenInput && !showOnboarding && !isInputActive,
   })
 
   // Map navigation index to actual sidebar item index
@@ -111,6 +115,18 @@ function AppContent({
     }
   }, [isTokenExpired, showTokenInput])
 
+  // Show onboarding for first-time users
+  React.useEffect(() => {
+    if (config && !config.hasOnboarded && !showOnboarding) {
+      setShowOnboarding(true)
+    }
+  }, [config, showOnboarding])
+
+  const handleOnboardingComplete = useCallback(() => {
+    setShowOnboarding(false)
+    updateConfig({ hasOnboarded: true })
+  }, [updateConfig])
+
   const handleTokenSubmit = useCallback(
     async (token: string) => {
       try {
@@ -130,7 +146,7 @@ function AppContent({
   useInput(
     (input, key) => {
       // Handle modals first
-      if (showHelp || showTokenInput) {
+      if (showHelp || showTokenInput || showOnboarding) {
         if (key.escape || (showHelp && input === '?')) {
           setShowHelp(false)
         }
@@ -155,7 +171,7 @@ function AppContent({
         }
       }
     },
-    { isActive: !showTokenInput && !isInputActive },
+    { isActive: !showTokenInput && !showOnboarding && !isInputActive },
   )
 
   const handleSelectPR = useCallback(
@@ -322,7 +338,10 @@ function AppContent({
       </Box>
       <StatusBar activePanel={activePanel} screenContext={screenContext} />
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-      {showTokenInput && (
+      {showOnboarding && (
+        <OnboardingScreen onComplete={handleOnboardingComplete} />
+      )}
+      {showTokenInput && !showOnboarding && (
         <TokenInputModal
           onSubmit={handleTokenSubmit}
           onClose={() => setShowTokenInput(false)}

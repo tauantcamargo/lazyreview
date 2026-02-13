@@ -107,6 +107,23 @@ describe('AppConfig schema', () => {
     expect(config.defaultRepo).toBeUndefined()
   })
 
+  it('defaults hasOnboarded to false', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    expect(config.hasOnboarded).toBe(false)
+  })
+
+  it('accepts hasOnboarded as true', () => {
+    const config = S.decodeUnknownSync(AppConfig)({ hasOnboarded: true })
+    expect(config.hasOnboarded).toBe(true)
+  })
+
+  it('preserves hasOnboarded through encode/decode round-trip', () => {
+    const config = S.decodeUnknownSync(AppConfig)({ hasOnboarded: true })
+    const encoded = S.encodeSync(AppConfig)(config)
+    const decoded = S.decodeUnknownSync(AppConfig)(encoded)
+    expect(decoded.hasOnboarded).toBe(true)
+  })
+
   it('accepts github provider', () => {
     const config = S.decodeUnknownSync(AppConfig)({ provider: 'github' })
     expect(config.provider).toBe('github')
