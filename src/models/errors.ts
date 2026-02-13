@@ -5,6 +5,7 @@ export class GitHubError extends Data.TaggedError('GitHubError')<{
   readonly detail?: string
   readonly status?: number
   readonly url?: string
+  readonly retryAfterMs?: number
 }> {}
 
 export class AuthError extends Data.TaggedError('AuthError')<{

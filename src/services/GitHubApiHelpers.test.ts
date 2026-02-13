@@ -10,6 +10,7 @@ import {
   fetchGitHubSearchPaginated,
   parseLinkHeader,
   buildQueryString,
+  parseRetryAfter,
 } from './GitHubApiHelpers'
 import { GitHubError, NetworkError } from '../models/errors'
 import type { ListPRsOptions } from './GitHubApiTypes'
@@ -748,5 +749,102 @@ describe('buildQueryString', () => {
   it('handles perPage=100', () => {
     const result = buildQueryString({ perPage: 100 })
     expect(result).toBe('?per_page=100')
+  })
+})
+
+describe('parseRetryAfter', () => {
+  it('returns milliseconds from Retry-After seconds header', () => {
+    const headers = new Headers({ 'Retry-After': '60' })
+    expect(parseRetryAfter(headers)).toBe(60000)
+  })
+
+  it('returns undefined when Retry-After header is missing', () => {
+    const headers = new Headers()
+    expect(parseRetryAfter(headers)).toBeUndefined()
+  })
+
+  it('returns undefined for non-numeric Retry-After', () => {
+    const headers = new Headers({ 'Retry-After': 'invalid' })
+    expect(parseRetryAfter(headers)).toBeUndefined()
+  })
+
+  it('returns undefined for zero Retry-After', () => {
+    const headers = new Headers({ 'Retry-After': '0' })
+    expect(parseRetryAfter(headers)).toBeUndefined()
+  })
+
+  it('returns undefined for negative Retry-After', () => {
+    const headers = new Headers({ 'Retry-After': '-5' })
+    expect(parseRetryAfter(headers)).toBeUndefined()
+  })
+
+  it('handles small Retry-After values', () => {
+    const headers = new Headers({ 'Retry-After': '1' })
+    expect(parseRetryAfter(headers)).toBe(1000)
+  })
+})
+
+describe('429 rate limit handling', () => {
+  it('attaches retryAfterMs to GitHubError for 429 responses', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      createMockResponse('Rate limited', {
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: { 'Retry-After': '30' },
+      }),
+    )
+
+    const result = await Effect.runPromiseExit(
+      fetchGitHub('/test', TOKEN, SimpleSchema),
+    )
+
+    expect(result._tag).toBe('Failure')
+    if (result._tag === 'Failure') {
+      const error = (result.cause as { _tag: string; error: GitHubError })
+      expect(error.error).toBeInstanceOf(GitHubError)
+      expect(error.error.status).toBe(429)
+      expect(error.error.retryAfterMs).toBe(30000)
+    }
+  })
+
+  it('sets retryAfterMs to undefined for 429 without Retry-After header', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      createMockResponse('Rate limited', {
+        status: 429,
+        statusText: 'Too Many Requests',
+      }),
+    )
+
+    const result = await Effect.runPromiseExit(
+      fetchGitHub('/test', TOKEN, SimpleSchema),
+    )
+
+    expect(result._tag).toBe('Failure')
+    if (result._tag === 'Failure') {
+      const error = (result.cause as { _tag: string; error: GitHubError })
+      expect(error.error.status).toBe(429)
+      expect(error.error.retryAfterMs).toBeUndefined()
+    }
+  })
+
+  it('does not attach retryAfterMs for non-429 errors', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      createMockResponse('Not Found', {
+        status: 404,
+        statusText: 'Not Found',
+        headers: { 'Retry-After': '30' },
+      }),
+    )
+
+    const result = await Effect.runPromiseExit(
+      fetchGitHub('/test', TOKEN, SimpleSchema),
+    )
+
+    expect(result._tag).toBe('Failure')
+    if (result._tag === 'Failure') {
+      const error = (result.cause as { _tag: string; error: GitHubError })
+      expect(error.error.status).toBe(404)
+      expect(error.error.retryAfterMs).toBeUndefined()
+    }
   })
 })

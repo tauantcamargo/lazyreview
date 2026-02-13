@@ -10,6 +10,41 @@ const MAX_PAGES = 20
 
 const BASE_URL = 'https://api.github.com'
 
+/**
+ * Parse the Retry-After header from a 429 response.
+ * Returns milliseconds to wait, or undefined if header is missing/unparseable.
+ * GitHub sends Retry-After as seconds.
+ */
+export function parseRetryAfter(headers: Headers): number | undefined {
+  const retryAfter = headers.get('Retry-After')
+  if (!retryAfter) return undefined
+
+  const seconds = parseInt(retryAfter, 10)
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return seconds * 1000
+  }
+
+  return undefined
+}
+
+/**
+ * Build a GitHubError from a non-OK response, attaching retryAfterMs for 429s.
+ */
+function buildGitHubError(
+  response: Response,
+  body: string,
+  url: string,
+): GitHubError {
+  return new GitHubError({
+    message: sanitizeApiError(response.status, response.statusText),
+    detail: body,
+    status: response.status,
+    url,
+    retryAfterMs:
+      response.status === 429 ? parseRetryAfter(response.headers) : undefined,
+  })
+}
+
 // Schema for GitHub Search API response
 const SearchResultSchema = S.Struct({
   total_count: S.Number,
@@ -39,12 +74,7 @@ export function fetchGitHub<A, I>(
 
       if (!response.ok) {
         const body = await response.text().catch(() => '')
-        throw new GitHubError({
-          message: sanitizeApiError(response.status, response.statusText),
-          detail: body,
-          status: response.status,
-          url,
-        })
+        throw buildGitHubError(response, body, url)
       }
 
       const data = await response.json()
@@ -86,12 +116,7 @@ export function mutateGitHub(
 
       if (!response.ok) {
         const responseBody = await response.text().catch(() => '')
-        throw new GitHubError({
-          message: sanitizeApiError(response.status, response.statusText),
-          detail: responseBody,
-          status: response.status,
-          url,
-        })
+        throw buildGitHubError(response, responseBody, url)
       }
 
       touchLastUpdated()
@@ -131,12 +156,7 @@ export function mutateGitHubJson<T>(
 
       if (!response.ok) {
         const responseBody = await response.text().catch(() => '')
-        throw new GitHubError({
-          message: sanitizeApiError(response.status, response.statusText),
-          detail: responseBody,
-          status: response.status,
-          url,
-        })
+        throw buildGitHubError(response, responseBody, url)
       }
 
       touchLastUpdated()
@@ -184,12 +204,7 @@ export function graphqlGitHub<T>(
 
       if (!response.ok) {
         const responseBody = await response.text().catch(() => '')
-        throw new GitHubError({
-          message: sanitizeApiError(response.status, response.statusText),
-          detail: responseBody,
-          status: response.status,
-          url,
-        })
+        throw buildGitHubError(response, responseBody, url)
       }
 
       const data = await response.json()
@@ -243,12 +258,7 @@ export function fetchGitHubSearch(
 
       if (!response.ok) {
         const body = await response.text().catch(() => '')
-        throw new GitHubError({
-          message: sanitizeApiError(response.status, response.statusText),
-          detail: body,
-          status: response.status,
-          url,
-        })
+        throw buildGitHubError(response, body, url)
       }
 
       const data = await response.json()
@@ -321,12 +331,7 @@ export function fetchGitHubPaginated<A, I>(
 
         if (!response.ok) {
           const body = await response.text().catch(() => '')
-          throw new GitHubError({
-            message: sanitizeApiError(response.status, response.statusText),
-            detail: body,
-            status: response.status,
-            url,
-          })
+          throw buildGitHubError(response, body, url)
         }
 
         const data = await response.json()
@@ -382,12 +387,7 @@ export function fetchGitHubSearchPaginated(
 
         if (!response.ok) {
           const body = await response.text().catch(() => '')
-          throw new GitHubError({
-            message: sanitizeApiError(response.status, response.statusText),
-            detail: body,
-            status: response.status,
-            url,
-          })
+          throw buildGitHubError(response, body, url)
         }
 
         const data = await response.json()
