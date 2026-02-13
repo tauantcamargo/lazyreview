@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Effect, Exit } from 'effect'
-import { maskToken, getEnvVarName, setAuthProvider, getAuthProvider, Auth, AuthLive } from './Auth'
+import { maskToken, getEnvVarName, setAuthProvider, getAuthProvider, resetAuthState, Auth, AuthLive } from './Auth'
 
 // ---------------------------------------------------------------------------
 // Mock child_process.execFile to control gh CLI responses
@@ -132,8 +132,7 @@ describe('getEnvVarName', () => {
 
 describe('setAuthProvider / getAuthProvider', () => {
   afterEach(() => {
-    // Reset to default
-    setAuthProvider('github')
+    resetAuthState()
   })
 
   it('defaults to github', () => {
@@ -159,20 +158,15 @@ describe('setAuthProvider / getAuthProvider', () => {
 describe('resolveToken priority chain', () => {
   const originalEnv = { ...process.env }
 
-  beforeEach(async () => {
-    // Clear module-level state by clearing manual token
+  beforeEach(() => {
+    resetAuthState()
     ghCliResult = null
     ghCliError = null
     savedFileContent = null
-    setAuthProvider('github')
 
     // Clear env vars
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
-
-    // Clear manual token state
-    await runAuth((auth) => auth.clearManualToken())
-    await runAuth((auth) => auth.setPreferredSource('none'))
   })
 
   afterEach(() => {
@@ -243,14 +237,12 @@ describe('resolveToken priority chain', () => {
 describe('preferredSource overrides', () => {
   const originalEnv = { ...process.env }
 
-  beforeEach(async () => {
+  beforeEach(() => {
+    resetAuthState()
     ghCliResult = null
     ghCliError = null
-    setAuthProvider('github')
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
-    await runAuth((auth) => auth.clearManualToken())
-    await runAuth((auth) => auth.setPreferredSource('none'))
   })
 
   afterEach(() => {
@@ -305,14 +297,12 @@ describe('preferredSource overrides', () => {
 describe('setToken', () => {
   const originalEnv = { ...process.env }
 
-  beforeEach(async () => {
+  beforeEach(() => {
+    resetAuthState()
     ghCliResult = null
     savedFileContent = null
-    setAuthProvider('github')
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
-    await runAuth((auth) => auth.clearManualToken())
-    await runAuth((auth) => auth.setPreferredSource('none'))
   })
 
   afterEach(() => {
@@ -342,15 +332,13 @@ describe('setToken', () => {
 describe('clearManualToken', () => {
   const originalEnv = { ...process.env }
 
-  beforeEach(async () => {
+  beforeEach(() => {
+    resetAuthState()
     ghCliResult = null
     ghCliError = null
     savedFileContent = null
-    setAuthProvider('github')
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
-    await runAuth((auth) => auth.clearManualToken())
-    await runAuth((auth) => auth.setPreferredSource('none'))
   })
 
   afterEach(() => {
@@ -379,14 +367,12 @@ describe('clearManualToken', () => {
 describe('getAvailableSources', () => {
   const originalEnv = { ...process.env }
 
-  beforeEach(async () => {
+  beforeEach(() => {
+    resetAuthState()
     ghCliResult = null
     ghCliError = null
-    setAuthProvider('github')
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
-    await runAuth((auth) => auth.clearManualToken())
-    await runAuth((auth) => auth.setPreferredSource('none'))
   })
 
   afterEach(() => {
@@ -432,14 +418,12 @@ describe('getAvailableSources', () => {
 describe('isAuthenticated', () => {
   const originalEnv = { ...process.env }
 
-  beforeEach(async () => {
+  beforeEach(() => {
+    resetAuthState()
     ghCliResult = null
     ghCliError = null
-    setAuthProvider('github')
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
-    await runAuth((auth) => auth.clearManualToken())
-    await runAuth((auth) => auth.setPreferredSource('none'))
   })
 
   afterEach(() => {

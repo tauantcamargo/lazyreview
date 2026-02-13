@@ -23,15 +23,44 @@ export interface TokenInfo {
 const CONFIG_DIR = join(homedir(), '.config', 'lazyreview')
 const TOKEN_FILE = join(CONFIG_DIR, '.token')
 
-// In-memory token storage for current session
-let sessionToken: string | null = null
-let preferredSource: TokenSource | null = null
-let currentProvider: Provider = 'github'
+// ---------------------------------------------------------------------------
+// Immutable auth state
+// ---------------------------------------------------------------------------
 
-// Load saved token from file on startup
+interface AuthState {
+  readonly sessionToken: string | null
+  readonly savedToken: string | null
+  readonly preferredSource: TokenSource | null
+  readonly provider: Provider
+  readonly initialized: boolean
+}
+
+const initialState: AuthState = {
+  sessionToken: null,
+  savedToken: null,
+  preferredSource: null,
+  provider: 'github',
+  initialized: false,
+}
+
+// Single mutable reference to an immutable state object.
+// All updates create a new state object (no field mutation).
+let authState: AuthState = initialState
+
+function getState(): AuthState {
+  return authState
+}
+
+function setState(update: Partial<AuthState>): void {
+  authState = { ...authState, ...update }
+}
+
+// ---------------------------------------------------------------------------
+// File I/O helpers
+// ---------------------------------------------------------------------------
+
 async function loadSavedToken(): Promise<string | null> {
   try {
-    // Verify file permissions are secure before reading
     const fileStat = await stat(TOKEN_FILE)
     const perms = fileStat.mode & 0o777
     if (perms !== 0o600) {
@@ -44,13 +73,11 @@ async function loadSavedToken(): Promise<string | null> {
   }
 }
 
-// Save token to file for persistence
 async function saveTokenToFile(token: string): Promise<void> {
   await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
   await writeFile(TOKEN_FILE, token, { mode: 0o600 })
 }
 
-// Delete saved token file
 async function deleteSavedToken(): Promise<void> {
   try {
     await unlink(TOKEN_FILE)
@@ -59,11 +86,19 @@ async function deleteSavedToken(): Promise<void> {
   }
 }
 
-// Initialize: load saved token on module load
-let savedToken: string | null = null
-loadSavedToken().then((token) => {
-  savedToken = token
-})
+// ---------------------------------------------------------------------------
+// Lazy initialization (replaces eager side effect on module load)
+// ---------------------------------------------------------------------------
+
+async function ensureInitialized(): Promise<void> {
+  if (getState().initialized) return
+  const token = await loadSavedToken()
+  setState({ savedToken: token, initialized: true })
+}
+
+// ---------------------------------------------------------------------------
+// Pure helpers
+// ---------------------------------------------------------------------------
 
 export function maskToken(token: string): string {
   if (token.length <= 8) return '****'
@@ -93,12 +128,24 @@ export function getEnvVarName(provider: Provider): string {
 }
 
 export function setAuthProvider(provider: Provider): void {
-  currentProvider = provider
+  setState({ provider })
 }
 
 export function getAuthProvider(): Provider {
-  return currentProvider
+  return getState().provider
 }
+
+// ---------------------------------------------------------------------------
+// For testing: reset all auth state
+// ---------------------------------------------------------------------------
+
+export function resetAuthState(): void {
+  authState = initialState
+}
+
+// ---------------------------------------------------------------------------
+// Service interface
+// ---------------------------------------------------------------------------
 
 export interface AuthService {
   readonly getToken: () => Effect.Effect<string, AuthError>
@@ -114,21 +161,23 @@ export interface AuthService {
 export class Auth extends Context.Tag('Auth')<Auth, AuthService>() {}
 
 // ---------------------------------------------------------------------------
-// GitHub token resolution (default)
+// GitHub token resolution
 // ---------------------------------------------------------------------------
 
 function resolveGitHubToken(): Effect.Effect<string, AuthError> {
   return Effect.gen(function* () {
-    // If preferred source is set, use only that source
-    if (preferredSource === 'manual') {
-      const manualToken = sessionToken ?? savedToken
+    yield* Effect.promise(ensureInitialized)
+    const state = getState()
+
+    if (state.preferredSource === 'manual') {
+      const manualToken = state.sessionToken ?? state.savedToken
       if (manualToken) return manualToken
       return yield* Effect.fail(
         new AuthError({ message: 'No manual token found', reason: 'no_token' })
       )
     }
 
-    if (preferredSource === 'env') {
+    if (state.preferredSource === 'env') {
       const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
       if (envToken) return envToken
       return yield* Effect.fail(
@@ -136,7 +185,7 @@ function resolveGitHubToken(): Effect.Effect<string, AuthError> {
       )
     }
 
-    if (preferredSource === 'gh_cli') {
+    if (state.preferredSource === 'gh_cli') {
       const ghToken = yield* Effect.tryPromise({
         try: tryGetGhToken,
         catch: () => new AuthError({ message: 'gh CLI failed', reason: 'no_token' }),
@@ -148,15 +197,15 @@ function resolveGitHubToken(): Effect.Effect<string, AuthError> {
     }
 
     // Default priority order:
-    // 1. LAZYREVIEW_GITHUB_TOKEN env var (highest priority)
+    // 1. LAZYREVIEW_GITHUB_TOKEN env var
     const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
     if (envToken) return envToken
 
-    // 2. Manual/saved token (from settings or file)
-    const manualToken = sessionToken ?? savedToken
+    // 2. Manual/saved token
+    const manualToken = state.sessionToken ?? state.savedToken
     if (manualToken) return manualToken
 
-    // 3. GITHUB_TOKEN env var (generic fallback)
+    // 3. GITHUB_TOKEN env var
     const genericToken = process.env['GITHUB_TOKEN']
     if (genericToken) return genericToken
 
@@ -172,7 +221,6 @@ function resolveGitHubToken(): Effect.Effect<string, AuthError> {
 
     if (ghResult) return ghResult
 
-    // 5. No token found - will show modal
     return yield* Effect.fail(
       new AuthError({
         message: 'No GitHub token found. Set LAZYREVIEW_GITHUB_TOKEN or configure in Settings.',
@@ -188,58 +236,46 @@ function resolveGitHubToken(): Effect.Effect<string, AuthError> {
 
 function resolveGitLabToken(): Effect.Effect<string, AuthError> {
   return Effect.gen(function* () {
-    // 1. Check LAZYREVIEW_GITLAB_TOKEN env var
     const envToken = process.env['LAZYREVIEW_GITLAB_TOKEN']
     if (envToken) {
       return yield* Effect.fail(
-        new AuthError({
-          message: 'GitLab not yet supported',
-          reason: 'no_token',
-        }),
+        new AuthError({ message: 'GitLab not yet supported', reason: 'no_token' }),
       )
     }
 
-    // 2. Try glab CLI
     const glabToken = yield* Effect.tryPromise({
       try: tryGetGlabToken,
       catch: () =>
-        new AuthError({
-          message: 'GitLab not yet supported',
-          reason: 'no_token',
-        }),
+        new AuthError({ message: 'GitLab not yet supported', reason: 'no_token' }),
     })
 
     if (glabToken) {
       return yield* Effect.fail(
-        new AuthError({
-          message: 'GitLab not yet supported',
-          reason: 'no_token',
-        }),
+        new AuthError({ message: 'GitLab not yet supported', reason: 'no_token' }),
       )
     }
 
     return yield* Effect.fail(
-      new AuthError({
-        message: 'GitLab not yet supported',
-        reason: 'no_token',
-      }),
+      new AuthError({ message: 'GitLab not yet supported', reason: 'no_token' }),
     )
   })
 }
 
 // ---------------------------------------------------------------------------
-// Provider-dispatched token resolution
+// Provider-dispatched resolution
 // ---------------------------------------------------------------------------
 
 function resolveToken(): Effect.Effect<string, AuthError> {
-  return currentProvider === 'gitlab' ? resolveGitLabToken() : resolveGitHubToken()
+  return getState().provider === 'gitlab' ? resolveGitLabToken() : resolveGitHubToken()
 }
 
 function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
   return Effect.gen(function* () {
-    // Check preferred source first
-    if (preferredSource === 'manual') {
-      const manualToken = sessionToken ?? savedToken
+    yield* Effect.promise(ensureInitialized)
+    const state = getState()
+
+    if (state.preferredSource === 'manual') {
+      const manualToken = state.sessionToken ?? state.savedToken
       if (manualToken) {
         return {
           source: 'manual' as TokenSource,
@@ -248,7 +284,7 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
       }
     }
 
-    if (preferredSource === 'env') {
+    if (state.preferredSource === 'env') {
       const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
       if (envToken) {
         return {
@@ -258,7 +294,7 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
       }
     }
 
-    if (preferredSource === 'gh_cli') {
+    if (state.preferredSource === 'gh_cli') {
       const ghToken = yield* Effect.promise(tryGetGhToken)
       if (ghToken) {
         return {
@@ -268,57 +304,33 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
       }
     }
 
-    // Default: show what's currently being used (following priority order)
-    // 1. LAZYREVIEW_GITHUB_TOKEN
     const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
     if (envToken) {
-      return {
-        source: 'env' as TokenSource,
-        maskedToken: maskToken(envToken),
-      }
+      return { source: 'env' as TokenSource, maskedToken: maskToken(envToken) }
     }
 
-    // 2. Manual/saved token
-    const manualToken = sessionToken ?? savedToken
+    const manualToken = state.sessionToken ?? state.savedToken
     if (manualToken) {
-      return {
-        source: 'manual' as TokenSource,
-        maskedToken: maskToken(manualToken),
-      }
+      return { source: 'manual' as TokenSource, maskedToken: maskToken(manualToken) }
     }
 
-    // 3. GITHUB_TOKEN env var (generic fallback)
     const genericToken = process.env['GITHUB_TOKEN']
     if (genericToken) {
-      return {
-        source: 'env' as TokenSource,
-        maskedToken: maskToken(genericToken),
-      }
+      return { source: 'env' as TokenSource, maskedToken: maskToken(genericToken) }
     }
 
-    // 4. gh CLI
     const ghToken = yield* Effect.promise(tryGetGhToken)
     if (ghToken) {
-      return {
-        source: 'gh_cli' as TokenSource,
-        maskedToken: maskToken(ghToken),
-      }
+      return { source: 'gh_cli' as TokenSource, maskedToken: maskToken(ghToken) }
     }
 
-    return {
-      source: 'none' as TokenSource,
-      maskedToken: null,
-    }
+    return { source: 'none' as TokenSource, maskedToken: null }
   })
 }
 
 function resolveTokenInfo(): Effect.Effect<TokenInfo, never> {
-  // For gitlab, always return none (not yet supported)
-  if (currentProvider === 'gitlab') {
-    return Effect.succeed({
-      source: 'none' as TokenSource,
-      maskedToken: null,
-    })
+  if (getState().provider === 'gitlab') {
+    return Effect.succeed({ source: 'none' as TokenSource, maskedToken: null })
   }
   return resolveGitHubTokenInfo()
 }
@@ -354,21 +366,22 @@ function getGitHubUser(token: string): Effect.Effect<User, AuthError> {
 
 function getGitLabUser(_token: string): Effect.Effect<User, AuthError> {
   return Effect.fail(
-    new AuthError({
-      message: 'GitLab not yet supported',
-      reason: 'no_token',
-    }),
+    new AuthError({ message: 'GitLab not yet supported', reason: 'no_token' }),
   )
 }
 
 function getUser(): Effect.Effect<User, AuthError> {
   return Effect.gen(function* () {
     const token = yield* resolveToken()
-    return currentProvider === 'gitlab'
+    return getState().provider === 'gitlab'
       ? yield* getGitLabUser(token)
       : yield* getGitHubUser(token)
   })
 }
+
+// ---------------------------------------------------------------------------
+// Live layer
+// ---------------------------------------------------------------------------
 
 export const AuthLive = Layer.succeed(
   Auth,
@@ -385,13 +398,14 @@ export const AuthLive = Layer.succeed(
 
     setToken: (token: string) =>
       Effect.gen(function* () {
-        if (currentProvider === 'github' && !isValidGitHubToken(token)) {
+        if (getState().provider === 'github' && !isValidGitHubToken(token)) {
           yield* Effect.logWarning('Token does not match known GitHub token formats')
         }
-        sessionToken = token
-        savedToken = token
-        preferredSource = 'manual'
-        // Save to file for persistence across launches
+        setState({
+          sessionToken: token,
+          savedToken: token,
+          preferredSource: 'manual',
+        })
         yield* Effect.promise(() => saveTokenToFile(token))
       }),
 
@@ -399,15 +413,16 @@ export const AuthLive = Layer.succeed(
 
     setPreferredSource: (source: TokenSource) =>
       Effect.sync(() => {
-        preferredSource = source === 'none' ? null : source
+        setState({ preferredSource: source === 'none' ? null : source })
       }),
 
     getAvailableSources: () =>
       Effect.gen(function* () {
+        yield* Effect.promise(ensureInitialized)
+        const state = getState()
         const sources: TokenSource[] = []
 
-        if (currentProvider === 'gitlab') {
-          // GitLab: check LAZYREVIEW_GITLAB_TOKEN and glab CLI
+        if (state.provider === 'gitlab') {
           const envToken = process.env['LAZYREVIEW_GITLAB_TOKEN']
           if (envToken) {
             sources.push('env')
@@ -419,18 +434,15 @@ export const AuthLive = Layer.succeed(
           return sources
         }
 
-        // GitHub: check LAZYREVIEW_GITHUB_TOKEN and gh CLI
         const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
         if (envToken) {
           sources.push('env')
         }
 
-        // Check for manual token (session or saved)
-        if (sessionToken || savedToken) {
+        if (state.sessionToken || state.savedToken) {
           sources.push('manual')
         }
 
-        // Check gh CLI
         const ghToken = yield* Effect.promise(tryGetGhToken)
         if (ghToken) {
           sources.push('gh_cli')
@@ -441,12 +453,12 @@ export const AuthLive = Layer.succeed(
 
     clearManualToken: () =>
       Effect.gen(function* () {
-        sessionToken = null
-        savedToken = null
-        if (preferredSource === 'manual') {
-          preferredSource = null
-        }
-        // Delete the saved token file
+        const state = getState()
+        setState({
+          sessionToken: null,
+          savedToken: null,
+          preferredSource: state.preferredSource === 'manual' ? null : state.preferredSource,
+        })
         yield* Effect.promise(deleteSavedToken)
       }),
   }),
