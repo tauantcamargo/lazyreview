@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { Match } from 'effect'
 import {
@@ -85,20 +85,50 @@ export function PRDetailScreen({
     setScreenContext(tabContexts[currentTab] ?? 'pr-detail-description')
   }, [currentTab])
 
+  // Track which tabs have been visited (once visited, data stays enabled for cache)
+  const visitedTabsRef = useRef<ReadonlySet<number>>(new Set([0]))
+  React.useEffect(() => {
+    if (!visitedTabsRef.current.has(currentTab)) {
+      visitedTabsRef.current = new Set([...visitedTabsRef.current, currentTab])
+    }
+  }, [currentTab])
+
+  const hasVisited = (tab: number): boolean => visitedTabsRef.current.has(tab)
+
+  // Tab data requirements:
+  // 0 (Description): pr + reviews (always loaded)
+  // 1 (Conversations): comments, reviews, reviewThreads, issueComments, currentUser
+  // 2 (Commits): commits
+  // 3 (Files): files, comments, reviewThreads, currentUser
+  // 4 (Checks): handled internally by ChecksTab
+  const needsComments = hasVisited(1) || hasVisited(3)
+  const needsThreads = hasVisited(1) || hasVisited(3)
+  const needsCommits = hasVisited(2)
+  const needsFiles = hasVisited(3)
+  const needsIssueComments = hasVisited(1)
+
   // Fetch full PR data (search API doesn't include head.sha)
   const { data: fullPR } = usePullRequest(owner, repo, pr.number)
   const activePR = fullPR ?? pr
 
-  // Fetch all PR data
-  const { data: files = [], isLoading: filesLoading } = usePRFiles(owner, repo, pr.number)
-  const { data: comments = [], isLoading: commentsLoading } = usePRComments(owner, repo, pr.number)
+  // Lazy-load PR data based on visited tabs
+  const { data: files = [], isLoading: filesLoading } = usePRFiles(owner, repo, pr.number, { enabled: needsFiles })
+  const { data: comments = [], isLoading: commentsLoading } = usePRComments(owner, repo, pr.number, { enabled: needsComments })
   const { data: reviews = [], isLoading: reviewsLoading } = usePRReviews(owner, repo, pr.number)
-  const { data: commits = [], isLoading: commitsLoading } = usePRCommits(owner, repo, pr.number)
-  const { data: reviewThreads } = useReviewThreads(owner, repo, pr.number)
-  const { data: issueComments = [] } = useIssueComments(owner, repo, pr.number)
+  const { data: commits = [], isLoading: commitsLoading } = usePRCommits(owner, repo, pr.number, { enabled: needsCommits })
+  const { data: reviewThreads } = useReviewThreads(owner, repo, pr.number, { enabled: needsThreads })
+  const { data: issueComments = [] } = useIssueComments(owner, repo, pr.number, { enabled: needsIssueComments })
   const { data: currentUser } = useCurrentUser()
 
-  const isLoading = filesLoading || commentsLoading || reviewsLoading || commitsLoading
+  // Only show loading for data the current tab needs
+  const isCurrentTabLoading = (): boolean => {
+    if (currentTab === 0) return reviewsLoading
+    if (currentTab === 1) return commentsLoading || reviewsLoading
+    if (currentTab === 2) return commitsLoading
+    if (currentTab === 3) return filesLoading || commentsLoading
+    return false
+  }
+  const isLoading = isCurrentTabLoading()
 
   const modals = usePRDetailModals({
     owner,

@@ -64,8 +64,14 @@ export function usePullRequest(owner: string, repo: string, number: number) {
   })
 }
 
-export function usePRFiles(owner: string, repo: string, number: number) {
+export function usePRFiles(
+  owner: string,
+  repo: string,
+  number: number,
+  options?: { readonly enabled?: boolean },
+) {
   const refetchInterval = useRefreshInterval(30)
+  const enabledFlag = options?.enabled ?? true
 
   return useQuery({
     queryKey: ['pr-files', owner, repo, number],
@@ -76,13 +82,19 @@ export function usePRFiles(owner: string, repo: string, number: number) {
           return yield* api.getPullRequestFiles(owner, repo, number)
         }),
       ),
-    enabled: !!owner && !!repo && !!number,
+    enabled: enabledFlag && !!owner && !!repo && !!number,
     refetchInterval,
   })
 }
 
-export function usePRComments(owner: string, repo: string, number: number) {
+export function usePRComments(
+  owner: string,
+  repo: string,
+  number: number,
+  options?: { readonly enabled?: boolean },
+) {
   const refetchInterval = useRefreshInterval(30)
+  const enabledFlag = options?.enabled ?? true
 
   return useQuery({
     queryKey: ['pr-comments', owner, repo, number],
@@ -93,13 +105,19 @@ export function usePRComments(owner: string, repo: string, number: number) {
           return yield* api.getPullRequestComments(owner, repo, number)
         }),
       ),
-    enabled: !!owner && !!repo && !!number,
+    enabled: enabledFlag && !!owner && !!repo && !!number,
     refetchInterval,
   })
 }
 
-export function useIssueComments(owner: string, repo: string, issueNumber: number) {
+export function useIssueComments(
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  options?: { readonly enabled?: boolean },
+) {
   const refetchInterval = useRefreshInterval(30)
+  const enabledFlag = options?.enabled ?? true
 
   return useQuery({
     queryKey: ['issue-comments', owner, repo, issueNumber],
@@ -110,7 +128,7 @@ export function useIssueComments(owner: string, repo: string, issueNumber: numbe
           return yield* api.getIssueComments(owner, repo, issueNumber)
         }),
       ),
-    enabled: !!owner && !!repo && !!issueNumber,
+    enabled: enabledFlag && !!owner && !!repo && !!issueNumber,
     refetchInterval,
   })
 }
@@ -138,8 +156,14 @@ export function usePRReviews(
   })
 }
 
-export function usePRCommits(owner: string, repo: string, number: number) {
+export function usePRCommits(
+  owner: string,
+  repo: string,
+  number: number,
+  options?: { readonly enabled?: boolean },
+) {
   const refetchInterval = useRefreshInterval(30)
+  const enabledFlag = options?.enabled ?? true
 
   return useQuery({
     queryKey: ['pr-commits', owner, repo, number],
@@ -150,7 +174,7 @@ export function usePRCommits(owner: string, repo: string, number: number) {
           return yield* api.getPullRequestCommits(owner, repo, number)
         }),
       ),
-    enabled: !!owner && !!repo && !!number,
+    enabled: enabledFlag && !!owner && !!repo && !!number,
     refetchInterval,
   })
 }
@@ -205,8 +229,14 @@ export function useInvolvedPRs(stateFilter: PRStateFilter = 'open') {
   })
 }
 
-export function useReviewThreads(owner: string, repo: string, number: number) {
+export function useReviewThreads(
+  owner: string,
+  repo: string,
+  number: number,
+  options?: { readonly enabled?: boolean },
+) {
   const refetchInterval = useRefreshInterval(30)
+  const enabledFlag = options?.enabled ?? true
 
   return useQuery({
     queryKey: ['pr-review-threads', owner, repo, number],
@@ -217,7 +247,7 @@ export function useReviewThreads(owner: string, repo: string, number: number) {
           return yield* api.getReviewThreads(owner, repo, number)
         }),
       ),
-    enabled: !!owner && !!repo && !!number,
+    enabled: enabledFlag && !!owner && !!repo && !!number,
     refetchInterval,
   })
 }
