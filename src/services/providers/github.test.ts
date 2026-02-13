@@ -441,14 +441,15 @@ describe('createProvider factory', () => {
     expect(provider.capabilities.supportsGraphQL).toBe(true)
   })
 
-  it('creates an unsupported provider for unknown types', () => {
+  it('creates a GitLab provider for gitlab type', () => {
     const service = makeMockService()
     const provider = createProvider(
       { ...TEST_CONFIG, type: 'gitlab' },
       service,
     )
     expect(provider.type).toBe('gitlab')
-    expect(provider.capabilities.supportsGraphQL).toBe(false)
+    expect(provider.capabilities.supportsCheckRuns).toBe(false)
+    expect(provider.capabilities.supportsDraftPR).toBe(true)
   })
 
   it('creates an unsupported provider for bitbucket', () => {

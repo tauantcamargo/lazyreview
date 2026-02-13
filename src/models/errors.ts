@@ -13,6 +13,14 @@ export class AuthError extends Data.TaggedError('AuthError')<{
   readonly reason: 'no_token' | 'invalid_token' | 'expired_token' | 'save_failed'
 }> {}
 
+export class GitLabError extends Data.TaggedError('GitLabError')<{
+  readonly message: string
+  readonly detail?: string
+  readonly status?: number
+  readonly url?: string
+  readonly retryAfterMs?: number
+}> {}
+
 export class ConfigError extends Data.TaggedError('ConfigError')<{
   readonly message: string
   readonly path?: string
@@ -23,4 +31,4 @@ export class NetworkError extends Data.TaggedError('NetworkError')<{
   readonly cause?: unknown
 }> {}
 
-export type AppError = GitHubError | AuthError | ConfigError | NetworkError
+export type AppError = GitHubError | GitLabError | AuthError | ConfigError | NetworkError
