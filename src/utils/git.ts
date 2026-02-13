@@ -154,3 +154,59 @@ export function parseGitHubUrl(
 
   return null
 }
+
+export interface ParsedGitHubPRUrl {
+  readonly owner: string
+  readonly repo: string
+  readonly number?: number
+}
+
+/**
+ * Parse a GitHub PR URL and extract owner, repo, and optionally the PR number.
+ * Supports:
+ *   - https://github.com/owner/repo/pull/42
+ *   - https://github.com/owner/repo/pull/42?diff=unified
+ *   - https://github.com/owner/repo (repo URL without PR number)
+ * Returns null for non-GitHub URLs and malformed URLs.
+ */
+export function parseGitHubPRUrl(url: string): ParsedGitHubPRUrl | null {
+  if (!url) return null
+
+  // Match PR URL: https://github.com/owner/repo/pull/123
+  const prMatch = url.match(
+    /https?:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/,
+  )
+  if (prMatch?.[1] && prMatch[2] && prMatch[3]) {
+    return {
+      owner: prMatch[1],
+      repo: prMatch[2],
+      number: parseInt(prMatch[3], 10),
+    }
+  }
+
+  // Match repo URL without PR: https://github.com/owner/repo
+  const repoMatch = url.match(
+    /https?:\/\/github\.com\/([^/]+)\/([^/?#]+)/,
+  )
+  if (repoMatch?.[1] && repoMatch[2]) {
+    return {
+      owner: repoMatch[1],
+      repo: repoMatch[2],
+    }
+  }
+
+  return null
+}
+
+/**
+ * Extract the "owner/repo" string from a GitHub PR URL.
+ * Only matches URLs containing /pull/ path segment.
+ */
+export function extractRepoFromPRUrl(url: string): string | null {
+  if (!url) return null
+  const match = url.match(
+    /https?:\/\/github\.com\/([^/]+)\/([^/]+)\/pull/,
+  )
+  if (!match?.[1] || !match[2]) return null
+  return `${match[1]}/${match[2]}`
+}

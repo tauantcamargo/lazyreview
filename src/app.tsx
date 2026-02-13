@@ -19,6 +19,7 @@ import { InvolvedScreen } from './screens/InvolvedScreen'
 import { ThisRepoScreen } from './screens/ThisRepoScreen'
 import { BrowseRepoScreen } from './screens/BrowseRepoScreen'
 import { Match } from 'effect'
+import { parseGitHubPRUrl } from './utils/git'
 import { useAuth } from './hooks/useAuth'
 import { useConfig } from './hooks/useConfig'
 import { useListNavigation } from './hooks/useListNavigation'
@@ -185,10 +186,9 @@ function AppContent({
   function renderScreen(): React.ReactElement {
     if (currentScreen.type === 'detail') {
       // Extract owner/repo from PR URL for detail view
-      const prUrl = currentScreen.pr.html_url
-      const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull/)
-      const prOwner = match?.[1] ?? repoOwner ?? ''
-      const prRepo = match?.[2] ?? repoName ?? ''
+      const parsed = parseGitHubPRUrl(currentScreen.pr.html_url)
+      const prOwner = parsed?.owner ?? repoOwner ?? ''
+      const prRepo = parsed?.repo ?? repoName ?? ''
 
       return (
         <PRDetailScreen

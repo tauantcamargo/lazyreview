@@ -7,21 +7,11 @@ import { CheckStatusIcon } from './CheckStatusIcon'
 import { ReviewStatusIcon } from './ReviewStatusIcon'
 import { useReadState } from '../../hooks/useReadState'
 import { contrastForeground, normalizeHexColor } from '../../utils/color'
+import { parseGitHubPRUrl, extractRepoFromPRUrl } from '../../utils/git'
 
 interface PRListItemProps {
   readonly item: PullRequest
   readonly isFocus: boolean
-}
-
-function extractRepoFromUrl(url: string): string | null {
-  const match = url.match(/github\.com\/([^/]+\/[^/]+)\/pull/)
-  return match?.[1] ?? null
-}
-
-function extractOwnerRepo(url: string): { owner: string; repo: string } | null {
-  const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/pull/)
-  if (!match?.[1] || !match?.[2]) return null
-  return { owner: match[1], repo: match[2] }
 }
 
 export function PRListItem({
@@ -47,8 +37,8 @@ export function PRListItem({
       : item.state === 'open'
         ? 'O'
         : 'C'
-  const repoName = extractRepoFromUrl(item.html_url)
-  const ownerRepo = extractOwnerRepo(item.html_url)
+  const repoName = extractRepoFromPRUrl(item.html_url)
+  const ownerRepo = parseGitHubPRUrl(item.html_url)
   const headSha = item.head.sha
 
   return (

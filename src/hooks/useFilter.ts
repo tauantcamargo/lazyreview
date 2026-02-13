@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import type { PullRequest } from '../models/pull-request'
+import { extractRepoFromPRUrl } from '../utils/git'
 
 export type SortField = 'updated' | 'created' | 'repo' | 'author' | 'title'
 export type SortDirection = 'asc' | 'desc'
@@ -27,9 +28,11 @@ const defaultFilter: FilterState = {
   sortDirection: 'desc',
 }
 
+/**
+ * @deprecated Use extractRepoFromPRUrl from utils/git instead
+ */
 export function extractRepoFromUrl(url: string): string | null {
-  const match = url.match(/github\.com\/([^/]+\/[^/]+)\/pull/)
-  return match?.[1] ?? null
+  return extractRepoFromPRUrl(url)
 }
 
 export function matchesSearch(pr: PullRequest, search: string): boolean {
@@ -44,7 +47,7 @@ export function matchesSearch(pr: PullRequest, search: string): boolean {
 
 export function matchesRepo(pr: PullRequest, repo: string | null): boolean {
   if (!repo) return true
-  const prRepo = extractRepoFromUrl(pr.html_url)
+  const prRepo = extractRepoFromPRUrl(pr.html_url)
   return prRepo?.toLowerCase().includes(repo.toLowerCase()) ?? false
 }
 
@@ -77,8 +80,8 @@ export function comparePRs(
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       break
     case 'repo': {
-      const repoA = extractRepoFromUrl(a.html_url) ?? ''
-      const repoB = extractRepoFromUrl(b.html_url) ?? ''
+      const repoA = extractRepoFromPRUrl(a.html_url) ?? ''
+      const repoB = extractRepoFromPRUrl(b.html_url) ?? ''
       comparison = repoA.localeCompare(repoB)
       break
     }
@@ -118,7 +121,7 @@ export function useFilter(items: readonly PullRequest[]): UseFilterResult {
   const availableRepos = useMemo(() => {
     const repos = new Set<string>()
     items.forEach((pr) => {
-      const repo = extractRepoFromUrl(pr.html_url)
+      const repo = extractRepoFromPRUrl(pr.html_url)
       if (repo) repos.add(repo)
     })
     return Array.from(repos).sort()
@@ -139,7 +142,7 @@ export function useFilter(items: readonly PullRequest[]): UseFilterResult {
   const repoFacets = useMemo((): readonly FacetOption[] => {
     const counts = new Map<string, number>()
     items.forEach((pr) => {
-      const repo = extractRepoFromUrl(pr.html_url)
+      const repo = extractRepoFromPRUrl(pr.html_url)
       if (repo) counts.set(repo, (counts.get(repo) ?? 0) + 1)
     })
     return Array.from(counts.entries())

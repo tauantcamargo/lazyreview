@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { parseGitHubUrl, checkoutPR, hasUncommittedChanges } from './git'
+import { parseGitHubUrl, parseGitHubPRUrl, extractRepoFromPRUrl, checkoutPR, hasUncommittedChanges } from './git'
 import type { CheckoutResult } from './git'
 
 // Mock child_process
@@ -191,5 +191,86 @@ describe('checkoutPR', () => {
     expect(result.success).toBe(false)
     expect(result.message).toContain('Failed to checkout PR #99')
     expect(result.branchName).toBe('pr-99')
+  })
+})
+
+describe('parseGitHubPRUrl', () => {
+  it('parses a standard PR URL', () => {
+    const result = parseGitHubPRUrl('https://github.com/owner/repo/pull/42')
+    expect(result).toEqual({ owner: 'owner', repo: 'repo', number: 42 })
+  })
+
+  it('parses a PR URL with query parameters', () => {
+    const result = parseGitHubPRUrl('https://github.com/owner/repo/pull/42?diff=unified')
+    expect(result).toEqual({ owner: 'owner', repo: 'repo', number: 42 })
+  })
+
+  it('parses a PR URL with hash fragment', () => {
+    const result = parseGitHubPRUrl('https://github.com/owner/repo/pull/42#discussion_r123')
+    expect(result).toEqual({ owner: 'owner', repo: 'repo', number: 42 })
+  })
+
+  it('parses a PR URL with hyphenated owner and repo', () => {
+    const result = parseGitHubPRUrl('https://github.com/my-org/my-repo/pull/123')
+    expect(result).toEqual({ owner: 'my-org', repo: 'my-repo', number: 123 })
+  })
+
+  it('parses a repo URL without PR number', () => {
+    const result = parseGitHubPRUrl('https://github.com/owner/repo')
+    expect(result).toEqual({ owner: 'owner', repo: 'repo' })
+    expect(result?.number).toBeUndefined()
+  })
+
+  it('returns null for empty string', () => {
+    expect(parseGitHubPRUrl('')).toBeNull()
+  })
+
+  it('returns null for non-GitHub URLs', () => {
+    expect(parseGitHubPRUrl('https://gitlab.com/owner/repo/merge_requests/42')).toBeNull()
+  })
+
+  it('returns null for malformed URLs', () => {
+    expect(parseGitHubPRUrl('not-a-url')).toBeNull()
+  })
+
+  it('parses HTTP (non-HTTPS) URLs', () => {
+    const result = parseGitHubPRUrl('http://github.com/owner/repo/pull/7')
+    expect(result).toEqual({ owner: 'owner', repo: 'repo', number: 7 })
+  })
+
+  it('handles PR number 0', () => {
+    // PR numbers are always > 0 in practice, but the parser should handle it
+    const result = parseGitHubPRUrl('https://github.com/owner/repo/pull/0')
+    expect(result).toEqual({ owner: 'owner', repo: 'repo', number: 0 })
+  })
+
+  it('returns null for GitHub URLs with only owner', () => {
+    expect(parseGitHubPRUrl('https://github.com/owner')).toBeNull()
+  })
+})
+
+describe('extractRepoFromPRUrl', () => {
+  it('extracts owner/repo from a PR URL', () => {
+    expect(extractRepoFromPRUrl('https://github.com/owner/repo/pull/42')).toBe('owner/repo')
+  })
+
+  it('returns null for a repo URL without /pull/ path', () => {
+    expect(extractRepoFromPRUrl('https://github.com/owner/repo')).toBeNull()
+  })
+
+  it('returns null for non-GitHub URLs', () => {
+    expect(extractRepoFromPRUrl('https://example.com')).toBeNull()
+  })
+
+  it('returns null for empty string', () => {
+    expect(extractRepoFromPRUrl('')).toBeNull()
+  })
+
+  it('extracts from URL with query parameters', () => {
+    expect(extractRepoFromPRUrl('https://github.com/owner/repo/pull/42?diff=unified')).toBe('owner/repo')
+  })
+
+  it('returns null for a GitHub URL without /pull/', () => {
+    expect(extractRepoFromPRUrl('https://github.com/owner/repo/issues/5')).toBeNull()
   })
 })
