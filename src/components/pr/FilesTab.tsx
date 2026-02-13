@@ -186,11 +186,35 @@ export function FilesTab({
   }, [treeSelectedIndex, focusPanel])
 
   const selectedFile = fileOrder[selectedFileIndex] ?? fileOrder[0] ?? null
-  const hunks = selectedFile?.patch ? parseDiffPatch(selectedFile.patch) : []
+
+  // Memoize hunks by filename to avoid re-parsing on every render
+  const selectedFilename = selectedFile?.filename ?? null
+  const selectedPatch = selectedFile?.patch ?? null
+  const hunks = useMemo(
+    () => (selectedPatch ? parseDiffPatch(selectedPatch) : []),
+    [selectedPatch],
+  )
+
+  // Stable key for commentsByLine: use a stringified fingerprint of
+  // comment IDs + resolution state for the selected file so we only
+  // recompute when actual comment data changes, not on every React
+  // Query cache reference update.
+  const commentIdKey = useMemo(() => {
+    if (!comments || comments.length === 0 || !selectedFilename) return ''
+    const fileComments = comments.filter((c) => c.path === selectedFilename)
+    const ids = fileComments.map((c) => `${c.id}:${c.body.length}`).join(',')
+    const threadIds = reviewThreads
+      ? reviewThreads
+          .map((t) => `${t.id}:${t.isResolved ? 1 : 0}`)
+          .join(',')
+      : ''
+    return `${ids}|${threadIds}`
+  }, [comments, reviewThreads, selectedFilename])
 
   const commentsByLine = useMemo(
-    () => buildCommentsByLine(comments, reviewThreads, selectedFile?.filename),
-    [comments, reviewThreads, selectedFile],
+    () => buildCommentsByLine(comments, reviewThreads, selectedFilename ?? undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [commentIdKey, selectedFilename],
   )
 
   const allRows = useMemo(
