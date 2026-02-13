@@ -13,15 +13,18 @@ export { getDefaultBaseUrl } from './types'
 
 export { createGitHubProvider, createUnsupportedProvider } from './github'
 
+export { createGitLabProvider, encodeThreadId, decodeThreadId } from './gitlab'
+
 import type { CodeReviewApiService } from '../CodeReviewApiTypes'
 import type { Provider, ProviderConfig } from './types'
 import { createGitHubProvider, createUnsupportedProvider } from './github'
+import { createGitLabProvider } from './gitlab'
 
 /**
  * Factory function that creates the appropriate Provider implementation
  * based on the config's type field.
  *
- * Currently only GitHub is supported. Other provider types return an
+ * Currently GitHub and GitLab are supported. Other provider types return an
  * "unsupported" provider whose methods all fail with a descriptive error.
  */
 export function createProvider(
@@ -31,6 +34,8 @@ export function createProvider(
   switch (config.type) {
     case 'github':
       return createGitHubProvider(config, service)
+    case 'gitlab':
+      return createGitLabProvider(config)
     default:
       return createUnsupportedProvider(config.type)
   }
