@@ -128,6 +128,8 @@ interface FilesTabProps {
     readonly isResolved: boolean
   }) => void
   readonly onEditComment?: (context: EditCommentContext) => void
+  readonly initialFile?: string
+  readonly onInitialFileConsumed?: () => void
 }
 
 type FocusPanel = 'tree' | 'diff'
@@ -144,6 +146,8 @@ export function FilesTab({
   onReply,
   onToggleResolve,
   onEditComment,
+  initialFile,
+  onInitialFileConsumed,
 }: FilesTabProps): React.ReactElement {
   const { stdout } = useStdout()
   const theme = useTheme()
@@ -262,6 +266,17 @@ export function FilesTab({
       markViewed(prUrl, file.filename)
     }
   }, [selectedFileIndex, fileOrder, prUrl, markViewed])
+
+  // Auto-select initial file (e.g., from go-to-file in conversations)
+  React.useEffect(() => {
+    if (!initialFile) return
+    const targetIndex = fileOrder.findIndex((f) => f.filename === initialFile)
+    if (targetIndex >= 0) {
+      setSelectedFileIndex(targetIndex)
+      setFocusPanel('diff')
+    }
+    onInitialFileConsumed?.()
+  }, [initialFile, fileOrder, onInitialFileConsumed])
 
   const selectedFile = fileOrder[selectedFileIndex] ?? fileOrder[0] ?? null
   const hunks = selectedFile?.patch ? parseDiffPatch(selectedFile.patch) : []

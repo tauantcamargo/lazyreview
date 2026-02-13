@@ -27,7 +27,7 @@ const SCREEN_CONTEXT_HINTS: Record<ScreenContext, string> = {
   'pr-list': 'j/k:nav  Enter:open  /:filter  s:sort  t:state  u:unread  o:browser  y:copy-url  n/p:page  R:refresh',
   'pr-detail-description': 'j/k:nav  D:edit-desc  Tab:tabs  [/]:pr',
   'pr-detail-files': 'j/k:nav  ←/→:h-scroll  h/l:tree/diff  /:filter/search  d:split  v:select/viewed  c:comment  r:reply  x:resolve  n/N:next/prev-match  R:review  S:batch  G:checkout  [/]:pr',
-  'pr-detail-conversations': 'j/k:nav  c:comment  r:reply  e:edit  D:edit-desc  x:resolve  f:resolved  R:review  S:batch  E:re-review  G:checkout  [/]:pr',
+  'pr-detail-conversations': 'j/k:nav  c:comment  r:reply  e:edit  D:edit-desc  x:resolve  f:resolved  g:go-to-file  R:review  S:batch  E:re-review  G:checkout  [/]:pr',
   'pr-detail-commits': 'j/k:nav  y:copy-sha  R:review  S:batch  E:re-review  m:merge  G:checkout  [/]:pr',
   'pr-detail-checks': 'j/k:nav  o:open  y:copy  [/]:pr',
   'settings': 'j/k:nav  Enter:edit/toggle  Esc:cancel',

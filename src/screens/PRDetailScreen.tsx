@@ -66,6 +66,7 @@ export function PRDetailScreen({
   const theme = useTheme()
   const [currentTab, setCurrentTab] = useState(0)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const [initialFile, setInitialFile] = useState<string | undefined>(undefined)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
 
   // Mark PR as read when entering detail view
@@ -149,6 +150,12 @@ export function PRDetailScreen({
     },
     [pendingReview, modals],
   )
+
+  const handleGoToFile = useCallback((path: string) => {
+    setInitialFile(path)
+    setCurrentTab(3) // Switch to Files tab
+    setStatusMessage(`Jumped to ${path}`)
+  }, [setStatusMessage])
 
   useManualRefresh({
     isActive: !modals.hasModal,
@@ -269,6 +276,7 @@ export function PRDetailScreen({
           onToggleShowResolved={modals.handleToggleShowResolved}
           onEditComment={modals.handleOpenEditComment}
           onEditDescription={modals.handleOpenEditDescription}
+          onGoToFile={handleGoToFile}
         />
       )),
       Match.when(2, () => <CommitsTab commits={commits} isActive={!modals.hasModal} />),
@@ -284,6 +292,8 @@ export function PRDetailScreen({
           onReply={modals.handleOpenReply}
           onToggleResolve={modals.handleToggleResolve}
           onEditComment={modals.handleOpenEditComment}
+          initialFile={initialFile}
+          onInitialFileConsumed={() => setInitialFile(undefined)}
         />
       )),
       Match.when(4, () => (

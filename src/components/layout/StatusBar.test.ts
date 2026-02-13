@@ -45,6 +45,7 @@ describe('getContextHints', () => {
     expect(hints).toContain('x:resolve')
     expect(hints).toContain('R:review')
     expect(hints).toContain('e:edit')
+    expect(hints).toContain('g:go-to-file')
   })
 
   it('returns checks tab hints for pr-detail-checks', () => {

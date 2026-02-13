@@ -13,6 +13,7 @@ export interface ReplyContext {
   readonly commentId: number
   readonly user: string
   readonly body: string | null
+  readonly isIssueComment?: boolean
 }
 
 export interface ResolveContext {
@@ -45,6 +46,7 @@ interface ConversationsTabProps {
   readonly onToggleShowResolved?: () => void
   readonly onEditComment?: (context: EditCommentContext) => void
   readonly onEditDescription?: (context: EditDescriptionContext) => void
+  readonly onGoToFile?: (path: string) => void
 }
 
 export function buildTimeline(
@@ -135,6 +137,7 @@ export function ConversationsTab({
   onToggleShowResolved,
   onEditComment,
   onEditDescription,
+  onGoToFile,
 }: ConversationsTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
@@ -164,6 +167,19 @@ export function ConversationsTab({
             user: selected.user,
             body: selected.body,
           })
+        } else if (selected?.type === 'issue_comment' && selected.commentId != null) {
+          onReply({
+            commentId: selected.commentId,
+            user: selected.user,
+            body: selected.body,
+            isIssueComment: true,
+          })
+        }
+      }
+      if (input === 'g' && onGoToFile) {
+        const selected = timeline[selectedIndex]
+        if (selected?.type === 'comment' && selected.path) {
+          onGoToFile(selected.path)
         }
       }
       if (input === 'x' && onToggleResolve) {

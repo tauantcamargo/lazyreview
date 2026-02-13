@@ -148,17 +148,34 @@ export function useCommentActions({
       }
 
       if (replyContext) {
-        replyToReviewComment.mutate(
-          { owner, repo, prNumber, body, inReplyTo: replyContext.commentId },
-          {
-            onSuccess: () => {
-              setShowCommentModal(false)
-              setReplyContext(null)
-              setStatusMessage('Reply posted')
+        if (replyContext.isIssueComment) {
+          // Issue comment replies are new issue comments with quoted original
+          const firstLine = replyContext.body?.split('\n')[0] ?? ''
+          const quotedBody = `> @${replyContext.user} wrote:\n> ${firstLine}\n\n${body}`
+          createComment.mutate(
+            { owner, repo, issueNumber: prNumber, body: quotedBody },
+            {
+              onSuccess: () => {
+                setShowCommentModal(false)
+                setReplyContext(null)
+                setStatusMessage('Reply posted')
+              },
+              onError: (err) => setCommentError(String(err)),
             },
-            onError: (err) => setCommentError(String(err)),
-          },
-        )
+          )
+        } else {
+          replyToReviewComment.mutate(
+            { owner, repo, prNumber, body, inReplyTo: replyContext.commentId },
+            {
+              onSuccess: () => {
+                setShowCommentModal(false)
+                setReplyContext(null)
+                setStatusMessage('Reply posted')
+              },
+              onError: (err) => setCommentError(String(err)),
+            },
+          )
+        }
       } else if (inlineContext) {
         createReviewComment.mutate(
           {
@@ -210,12 +227,16 @@ export function useCommentActions({
           ? 'Add Inline Comment'
           : 'Add Comment'
 
+  const replyPreview = replyContext?.body
+    ? replyContext.body.slice(0, 100) + (replyContext.body.length > 100 ? '...' : '')
+    : undefined
+
   const commentModalContext = descriptionEditContext
     ? undefined
     : editContext
       ? undefined
       : replyContext
-        ? (replyContext.body ? replyContext.body.slice(0, 100) + (replyContext.body.length > 100 ? '...' : '') : undefined)
+        ? replyPreview
         : inlineContext
           ? `${inlineContext.path}:${inlineContext.line}`
           : undefined

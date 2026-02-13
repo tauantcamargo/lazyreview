@@ -62,11 +62,12 @@ const shortcutGroups: readonly ShortcutGroup[] = [
     title: 'Conversations Tab',
     items: [
       { key: 'c', description: 'New comment' },
-      { key: 'r', description: 'Reply to comment' },
+      { key: 'r', description: 'Reply to comment (review + issue)' },
       { key: 'e', description: 'Edit own comment' },
       { key: 'D', description: 'Edit PR description (author only)' },
       { key: 'x', description: 'Resolve / unresolve thread' },
       { key: 'f', description: 'Toggle resolved comments' },
+      { key: 'g', description: 'Go to file in diff (inline comments)' },
     ],
   },
   {
