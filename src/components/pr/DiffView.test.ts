@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildDiffRows, getLanguageFromFilename, getDiffLineNumber } from './DiffView'
+import { buildDiffRows, getLanguageFromFilename, getDiffLineNumber, computeDiffSearchMatches } from './DiffView'
 import type { Hunk, DiffLine } from '../../models/diff'
 import { parseDiffPatch } from '../../models/diff'
 import type { DiffCommentThread } from './DiffComment'
@@ -355,5 +355,71 @@ describe('buildDiffRows', () => {
     expect(rows).toHaveLength(6)
     expect(rows[3]!.type === 'line').toBe(true)
     expect(rows[4]!.type).toBe('comment')
+  })
+})
+
+describe('computeDiffSearchMatches', () => {
+  it('returns empty array for empty query', () => {
+    const rows = buildDiffRows([makeHunk([makeLine('context', 'hello', 1, 1)])])
+    expect(computeDiffSearchMatches(rows, '')).toEqual([])
+  })
+
+  it('returns empty array when no rows match', () => {
+    const rows = buildDiffRows([makeHunk([makeLine('context', 'hello world', 1, 1)])])
+    expect(computeDiffSearchMatches(rows, 'xyz')).toEqual([])
+  })
+
+  it('matches case-insensitively', () => {
+    const rows = buildDiffRows([makeHunk([
+      makeLine('header', '@@ -1,1 +1,1 @@'),
+      makeLine('context', 'Hello World', 1, 1),
+    ])])
+    const matches = computeDiffSearchMatches(rows, 'hello')
+    expect(matches).toEqual([1])
+  })
+
+  it('skips header rows', () => {
+    const rows = buildDiffRows([makeHunk([
+      makeLine('header', '@@ contains search term @@'),
+      makeLine('context', 'no match here', 1, 1),
+    ])])
+    const matches = computeDiffSearchMatches(rows, 'contains')
+    expect(matches).toEqual([])
+  })
+
+  it('skips comment rows', () => {
+    const lines: DiffLine[] = [
+      makeLine('header', '@@'),
+      makeLine('context', 'code line', 1, 1),
+    ]
+    const commentsByLine = new Map<string, DiffCommentThread>()
+    commentsByLine.set('RIGHT:1', mockThread)
+    const rows = buildDiffRows([makeHunk(lines)], commentsByLine)
+    // rows: header, context, comment
+    const matches = computeDiffSearchMatches(rows, 'test comment')
+    expect(matches).toEqual([])
+  })
+
+  it('matches add, del, and context lines', () => {
+    const rows = buildDiffRows([makeHunk([
+      makeLine('header', '@@'),
+      makeLine('context', 'keep this function', 1, 1),
+      makeLine('del', 'remove old function', 2),
+      makeLine('add', 'add new function', undefined, 2),
+    ])])
+    const matches = computeDiffSearchMatches(rows, 'function')
+    // indices 1, 2, 3 (skip header at 0)
+    expect(matches).toEqual([1, 2, 3])
+  })
+
+  it('returns indices of only matching rows', () => {
+    const rows = buildDiffRows([makeHunk([
+      makeLine('header', '@@'),
+      makeLine('context', 'alpha', 1, 1),
+      makeLine('context', 'beta', 2, 2),
+      makeLine('context', 'alpha again', 3, 3),
+    ])])
+    const matches = computeDiffSearchMatches(rows, 'alpha')
+    expect(matches).toEqual([1, 3])
   })
 })

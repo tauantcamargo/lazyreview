@@ -32,8 +32,9 @@ describe('getContextHints', () => {
   it('returns files tab hints for pr-detail-files', () => {
     const hints = getContextHints('detail', 'pr-detail-files')
     expect(hints).toContain('h/l:tree/diff')
-    expect(hints).toContain('/:filter')
+    expect(hints).toContain('/:filter/search')
     expect(hints).toContain('c:comment')
+    expect(hints).toContain('n/N:next/prev-match')
     expect(hints).toContain('R:review')
   })
 

@@ -74,7 +74,8 @@ const shortcutGroups: readonly ShortcutGroup[] = [
     items: [
       { key: 'h / l', description: 'Focus tree / diff' },
       { key: 'Tab', description: 'Switch tree / diff panel' },
-      { key: '/', description: 'Filter files (tree panel)' },
+      { key: '/', description: 'Filter files (tree) / Search diff (diff)' },
+      { key: 'n / N', description: 'Next / previous search match (diff)' },
       { key: 'd', description: 'Toggle side-by-side diff' },
       { key: 'v', description: 'Visual line select (diff)' },
       { key: 'c', description: 'Inline comment (diff)' },

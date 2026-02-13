@@ -115,9 +115,38 @@ export function buildSideBySideRows(
   return rows
 }
 
+/**
+ * Compute indices of side-by-side rows whose content matches the given query.
+ * Only paired/header code lines are matched; comment rows are skipped.
+ */
+export function computeSbsSearchMatches(
+  rows: readonly SideBySideRow[],
+  query: string,
+): readonly number[] {
+  if (!query) return []
+  const lowerQuery = query.toLowerCase()
+  const matches: number[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    if (row.type === 'comment') continue
+    if (row.type === 'header') {
+      // skip headers
+      continue
+    }
+    // paired row: check left and right
+    const leftMatch = row.left && row.left.type !== 'header' && row.left.content.toLowerCase().includes(lowerQuery)
+    const rightMatch = row.right && row.right.type !== 'header' && row.right.content.toLowerCase().includes(lowerQuery)
+    if (leftMatch || rightMatch) {
+      matches.push(i)
+    }
+  }
+  return matches
+}
+
 interface SideBySideLineProps {
   readonly line: DiffLine | null
   readonly isFocus: boolean
+  readonly isSearchMatch?: boolean
   readonly language?: string
   readonly contentWidth?: number
   readonly scrollOffsetX?: number
@@ -126,6 +155,7 @@ interface SideBySideLineProps {
 function SideBySideLine({
   line,
   isFocus,
+  isSearchMatch = false,
   language,
   contentWidth = 40,
   scrollOffsetX = 0,
@@ -136,7 +166,11 @@ function SideBySideLine({
     return <Text color={theme.colors.muted}> </Text>
   }
 
-  const bgColor = isFocus ? theme.colors.selection : undefined
+  const bgColor = isFocus
+    ? theme.colors.selection
+    : isSearchMatch
+      ? theme.colors.warning
+      : undefined
 
   const textColor =
     line.type === 'add'
@@ -202,6 +236,7 @@ interface SideBySideDiffViewProps {
   readonly filename?: string
   readonly contentWidth?: number
   readonly scrollOffsetX?: number
+  readonly searchMatchIndices?: ReadonlySet<number>
 }
 
 export function SideBySideDiffView({
@@ -213,6 +248,7 @@ export function SideBySideDiffView({
   filename,
   contentWidth = 40,
   scrollOffsetX = 0,
+  searchMatchIndices,
 }: SideBySideDiffViewProps): React.ReactElement {
   const theme = useTheme()
   const language = filename ? getLanguageFromFilename(filename) : undefined
@@ -269,12 +305,14 @@ export function SideBySideDiffView({
           )
         }
 
+        const isMatch = searchMatchIndices?.has(absIndex) ?? false
         return (
           <Box key={`sbs-${absIndex}`} flexDirection="row" overflow="hidden">
             <Box flexGrow={1} flexBasis={0} minWidth={0} flexShrink={1} overflow="hidden">
               <SideBySideLine
                 line={row.left}
                 isFocus={isFocus}
+                isSearchMatch={isMatch}
                 language={language}
                 contentWidth={contentWidth}
                 scrollOffsetX={scrollOffsetX}
@@ -287,6 +325,7 @@ export function SideBySideDiffView({
               <SideBySideLine
                 line={row.right}
                 isFocus={isFocus}
+                isSearchMatch={isMatch}
                 language={language}
                 contentWidth={contentWidth}
                 scrollOffsetX={scrollOffsetX}

@@ -85,11 +85,34 @@ function getCommentKey(line: DiffLine): string | undefined {
   }
 }
 
+/**
+ * Compute indices of diff rows whose content matches the given query.
+ * Only code lines (add, del, context) are matched; header and comment rows are skipped.
+ */
+export function computeDiffSearchMatches(
+  rows: readonly DiffDisplayRow[],
+  query: string,
+): readonly number[] {
+  if (!query) return []
+  const lowerQuery = query.toLowerCase()
+  const matches: number[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    if (row.type === 'line' && row.line.type !== 'header') {
+      if (row.line.content.toLowerCase().includes(lowerQuery)) {
+        matches.push(i)
+      }
+    }
+  }
+  return matches
+}
+
 interface DiffLineViewProps {
   readonly line: DiffLine
   readonly lineNumber?: number
   readonly isFocus: boolean
   readonly isInSelection: boolean
+  readonly isSearchMatch?: boolean
   readonly language?: string
   readonly contentWidth?: number
   readonly scrollOffsetX?: number
@@ -100,6 +123,7 @@ function DiffLineView({
   lineNumber,
   isFocus,
   isInSelection,
+  isSearchMatch = false,
   language,
   contentWidth = 80,
   scrollOffsetX = 0,
@@ -110,7 +134,9 @@ function DiffLineView({
     ? theme.colors.selection
     : isInSelection
       ? theme.colors.listSelectedBg
-      : undefined
+      : isSearchMatch
+        ? theme.colors.warning
+        : undefined
 
   const textColor =
     line.type === 'add'
@@ -239,6 +265,7 @@ interface DiffViewProps {
   readonly visualStart?: number | null
   readonly contentWidth?: number
   readonly scrollOffsetX?: number
+  readonly searchMatchIndices?: ReadonlySet<number>
 }
 
 export function DiffView({
@@ -251,6 +278,7 @@ export function DiffView({
   visualStart,
   contentWidth = 80,
   scrollOffsetX = 0,
+  searchMatchIndices,
 }: DiffViewProps): React.ReactElement {
   const language = filename ? getLanguageFromFilename(filename) : undefined
   const theme = useTheme()
@@ -293,6 +321,7 @@ export function DiffView({
             lineNumber={row.lineNumber}
             isFocus={isActive && absIndex === selectedLine}
             isInSelection={isInSelection}
+            isSearchMatch={searchMatchIndices?.has(absIndex) ?? false}
             language={language}
             contentWidth={contentWidth}
             scrollOffsetX={scrollOffsetX}
