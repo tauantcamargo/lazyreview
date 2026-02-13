@@ -240,6 +240,7 @@ export function MergeModal({
               </Text>
               <Text
                 bold={index === selectedMethod}
+                inverse={index === selectedMethod && canMerge}
                 color={canMerge
                   ? (index === selectedMethod ? theme.colors.accent : theme.colors.text)
                   : theme.colors.muted}

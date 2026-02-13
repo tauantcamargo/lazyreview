@@ -55,7 +55,7 @@ function FacetSection({
     <Box flexDirection="column">
       <Box gap={1}>
         <Text color={isFocused ? accentColor : mutedColor} bold={isFocused}>
-          {title}
+          {isFocused ? '> ' : '  '}{title}
         </Text>
         {selectedValue && (
           <Text color={warningColor}>[{selectedValue}]</Text>
@@ -232,7 +232,7 @@ export function FilterModal({
               color={isSearchField ? theme.colors.accent : theme.colors.muted}
               bold={isSearchField}
             >
-              Search
+              {isSearchField ? '> ' : '  '}Search
             </Text>
           </Box>
           <Box paddingLeft={1}>

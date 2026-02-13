@@ -163,6 +163,7 @@ export function ReReviewModal({
                 <Text
                   color={isFocused ? theme.colors.text : theme.colors.secondary}
                   bold={isFocused}
+                  inverse={isFocused}
                 >
                   {reviewer.login}
                 </Text>
