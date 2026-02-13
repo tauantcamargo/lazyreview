@@ -1,6 +1,6 @@
 {
   "name": "lazyreview",
-  "version": "1.0.41",
+  "version": "1.0.42",
   "description": "A TUI code review tool for GitHub PRs",
   "type": "module",
   "author": "Tauan Camargo",
