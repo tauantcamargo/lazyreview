@@ -20,7 +20,8 @@ const EMPTY_COUNTS: SidebarCounts = {
   browse: null,
 }
 
-function extractCount(
+/** @internal Exported for testing */
+export function extractCount(
   queryClient: ReturnType<typeof useQueryClient>,
   keyPrefix: string,
 ): number | null {
@@ -39,7 +40,8 @@ function extractCount(
   return null
 }
 
-function extractThisRepoCount(
+/** @internal Exported for testing */
+export function extractThisRepoCount(
   queryClient: ReturnType<typeof useQueryClient>,
 ): number | null {
   const queries = queryClient.getQueriesData<readonly PullRequest[]>({
