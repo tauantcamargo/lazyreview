@@ -1,98 +1,34 @@
 import React, { useMemo, useRef, useState } from 'react'
-import { Box, Text, useInput, useStdout, measureElement } from 'ink'
+import { Box, Text, useStdout, measureElement } from 'ink'
 import type { DOMElement } from 'ink'
 import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { useViewedFiles } from '../../hooks/useViewedFiles'
+import { useDiffSearch } from '../../hooks/useDiffSearch'
+import { useVisualSelect } from '../../hooks/useVisualSelect'
+import { useFilesTabKeyboard } from '../../hooks/useFilesTabKeyboard'
 import type { FileChange } from '../../models/file-change'
 import { parseDiffPatch } from '../../models/diff'
 import type { Comment } from '../../models/comment'
 import type { ReviewThread } from '../../services/GitHubApiTypes'
+import { buildCommentsByLine } from './buildCommentsByLine'
 import { EmptyState } from '../common/EmptyState'
-import { DiffView, buildDiffRows, expandTabs, computeDiffSearchMatches } from './DiffView'
+import { DiffView, buildDiffRows } from './DiffView'
+import { computeMaxDiffLineLength, computeMaxSbsLineLength } from './diffScrollHelpers'
 import {
   SideBySideDiffView,
   buildSideBySideRows,
-  computeSbsSearchMatches,
   SIDE_BY_SIDE_MIN_WIDTH,
-  type SideBySideRow,
 } from './SideBySideDiffView'
-import type { DiffCommentThread } from './DiffComment'
-import type { DiffDisplayRow } from './DiffView'
 import {
   buildFileTree,
   flattenTreeToFiles,
   buildDisplayRows,
   FileItem,
 } from './FileTree'
-import type { DiffLine } from '../../models/diff'
 import type { InlineCommentContext } from '../../models/inline-comment'
-import { stripAnsi } from '../../utils/sanitize'
-
-/**
- * Resolve the focused DiffCommentThread from either unified or side-by-side rows.
- */
-function getFocusedCommentThread(
-  effectiveDiffMode: DiffMode,
-  diffSelectedLine: number,
-  allRows: readonly DiffDisplayRow[],
-  sideBySideRows: readonly SideBySideRow[],
-): DiffCommentThread | undefined {
-  if (effectiveDiffMode === 'side-by-side') {
-    const row = sideBySideRows[diffSelectedLine]
-    return row?.type === 'comment' ? row.thread : undefined
-  }
-  const row = allRows[diffSelectedLine]
-  return row?.type === 'comment' ? row.thread : undefined
-}
-
-interface FocusedLineInfo {
-  readonly line: DiffLine
-  readonly oldLineNumber: number | undefined
-  readonly newLineNumber: number | undefined
-}
-
-/**
- * Resolve the focused diff line from either unified or side-by-side rows.
- * For side-by-side paired rows, prefers the right (new) side, falls back to left.
- */
-function getFocusedLine(
-  effectiveDiffMode: DiffMode,
-  index: number,
-  allRows: readonly DiffDisplayRow[],
-  sideBySideRows: readonly SideBySideRow[],
-): FocusedLineInfo | undefined {
-  if (effectiveDiffMode === 'side-by-side') {
-    const row = sideBySideRows[index]
-    if (!row || row.type === 'comment') return undefined
-    if (row.type === 'header') {
-      if (row.left)
-        return {
-          line: row.left,
-          oldLineNumber: row.left.oldLineNumber,
-          newLineNumber: row.left.newLineNumber,
-        }
-      return undefined
-    }
-    // For paired rows: prefer right (add/context), fall back to left (del)
-    const activeLine = row.right ?? row.left
-    if (!activeLine) return undefined
-    return {
-      line: activeLine,
-      oldLineNumber: activeLine.oldLineNumber,
-      newLineNumber: activeLine.newLineNumber,
-    }
-  }
-  const row = allRows[index]
-  if (!row || row.type !== 'line') return undefined
-  return {
-    line: row.line,
-    oldLineNumber: row.oldLineNumber,
-    newLineNumber: row.newLineNumber,
-  }
-}
 
 export function fuzzyMatch(filename: string, query: string): boolean {
   const lower = filename.toLowerCase()
@@ -163,10 +99,10 @@ export function FilesTab({
 
   const [focusPanel, setFocusPanel] = useState<FocusPanel>('tree')
   const [selectedFileIndex, setSelectedFileIndex] = useState(0)
-  const [visualStart, setVisualStart] = useState<number | null>(null)
   const [diffMode, setDiffMode] = useState<DiffMode>('unified')
+  const visual = useVisualSelect()
 
-  // Measure actual container width (accounts for sidebar, borders, padding)
+  // Measure actual container width
   const containerRef = useRef<DOMElement>(null)
   const [measuredWidth, setMeasuredWidth] = useState(0)
   React.useEffect(() => {
@@ -183,20 +119,12 @@ export function FilesTab({
     diffMode === 'side-by-side' && containerWidth < SIDE_BY_SIDE_MIN_WIDTH
       ? 'unified'
       : diffMode
+
   const [isFiltering, setIsFiltering] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('')
   const [diffScrollOffsetX, setDiffScrollOffsetX] = useState(0)
 
-  // Diff search state
-  const [isDiffSearching, setIsDiffSearching] = useState(false)
-  const [diffSearchQuery, setDiffSearchQuery] = useState('')
-  const [activeDiffSearch, setActiveDiffSearch] = useState('')
-  const [currentSearchMatchIndex, setCurrentSearchMatchIndex] = useState(0)
-
-  // Yoga 3.x uses border-box: width="30%" includes border
-  // Remaining = containerWidth - treePanelTotal
-  // diffContent = remaining - 2 (diff border) - 5 (linenum) - 1 (prefix) = remaining - 8
   const treePanelWidth = Math.max(32, Math.floor(containerWidth * 0.3))
   const diffContentWidth = Math.max(10, containerWidth - treePanelWidth - 8)
 
@@ -250,83 +178,13 @@ export function FilesTab({
     }
   }, [treeSelectedIndex, focusPanel])
 
-  React.useEffect(() => {
-    setDiffScrollOffsetX(0)
-    // Clear search when switching files
-    setIsDiffSearching(false)
-    setDiffSearchQuery('')
-    setActiveDiffSearch('')
-    setCurrentSearchMatchIndex(0)
-  }, [selectedFileIndex])
-
-  // Auto-mark file as viewed when selected
-  React.useEffect(() => {
-    const file = fileOrder[selectedFileIndex]
-    if (file && prUrl) {
-      markViewed(prUrl, file.filename)
-    }
-  }, [selectedFileIndex, fileOrder, prUrl, markViewed])
-
-  // Auto-select initial file (e.g., from go-to-file in conversations)
-  React.useEffect(() => {
-    if (!initialFile) return
-    const targetIndex = fileOrder.findIndex((f) => f.filename === initialFile)
-    if (targetIndex >= 0) {
-      setSelectedFileIndex(targetIndex)
-      setFocusPanel('diff')
-    }
-    onInitialFileConsumed?.()
-  }, [initialFile, fileOrder, onInitialFileConsumed])
-
   const selectedFile = fileOrder[selectedFileIndex] ?? fileOrder[0] ?? null
   const hunks = selectedFile?.patch ? parseDiffPatch(selectedFile.patch) : []
 
-  const commentsByLine = useMemo(():
-    | ReadonlyMap<string, DiffCommentThread>
-    | undefined => {
-    if (!comments || comments.length === 0 || !selectedFile) return undefined
-    const fileComments = comments.filter(
-      (c) =>
-        c.path === selectedFile.filename &&
-        c.line != null &&
-        c.in_reply_to_id == null,
-    )
-    if (fileComments.length === 0) return undefined
-    const threadMap = new Map<
-      number,
-      { id: string; isResolved: boolean } | undefined
-    >()
-    if (reviewThreads) {
-      for (const thread of reviewThreads) {
-        for (const tc of thread.comments)
-          threadMap.set(tc.databaseId, {
-            id: thread.id,
-            isResolved: thread.isResolved,
-          })
-      }
-    }
-    const replyMap = new Map<number, Comment[]>()
-    for (const c of comments) {
-      if (c.path === selectedFile.filename && c.in_reply_to_id != null) {
-        replyMap.set(c.in_reply_to_id, [
-          ...(replyMap.get(c.in_reply_to_id) ?? []),
-          c,
-        ])
-      }
-    }
-    const result = new Map<string, DiffCommentThread>()
-    for (const rc of fileComments) {
-      const threadInfo = threadMap.get(rc.id)
-      const side = rc.side === 'LEFT' ? 'LEFT' : 'RIGHT'
-      const key = `${side}:${rc.line!}`
-      result.set(key, {
-        comments: [rc, ...(replyMap.get(rc.id) ?? [])],
-        threadId: threadInfo?.id,
-        isResolved: threadInfo?.isResolved,
-      })
-    }
-    return result
-  }, [comments, reviewThreads, selectedFile])
+  const commentsByLine = useMemo(
+    () => buildCommentsByLine(comments, reviewThreads, selectedFile?.filename),
+    [comments, reviewThreads, selectedFile],
+  )
 
   const allRows = useMemo(
     () => buildDiffRows(hunks, commentsByLine),
@@ -344,39 +202,46 @@ export function FilesTab({
       ? sideBySideRows.length
       : allRows.length
 
-  const maxDiffLineLength = useMemo(() => {
-    let max = 0
-    for (const row of allRows) {
-      if (row.type === 'line') {
-        const len = expandTabs(stripAnsi(row.line.content)).length
-        if (len > max) max = len
-      }
+  const search = useDiffSearch(effectiveDiffMode, allRows, sideBySideRows)
+
+  // Reset search when file changes
+  React.useEffect(() => {
+    setDiffScrollOffsetX(0)
+    search.resetOnFileChange()
+  }, [selectedFileIndex]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-mark file as viewed when selected
+  React.useEffect(() => {
+    const file = fileOrder[selectedFileIndex]
+    if (file && prUrl) {
+      markViewed(prUrl, file.filename)
     }
-    return max
-  }, [allRows])
+  }, [selectedFileIndex, fileOrder, prUrl, markViewed])
+
+  // Auto-select initial file
+  React.useEffect(() => {
+    if (!initialFile) return
+    const targetIndex = fileOrder.findIndex((f) => f.filename === initialFile)
+    if (targetIndex >= 0) {
+      setSelectedFileIndex(targetIndex)
+      setFocusPanel('diff')
+    }
+    onInitialFileConsumed?.()
+  }, [initialFile, fileOrder, onInitialFileConsumed])
+
+  const maxDiffLineLength = useMemo(
+    () => computeMaxDiffLineLength(allRows),
+    [allRows],
+  )
 
   const diffContentWidthSbs = Math.max(
     10,
     Math.floor((diffContentWidth - 1) / 2),
   )
-  const maxDiffLineLengthSbs = useMemo(() => {
-    let max = 0
-    for (const row of sideBySideRows) {
-      if (row.type === 'paired' || row.type === 'header') {
-        const left = row.type === 'header' ? row.left : row.left
-        const right = row.type === 'paired' ? row.right : null
-        if (left?.content) {
-          const len = expandTabs(stripAnsi(left.content)).length
-          if (len > max) max = len
-        }
-        if (right?.content) {
-          const len = expandTabs(stripAnsi(right.content)).length
-          if (len > max) max = len
-        }
-      }
-    }
-    return max
-  }, [sideBySideRows])
+  const maxDiffLineLengthSbs = useMemo(
+    () => computeMaxSbsLineLength(sideBySideRows),
+    [sideBySideRows],
+  )
 
   const maxDiffScrollXUnified = Math.max(0, maxDiffLineLength - diffContentWidth)
   const maxDiffScrollXSbs = Math.max(
@@ -388,284 +253,45 @@ export function FilesTab({
       ? maxDiffScrollXSbs
       : maxDiffScrollXUnified
 
-  // Compute diff search match indices
-  const diffSearchMatches = useMemo(() => {
-    if (!activeDiffSearch) return []
-    if (effectiveDiffMode === 'side-by-side') {
-      return computeSbsSearchMatches(sideBySideRows, activeDiffSearch)
-    }
-    return computeDiffSearchMatches(allRows, activeDiffSearch)
-  }, [activeDiffSearch, effectiveDiffMode, allRows, sideBySideRows])
-
-  const diffSearchMatchSet = useMemo(
-    () => new Set(diffSearchMatches),
-    [diffSearchMatches],
-  )
-
   const { selectedIndex: diffSelectedLine, scrollOffset: diffScrollOffset, setSelectedIndex: setDiffSelectedLine } =
     useListNavigation({
       itemCount: totalDiffLines,
       viewportHeight,
-      isActive: isActive && focusPanel === 'diff' && !isDiffSearching,
+      isActive: isActive && focusPanel === 'diff' && !search.isDiffSearching,
     })
 
-  useInput(
-    (input, key) => {
-      if (isFiltering) {
-        if (key.escape) {
-          setIsFiltering(false)
-          setFilterQuery('')
-          setActiveFilter('')
-          setInputActive(false)
-        } else if (key.return) {
-          setIsFiltering(false)
-          setActiveFilter(filterQuery)
-          setInputActive(false)
-        }
-        return
-      }
-
-      // Diff search input mode
-      if (isDiffSearching) {
-        if (key.escape) {
-          setIsDiffSearching(false)
-          setDiffSearchQuery('')
-          setActiveDiffSearch('')
-          setCurrentSearchMatchIndex(0)
-          setInputActive(false)
-        } else if (key.return) {
-          setIsDiffSearching(false)
-          setActiveDiffSearch(diffSearchQuery)
-          setInputActive(false)
-          // Jump to first match
-          if (diffSearchQuery) {
-            const matches = effectiveDiffMode === 'side-by-side'
-              ? computeSbsSearchMatches(sideBySideRows, diffSearchQuery)
-              : computeDiffSearchMatches(allRows, diffSearchQuery)
-            if (matches.length > 0) {
-              setCurrentSearchMatchIndex(0)
-              setDiffSelectedLine(matches[0])
-            }
-          }
-        }
-        return
-      }
-
-      // n/N for search navigation when search is active
-      if (input === 'n' && focusPanel === 'diff' && activeDiffSearch && diffSearchMatches.length > 0) {
-        const nextIndex = (currentSearchMatchIndex + 1) % diffSearchMatches.length
-        setCurrentSearchMatchIndex(nextIndex)
-        setDiffSelectedLine(diffSearchMatches[nextIndex])
-        return
-      }
-      if (input === 'N' && focusPanel === 'diff' && activeDiffSearch && diffSearchMatches.length > 0) {
-        const prevIndex = (currentSearchMatchIndex - 1 + diffSearchMatches.length) % diffSearchMatches.length
-        setCurrentSearchMatchIndex(prevIndex)
-        setDiffSelectedLine(diffSearchMatches[prevIndex])
-        return
-      }
-
-      if (key.escape && activeDiffSearch) {
-        setActiveDiffSearch('')
-        setDiffSearchQuery('')
-        setCurrentSearchMatchIndex(0)
-        return
-      }
-
-      if (key.escape && visualStart != null) {
-        setVisualStart(null)
-        return
-      }
-
-      if (key.escape && activeFilter) {
-        setActiveFilter('')
-        setFilterQuery('')
-        return
-      }
-
-      if (input === '/' && focusPanel === 'tree') {
-        setIsFiltering(true)
-        setFilterQuery(activeFilter)
-        setInputActive(true)
-        return
-      }
-
-      if (input === '/' && focusPanel === 'diff') {
-        setIsDiffSearching(true)
-        setDiffSearchQuery(activeDiffSearch)
-        setInputActive(true)
-        return
-      }
-
-      if (key.tab) {
-        setVisualStart(null)
-        setFocusPanel((prev) => (prev === 'tree' ? 'diff' : 'tree'))
-      } else       if (focusPanel === 'diff' && (key.leftArrow || key.rightArrow)) {
-        const step = key.shift ? 16 : 4
-        setDiffScrollOffsetX((prev) =>
-          Math.max(
-            0,
-            Math.min(
-              maxDiffScrollX,
-              prev + (key.leftArrow ? -step : step),
-            ),
-          ),
-        )
-        return
-      }
-
-      if (input === 'h' || key.leftArrow) {
-        setVisualStart(null)
-        setFocusPanel('tree')
-      } else if (input === 'l' || key.rightArrow) {
-        setFocusPanel('diff')
-      } else if (input === 'd' && focusPanel === 'diff') {
-        setDiffMode((prev) => (prev === 'unified' ? 'side-by-side' : 'unified'))
-        setVisualStart(null)
-      } else if (input === 'v' && focusPanel === 'tree' && prUrl) {
-        const file = fileOrder[treeSelectedIndex]
-        if (file) {
-          toggleViewed(prUrl, file.filename)
-        }
-      } else if (input === 'v' && focusPanel === 'diff') {
-        if (visualStart != null) {
-          setVisualStart(null)
-        } else {
-          setVisualStart(diffSelectedLine)
-        }
-      } else if (input === 'r' && focusPanel === 'diff' && onReply) {
-        const thread = getFocusedCommentThread(
-          effectiveDiffMode,
-          diffSelectedLine,
-          allRows,
-          sideBySideRows,
-        )
-        if (thread) {
-          const lastComment = thread.comments[thread.comments.length - 1]
-          if (lastComment) {
-            onReply({
-              commentId: lastComment.id,
-              user: lastComment.user.login,
-              body: lastComment.body,
-            })
-          }
-        }
-      } else if (input === 'x' && focusPanel === 'diff' && onToggleResolve) {
-        const thread = getFocusedCommentThread(
-          effectiveDiffMode,
-          diffSelectedLine,
-          allRows,
-          sideBySideRows,
-        )
-        if (thread?.threadId) {
-          onToggleResolve({
-            threadId: thread.threadId,
-            isResolved: thread.isResolved ?? false,
-          })
-        }
-      } else if (
-        input === 'e' &&
-        focusPanel === 'diff' &&
-        onEditComment &&
-        currentUser
-      ) {
-        const thread = getFocusedCommentThread(
-          effectiveDiffMode,
-          diffSelectedLine,
-          allRows,
-          sideBySideRows,
-        )
-        if (thread) {
-          const ownComment = thread.comments.find(
-            (c) => c.user.login === currentUser,
-          )
-          if (ownComment) {
-            onEditComment({
-              commentId: ownComment.id,
-              body: ownComment.body,
-              isReviewComment: true,
-            })
-          }
-        }
-      } else if (
-        input === 'c' &&
-        focusPanel === 'diff' &&
-        onInlineComment &&
-        selectedFile
-      ) {
-        if (visualStart != null) {
-          const selMin = Math.min(visualStart, diffSelectedLine)
-          const selMax = Math.max(visualStart, diffSelectedLine)
-          const startInfo = getFocusedLine(
-            effectiveDiffMode,
-            selMin,
-            allRows,
-            sideBySideRows,
-          )
-          const endInfo = getFocusedLine(
-            effectiveDiffMode,
-            selMax,
-            allRows,
-            sideBySideRows,
-          )
-          if (
-            startInfo &&
-            endInfo &&
-            startInfo.line.type !== 'header' &&
-            endInfo.line.type !== 'header'
-          ) {
-            const endSide =
-              endInfo.line.type === 'del'
-                ? ('LEFT' as const)
-                : ('RIGHT' as const)
-            const startSide =
-              startInfo.line.type === 'del'
-                ? ('LEFT' as const)
-                : ('RIGHT' as const)
-            const endLine =
-              endSide === 'LEFT' ? endInfo.oldLineNumber : endInfo.newLineNumber
-            const startLine =
-              startSide === 'LEFT'
-                ? startInfo.oldLineNumber
-                : startInfo.newLineNumber
-            if (endLine != null && startLine != null) {
-              onInlineComment({
-                path: selectedFile.filename,
-                line: endLine,
-                side: endSide,
-                startLine,
-                startSide,
-              })
-              setVisualStart(null)
-            }
-          }
-        } else {
-          const lineInfo = getFocusedLine(
-            effectiveDiffMode,
-            diffSelectedLine,
-            allRows,
-            sideBySideRows,
-          )
-          if (lineInfo && lineInfo.line.type !== 'header') {
-            const side =
-              lineInfo.line.type === 'del'
-                ? ('LEFT' as const)
-                : ('RIGHT' as const)
-            const line =
-              side === 'LEFT' ? lineInfo.oldLineNumber : lineInfo.newLineNumber
-            if (line != null) {
-              onInlineComment({
-                path: selectedFile.filename,
-                line,
-                side,
-              })
-            }
-          }
-        }
-      }
-    },
-    { isActive },
-  )
+  useFilesTabKeyboard({
+    isActive,
+    focusPanel,
+    setFocusPanel,
+    effectiveDiffMode,
+    setDiffMode,
+    isFiltering,
+    setIsFiltering,
+    filterQuery,
+    setFilterQuery,
+    activeFilter,
+    setActiveFilter,
+    setInputActive,
+    search,
+    visual,
+    diffSelectedLine,
+    setDiffSelectedLine,
+    maxDiffScrollX,
+    setDiffScrollOffsetX,
+    allRows,
+    sideBySideRows,
+    fileOrder,
+    treeSelectedIndex,
+    prUrl,
+    toggleViewed,
+    selectedFile,
+    onReply,
+    onToggleResolve,
+    onEditComment,
+    onInlineComment,
+    currentUser,
+  })
 
   if (files.length === 0) {
     return <EmptyState message="No files changed" />
@@ -793,27 +419,27 @@ export function FilesTab({
             <Text color={theme.colors.info}>[split]</Text>
           )}
           {maxDiffScrollX > 0 && (
-            <Text color={theme.colors.muted}>[←/→ h-scroll]</Text>
+            <Text color={theme.colors.muted}>[left/right h-scroll]</Text>
           )}
-          {visualStart != null && focusPanel === 'diff' && (
+          {visual.visualStart != null && focusPanel === 'diff' && (
             <Text color={theme.colors.warning} bold>
               -- VISUAL LINE --
             </Text>
           )}
-          {activeDiffSearch && !isDiffSearching && (
+          {search.activeDiffSearch && !search.isDiffSearching && (
             <Text color={theme.colors.warning}>
-              [/{activeDiffSearch}] {diffSearchMatches.length > 0
-                ? `${currentSearchMatchIndex + 1}/${diffSearchMatches.length}`
+              [/{search.activeDiffSearch}] {search.diffSearchMatches.length > 0
+                ? `${search.currentSearchMatchIndex + 1}/${search.diffSearchMatches.length}`
                 : 'no matches'}
             </Text>
           )}
         </Box>
-        {isDiffSearching && (
+        {search.isDiffSearching && (
           <Box paddingX={1}>
             <Text color={theme.colors.accent}>/</Text>
             <TextInput
-              defaultValue={diffSearchQuery}
-              onChange={setDiffSearchQuery}
+              defaultValue={search.diffSearchQuery}
+              onChange={search.setDiffSearchQuery}
               placeholder="search diff..."
             />
           </Box>
@@ -824,25 +450,25 @@ export function FilesTab({
               rows={sideBySideRows}
               selectedLine={diffSelectedLine}
               scrollOffset={diffScrollOffset}
-              viewportHeight={viewportHeight - 2 - (isDiffSearching ? 1 : 0)}
+              viewportHeight={viewportHeight - 2 - (search.isDiffSearching ? 1 : 0)}
               isActive={isActive && focusPanel === 'diff'}
               filename={selectedFile?.filename}
               contentWidth={diffContentWidthSbs}
               scrollOffsetX={Math.min(diffScrollOffsetX, maxDiffScrollXSbs)}
-              searchMatchIndices={diffSearchMatchSet.size > 0 ? diffSearchMatchSet : undefined}
+              searchMatchIndices={search.diffSearchMatchSet.size > 0 ? search.diffSearchMatchSet : undefined}
             />
           ) : (
             <DiffView
               allRows={allRows}
               selectedLine={diffSelectedLine}
               scrollOffset={diffScrollOffset}
-              viewportHeight={viewportHeight - 2 - (isDiffSearching ? 1 : 0)}
+              viewportHeight={viewportHeight - 2 - (search.isDiffSearching ? 1 : 0)}
               isActive={isActive && focusPanel === 'diff'}
               filename={selectedFile?.filename}
-              visualStart={focusPanel === 'diff' ? visualStart : null}
+              visualStart={focusPanel === 'diff' ? visual.visualStart : null}
               contentWidth={diffContentWidth}
               scrollOffsetX={Math.min(diffScrollOffsetX, maxDiffScrollXUnified)}
-              searchMatchIndices={diffSearchMatchSet.size > 0 ? diffSearchMatchSet : undefined}
+              searchMatchIndices={search.diffSearchMatchSet.size > 0 ? search.diffSearchMatchSet : undefined}
             />
           )}
         </Box>
