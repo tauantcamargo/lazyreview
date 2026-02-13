@@ -176,19 +176,19 @@ function DiffLineView({
       </Box>
       {canHighlight ? (
         <Box flexDirection="row" flexShrink={0} overflow="hidden">
-          <Text color={textColor}>{prefix}</Text>
+          <Text color={textColor} bold={line.type === 'add'}>{prefix}</Text>
           <Box width={contentWidth} overflow="hidden" flexShrink={0}>
             <SyntaxHighlight code={visibleContent} language={language} />
           </Box>
         </Box>
       ) : (
         <Box flexDirection="row" flexShrink={0} overflow="hidden">
-          <Text color={textColor}>{prefix}</Text>
+          <Text color={textColor} bold={line.type === 'add'}>{prefix}</Text>
           <Box width={contentWidth} overflow="hidden" flexShrink={0}>
             <Text
               wrap="truncate-end"
               color={textColor}
-              bold={isFocus}
+              bold={isFocus || line.type === 'add'}
               inverse={isFocus}
             >
               {visibleContent}

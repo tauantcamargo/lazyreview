@@ -208,16 +208,16 @@ function SideBySideLine({
       </Box>
       {canHighlight ? (
         <Box flexDirection="row" flexShrink={0} overflow="hidden">
-          <Text color={textColor}>{prefix}</Text>
+          <Text color={textColor} bold={line.type === 'add'}>{prefix}</Text>
           <Box width={contentWidth} overflow="hidden" flexShrink={0}>
             <SyntaxHighlight code={visibleContent} language={language} />
           </Box>
         </Box>
       ) : (
         <Box flexDirection="row" flexShrink={0} overflow="hidden">
-          <Text color={textColor}>{prefix}</Text>
+          <Text color={textColor} bold={line.type === 'add'}>{prefix}</Text>
           <Box width={contentWidth} overflow="hidden" flexShrink={0}>
-            <Text color={textColor} wrap="truncate-end">
+            <Text color={textColor} wrap="truncate-end" bold={line.type === 'add'}>
               {visibleContent}
             </Text>
           </Box>

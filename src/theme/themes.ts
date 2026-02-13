@@ -100,11 +100,37 @@ const gruvbox: Theme = {
   },
 }
 
+const highContrast: Theme = {
+  name: 'high-contrast',
+  colors: {
+    bg: '#000000',
+    text: '#ffffff',
+    accent: '#00ffff',
+    muted: '#bbbbbb',
+    border: '#ffffff',
+    primary: '#00ffff',
+    secondary: '#ff00ff',
+
+    success: '#00ff00',
+    error: '#ff0000',
+    warning: '#ffff00',
+    info: '#5555ff',
+
+    diffAdd: '#00ff00',
+    diffDel: '#ff0000',
+
+    selection: '#333333',
+    listSelectedFg: '#ffffff',
+    listSelectedBg: '#333333',
+  },
+}
+
 export const themes: Record<ThemeName, Theme> = {
   'tokyo-night': tokyoNight,
   dracula,
   'catppuccin-mocha': catppuccinMocha,
   gruvbox,
+  'high-contrast': highContrast,
 }
 
 export const defaultTheme: Theme = tokyoNight

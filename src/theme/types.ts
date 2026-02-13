@@ -25,4 +25,4 @@ export interface ThemeColors {
   readonly listSelectedBg: string
 }
 
-export type ThemeName = 'tokyo-night' | 'dracula' | 'catppuccin-mocha' | 'gruvbox'
+export type ThemeName = 'tokyo-night' | 'dracula' | 'catppuccin-mocha' | 'gruvbox' | 'high-contrast'
