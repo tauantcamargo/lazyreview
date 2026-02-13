@@ -353,7 +353,9 @@ export function PRDetailScreen({
           onGoToFile={handleGoToFile}
         />
       )),
-      Match.when(2, () => <CommitsTab commits={commits} isActive={!modals.hasModal} />),
+      Match.when(2, () => (
+        <CommitsTab commits={commits} isActive={!modals.hasModal} owner={owner} repo={repo} />
+      )),
       Match.when(3, () => (
         <FilesTab
           files={files}

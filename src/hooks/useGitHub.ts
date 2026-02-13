@@ -277,6 +277,27 @@ export function useCheckRuns(
   })
 }
 
+export function useCommitDiff(
+  owner: string,
+  repo: string,
+  sha: string,
+  options?: { readonly enabled?: boolean },
+) {
+  const enabledFlag = options?.enabled ?? true
+
+  return useQuery({
+    queryKey: ['commit-diff', owner, repo, sha],
+    queryFn: () =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* CodeReviewApi
+          return yield* api.getCommitDiff(owner, repo, sha)
+        }),
+      ),
+    enabled: enabledFlag && !!owner && !!repo && !!sha,
+  })
+}
+
 export function useCurrentUser() {
   return useQuery({
     queryKey: ['current-user'],

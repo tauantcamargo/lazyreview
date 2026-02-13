@@ -97,7 +97,9 @@ const shortcutGroups: readonly ShortcutGroup[] = [
   {
     title: 'Commits Tab',
     items: [
+      { key: 'Enter', description: 'View commit diff' },
       { key: 'y', description: 'Copy commit SHA' },
+      { key: 'q / Esc', description: 'Back to commit list (in diff view)' },
     ],
   },
   {

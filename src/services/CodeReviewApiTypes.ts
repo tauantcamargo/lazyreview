@@ -232,6 +232,12 @@ export interface CodeReviewApiService {
     title: string,
   ) => Effect.Effect<void, ApiError>
 
+  readonly getCommitDiff: (
+    owner: string,
+    repo: string,
+    sha: string,
+  ) => Effect.Effect<readonly FileChange[], ApiError>
+
   readonly convertToDraft: (
     nodeId: string,
   ) => Effect.Effect<void, ApiError>

@@ -1,17 +1,21 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
+import { useCommitDiff } from '../../hooks/useGitHub'
 import { copyToClipboard } from '../../utils/terminal'
 import { useStatusMessage } from '../../hooks/useStatusMessage'
 import type { Commit } from '../../models/commit'
 import { timeAgo } from '../../utils/date'
 import { EmptyState } from '../common/EmptyState'
 import { stripAnsi } from '../../utils/sanitize'
+import { CommitDiffView } from './CommitDiffView'
 
 interface CommitsTabProps {
   readonly commits: readonly Commit[]
   readonly isActive: boolean
+  readonly owner: string
+  readonly repo: string
 }
 
 function CommitItem({
@@ -62,21 +66,33 @@ function CommitItem({
 export function CommitsTab({
   commits,
   isActive,
+  owner,
+  repo,
 }: CommitsTabProps): React.ReactElement {
   const { stdout } = useStdout()
   const theme = useTheme()
   const { setStatusMessage } = useStatusMessage()
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 10)
+  const [selectedCommitSha, setSelectedCommitSha] = useState<string | null>(null)
 
   const { selectedIndex } = useListNavigation({
     itemCount: commits.length,
     viewportHeight,
-    isActive,
+    isActive: isActive && selectedCommitSha === null,
   })
 
+  const { data: commitFiles = [], isLoading: commitDiffLoading } = useCommitDiff(
+    owner,
+    repo,
+    selectedCommitSha ?? '',
+    { enabled: selectedCommitSha !== null },
+  )
+
   useInput(
-    (input) => {
-      if (input === 'y' && commits[selectedIndex]) {
+    (input, key) => {
+      if (key.return && commits[selectedIndex]) {
+        setSelectedCommitSha(commits[selectedIndex].sha)
+      } else if (input === 'y' && commits[selectedIndex]) {
         const sha = commits[selectedIndex].sha
         if (copyToClipboard(sha)) {
           setStatusMessage(`Copied SHA ${sha.slice(0, 7)} to clipboard`)
@@ -85,7 +101,7 @@ export function CommitsTab({
         }
       }
     },
-    { isActive },
+    { isActive: isActive && selectedCommitSha === null },
   )
 
   const scrollOffset = deriveScrollOffset(selectedIndex, viewportHeight, commits.length)
@@ -93,6 +109,21 @@ export function CommitsTab({
 
   if (commits.length === 0) {
     return <EmptyState message="No commits found" />
+  }
+
+  // Show commit diff view when a commit is selected
+  if (selectedCommitSha !== null) {
+    const commit = commits.find((c) => c.sha === selectedCommitSha)
+    return (
+      <CommitDiffView
+        files={commitFiles}
+        commitSha={selectedCommitSha}
+        commitMessage={commit?.commit.message ?? ''}
+        isActive={isActive}
+        isLoading={commitDiffLoading}
+        onBack={() => setSelectedCommitSha(null)}
+      />
+    )
   }
 
   return (

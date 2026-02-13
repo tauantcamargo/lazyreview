@@ -534,6 +534,23 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
+      getCommitDiff: (owner, repo, sha) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateRef(sha)
+          const token = yield* auth.getToken()
+          const CommitDetailSchema = S.Struct({
+            files: S.optionalWith(S.Array(FileChange), { default: () => [] }),
+          })
+          const result = yield* fetchGitHub(
+            `/repos/${owner}/${repo}/commits/${sha}`,
+            token,
+            CommitDetailSchema,
+          )
+          return result.files
+        }),
+
       convertToDraft: (nodeId) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
