@@ -29,7 +29,7 @@ const SCREEN_CONTEXT_HINTS: Record<ScreenContext, string> = {
   'pr-detail-files': 'j/k:nav  ←/→:h-scroll  h/l:tree/diff  /:filter/search  d:split  v:select/viewed  c:comment  r:reply  x:resolve  n/N:next/prev-match  R:review  S:batch  G:checkout  [/]:pr',
   'pr-detail-conversations': 'j/k:nav  c:comment  r:reply  e:edit  D:edit-desc  x:resolve  f:resolved  R:review  S:batch  E:re-review  G:checkout  [/]:pr',
   'pr-detail-commits': 'j/k:nav  y:copy-sha  R:review  S:batch  E:re-review  m:merge  G:checkout  [/]:pr',
-  'pr-detail-checks': 'j/k:nav  [/]:pr',
+  'pr-detail-checks': 'j/k:nav  o:open  y:copy  [/]:pr',
   'settings': 'j/k:nav  Enter:edit/toggle  Esc:cancel',
   'browse-picker': 'Enter:search  j/k:recent  x:remove  Esc:back',
   'browse-list': 'j/k:nav  Enter:open  Esc:picker  /:filter  s:sort  R:refresh',

@@ -20,6 +20,7 @@ export class CheckRun extends S.Class<CheckRun>('CheckRun')({
     { default: () => null },
   ),
   html_url: S.optionalWith(S.NullOr(S.String), { default: () => null }),
+  details_url: S.optionalWith(S.NullOr(S.String), { default: () => null }),
 }) {}
 
 export class CheckRunsResponse extends S.Class<CheckRunsResponse>('CheckRunsResponse')({

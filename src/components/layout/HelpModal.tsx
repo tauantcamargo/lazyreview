@@ -85,6 +85,13 @@ const shortcutGroups: readonly ShortcutGroup[] = [
     ],
   },
   {
+    title: 'Checks Tab',
+    items: [
+      { key: 'o', description: 'Open check run in browser' },
+      { key: 'y', description: 'Copy check run URL' },
+    ],
+  },
+  {
     title: 'Commits Tab',
     items: [
       { key: 'y', description: 'Copy commit SHA' },

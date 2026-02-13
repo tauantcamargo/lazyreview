@@ -1,11 +1,13 @@
 import React from 'react'
-import { Box, Text, useStdout } from 'ink'
+import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useCheckRuns } from '../../hooks/useGitHub'
 import { summarizeChecks, type CheckRun } from '../../models/check'
 import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
 import { LoadingIndicator } from '../common/LoadingIndicator'
 import { EmptyState } from '../common/EmptyState'
+import { openInBrowser, copyToClipboard } from '../../utils/terminal'
+import { useStatusMessage } from '../../hooks/useStatusMessage'
 
 interface ChecksTabProps {
   readonly owner: string
@@ -60,6 +62,14 @@ function CheckRunRow({
   )
 }
 
+/**
+ * Get the best available URL for a check run.
+ * Prefers details_url if available, falls back to html_url.
+ */
+export function getCheckRunUrl(run: CheckRun): string | null {
+  return run.details_url ?? run.html_url ?? null
+}
+
 export function ChecksTab({
   owner,
   repo,
@@ -68,6 +78,7 @@ export function ChecksTab({
 }: ChecksTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
+  const { setStatusMessage } = useStatusMessage()
   const { data, isLoading } = useCheckRuns(owner, repo, sha)
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 16)
 
@@ -78,6 +89,29 @@ export function ChecksTab({
     viewportHeight,
     isActive,
   })
+
+  useInput(
+    (input) => {
+      const selectedRun = checkRuns[selectedIndex]
+      if (!selectedRun) return
+      const url = getCheckRunUrl(selectedRun)
+
+      if (input === 'o' && url) {
+        if (openInBrowser(url)) {
+          setStatusMessage('Opened check in browser')
+        } else {
+          setStatusMessage('Failed to open URL')
+        }
+      } else if (input === 'y' && url) {
+        if (copyToClipboard(url)) {
+          setStatusMessage('Copied check URL to clipboard')
+        } else {
+          setStatusMessage('Failed to copy to clipboard')
+        }
+      }
+    },
+    { isActive },
+  )
 
   const scrollOffset = deriveScrollOffset(selectedIndex, viewportHeight, checkRuns.length)
   const visibleRuns = checkRuns.slice(scrollOffset, scrollOffset + viewportHeight)

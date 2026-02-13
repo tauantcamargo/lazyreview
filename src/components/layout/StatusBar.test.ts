@@ -47,6 +47,13 @@ describe('getContextHints', () => {
     expect(hints).toContain('e:edit')
   })
 
+  it('returns checks tab hints for pr-detail-checks', () => {
+    const hints = getContextHints('detail', 'pr-detail-checks')
+    expect(hints).toContain('j/k:nav')
+    expect(hints).toContain('o:open')
+    expect(hints).toContain('y:copy')
+  })
+
   it('returns commits tab hints for pr-detail-commits', () => {
     const hints = getContextHints('detail', 'pr-detail-commits')
     expect(hints).toContain('j/k:nav')

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { Schema as S } from 'effect'
 import { CheckRun, CheckRunsResponse, summarizeChecks } from './check'
+import { getCheckRunUrl } from '../components/pr/ChecksTab'
 
 describe('CheckRun schema', () => {
   const decode = S.decodeUnknownSync(CheckRun)
@@ -14,6 +15,32 @@ describe('CheckRun schema', () => {
     })
     expect(result.name).toBe('build')
     expect(result.conclusion).toBe('success')
+    expect(result.details_url).toBeNull()
+  })
+
+  it('decodes check run with html_url and details_url', () => {
+    const result = decode({
+      id: 1,
+      name: 'build',
+      status: 'completed',
+      conclusion: 'success',
+      html_url: 'https://github.com/checks/1',
+      details_url: 'https://ci.example.com/build/1',
+    })
+    expect(result.html_url).toBe('https://github.com/checks/1')
+    expect(result.details_url).toBe('https://ci.example.com/build/1')
+  })
+
+  it('decodes check run with null details_url', () => {
+    const result = decode({
+      id: 1,
+      name: 'build',
+      status: 'completed',
+      conclusion: 'success',
+      html_url: 'https://github.com/checks/1',
+      details_url: null,
+    })
+    expect(result.details_url).toBeNull()
   })
 
   it('decodes a queued check run', () => {
@@ -106,5 +133,54 @@ describe('summarizeChecks', () => {
     ]
     const result = summarizeChecks(checks)
     expect(result.conclusion).toBe('failure')
+  })
+})
+
+describe('getCheckRunUrl', () => {
+  it('returns details_url when available', () => {
+    const run = {
+      id: 1,
+      name: 'build',
+      status: 'completed' as const,
+      conclusion: 'success' as const,
+      html_url: 'https://github.com/checks/1',
+      details_url: 'https://ci.example.com/build/1',
+    }
+    expect(getCheckRunUrl(run)).toBe('https://ci.example.com/build/1')
+  })
+
+  it('falls back to html_url when details_url is null', () => {
+    const run = {
+      id: 1,
+      name: 'build',
+      status: 'completed' as const,
+      conclusion: 'success' as const,
+      html_url: 'https://github.com/checks/1',
+      details_url: null,
+    }
+    expect(getCheckRunUrl(run)).toBe('https://github.com/checks/1')
+  })
+
+  it('returns null when both urls are null', () => {
+    const run = {
+      id: 1,
+      name: 'build',
+      status: 'completed' as const,
+      conclusion: null,
+      html_url: null,
+      details_url: null,
+    }
+    expect(getCheckRunUrl(run)).toBeNull()
+  })
+
+  it('returns html_url when details_url is missing', () => {
+    const run = {
+      id: 1,
+      name: 'build',
+      status: 'completed' as const,
+      conclusion: 'success' as const,
+      html_url: 'https://github.com/checks/1',
+    }
+    expect(getCheckRunUrl(run as CheckRun)).toBe('https://github.com/checks/1')
   })
 })
