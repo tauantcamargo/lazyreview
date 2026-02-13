@@ -134,9 +134,24 @@ describe('AppConfig schema', () => {
     expect(config.provider).toBe('gitlab')
   })
 
+  it('accepts bitbucket provider', () => {
+    const config = S.decodeUnknownSync(AppConfig)({ provider: 'bitbucket' })
+    expect(config.provider).toBe('bitbucket')
+  })
+
+  it('accepts azure provider', () => {
+    const config = S.decodeUnknownSync(AppConfig)({ provider: 'azure' })
+    expect(config.provider).toBe('azure')
+  })
+
+  it('accepts gitea provider', () => {
+    const config = S.decodeUnknownSync(AppConfig)({ provider: 'gitea' })
+    expect(config.provider).toBe('gitea')
+  })
+
   it('rejects unknown provider', () => {
     expect(() =>
-      S.decodeUnknownSync(AppConfig)({ provider: 'bitbucket' }),
+      S.decodeUnknownSync(AppConfig)({ provider: 'sourcehut' }),
     ).toThrow()
   })
 
