@@ -23,6 +23,8 @@ export {
   useReopenPullRequest,
   useEditIssueComment,
   useEditReviewComment,
+  useConvertToDraft,
+  useMarkReadyForReview,
 } from './useGitHubMutations'
 export type { ReviewEvent, MergeMethod } from './useGitHubMutations'
 

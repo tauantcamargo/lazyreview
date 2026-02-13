@@ -286,3 +286,27 @@ export const useEditReviewComment = createGitHubMutation<EditCommentParams>({
   effect: (api, p) => api.editReviewComment(p.owner, p.repo, p.commentId, p.body),
   invalidateKeys: (p) => invalidatePRThreads(p.owner, p.repo, p.prNumber),
 })
+
+// ---------------------------------------------------------------------------
+// Draft PR toggle
+// ---------------------------------------------------------------------------
+
+interface DraftToggleParams extends PRParams {
+  readonly nodeId: string
+}
+
+export const useConvertToDraft = createGitHubMutation<DraftToggleParams>({
+  effect: (api, p) => api.convertToDraft(p.nodeId),
+  invalidateKeys: (p) => [
+    ['pr', p.owner, p.repo, p.prNumber],
+    ...invalidatePRLists(),
+  ],
+})
+
+export const useMarkReadyForReview = createGitHubMutation<DraftToggleParams>({
+  effect: (api, p) => api.markReadyForReview(p.nodeId),
+  invalidateKeys: (p) => [
+    ['pr', p.owner, p.repo, p.prNumber],
+    ...invalidatePRLists(),
+  ],
+})

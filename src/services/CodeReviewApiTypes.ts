@@ -232,6 +232,14 @@ export interface CodeReviewApiService {
     title: string,
   ) => Effect.Effect<void, ApiError>
 
+  readonly convertToDraft: (
+    nodeId: string,
+  ) => Effect.Effect<void, ApiError>
+
+  readonly markReadyForReview: (
+    nodeId: string,
+  ) => Effect.Effect<void, ApiError>
+
   readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>
 }
 

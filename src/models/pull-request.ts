@@ -16,6 +16,7 @@ export class BranchRef extends S.Class<BranchRef>('BranchRef')({
 
 export class PullRequest extends S.Class<PullRequest>('PullRequest')({
   id: S.Number,
+  node_id: S.optionalWith(S.String, { default: () => '' }),
   number: S.Number,
   title: S.String,
   body: S.optionalWith(S.NullOr(S.String), { default: () => null }),

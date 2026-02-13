@@ -534,6 +534,34 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
+      convertToDraft: (nodeId) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          yield* graphqlGitHub<unknown>(
+            token,
+            `mutation($pullRequestId: ID!) {
+              convertPullRequestToDraft(input: { pullRequestId: $pullRequestId }) {
+                pullRequest { isDraft }
+              }
+            }`,
+            { pullRequestId: nodeId },
+          )
+        }),
+
+      markReadyForReview: (nodeId) =>
+        Effect.gen(function* () {
+          const token = yield* auth.getToken()
+          yield* graphqlGitHub<unknown>(
+            token,
+            `mutation($pullRequestId: ID!) {
+              markPullRequestAsReady(input: { pullRequestId: $pullRequestId }) {
+                pullRequest { isDraft }
+              }
+            }`,
+            { pullRequestId: nodeId },
+          )
+        }),
+
       getCurrentUser: () =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()

@@ -11,6 +11,7 @@ import {
   useCurrentUser,
   useIssueComments,
 } from '../hooks/useGitHub'
+import { useConvertToDraft, useMarkReadyForReview } from '../hooks/useGitHub'
 import { usePRDetailModals } from '../hooks/usePRDetailModals'
 import { usePendingReview } from '../hooks/usePendingReview'
 import { PRHeader } from '../components/pr/PRHeader'
@@ -66,6 +67,7 @@ export function PRDetailScreen({
   const theme = useTheme()
   const [currentTab, setCurrentTab] = useState(0)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const [showDraftConfirm, setShowDraftConfirm] = useState(false)
   const [initialFile, setInitialFile] = useState<string | undefined>(undefined)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
 
@@ -147,6 +149,9 @@ export function PRDetailScreen({
     setStatusMessage,
   })
 
+  const convertToDraft = useConvertToDraft()
+  const markReady = useMarkReadyForReview()
+
   const handleReviewSubmit = useCallback(
     (body: string, event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT') => {
       if (pendingReview.isActive) {
@@ -203,6 +208,37 @@ export function PRDetailScreen({
         return
       }
 
+      if (showDraftConfirm) {
+        if (input === 'y' || input === 'Y') {
+          setShowDraftConfirm(false)
+          const nodeId = activePR.node_id
+          if (!nodeId) {
+            setStatusMessage('Cannot toggle draft: missing node_id')
+            return
+          }
+          if (activePR.draft) {
+            markReady.mutate(
+              { owner, repo, prNumber: pr.number, nodeId },
+              {
+                onSuccess: () => setStatusMessage('PR marked as ready for review'),
+                onError: (err) => setStatusMessage(`Error: ${String(err)}`),
+              },
+            )
+          } else {
+            convertToDraft.mutate(
+              { owner, repo, prNumber: pr.number, nodeId },
+              {
+                onSuccess: () => setStatusMessage('PR converted to draft'),
+                onError: (err) => setStatusMessage(`Error: ${String(err)}`),
+              },
+            )
+          }
+        } else {
+          setShowDraftConfirm(false)
+        }
+        return
+      }
+
       if (modals.showCloseConfirm) {
         if (input === 'y' || input === 'Y') {
           modals.handleClosePR()
@@ -252,6 +288,12 @@ export function PRDetailScreen({
         onNavigate('next')
       } else if (input === '[' && onNavigate) {
         onNavigate('prev')
+      } else if (input === 'W') {
+        if (activePR.state === 'open') {
+          setShowDraftConfirm(true)
+        } else {
+          setStatusMessage('Can only toggle draft on open PRs')
+        }
       } else if (input === 'T') {
         modals.handleOpenEditTitle({ title: activePR.title })
       } else if (input === 'G') {
@@ -407,6 +449,15 @@ export function PRDetailScreen({
           isSubmitting={pendingReview.isActive ? pendingReview.isAdding : modals.commentSubmitPending}
           error={pendingReview.isActive ? pendingReview.error : modals.commentError}
         />
+      )}
+      {showDraftConfirm && (
+        <Box paddingX={1}>
+          <Text color={theme.colors.warning} bold>
+            {activePR.draft
+              ? `Mark PR #${pr.number} as ready for review? (y/n)`
+              : `Convert PR #${pr.number} to draft? (y/n)`}
+          </Text>
+        </Box>
       )}
       {modals.showCloseConfirm && (
         <Box paddingX={1}>
