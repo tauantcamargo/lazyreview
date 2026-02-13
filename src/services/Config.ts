@@ -11,7 +11,7 @@ const KeybindingsSchema = S.Struct({
   quit: S.optionalWith(S.String, { default: () => 'q' }),
 })
 
-export type Provider = 'github' | 'gitlab'
+export type Provider = 'github' | 'gitlab' | 'bitbucket' | 'azure' | 'gitea'
 
 const GitLabConfigSchema = S.Struct({
   host: S.optionalWith(S.String, { default: () => 'https://gitlab.com' }),
@@ -33,9 +33,17 @@ const BookmarkedRepoSchema = S.Struct({
 export type BookmarkedRepo = S.Schema.Type<typeof BookmarkedRepoSchema>
 
 export class AppConfig extends S.Class<AppConfig>('AppConfig')({
-  provider: S.optionalWith(S.Union(S.Literal('github'), S.Literal('gitlab')), {
-    default: () => 'github' as const,
-  }),
+  provider: S.optionalWith(
+    S.Union(
+      S.Literal('github'),
+      S.Literal('gitlab'),
+      S.Literal('bitbucket'),
+      S.Literal('azure'),
+      S.Literal('gitea'),
+    ),
+    { default: () => 'github' as const },
+  ),
+  baseUrl: S.optional(S.String),
   gitlab: S.optional(GitLabConfigSchema),
   theme: S.optionalWith(S.String, { default: () => 'tokyo-night' }),
   defaultOwner: S.optional(S.String),
