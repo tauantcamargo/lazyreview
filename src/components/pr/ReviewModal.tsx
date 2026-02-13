@@ -75,6 +75,8 @@ export function ReviewModal({
           setInputActive(false)
         } else if (key.return && (key.meta || key.ctrl)) {
           handleSubmit()
+        } else if (input === 's' && key.ctrl) {
+          handleSubmit()
         }
       }
     },
@@ -183,7 +185,7 @@ export function ReviewModal({
         )}
 
         <Text color={theme.colors.muted} dimColor>
-          Enter: new line | Ctrl+Enter: submit | Esc: back
+          Enter: new line | Ctrl+S: submit | Esc: back
         </Text>
       </Box>
     </Modal>

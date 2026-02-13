@@ -48,6 +48,8 @@ export function CommentModal({
         onClose()
       } else if (key.return && (key.meta || key.ctrl)) {
         handleSubmit()
+      } else if (_input === 's' && key.ctrl) {
+        handleSubmit()
       }
     },
     { isActive: true },
@@ -101,7 +103,7 @@ export function CommentModal({
             </Text>
           )}
           <Text color={theme.colors.muted} dimColor>
-            Tab: indent | Enter: new line | Ctrl+Enter: submit | Esc: cancel
+            Tab: indent | Enter: new line | Ctrl+S: submit | Esc: cancel
           </Text>
         </Box>
 

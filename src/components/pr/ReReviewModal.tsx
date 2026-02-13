@@ -119,6 +119,10 @@ export function ReReviewModal({
         if (selected.size > 0) {
           onSubmit([...selected])
         }
+      } else if (_input === 's' && key.ctrl) {
+        if (selected.size > 0) {
+          onSubmit([...selected])
+        }
       }
     },
     { isActive: true },
@@ -185,7 +189,7 @@ export function ReReviewModal({
         )}
 
         <Text color={theme.colors.muted} dimColor>
-          j/k: navigate | Enter: toggle | Ctrl+Enter: submit | Esc: cancel
+          j/k: navigate | Enter: toggle | Ctrl+S: submit | Esc: cancel
         </Text>
       </Box>
     </Modal>
