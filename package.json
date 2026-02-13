@@ -33,7 +33,11 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "prettier --check 'src/**/*.{ts,tsx}'",
-    "format": "prettier --write 'src/**/*.{ts,tsx}'"
+    "format": "prettier --write 'src/**/*.{ts,tsx}'",
+    "release": "./scripts/release.sh",
+    "release:patch": "./scripts/release.sh patch",
+    "release:minor": "./scripts/release.sh minor",
+    "release:major": "./scripts/release.sh major"
   },
   "devDependencies": {
     "@effect/platform": "^0.77.0",
