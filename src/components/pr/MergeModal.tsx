@@ -100,7 +100,7 @@ export function MergeModal({
         if (key.escape) {
           const method = MERGE_METHODS[selectedMethod]!.method
           setStep(method === 'squash' ? 'edit_title' : 'select_method')
-        } else if (key.return) {
+        } else if (input === 'y' || input === 'Y') {
           const method = MERGE_METHODS[selectedMethod]!.method
           const title = method === 'squash' ? commitTitle.trim() : undefined
           onSubmit(method, title)
@@ -149,6 +149,10 @@ export function MergeModal({
             </Box>
           </Box>
 
+          <Text color={theme.colors.error} bold>
+            This action cannot be undone.
+          </Text>
+
           {isSubmitting && (
             <Text color={theme.colors.info}>Merging...</Text>
           )}
@@ -158,7 +162,7 @@ export function MergeModal({
           )}
 
           <Text color={theme.colors.muted} dimColor>
-            Enter: merge | Esc: back
+            y: confirm merge | Esc: back
           </Text>
         </Box>
       </Modal>

@@ -372,10 +372,19 @@ export function PRDetailScreen({
         </Box>
       )}
       {showDiscardConfirm && (
-        <Box paddingX={1}>
+        <Box paddingX={1} flexDirection="column">
           <Text color={theme.colors.warning} bold>
             Discard pending review with {pendingReview.pendingCount} comment{pendingReview.pendingCount !== 1 ? 's' : ''}? (y/n)
           </Text>
+          {pendingReview.pendingComments.length > 0 && (
+            <Box flexDirection="column" paddingLeft={2}>
+              {pendingReview.pendingComments.map((c, i) => (
+                <Text key={`${c.path}-${c.line}-${i}`} color={theme.colors.muted}>
+                  {c.path}:{c.line}
+                </Text>
+              ))}
+            </Box>
+          )}
         </Box>
       )}
       {modals.showReviewModal && (
