@@ -4,26 +4,12 @@ import { PasswordInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
-import { getAuthProvider, getEnvVarName } from '../../services/Auth'
+import { getAuthProvider, getEnvVarName, getProviderMeta, getProviderTokenFilePath } from '../../services/Auth'
 
 interface TokenInputModalProps {
   readonly onClose: () => void
   readonly onSubmit: (token: string) => void
   readonly error?: string | null
-}
-
-function getProviderLabel(provider: string): string {
-  return provider === 'gitlab' ? 'GitLab' : 'GitHub'
-}
-
-function getTokenUrl(provider: string): string {
-  return provider === 'gitlab'
-    ? 'gitlab.com/-/user_settings/personal_access_tokens'
-    : 'github.com/settings/tokens'
-}
-
-function getRequiredScopes(provider: string): string {
-  return provider === 'gitlab' ? 'api, read_user' : 'repo, read:user'
 }
 
 export function TokenInputModal({
@@ -35,8 +21,9 @@ export function TokenInputModal({
   const [value, setValue] = useState('')
 
   const provider = getAuthProvider()
-  const providerLabel = getProviderLabel(provider)
+  const meta = getProviderMeta(provider)
   const envVarName = getEnvVarName(provider)
+  const tokenFilePath = getProviderTokenFilePath(provider)
 
   // Disable global shortcuts while this modal is open
   useEffect(() => {
@@ -69,14 +56,14 @@ export function TokenInputModal({
         gap={1}
       >
         <Text color={theme.colors.accent} bold>
-          {providerLabel} Token Required
+          {meta.label} Token Required
         </Text>
         <Box flexDirection="column">
           <Text color={theme.colors.text}>
-            No {providerLabel} token found in your environment.
+            No {meta.label} token found in your environment.
           </Text>
           <Text color={theme.colors.muted}>
-            Please enter your {providerLabel} Personal Access Token:
+            Please enter your {meta.label} Personal Access Token:
           </Text>
         </Box>
         <Box flexDirection="column">
@@ -91,11 +78,11 @@ export function TokenInputModal({
           paddingX={1}
           width={50}
         >
-          <PasswordInput onChange={setValue} placeholder="ghp_xxxx..." />
+          <PasswordInput onChange={setValue} placeholder={meta.tokenPlaceholder} />
         </Box>
         <Box flexDirection="column">
           <Text color={theme.colors.muted} dimColor>
-            The token will be saved to ~/.config/lazyreview/.token
+            The token will be saved to {tokenFilePath}
           </Text>
           <Text color={theme.colors.muted} dimColor>
             Press Enter to submit, Ctrl+C to quit.
@@ -103,10 +90,10 @@ export function TokenInputModal({
         </Box>
         <Box flexDirection="column" marginTop={1}>
           <Text color={theme.colors.info}>
-            Get a token at: {getTokenUrl(provider)}
+            Get a token at: {meta.tokenUrl}
           </Text>
           <Text color={theme.colors.muted}>
-            Required scopes: {getRequiredScopes(provider)}
+            Required scopes: {meta.requiredScopes}
           </Text>
         </Box>
       </Box>

@@ -22,6 +22,7 @@ export interface TokenInfo {
 // Config directory for storing token
 const CONFIG_DIR = join(homedir(), '.config', 'lazyreview')
 const TOKEN_FILE = join(CONFIG_DIR, '.token')
+const TOKENS_DIR = join(CONFIG_DIR, 'tokens')
 
 // ---------------------------------------------------------------------------
 // Immutable auth state
@@ -32,6 +33,7 @@ interface AuthState {
   readonly savedToken: string | null
   readonly preferredSource: TokenSource | null
   readonly provider: Provider
+  readonly baseUrl: string | null
   readonly initialized: boolean
 }
 
@@ -40,6 +42,7 @@ const initialState: AuthState = {
   savedToken: null,
   preferredSource: null,
   provider: 'github',
+  baseUrl: null,
   initialized: false,
 }
 
@@ -56,33 +59,143 @@ function setState(update: Partial<AuthState>): void {
 }
 
 // ---------------------------------------------------------------------------
-// File I/O helpers
+// Provider metadata
 // ---------------------------------------------------------------------------
 
+interface ProviderMeta {
+  readonly label: string
+  readonly envVars: readonly string[]
+  readonly cliCommand: readonly string[] | null
+  readonly tokenUrl: string
+  readonly requiredScopes: string
+  readonly tokenPlaceholder: string
+}
+
+const PROVIDER_META: Readonly<Record<Provider, ProviderMeta>> = {
+  github: {
+    label: 'GitHub',
+    envVars: ['LAZYREVIEW_GITHUB_TOKEN', 'GITHUB_TOKEN'],
+    cliCommand: ['gh', 'auth', 'token'],
+    tokenUrl: 'github.com/settings/tokens',
+    requiredScopes: 'repo, read:user',
+    tokenPlaceholder: 'ghp_xxxx...',
+  },
+  gitlab: {
+    label: 'GitLab',
+    envVars: ['LAZYREVIEW_GITLAB_TOKEN', 'GITLAB_TOKEN'],
+    cliCommand: ['glab', 'auth', 'token'],
+    tokenUrl: 'gitlab.com/-/user_settings/personal_access_tokens',
+    requiredScopes: 'api, read_user',
+    tokenPlaceholder: 'glpat-xxxx...',
+  },
+  bitbucket: {
+    label: 'Bitbucket',
+    envVars: ['LAZYREVIEW_BITBUCKET_TOKEN', 'BITBUCKET_TOKEN'],
+    cliCommand: null,
+    tokenUrl: 'bitbucket.org/account/settings/app-passwords/',
+    requiredScopes: 'Repositories: Read, Pull requests: Read/Write',
+    tokenPlaceholder: 'xxxx...',
+  },
+  azure: {
+    label: 'Azure DevOps',
+    envVars: ['LAZYREVIEW_AZURE_TOKEN', 'AZURE_DEVOPS_TOKEN'],
+    cliCommand: null,
+    tokenUrl: 'dev.azure.com → User Settings → Personal access tokens',
+    requiredScopes: 'Code: Read & Write',
+    tokenPlaceholder: 'xxxx...',
+  },
+  gitea: {
+    label: 'Gitea',
+    envVars: ['LAZYREVIEW_GITEA_TOKEN', 'GITEA_TOKEN'],
+    cliCommand: null,
+    tokenUrl: 'your-instance/user/settings/applications',
+    requiredScopes: 'repo',
+    tokenPlaceholder: 'xxxx...',
+  },
+}
+
+export function getProviderMeta(provider: Provider): ProviderMeta {
+  return PROVIDER_META[provider]
+}
+
+// ---------------------------------------------------------------------------
+// File I/O helpers (per-provider token storage)
+// ---------------------------------------------------------------------------
+
+function getProviderTokenFile(provider: Provider): string {
+  return join(TOKENS_DIR, `${provider}.token`)
+}
+
 async function loadSavedToken(): Promise<string | null> {
+  const provider = getState().provider
+
+  // Try provider-specific token file first
+  const providerFile = getProviderTokenFile(provider)
+  const providerToken = await readTokenFile(providerFile)
+  if (providerToken) return providerToken
+
+  // Fall back to legacy token file for GitHub (backward compatibility)
+  if (provider === 'github') {
+    const legacyToken = await readTokenFile(TOKEN_FILE)
+    if (legacyToken) {
+      // Migrate to new location
+      await saveTokenToProviderFile(provider, legacyToken)
+      return legacyToken
+    }
+  }
+
+  return null
+}
+
+async function readTokenFile(filePath: string): Promise<string | null> {
   try {
-    const fileStat = await stat(TOKEN_FILE)
+    const fileStat = await stat(filePath)
     const perms = fileStat.mode & 0o777
     if (perms !== 0o600) {
       return null
     }
-    const token = await readFile(TOKEN_FILE, 'utf-8')
+    const token = await readFile(filePath, 'utf-8')
     return token.trim() || null
   } catch {
     return null
   }
 }
 
+async function saveTokenToProviderFile(provider: Provider, token: string): Promise<void> {
+  await mkdir(TOKENS_DIR, { recursive: true, mode: 0o700 })
+  await writeFile(getProviderTokenFile(provider), token, { mode: 0o600 })
+}
+
 async function saveTokenToFile(token: string): Promise<void> {
-  await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
-  await writeFile(TOKEN_FILE, token, { mode: 0o600 })
+  const provider = getState().provider
+
+  // Save to provider-specific file
+  await saveTokenToProviderFile(provider, token)
+
+  // Also save to legacy location for GitHub backward compatibility
+  if (provider === 'github') {
+    await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
+    await writeFile(TOKEN_FILE, token, { mode: 0o600 })
+  }
 }
 
 async function deleteSavedToken(): Promise<void> {
+  const provider = getState().provider
+
+  // Delete provider-specific token file
   try {
-    await unlink(TOKEN_FILE)
+    await unlink(getProviderTokenFile(provider))
   } catch {
     // File might not exist
+  }
+
+  // Also delete legacy file for GitHub
+  if (provider === 'github') {
+    try {
+      await unlink(TOKEN_FILE)
+    } catch {
+      // File might not exist
+    }
   }
 }
 
@@ -105,34 +218,54 @@ export function maskToken(token: string): string {
   return `${token.slice(0, 4)}...${token.slice(-4)}`
 }
 
-async function tryGetGhToken(): Promise<string | null> {
+async function tryCliToken(command: readonly string[]): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync('gh', ['auth', 'token'])
+    const [cmd, ...args] = command
+    if (!cmd) return null
+    const { stdout } = await execFileAsync(cmd, args)
     return stdout.trim() || null
   } catch {
     return null
   }
+}
+
+async function tryGetGhToken(): Promise<string | null> {
+  return tryCliToken(['gh', 'auth', 'token'])
 }
 
 async function tryGetGlabToken(): Promise<string | null> {
-  try {
-    const { stdout } = await execFileAsync('glab', ['auth', 'token'])
-    return stdout.trim() || null
-  } catch {
-    return null
-  }
+  return tryCliToken(['glab', 'auth', 'token'])
+}
+
+function tryGetCliTokenForProvider(provider: Provider): Promise<string | null> {
+  const meta = PROVIDER_META[provider]
+  if (!meta.cliCommand) return Promise.resolve(null)
+  return tryCliToken(meta.cliCommand)
 }
 
 export function getEnvVarName(provider: Provider): string {
-  return provider === 'gitlab' ? 'LAZYREVIEW_GITLAB_TOKEN' : 'LAZYREVIEW_GITHUB_TOKEN'
+  const meta = PROVIDER_META[provider]
+  return meta.envVars[0] ?? `LAZYREVIEW_${provider.toUpperCase()}_TOKEN`
+}
+
+export function getProviderTokenFilePath(provider: Provider): string {
+  return getProviderTokenFile(provider)
 }
 
 export function setAuthProvider(provider: Provider): void {
-  setState({ provider })
+  setState({ provider, initialized: false })
 }
 
 export function getAuthProvider(): Provider {
   return getState().provider
+}
+
+export function setAuthBaseUrl(baseUrl: string | null): void {
+  setState({ baseUrl })
+}
+
+export function getAuthBaseUrl(): string | null {
+  return getState().baseUrl
 }
 
 // ---------------------------------------------------------------------------
@@ -161,14 +294,16 @@ export interface AuthService {
 export class Auth extends Context.Tag('Auth')<Auth, AuthService>() {}
 
 // ---------------------------------------------------------------------------
-// GitHub token resolution
+// Generic token resolution for any provider
 // ---------------------------------------------------------------------------
 
-function resolveGitHubToken(): Effect.Effect<string, AuthError> {
+function resolveProviderToken(provider: Provider): Effect.Effect<string, AuthError> {
   return Effect.gen(function* () {
     yield* Effect.promise(ensureInitialized)
     const state = getState()
+    const meta = PROVIDER_META[provider]
 
+    // When a preferred source is set, use only that source
     if (state.preferredSource === 'manual') {
       const manualToken = state.sessionToken ?? state.savedToken
       if (manualToken) return manualToken
@@ -178,87 +313,75 @@ function resolveGitHubToken(): Effect.Effect<string, AuthError> {
     }
 
     if (state.preferredSource === 'env') {
-      const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
+      const envToken = findEnvToken(meta.envVars)
       if (envToken) return envToken
       return yield* Effect.fail(
-        new AuthError({ message: 'LAZYREVIEW_GITHUB_TOKEN not set', reason: 'no_token' })
+        new AuthError({
+          message: `${meta.envVars[0]} not set`,
+          reason: 'no_token',
+        })
       )
     }
 
     if (state.preferredSource === 'gh_cli') {
-      const ghToken = yield* Effect.tryPromise({
-        try: tryGetGhToken,
-        catch: () => new AuthError({ message: 'gh CLI failed', reason: 'no_token' }),
+      const cliToken = yield* Effect.tryPromise({
+        try: () => tryGetCliTokenForProvider(provider),
+        catch: () => new AuthError({ message: 'CLI failed', reason: 'no_token' }),
       })
-      if (ghToken) return ghToken
+      if (cliToken) return cliToken
       return yield* Effect.fail(
-        new AuthError({ message: 'gh CLI token not available', reason: 'no_token' })
+        new AuthError({ message: 'CLI token not available', reason: 'no_token' })
       )
     }
 
     // Default priority order:
-    // 1. LAZYREVIEW_GITHUB_TOKEN env var
-    const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
-    if (envToken) return envToken
+    // 1. Primary env var (e.g. LAZYREVIEW_GITHUB_TOKEN)
+    const primaryEnvVar = meta.envVars[0]
+    if (primaryEnvVar) {
+      const primaryToken = process.env[primaryEnvVar]
+      if (primaryToken) return primaryToken
+    }
 
     // 2. Manual/saved token
     const manualToken = state.sessionToken ?? state.savedToken
     if (manualToken) return manualToken
 
-    // 3. GITHUB_TOKEN env var
-    const genericToken = process.env['GITHUB_TOKEN']
-    if (genericToken) return genericToken
+    // 3. Secondary env var (e.g. GITHUB_TOKEN)
+    const secondaryEnvVar = meta.envVars[1]
+    if (secondaryEnvVar) {
+      const secondaryToken = process.env[secondaryEnvVar]
+      if (secondaryToken) return secondaryToken
+    }
 
-    // 4. gh CLI fallback
-    const ghResult = yield* Effect.tryPromise({
-      try: tryGetGhToken,
-      catch: () =>
-        new AuthError({
-          message: 'No GitHub token found. Set LAZYREVIEW_GITHUB_TOKEN or configure in Settings.',
-          reason: 'no_token',
-        }),
-    })
+    // 4. CLI fallback (if available for this provider)
+    if (meta.cliCommand) {
+      const cliResult = yield* Effect.tryPromise({
+        try: () => tryGetCliTokenForProvider(provider),
+        catch: () =>
+          new AuthError({
+            message: `No ${meta.label} token found. Set ${meta.envVars[0]} or configure in Settings.`,
+            reason: 'no_token',
+          }),
+      })
 
-    if (ghResult) return ghResult
+      if (cliResult) return cliResult
+    }
 
     return yield* Effect.fail(
       new AuthError({
-        message: 'No GitHub token found. Set LAZYREVIEW_GITHUB_TOKEN or configure in Settings.',
+        message: `No ${meta.label} token found. Set ${meta.envVars[0]} or configure in Settings.`,
         reason: 'no_token',
       }),
     )
   })
 }
 
-// ---------------------------------------------------------------------------
-// GitLab token resolution (stub)
-// ---------------------------------------------------------------------------
-
-function resolveGitLabToken(): Effect.Effect<string, AuthError> {
-  return Effect.gen(function* () {
-    const envToken = process.env['LAZYREVIEW_GITLAB_TOKEN']
-    if (envToken) {
-      return yield* Effect.fail(
-        new AuthError({ message: 'GitLab not yet supported', reason: 'no_token' }),
-      )
-    }
-
-    const glabToken = yield* Effect.tryPromise({
-      try: tryGetGlabToken,
-      catch: () =>
-        new AuthError({ message: 'GitLab not yet supported', reason: 'no_token' }),
-    })
-
-    if (glabToken) {
-      return yield* Effect.fail(
-        new AuthError({ message: 'GitLab not yet supported', reason: 'no_token' }),
-      )
-    }
-
-    return yield* Effect.fail(
-      new AuthError({ message: 'GitLab not yet supported', reason: 'no_token' }),
-    )
-  })
+function findEnvToken(envVars: readonly string[]): string | undefined {
+  for (const varName of envVars) {
+    const value = process.env[varName]
+    if (value) return value
+  }
+  return undefined
 }
 
 // ---------------------------------------------------------------------------
@@ -266,13 +389,18 @@ function resolveGitLabToken(): Effect.Effect<string, AuthError> {
 // ---------------------------------------------------------------------------
 
 function resolveToken(): Effect.Effect<string, AuthError> {
-  return getState().provider === 'gitlab' ? resolveGitLabToken() : resolveGitHubToken()
+  return resolveProviderToken(getState().provider)
 }
 
-function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
+// ---------------------------------------------------------------------------
+// Generic token info resolution
+// ---------------------------------------------------------------------------
+
+function resolveProviderTokenInfo(provider: Provider): Effect.Effect<TokenInfo, never> {
   return Effect.gen(function* () {
     yield* Effect.promise(ensureInitialized)
     const state = getState()
+    const meta = PROVIDER_META[provider]
 
     if (state.preferredSource === 'manual') {
       const manualToken = state.sessionToken ?? state.savedToken
@@ -285,7 +413,7 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
     }
 
     if (state.preferredSource === 'env') {
-      const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
+      const envToken = findEnvToken(meta.envVars)
       if (envToken) {
         return {
           source: 'env' as TokenSource,
@@ -295,18 +423,22 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
     }
 
     if (state.preferredSource === 'gh_cli') {
-      const ghToken = yield* Effect.promise(tryGetGhToken)
-      if (ghToken) {
+      const cliToken = yield* Effect.promise(() => tryGetCliTokenForProvider(provider))
+      if (cliToken) {
         return {
           source: 'gh_cli' as TokenSource,
-          maskedToken: maskToken(ghToken),
+          maskedToken: maskToken(cliToken),
         }
       }
     }
 
-    const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
-    if (envToken) {
-      return { source: 'env' as TokenSource, maskedToken: maskToken(envToken) }
+    // Default priority
+    const primaryEnvVar = meta.envVars[0]
+    if (primaryEnvVar) {
+      const primaryToken = process.env[primaryEnvVar]
+      if (primaryToken) {
+        return { source: 'env' as TokenSource, maskedToken: maskToken(primaryToken) }
+      }
     }
 
     const manualToken = state.sessionToken ?? state.savedToken
@@ -314,14 +446,19 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
       return { source: 'manual' as TokenSource, maskedToken: maskToken(manualToken) }
     }
 
-    const genericToken = process.env['GITHUB_TOKEN']
-    if (genericToken) {
-      return { source: 'env' as TokenSource, maskedToken: maskToken(genericToken) }
+    const secondaryEnvVar = meta.envVars[1]
+    if (secondaryEnvVar) {
+      const secondaryToken = process.env[secondaryEnvVar]
+      if (secondaryToken) {
+        return { source: 'env' as TokenSource, maskedToken: maskToken(secondaryToken) }
+      }
     }
 
-    const ghToken = yield* Effect.promise(tryGetGhToken)
-    if (ghToken) {
-      return { source: 'gh_cli' as TokenSource, maskedToken: maskToken(ghToken) }
+    if (meta.cliCommand) {
+      const cliToken = yield* Effect.promise(() => tryGetCliTokenForProvider(provider))
+      if (cliToken) {
+        return { source: 'gh_cli' as TokenSource, maskedToken: maskToken(cliToken) }
+      }
     }
 
     return { source: 'none' as TokenSource, maskedToken: null }
@@ -329,10 +466,7 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
 }
 
 function resolveTokenInfo(): Effect.Effect<TokenInfo, never> {
-  if (getState().provider === 'gitlab') {
-    return Effect.succeed({ source: 'none' as TokenSource, maskedToken: null })
-  }
-  return resolveGitHubTokenInfo()
+  return resolveProviderTokenInfo(getState().provider)
 }
 
 // ---------------------------------------------------------------------------
@@ -364,18 +498,17 @@ function getGitHubUser(token: string): Effect.Effect<User, AuthError> {
   })
 }
 
-function getGitLabUser(_token: string): Effect.Effect<User, AuthError> {
+function getProviderUser(provider: Provider, _token: string): Effect.Effect<User, AuthError> {
+  if (provider === 'github') return getGitHubUser(_token)
   return Effect.fail(
-    new AuthError({ message: 'GitLab not yet supported', reason: 'no_token' }),
+    new AuthError({ message: `${PROVIDER_META[provider].label} not yet supported`, reason: 'no_token' }),
   )
 }
 
 function getUser(): Effect.Effect<User, AuthError> {
   return Effect.gen(function* () {
     const token = yield* resolveToken()
-    return getState().provider === 'gitlab'
-      ? yield* getGitLabUser(token)
-      : yield* getGitHubUser(token)
+    return yield* getProviderUser(getState().provider, token)
   })
 }
 
@@ -420,32 +553,26 @@ export const AuthLive = Layer.succeed(
       Effect.gen(function* () {
         yield* Effect.promise(ensureInitialized)
         const state = getState()
+        const meta = PROVIDER_META[state.provider]
         const sources: TokenSource[] = []
 
-        if (state.provider === 'gitlab') {
-          const envToken = process.env['LAZYREVIEW_GITLAB_TOKEN']
-          if (envToken) {
-            sources.push('env')
-          }
-          const glabToken = yield* Effect.promise(tryGetGlabToken)
-          if (glabToken) {
-            sources.push('gh_cli')
-          }
-          return sources
-        }
-
-        const envToken = process.env['LAZYREVIEW_GITHUB_TOKEN']
+        // Check env vars
+        const envToken = findEnvToken(meta.envVars)
         if (envToken) {
           sources.push('env')
         }
 
+        // Check manual/saved tokens
         if (state.sessionToken || state.savedToken) {
           sources.push('manual')
         }
 
-        const ghToken = yield* Effect.promise(tryGetGhToken)
-        if (ghToken) {
-          sources.push('gh_cli')
+        // Check CLI availability
+        if (meta.cliCommand) {
+          const cliToken = yield* Effect.promise(() => tryGetCliTokenForProvider(state.provider))
+          if (cliToken) {
+            sources.push('gh_cli')
+          }
         }
 
         return sources

@@ -11,6 +11,7 @@ import { useBookmarkedRepos, validateBookmarkInput } from '../hooks/useBookmarke
 import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { SettingRow, TokenSourceLabel } from '../components/settings/SettingRow'
+import { getAuthProvider, getProviderTokenFilePath } from '../services/Auth'
 import type { TokenSource } from '../services/Auth'
 
 const THEME_ORDER: readonly ThemeName[] = ['tokyo-night', 'dracula', 'catppuccin-mocha', 'gruvbox', 'high-contrast']
@@ -474,7 +475,7 @@ export function SettingsScreen(): React.ReactElement {
           Config: ~/.config/lazyreview/config.yaml
         </Text>
         <Text color={theme.colors.muted} dimColor>
-          Token: ~/.config/lazyreview/.token
+          Token: {getProviderTokenFilePath(getAuthProvider()).replace(process.env['HOME'] ?? '', '~')}
         </Text>
       </Box>
 

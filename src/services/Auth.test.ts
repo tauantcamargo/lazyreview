@@ -1,22 +1,41 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Effect, Exit } from 'effect'
-import { maskToken, getEnvVarName, setAuthProvider, getAuthProvider, resetAuthState, Auth, AuthLive } from './Auth'
+import {
+  maskToken,
+  getEnvVarName,
+  setAuthProvider,
+  getAuthProvider,
+  resetAuthState,
+  getProviderMeta,
+  getProviderTokenFilePath,
+  setAuthBaseUrl,
+  getAuthBaseUrl,
+  Auth,
+  AuthLive,
+} from './Auth'
 
 // ---------------------------------------------------------------------------
-// Mock child_process.execFile to control gh CLI responses
+// Mock child_process.execFile to control CLI responses
 // ---------------------------------------------------------------------------
 
-let ghCliResult: { stdout: string } | null = null
-let ghCliError: Error | null = null
+let cliResults: Record<string, { stdout: string } | null> = {}
+let cliErrors: Record<string, Error | null> = {}
 
 vi.mock('node:child_process', () => ({
-  execFile: (_cmd: string, _args: string[], cb: (err: Error | null, result?: { stdout: string }) => void) => {
-    if (ghCliError) {
-      cb(ghCliError)
-    } else if (ghCliResult) {
-      cb(null, ghCliResult)
+  execFile: (
+    cmd: string,
+    args: string[],
+    cb: (err: Error | null, result?: { stdout: string }) => void,
+  ) => {
+    const key = `${cmd} ${args.join(' ')}`
+    const error = cliErrors[key]
+    const result = cliResults[key]
+    if (error) {
+      cb(error)
+    } else if (result) {
+      cb(null, result)
     } else {
-      cb(new Error('gh: command not found'))
+      cb(new Error(`${cmd}: command not found`))
     }
   },
 }))
@@ -25,13 +44,13 @@ vi.mock('node:child_process', () => ({
 // Mock node:fs/promises to avoid actual file I/O
 // ---------------------------------------------------------------------------
 
-let savedFileContent: string | null = null
+let savedFiles: Record<string, string> = {}
 
 vi.mock('node:fs/promises', () => ({
   stat: vi.fn().mockRejectedValue(new Error('ENOENT')),
   readFile: vi.fn().mockRejectedValue(new Error('ENOENT')),
-  writeFile: vi.fn().mockImplementation(async (_path: string, content: string) => {
-    savedFileContent = content
+  writeFile: vi.fn().mockImplementation(async (path: string, content: string) => {
+    savedFiles[path] = content
   }),
   mkdir: vi.fn().mockResolvedValue(undefined),
   unlink: vi.fn().mockResolvedValue(undefined),
@@ -40,6 +59,14 @@ vi.mock('node:fs/promises', () => ({
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function setCliResult(cmd: string, args: string[], stdout: string): void {
+  cliResults[`${cmd} ${args.join(' ')}`] = { stdout }
+}
+
+function setCliError(cmd: string, args: string[], error: Error): void {
+  cliErrors[`${cmd} ${args.join(' ')}`] = error
+}
 
 function runAuth<A>(
   effect: (auth: typeof Auth.Type) => Effect.Effect<A, unknown>,
@@ -61,7 +88,9 @@ function runAuthExit<A, E>(
     const auth = yield* Auth
     return yield* Effect.exit(effect(auth))
   }).pipe(Effect.provide(AuthLive))
-  return Effect.runPromise(program as Effect.Effect<Exit.Exit<A, E>, never, never>)
+  return Effect.runPromise(
+    program as Effect.Effect<Exit.Exit<A, E>, never, never>,
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +127,6 @@ describe('maskToken', () => {
     const pat = 'ghp_1234567890abcdefghijklmno'
     const result = maskToken(pat)
     expect(result).toBe('ghp_...lmno')
-    // Must not contain the full token
     expect(result).not.toBe(pat)
   })
 
@@ -128,6 +156,18 @@ describe('getEnvVarName', () => {
   it('returns LAZYREVIEW_GITLAB_TOKEN for gitlab provider', () => {
     expect(getEnvVarName('gitlab')).toBe('LAZYREVIEW_GITLAB_TOKEN')
   })
+
+  it('returns LAZYREVIEW_BITBUCKET_TOKEN for bitbucket provider', () => {
+    expect(getEnvVarName('bitbucket')).toBe('LAZYREVIEW_BITBUCKET_TOKEN')
+  })
+
+  it('returns LAZYREVIEW_AZURE_TOKEN for azure provider', () => {
+    expect(getEnvVarName('azure')).toBe('LAZYREVIEW_AZURE_TOKEN')
+  })
+
+  it('returns LAZYREVIEW_GITEA_TOKEN for gitea provider', () => {
+    expect(getEnvVarName('gitea')).toBe('LAZYREVIEW_GITEA_TOKEN')
+  })
 })
 
 describe('setAuthProvider / getAuthProvider', () => {
@@ -149,6 +189,129 @@ describe('setAuthProvider / getAuthProvider', () => {
     setAuthProvider('github')
     expect(getAuthProvider()).toBe('github')
   })
+
+  it('can be set to bitbucket', () => {
+    setAuthProvider('bitbucket')
+    expect(getAuthProvider()).toBe('bitbucket')
+  })
+
+  it('can be set to azure', () => {
+    setAuthProvider('azure')
+    expect(getAuthProvider()).toBe('azure')
+  })
+
+  it('can be set to gitea', () => {
+    setAuthProvider('gitea')
+    expect(getAuthProvider()).toBe('gitea')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Provider metadata tests
+// ---------------------------------------------------------------------------
+
+describe('getProviderMeta', () => {
+  it('returns GitHub metadata', () => {
+    const meta = getProviderMeta('github')
+    expect(meta.label).toBe('GitHub')
+    expect(meta.envVars).toContain('LAZYREVIEW_GITHUB_TOKEN')
+    expect(meta.envVars).toContain('GITHUB_TOKEN')
+    expect(meta.cliCommand).toEqual(['gh', 'auth', 'token'])
+    expect(meta.tokenUrl).toContain('github.com')
+    expect(meta.requiredScopes).toContain('repo')
+    expect(meta.tokenPlaceholder).toContain('ghp_')
+  })
+
+  it('returns GitLab metadata', () => {
+    const meta = getProviderMeta('gitlab')
+    expect(meta.label).toBe('GitLab')
+    expect(meta.envVars).toContain('LAZYREVIEW_GITLAB_TOKEN')
+    expect(meta.envVars).toContain('GITLAB_TOKEN')
+    expect(meta.cliCommand).toEqual(['glab', 'auth', 'token'])
+    expect(meta.tokenUrl).toContain('gitlab.com')
+    expect(meta.requiredScopes).toContain('api')
+  })
+
+  it('returns Bitbucket metadata', () => {
+    const meta = getProviderMeta('bitbucket')
+    expect(meta.label).toBe('Bitbucket')
+    expect(meta.envVars).toContain('LAZYREVIEW_BITBUCKET_TOKEN')
+    expect(meta.envVars).toContain('BITBUCKET_TOKEN')
+    expect(meta.cliCommand).toBeNull()
+    expect(meta.tokenUrl).toContain('bitbucket.org')
+  })
+
+  it('returns Azure DevOps metadata', () => {
+    const meta = getProviderMeta('azure')
+    expect(meta.label).toBe('Azure DevOps')
+    expect(meta.envVars).toContain('LAZYREVIEW_AZURE_TOKEN')
+    expect(meta.envVars).toContain('AZURE_DEVOPS_TOKEN')
+    expect(meta.cliCommand).toBeNull()
+  })
+
+  it('returns Gitea metadata', () => {
+    const meta = getProviderMeta('gitea')
+    expect(meta.label).toBe('Gitea')
+    expect(meta.envVars).toContain('LAZYREVIEW_GITEA_TOKEN')
+    expect(meta.envVars).toContain('GITEA_TOKEN')
+    expect(meta.cliCommand).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Provider token file path tests
+// ---------------------------------------------------------------------------
+
+describe('getProviderTokenFilePath', () => {
+  it('returns per-provider token file for github', () => {
+    const path = getProviderTokenFilePath('github')
+    expect(path).toContain('tokens/github.token')
+  })
+
+  it('returns per-provider token file for gitlab', () => {
+    const path = getProviderTokenFilePath('gitlab')
+    expect(path).toContain('tokens/gitlab.token')
+  })
+
+  it('returns per-provider token file for bitbucket', () => {
+    const path = getProviderTokenFilePath('bitbucket')
+    expect(path).toContain('tokens/bitbucket.token')
+  })
+
+  it('returns per-provider token file for azure', () => {
+    const path = getProviderTokenFilePath('azure')
+    expect(path).toContain('tokens/azure.token')
+  })
+
+  it('returns per-provider token file for gitea', () => {
+    const path = getProviderTokenFilePath('gitea')
+    expect(path).toContain('tokens/gitea.token')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Base URL tests
+// ---------------------------------------------------------------------------
+
+describe('setAuthBaseUrl / getAuthBaseUrl', () => {
+  afterEach(() => {
+    resetAuthState()
+  })
+
+  it('defaults to null', () => {
+    expect(getAuthBaseUrl()).toBeNull()
+  })
+
+  it('can be set to a URL', () => {
+    setAuthBaseUrl('https://github.example.com')
+    expect(getAuthBaseUrl()).toBe('https://github.example.com')
+  })
+
+  it('can be cleared to null', () => {
+    setAuthBaseUrl('https://github.example.com')
+    setAuthBaseUrl(null)
+    expect(getAuthBaseUrl()).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -160,17 +323,14 @@ describe('resolveToken priority chain', () => {
 
   beforeEach(() => {
     resetAuthState()
-    ghCliResult = null
-    ghCliError = null
-    savedFileContent = null
-
-    // Clear env vars
+    cliResults = {}
+    cliErrors = {}
+    savedFiles = {}
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
   })
 
   afterEach(() => {
-    // Restore env
     process.env = { ...originalEnv }
   })
 
@@ -181,7 +341,6 @@ describe('resolveToken priority chain', () => {
   })
 
   it('returns saved/session token when no env var set', async () => {
-    // Set a manual token
     await runAuth((auth) => auth.setToken('ghp_manual_token_12345'))
     const token = await runAuth((auth) => auth.getToken())
     expect(token).toBe('ghp_manual_token_12345')
@@ -194,14 +353,13 @@ describe('resolveToken priority chain', () => {
   })
 
   it('returns gh CLI token when no env vars or manual token', async () => {
-    ghCliResult = { stdout: 'ghp_cli_token_1234567' }
+    setCliResult('gh', ['auth', 'token'], 'ghp_cli_token_1234567')
     const token = await runAuth((auth) => auth.getToken())
     expect(token).toBe('ghp_cli_token_1234567')
   })
 
   it('fails with AuthError when no token source available', async () => {
-    ghCliResult = null
-    ghCliError = new Error('gh: command not found')
+    setCliError('gh', ['auth', 'token'], new Error('gh: command not found'))
     const exit = await runAuthExit((auth) => auth.getToken())
     expect(Exit.isFailure(exit)).toBe(true)
   })
@@ -209,7 +367,6 @@ describe('resolveToken priority chain', () => {
   it('LAZYREVIEW_GITHUB_TOKEN takes precedence over manual token', async () => {
     process.env['LAZYREVIEW_GITHUB_TOKEN'] = 'ghp_env_wins_1234567'
     await runAuth((auth) => auth.setToken('ghp_manual_loses_1234567'))
-    // Reset preferredSource to default (not manual)
     await runAuth((auth) => auth.setPreferredSource('none'))
     const token = await runAuth((auth) => auth.getToken())
     expect(token).toBe('ghp_env_wins_1234567')
@@ -218,17 +375,14 @@ describe('resolveToken priority chain', () => {
   it('manual token takes precedence over GITHUB_TOKEN', async () => {
     process.env['GITHUB_TOKEN'] = 'ghp_generic_loses_1234567'
     await runAuth((auth) => auth.setToken('ghp_manual_wins_1234567'))
-    // Reset to default priority
     await runAuth((auth) => auth.setPreferredSource('none'))
     const token = await runAuth((auth) => auth.getToken())
-    // setToken sets preferredSource to 'manual', so we need to reset
-    // Actually, setToken sets preferredSource to 'manual', so it will use manual
     expect(token).toBe('ghp_manual_wins_1234567')
   })
 
   it('GITHUB_TOKEN takes precedence over gh CLI', async () => {
     process.env['GITHUB_TOKEN'] = 'ghp_generic_wins_1234567'
-    ghCliResult = { stdout: 'ghp_cli_loses_1234567' }
+    setCliResult('gh', ['auth', 'token'], 'ghp_cli_loses_1234567')
     const token = await runAuth((auth) => auth.getToken())
     expect(token).toBe('ghp_generic_wins_1234567')
   })
@@ -239,8 +393,8 @@ describe('preferredSource overrides', () => {
 
   beforeEach(() => {
     resetAuthState()
-    ghCliResult = null
-    ghCliError = null
+    cliResults = {}
+    cliErrors = {}
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
   })
@@ -252,7 +406,6 @@ describe('preferredSource overrides', () => {
   it('preferredSource=manual uses only manual token', async () => {
     process.env['LAZYREVIEW_GITHUB_TOKEN'] = 'ghp_env_ignored_1234567'
     await runAuth((auth) => auth.setToken('ghp_manual_only_1234567'))
-    // setToken already sets preferredSource to manual
     const token = await runAuth((auth) => auth.getToken())
     expect(token).toBe('ghp_manual_only_1234567')
   })
@@ -279,15 +432,13 @@ describe('preferredSource overrides', () => {
 
   it('preferredSource=gh_cli uses only gh CLI token', async () => {
     process.env['LAZYREVIEW_GITHUB_TOKEN'] = 'ghp_env_ignored_1234567'
-    ghCliResult = { stdout: 'ghp_cli_preferred_1234567' }
+    setCliResult('gh', ['auth', 'token'], 'ghp_cli_preferred_1234567')
     await runAuth((auth) => auth.setPreferredSource('gh_cli'))
     const token = await runAuth((auth) => auth.getToken())
     expect(token).toBe('ghp_cli_preferred_1234567')
   })
 
   it('preferredSource=gh_cli fails if gh CLI unavailable', async () => {
-    ghCliResult = null
-    ghCliError = null
     await runAuth((auth) => auth.setPreferredSource('gh_cli'))
     const exit = await runAuthExit((auth) => auth.getToken())
     expect(Exit.isFailure(exit)).toBe(true)
@@ -299,8 +450,8 @@ describe('setToken', () => {
 
   beforeEach(() => {
     resetAuthState()
-    ghCliResult = null
-    savedFileContent = null
+    cliResults = {}
+    savedFiles = {}
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
   })
@@ -317,15 +468,34 @@ describe('setToken', () => {
 
   it('sets preferredSource to manual', async () => {
     await runAuth((auth) => auth.setToken('ghp_sets_preferred_12345'))
-    // After setToken, getToken should use manual even if env is set
     process.env['LAZYREVIEW_GITHUB_TOKEN'] = 'ghp_env_ignored_1234567'
     const token = await runAuth((auth) => auth.getToken())
     expect(token).toBe('ghp_sets_preferred_12345')
   })
 
-  it('triggers file save', async () => {
+  it('triggers file save to provider-specific location', async () => {
     await runAuth((auth) => auth.setToken('ghp_file_save_123456789'))
-    expect(savedFileContent).toBe('ghp_file_save_123456789')
+    const providerPath = getProviderTokenFilePath('github')
+    expect(savedFiles[providerPath]).toBe('ghp_file_save_123456789')
+  })
+
+  it('saves to legacy location for github backward compat', async () => {
+    await runAuth((auth) => auth.setToken('ghp_legacy_save_123456789'))
+    const legacyPaths = Object.keys(savedFiles).filter(
+      (p) => p.endsWith('.token') && !p.includes('tokens/'),
+    )
+    expect(legacyPaths.length).toBeGreaterThan(0)
+  })
+
+  it('does not save to legacy location for non-github providers', async () => {
+    setAuthProvider('gitlab')
+    await runAuth((auth) => auth.setToken('glpat-test_token_12345'))
+    const legacyPaths = Object.keys(savedFiles).filter(
+      (p) => p.endsWith('.token') && !p.includes('tokens/'),
+    )
+    expect(legacyPaths.length).toBe(0)
+    const providerPath = getProviderTokenFilePath('gitlab')
+    expect(savedFiles[providerPath]).toBe('glpat-test_token_12345')
   })
 })
 
@@ -334,9 +504,9 @@ describe('clearManualToken', () => {
 
   beforeEach(() => {
     resetAuthState()
-    ghCliResult = null
-    ghCliError = null
-    savedFileContent = null
+    cliResults = {}
+    cliErrors = {}
+    savedFiles = {}
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
   })
@@ -348,16 +518,13 @@ describe('clearManualToken', () => {
   it('clears session and saved token', async () => {
     await runAuth((auth) => auth.setToken('ghp_to_be_cleared_12345'))
     await runAuth((auth) => auth.clearManualToken())
-    // With no tokens available and no gh CLI, should fail
     const exit = await runAuthExit((auth) => auth.getToken())
     expect(Exit.isFailure(exit)).toBe(true)
   })
 
   it('resets preferredSource from manual to null', async () => {
     await runAuth((auth) => auth.setToken('ghp_to_be_cleared_12345'))
-    // preferredSource is now 'manual'
     await runAuth((auth) => auth.clearManualToken())
-    // preferredSource should be null, so default priority chain is used
     process.env['LAZYREVIEW_GITHUB_TOKEN'] = 'ghp_env_after_clear_12345'
     const token = await runAuth((auth) => auth.getToken())
     expect(token).toBe('ghp_env_after_clear_12345')
@@ -369,8 +536,8 @@ describe('getAvailableSources', () => {
 
   beforeEach(() => {
     resetAuthState()
-    ghCliResult = null
-    ghCliError = null
+    cliResults = {}
+    cliErrors = {}
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
   })
@@ -392,14 +559,13 @@ describe('getAvailableSources', () => {
   })
 
   it('detects gh_cli source when gh CLI is available', async () => {
-    ghCliResult = { stdout: 'ghp_cli_avail_1234567' }
+    setCliResult('gh', ['auth', 'token'], 'ghp_cli_avail_1234567')
     const sources = await runAuth((auth) => auth.getAvailableSources())
     expect(sources).toContain('gh_cli')
   })
 
   it('returns empty array when nothing is available', async () => {
-    ghCliResult = null
-    ghCliError = new Error('not found')
+    setCliError('gh', ['auth', 'token'], new Error('not found'))
     const sources = await runAuth((auth) => auth.getAvailableSources())
     expect(sources).toEqual([])
   })
@@ -407,7 +573,7 @@ describe('getAvailableSources', () => {
   it('detects multiple sources simultaneously', async () => {
     process.env['LAZYREVIEW_GITHUB_TOKEN'] = 'ghp_env_multi_1234567'
     await runAuth((auth) => auth.setToken('ghp_manual_multi_1234567'))
-    ghCliResult = { stdout: 'ghp_cli_multi_1234567' }
+    setCliResult('gh', ['auth', 'token'], 'ghp_cli_multi_1234567')
     const sources = await runAuth((auth) => auth.getAvailableSources())
     expect(sources).toContain('env')
     expect(sources).toContain('manual')
@@ -420,8 +586,8 @@ describe('isAuthenticated', () => {
 
   beforeEach(() => {
     resetAuthState()
-    ghCliResult = null
-    ghCliError = null
+    cliResults = {}
+    cliErrors = {}
     delete process.env['LAZYREVIEW_GITHUB_TOKEN']
     delete process.env['GITHUB_TOKEN']
   })
@@ -437,8 +603,229 @@ describe('isAuthenticated', () => {
   })
 
   it('returns false when no token is available', async () => {
-    ghCliError = new Error('not found')
+    setCliError('gh', ['auth', 'token'], new Error('not found'))
     const result = await runAuth((auth) => auth.isAuthenticated())
     expect(result).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Multi-provider token resolution tests
+// ---------------------------------------------------------------------------
+
+describe('multi-provider token resolution', () => {
+  const originalEnv = { ...process.env }
+
+  beforeEach(() => {
+    resetAuthState()
+    cliResults = {}
+    cliErrors = {}
+    savedFiles = {}
+    delete process.env['LAZYREVIEW_GITHUB_TOKEN']
+    delete process.env['GITHUB_TOKEN']
+    delete process.env['LAZYREVIEW_GITLAB_TOKEN']
+    delete process.env['GITLAB_TOKEN']
+    delete process.env['LAZYREVIEW_BITBUCKET_TOKEN']
+    delete process.env['BITBUCKET_TOKEN']
+    delete process.env['LAZYREVIEW_AZURE_TOKEN']
+    delete process.env['AZURE_DEVOPS_TOKEN']
+    delete process.env['LAZYREVIEW_GITEA_TOKEN']
+    delete process.env['GITEA_TOKEN']
+  })
+
+  afterEach(() => {
+    process.env = { ...originalEnv }
+  })
+
+  describe('GitLab', () => {
+    beforeEach(() => {
+      setAuthProvider('gitlab')
+    })
+
+    it('resolves LAZYREVIEW_GITLAB_TOKEN env var', async () => {
+      process.env['LAZYREVIEW_GITLAB_TOKEN'] = 'glpat-gitlab_test_1234567'
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('glpat-gitlab_test_1234567')
+    })
+
+    it('resolves GITLAB_TOKEN as fallback', async () => {
+      process.env['GITLAB_TOKEN'] = 'glpat-fallback_1234567'
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('glpat-fallback_1234567')
+    })
+
+    it('resolves glab CLI token', async () => {
+      setCliResult('glab', ['auth', 'token'], 'glpat-cli_token_1234567')
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('glpat-cli_token_1234567')
+    })
+
+    it('primary env var takes precedence over secondary', async () => {
+      process.env['LAZYREVIEW_GITLAB_TOKEN'] = 'glpat-primary_1234567'
+      process.env['GITLAB_TOKEN'] = 'glpat-secondary_1234567'
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('glpat-primary_1234567')
+    })
+
+    it('manual token takes precedence over secondary env var', async () => {
+      process.env['GITLAB_TOKEN'] = 'glpat-secondary_1234567'
+      await runAuth((auth) => auth.setToken('glpat-manual_1234567'))
+      await runAuth((auth) => auth.setPreferredSource('none'))
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('glpat-manual_1234567')
+    })
+
+    it('fails when no gitlab token source available', async () => {
+      setCliError('glab', ['auth', 'token'], new Error('not found'))
+      const exit = await runAuthExit((auth) => auth.getToken())
+      expect(Exit.isFailure(exit)).toBe(true)
+    })
+
+    it('detects env source for gitlab', async () => {
+      process.env['LAZYREVIEW_GITLAB_TOKEN'] = 'glpat-env_available_12345'
+      const sources = await runAuth((auth) => auth.getAvailableSources())
+      expect(sources).toContain('env')
+    })
+
+    it('detects glab CLI source', async () => {
+      setCliResult('glab', ['auth', 'token'], 'glpat-cli_available_12345')
+      const sources = await runAuth((auth) => auth.getAvailableSources())
+      expect(sources).toContain('gh_cli')
+    })
+  })
+
+  describe('Bitbucket', () => {
+    beforeEach(() => {
+      setAuthProvider('bitbucket')
+    })
+
+    it('resolves LAZYREVIEW_BITBUCKET_TOKEN env var', async () => {
+      process.env['LAZYREVIEW_BITBUCKET_TOKEN'] = 'bb_token_1234567890'
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('bb_token_1234567890')
+    })
+
+    it('resolves BITBUCKET_TOKEN as fallback', async () => {
+      process.env['BITBUCKET_TOKEN'] = 'bb_fallback_1234567890'
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('bb_fallback_1234567890')
+    })
+
+    it('fails when no token available (no CLI for bitbucket)', async () => {
+      const exit = await runAuthExit((auth) => auth.getToken())
+      expect(Exit.isFailure(exit)).toBe(true)
+    })
+
+    it('does not include gh_cli in available sources (no CLI)', async () => {
+      const sources = await runAuth((auth) => auth.getAvailableSources())
+      expect(sources).not.toContain('gh_cli')
+    })
+
+    it('saves token to bitbucket-specific file', async () => {
+      await runAuth((auth) => auth.setToken('bb_saved_1234567890'))
+      const providerPath = getProviderTokenFilePath('bitbucket')
+      expect(savedFiles[providerPath]).toBe('bb_saved_1234567890')
+    })
+  })
+
+  describe('Azure DevOps', () => {
+    beforeEach(() => {
+      setAuthProvider('azure')
+    })
+
+    it('resolves LAZYREVIEW_AZURE_TOKEN env var', async () => {
+      process.env['LAZYREVIEW_AZURE_TOKEN'] = 'azure_token_1234567890'
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('azure_token_1234567890')
+    })
+
+    it('resolves AZURE_DEVOPS_TOKEN as fallback', async () => {
+      process.env['AZURE_DEVOPS_TOKEN'] = 'azure_fallback_1234567890'
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('azure_fallback_1234567890')
+    })
+
+    it('fails when no azure token available', async () => {
+      const exit = await runAuthExit((auth) => auth.getToken())
+      expect(Exit.isFailure(exit)).toBe(true)
+    })
+  })
+
+  describe('Gitea', () => {
+    beforeEach(() => {
+      setAuthProvider('gitea')
+    })
+
+    it('resolves LAZYREVIEW_GITEA_TOKEN env var', async () => {
+      process.env['LAZYREVIEW_GITEA_TOKEN'] = 'gitea_token_1234567890'
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('gitea_token_1234567890')
+    })
+
+    it('resolves GITEA_TOKEN as fallback', async () => {
+      process.env['GITEA_TOKEN'] = 'gitea_fallback_1234567890'
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('gitea_fallback_1234567890')
+    })
+
+    it('fails when no gitea token available', async () => {
+      const exit = await runAuthExit((auth) => auth.getToken())
+      expect(Exit.isFailure(exit)).toBe(true)
+    })
+
+    it('saves token to gitea-specific file', async () => {
+      await runAuth((auth) => auth.setToken('gitea_saved_1234567890'))
+      const providerPath = getProviderTokenFilePath('gitea')
+      expect(savedFiles[providerPath]).toBe('gitea_saved_1234567890')
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Provider switching isolation tests
+// ---------------------------------------------------------------------------
+
+describe('provider switching isolation', () => {
+  const originalEnv = { ...process.env }
+
+  beforeEach(() => {
+    resetAuthState()
+    cliResults = {}
+    cliErrors = {}
+    savedFiles = {}
+    delete process.env['LAZYREVIEW_GITHUB_TOKEN']
+    delete process.env['GITHUB_TOKEN']
+    delete process.env['LAZYREVIEW_GITLAB_TOKEN']
+    delete process.env['GITLAB_TOKEN']
+  })
+
+  afterEach(() => {
+    process.env = { ...originalEnv }
+  })
+
+  it('GitHub env var does not resolve when provider is gitlab', async () => {
+    process.env['LAZYREVIEW_GITHUB_TOKEN'] = 'ghp_github_token_12345'
+    setAuthProvider('gitlab')
+    setCliError('glab', ['auth', 'token'], new Error('not found'))
+    const exit = await runAuthExit((auth) => auth.getToken())
+    expect(Exit.isFailure(exit)).toBe(true)
+  })
+
+  it('GitLab env var does not resolve when provider is github', async () => {
+    process.env['LAZYREVIEW_GITLAB_TOKEN'] = 'glpat-gitlab_token_12345'
+    setCliError('gh', ['auth', 'token'], new Error('not found'))
+    const exit = await runAuthExit((auth) => auth.getToken())
+    expect(Exit.isFailure(exit)).toBe(true)
+  })
+
+  it('switching providers resets initialized state', async () => {
+    process.env['LAZYREVIEW_GITHUB_TOKEN'] = 'ghp_first_provider_12345'
+    const githubToken = await runAuth((auth) => auth.getToken())
+    expect(githubToken).toBe('ghp_first_provider_12345')
+
+    setAuthProvider('gitlab')
+    process.env['LAZYREVIEW_GITLAB_TOKEN'] = 'glpat-second_provider_12345'
+    const gitlabToken = await runAuth((auth) => auth.getToken())
+    expect(gitlabToken).toBe('glpat-second_provider_12345')
   })
 })
