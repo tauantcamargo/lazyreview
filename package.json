@@ -67,5 +67,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
   }
 }
