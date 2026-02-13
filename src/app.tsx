@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { Box, Text, useApp, useInput, useStdout } from 'ink'
 import { ThemeProvider, getThemeByName } from './theme/index'
 import type { ThemeName } from './theme/index'
@@ -30,6 +30,7 @@ import { useSidebarCounts } from './hooks/useSidebarCounts'
 import { useReadState } from './hooks/useReadState'
 import { useRateLimit } from './hooks/useRateLimit'
 import { useSidebarSections, getItemIndex } from './hooks/useSidebarSections'
+import { useTokenExpired, clearTokenExpired } from './hooks/useTokenExpired'
 import type { ConnectionStatus } from './components/layout/TopBar'
 import type { PullRequest } from './models/pull-request'
 
@@ -54,6 +55,7 @@ function AppContent({
   const { exit } = useApp()
   const { stdout } = useStdout()
   const { user, isAuthenticated, loading, saveToken, error } = useAuth()
+  const queryClient = useQueryClient()
   const [sidebarVisible, setSidebarVisible] = useState(true)
   const [currentScreen, setCurrentScreen] = useState<AppScreen>({
     type: 'list',
@@ -62,6 +64,9 @@ function AppContent({
   const [showHelp, setShowHelp] = useState(false)
   // Start with modal hidden, show only after auth check fails
   const [showTokenInput, setShowTokenInput] = useState(false)
+
+  // Global 401 detection — shows token modal when token expires mid-session
+  const { isTokenExpired } = useTokenExpired()
 
   // Input focus tracking (for disabling shortcuts when typing)
   const { isInputActive } = useInputFocus()
@@ -94,21 +99,31 @@ function AppContent({
   React.useEffect(() => {
     if (!loading && !isAuthenticated && !showTokenInput) {
       setShowTokenInput(true)
-    } else if (isAuthenticated && showTokenInput) {
+    } else if (isAuthenticated && showTokenInput && !isTokenExpired) {
       setShowTokenInput(false)
     }
-  }, [loading, isAuthenticated, showTokenInput])
+  }, [loading, isAuthenticated, showTokenInput, isTokenExpired])
+
+  // Show token modal when token expires mid-session (401 detected)
+  React.useEffect(() => {
+    if (isTokenExpired && !showTokenInput) {
+      setShowTokenInput(true)
+    }
+  }, [isTokenExpired, showTokenInput])
 
   const handleTokenSubmit = useCallback(
     async (token: string) => {
       try {
         setTokenError(null)
         await saveToken(token)
+        // Clear token expiration flag and retry all failed queries
+        clearTokenExpired()
+        queryClient.invalidateQueries()
       } catch (err) {
         setTokenError(String(err))
       }
     },
-    [saveToken],
+    [saveToken, queryClient],
   )
 
   // Global keyboard shortcuts

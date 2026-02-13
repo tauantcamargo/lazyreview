@@ -4,6 +4,7 @@ import { PullRequest } from '../models/pull-request'
 import { updateRateLimit } from '../hooks/useRateLimit'
 import { touchLastUpdated } from '../hooks/useLastUpdated'
 import { sanitizeApiError } from '../utils/sanitize'
+import { notifyTokenExpired } from '../hooks/useTokenExpired'
 import type { ListPRsOptions } from './GitHubApiTypes'
 
 const MAX_PAGES = 20
@@ -29,12 +30,17 @@ export function parseRetryAfter(headers: Headers): number | undefined {
 
 /**
  * Build a GitHubError from a non-OK response, attaching retryAfterMs for 429s.
+ * Also notifies token expiration for 401 responses.
  */
 function buildGitHubError(
   response: Response,
   body: string,
   url: string,
 ): GitHubError {
+  if (response.status === 401) {
+    notifyTokenExpired()
+  }
+
   return new GitHubError({
     message: sanitizeApiError(response.status, response.statusText),
     detail: body,
