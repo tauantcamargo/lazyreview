@@ -7,6 +7,7 @@ import { useStatusMessage } from '../../hooks/useStatusMessage'
 import type { Commit } from '../../models/commit'
 import { timeAgo } from '../../utils/date'
 import { EmptyState } from '../common/EmptyState'
+import { stripAnsi } from '../../utils/sanitize'
 
 interface CommitsTabProps {
   readonly commits: readonly Commit[]
@@ -23,7 +24,7 @@ function CommitItem({
   const theme = useTheme()
 
   const shortSha = commit.sha.slice(0, 7)
-  const message = commit.commit.message.split('\n')[0] ?? ''
+  const message = stripAnsi(commit.commit.message.split('\n')[0] ?? '')
   const author = commit.author?.login ?? commit.commit.author.name
   const date = commit.commit.author.date
 

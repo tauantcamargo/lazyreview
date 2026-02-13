@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
-import { TextInput } from '@inkjs/ui'
+import { TextInput, PasswordInput } from '@inkjs/ui'
 import { useTheme } from '../theme/index'
 import type { ThemeName } from '../theme/index'
 import { useConfig } from '../hooks/useConfig'
@@ -235,11 +235,18 @@ export function SettingsScreen(): React.ReactElement {
     if (editingField === field) {
       return (
         <Box borderStyle="single" borderColor={theme.colors.accent} paddingX={1} width={40}>
-          <TextInput
-            defaultValue={editValue}
-            onChange={setEditValue}
-            placeholder={placeholder}
-          />
+          {field === 'new_token' ? (
+            <PasswordInput
+              onChange={setEditValue}
+              placeholder={placeholder}
+            />
+          ) : (
+            <TextInput
+              defaultValue={editValue}
+              onChange={setEditValue}
+              placeholder={placeholder}
+            />
+          )}
         </Box>
       )
     }

@@ -4,6 +4,28 @@ import SyntaxHighlight from 'ink-syntax-highlight'
 import { useTheme } from '../../theme/index'
 import type { Hunk, DiffLine } from '../../models/diff'
 import { DiffCommentView, type DiffCommentThread } from './DiffComment'
+import { stripAnsi } from '../../utils/sanitize'
+
+/**
+ * Expand tab characters to spaces using tab stops.
+ * Ensures character count matches terminal column count for correct slicing.
+ */
+export function expandTabs(text: string, tabWidth: number = 4): string {
+  if (!text.includes('\t')) return text
+  let result = ''
+  let col = 0
+  for (const char of text) {
+    if (char === '\t') {
+      const spaces = tabWidth - (col % tabWidth)
+      result += ' '.repeat(spaces)
+      col += spaces
+    } else {
+      result += char
+      col++
+    }
+  }
+  return result
+}
 
 export function getLanguageFromFilename(
   filename: string,
@@ -69,6 +91,8 @@ interface DiffLineViewProps {
   readonly isFocus: boolean
   readonly isInSelection: boolean
   readonly language?: string
+  readonly contentWidth?: number
+  readonly scrollOffsetX?: number
 }
 
 function DiffLineView({
@@ -77,6 +101,8 @@ function DiffLineView({
   isFocus,
   isInSelection,
   language,
+  contentWidth = 80,
+  scrollOffsetX = 0,
 }: DiffLineViewProps): React.ReactElement {
   const theme = useTheme()
 
@@ -104,28 +130,45 @@ function DiffLineView({
           ? ''
           : ' '
 
+  const cleanContent = expandTabs(stripAnsi(line.content))
+  const visibleContent = cleanContent.slice(
+    scrollOffsetX,
+    scrollOffsetX + contentWidth,
+  )
+
   const canHighlight =
     (line.type === 'context' || line.type === 'add' || line.type === 'del') &&
     language !== undefined &&
-    line.content.trim().length > 0
+    visibleContent.trim().length > 0
 
   return (
-    <Box backgroundColor={bgColor}>
-      <Box width={5}>
+    <Box flexDirection="row" backgroundColor={bgColor} overflow="hidden">
+      <Box width={5} flexShrink={0}>
         <Text color={theme.colors.muted}>
           {lineNumber != null ? String(lineNumber).padStart(4, ' ') : ''}
         </Text>
       </Box>
       {canHighlight ? (
-        <Box flexDirection="row">
+        <Box flexDirection="row" flexShrink={0} overflow="hidden">
           <Text color={textColor}>{prefix}</Text>
-          <SyntaxHighlight code={line.content} language={language} />
+          <Box width={contentWidth} overflow="hidden" flexShrink={0}>
+            <SyntaxHighlight code={visibleContent} language={language} />
+          </Box>
         </Box>
       ) : (
-        <Text color={textColor} bold={isFocus} inverse={isFocus}>
-          {prefix}
-          {line.content}
-        </Text>
+        <Box flexDirection="row" flexShrink={0} overflow="hidden">
+          <Text color={textColor}>{prefix}</Text>
+          <Box width={contentWidth} overflow="hidden" flexShrink={0}>
+            <Text
+              wrap="truncate-end"
+              color={textColor}
+              bold={isFocus}
+              inverse={isFocus}
+            >
+              {visibleContent}
+            </Text>
+          </Box>
+        </Box>
       )}
     </Box>
   )
@@ -194,6 +237,8 @@ interface DiffViewProps {
   readonly isActive: boolean
   readonly filename?: string
   readonly visualStart?: number | null
+  readonly contentWidth?: number
+  readonly scrollOffsetX?: number
 }
 
 export function DiffView({
@@ -204,6 +249,8 @@ export function DiffView({
   isActive,
   filename,
   visualStart,
+  contentWidth = 80,
+  scrollOffsetX = 0,
 }: DiffViewProps): React.ReactElement {
   const language = filename ? getLanguageFromFilename(filename) : undefined
   const theme = useTheme()
@@ -225,7 +272,7 @@ export function DiffView({
   const selMax = visualStart != null ? Math.max(visualStart, selectedLine) : -1
 
   return (
-    <Box flexDirection="column" flexGrow={1}>
+    <Box flexDirection="column" flexGrow={1} minWidth={0} overflow="hidden">
       {visibleRows.map((row, index) => {
         const absIndex = scrollOffset + index
         if (row.type === 'comment') {
@@ -247,6 +294,8 @@ export function DiffView({
             isFocus={isActive && absIndex === selectedLine}
             isInSelection={isInSelection}
             language={language}
+            contentWidth={contentWidth}
+            scrollOffsetX={scrollOffsetX}
           />
         )
       })}

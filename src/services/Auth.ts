@@ -4,8 +4,10 @@ import { promisify } from 'node:util'
 import { writeFile, readFile, mkdir, unlink } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { stat } from 'node:fs/promises'
 import { AuthError } from '../models/errors'
 import { User } from '../models/user'
+import { isValidGitHubToken } from '../utils/sanitize'
 import type { Provider } from './Config'
 
 const execFileAsync = promisify(execFile)
@@ -14,7 +16,6 @@ export type TokenSource = 'manual' | 'env' | 'gh_cli' | 'none'
 
 export interface TokenInfo {
   readonly source: TokenSource
-  readonly token: string | null
   readonly maskedToken: string | null
 }
 
@@ -30,6 +31,12 @@ let currentProvider: Provider = 'github'
 // Load saved token from file on startup
 async function loadSavedToken(): Promise<string | null> {
   try {
+    // Verify file permissions are secure before reading
+    const fileStat = await stat(TOKEN_FILE)
+    const perms = fileStat.mode & 0o777
+    if (perms !== 0o600) {
+      return null
+    }
     const token = await readFile(TOKEN_FILE, 'utf-8')
     return token.trim() || null
   } catch {
@@ -39,8 +46,8 @@ async function loadSavedToken(): Promise<string | null> {
 
 // Save token to file for persistence
 async function saveTokenToFile(token: string): Promise<void> {
-  await mkdir(CONFIG_DIR, { recursive: true })
-  await writeFile(TOKEN_FILE, token, { mode: 0o600 }) // Secure permissions
+  await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
+  await writeFile(TOKEN_FILE, token, { mode: 0o600 })
 }
 
 // Delete saved token file
@@ -149,7 +156,11 @@ function resolveGitHubToken(): Effect.Effect<string, AuthError> {
     const manualToken = sessionToken ?? savedToken
     if (manualToken) return manualToken
 
-    // 3. gh CLI fallback
+    // 3. GITHUB_TOKEN env var (generic fallback)
+    const genericToken = process.env['GITHUB_TOKEN']
+    if (genericToken) return genericToken
+
+    // 4. gh CLI fallback
     const ghResult = yield* Effect.tryPromise({
       try: tryGetGhToken,
       catch: () =>
@@ -161,7 +172,7 @@ function resolveGitHubToken(): Effect.Effect<string, AuthError> {
 
     if (ghResult) return ghResult
 
-    // 4. No token found - will show modal
+    // 5. No token found - will show modal
     return yield* Effect.fail(
       new AuthError({
         message: 'No GitHub token found. Set LAZYREVIEW_GITHUB_TOKEN or configure in Settings.',
@@ -232,7 +243,6 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
       if (manualToken) {
         return {
           source: 'manual' as TokenSource,
-          token: manualToken,
           maskedToken: maskToken(manualToken),
         }
       }
@@ -243,7 +253,6 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
       if (envToken) {
         return {
           source: 'env' as TokenSource,
-          token: envToken,
           maskedToken: maskToken(envToken),
         }
       }
@@ -254,7 +263,6 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
       if (ghToken) {
         return {
           source: 'gh_cli' as TokenSource,
-          token: ghToken,
           maskedToken: maskToken(ghToken),
         }
       }
@@ -266,7 +274,6 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
     if (envToken) {
       return {
         source: 'env' as TokenSource,
-        token: envToken,
         maskedToken: maskToken(envToken),
       }
     }
@@ -276,24 +283,30 @@ function resolveGitHubTokenInfo(): Effect.Effect<TokenInfo, never> {
     if (manualToken) {
       return {
         source: 'manual' as TokenSource,
-        token: manualToken,
         maskedToken: maskToken(manualToken),
       }
     }
 
-    // 3. gh CLI
+    // 3. GITHUB_TOKEN env var (generic fallback)
+    const genericToken = process.env['GITHUB_TOKEN']
+    if (genericToken) {
+      return {
+        source: 'env' as TokenSource,
+        maskedToken: maskToken(genericToken),
+      }
+    }
+
+    // 4. gh CLI
     const ghToken = yield* Effect.promise(tryGetGhToken)
     if (ghToken) {
       return {
         source: 'gh_cli' as TokenSource,
-        token: ghToken,
         maskedToken: maskToken(ghToken),
       }
     }
 
     return {
       source: 'none' as TokenSource,
-      token: null,
       maskedToken: null,
     }
   })
@@ -304,7 +317,6 @@ function resolveTokenInfo(): Effect.Effect<TokenInfo, never> {
   if (currentProvider === 'gitlab') {
     return Effect.succeed({
       source: 'none' as TokenSource,
-      token: null,
       maskedToken: null,
     })
   }
@@ -334,7 +346,7 @@ function getGitHubUser(token: string): Effect.Effect<User, AuthError> {
     },
     catch: (error) =>
       new AuthError({
-        message: `Failed to get user: ${String(error)}`,
+        message: `Failed to get user: ${error instanceof Error ? error.message : 'Unknown error'}`,
         reason: 'invalid_token',
       }),
   })
@@ -373,6 +385,9 @@ export const AuthLive = Layer.succeed(
 
     setToken: (token: string) =>
       Effect.gen(function* () {
+        if (currentProvider === 'github' && !isValidGitHubToken(token)) {
+          yield* Effect.logWarning('Token does not match known GitHub token formats')
+        }
         sessionToken = token
         savedToken = token
         preferredSource = 'manual'

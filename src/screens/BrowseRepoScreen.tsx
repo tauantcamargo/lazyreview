@@ -10,6 +10,7 @@ import { usePullRequests, type PRStateFilter } from '../hooks/useGitHub'
 import { setScreenContext } from '../hooks/useScreenContext'
 import { PRListScreen } from './PRListScreen'
 import { Divider } from '../components/common/Divider'
+import { validateOwner, validateRepo } from '../utils/sanitize'
 import type { PullRequest } from '../models/pull-request'
 
 function validateRepoInput(input: string): { readonly valid: boolean; readonly owner: string; readonly repo: string; readonly error: string | null } {
@@ -25,6 +26,12 @@ function validateRepoInput(input: string): { readonly valid: boolean; readonly o
   }
   if (!repo) {
     return { valid: false, owner: '', repo: '', error: 'Repo cannot be empty' }
+  }
+  try {
+    validateOwner(owner)
+    validateRepo(repo)
+  } catch {
+    return { valid: false, owner: '', repo: '', error: 'Invalid characters in owner/repo' }
   }
   return { valid: true, owner, repo, error: null }
 }

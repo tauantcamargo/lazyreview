@@ -47,10 +47,9 @@ describe('validateRepoInput', () => {
     expect(result.error).toBe('Format: owner/repo')
   })
 
-  it('handles multiple slashes (takes first as owner)', () => {
+  it('rejects repo names with invalid characters (multiple slashes)', () => {
     const result = validateRepoInput('org/repo/path')
-    expect(result.valid).toBe(true)
-    expect(result.owner).toBe('org')
-    expect(result.repo).toBe('repo/path')
+    expect(result.valid).toBe(false)
+    expect(result.error).toBe('Invalid characters in owner/repo')
   })
 })

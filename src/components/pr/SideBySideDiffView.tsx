@@ -1,10 +1,11 @@
 import React from 'react'
-import { Box, Text, useStdout } from 'ink'
+import { Box, Text } from 'ink'
 import SyntaxHighlight from 'ink-syntax-highlight'
 import { useTheme } from '../../theme/index'
 import type { Hunk, DiffLine } from '../../models/diff'
 import { DiffCommentView, type DiffCommentThread } from './DiffComment'
-import { getLanguageFromFilename } from './DiffView'
+import { getLanguageFromFilename, expandTabs } from './DiffView'
+import { stripAnsi } from '../../utils/sanitize'
 
 export type SideBySideRow =
   | {
@@ -116,25 +117,23 @@ export function buildSideBySideRows(
 
 interface SideBySideLineProps {
   readonly line: DiffLine | null
-  readonly width: number
   readonly isFocus: boolean
   readonly language?: string
+  readonly contentWidth?: number
+  readonly scrollOffsetX?: number
 }
 
 function SideBySideLine({
   line,
-  width,
   isFocus,
   language,
+  contentWidth = 40,
+  scrollOffsetX = 0,
 }: SideBySideLineProps): React.ReactElement {
   const theme = useTheme()
 
   if (!line) {
-    return (
-      <Box width={width}>
-        <Text color={theme.colors.muted}>{' '.repeat(Math.max(0, width))}</Text>
-      </Box>
-    )
+    return <Text color={theme.colors.muted}> </Text>
   }
 
   const bgColor = isFocus ? theme.colors.selection : undefined
@@ -156,33 +155,40 @@ function SideBySideLine({
   const prefix =
     line.type === 'add' ? '+' : line.type === 'del' ? '-' : ' '
 
+  const cleanContent = expandTabs(stripAnsi(line.content))
+  const visibleContent = cleanContent.slice(
+    scrollOffsetX,
+    scrollOffsetX + contentWidth,
+  )
   const canHighlight =
     line.type !== 'header' &&
     language !== undefined &&
-    line.content.trim().length > 0
-
-  const contentWidth = Math.max(0, width - 6) // 5 for line number + 1 for prefix
+    visibleContent.trim().length > 0
 
   return (
-    <Box width={width} backgroundColor={bgColor}>
-      <Box width={5}>
+    <Box backgroundColor={bgColor} overflow="hidden">
+      <Box width={5} flexShrink={0}>
         <Text color={theme.colors.muted}>
           {lineNum != null ? String(lineNum).padStart(4, ' ') : '    '}
         </Text>
       </Box>
-      <Box width={contentWidth}>
-        {canHighlight ? (
-          <Box flexDirection="row">
-            <Text color={textColor}>{prefix}</Text>
-            <SyntaxHighlight code={line.content.slice(0, contentWidth - 1)} language={language} />
+      {canHighlight ? (
+        <Box flexDirection="row" flexShrink={0} overflow="hidden">
+          <Text color={textColor}>{prefix}</Text>
+          <Box width={contentWidth} overflow="hidden" flexShrink={0}>
+            <SyntaxHighlight code={visibleContent} language={language} />
           </Box>
-        ) : (
-          <Text color={textColor} wrap="truncate">
-            {prefix}
-            {line.content}
-          </Text>
-        )}
-      </Box>
+        </Box>
+      ) : (
+        <Box flexDirection="row" flexShrink={0} overflow="hidden">
+          <Text color={textColor}>{prefix}</Text>
+          <Box width={contentWidth} overflow="hidden" flexShrink={0}>
+            <Text color={textColor} wrap="truncate-end">
+              {visibleContent}
+            </Text>
+          </Box>
+        </Box>
+      )}
     </Box>
   )
 }
@@ -194,6 +200,8 @@ interface SideBySideDiffViewProps {
   readonly viewportHeight: number
   readonly isActive: boolean
   readonly filename?: string
+  readonly contentWidth?: number
+  readonly scrollOffsetX?: number
 }
 
 export function SideBySideDiffView({
@@ -203,8 +211,9 @@ export function SideBySideDiffView({
   viewportHeight,
   isActive,
   filename,
+  contentWidth = 40,
+  scrollOffsetX = 0,
 }: SideBySideDiffViewProps): React.ReactElement {
-  const { stdout } = useStdout()
   const theme = useTheme()
   const language = filename ? getLanguageFromFilename(filename) : undefined
 
@@ -216,13 +225,10 @@ export function SideBySideDiffView({
     )
   }
 
-  const terminalWidth = stdout?.columns ?? 120
-  const halfWidth = Math.floor((terminalWidth - 3) / 2) // 3 for gutter
-
   const visibleRows = rows.slice(scrollOffset, scrollOffset + viewportHeight)
 
   return (
-    <Box flexDirection="column" flexGrow={1}>
+    <Box flexDirection="column" flexGrow={1} minWidth={0} overflow="hidden">
       {visibleRows.map((row, index) => {
         const absIndex = scrollOffset + index
         const isFocus = isActive && absIndex === selectedLine
@@ -238,30 +244,54 @@ export function SideBySideDiffView({
         }
 
         if (row.type === 'header') {
+          const raw = row.left?.content ?? ''
+          const headerWidth = 2 * contentWidth + 1
+          const visible = expandTabs(stripAnsi(raw)).slice(
+            scrollOffsetX,
+            scrollOffsetX + headerWidth,
+          )
           return (
-            <Box key={`sbs-${absIndex}`} backgroundColor={isFocus ? theme.colors.selection : undefined}>
-              <Text color={theme.colors.info}>{row.left?.content ?? ''}</Text>
+            <Box
+              key={`sbs-${absIndex}`}
+              flexDirection="row"
+              backgroundColor={isFocus ? theme.colors.selection : undefined}
+              overflow="hidden"
+            >
+              <Box width={5} flexShrink={0}>
+                <Text color={theme.colors.muted}> </Text>
+              </Box>
+              <Box flexGrow={1} minWidth={0} overflow="hidden">
+                <Text color={theme.colors.info} wrap="truncate-end">
+                  {visible}
+                </Text>
+              </Box>
             </Box>
           )
         }
 
         return (
-          <Box key={`sbs-${absIndex}`} flexDirection="row">
-            <SideBySideLine
-              line={row.left}
-              width={halfWidth}
-              isFocus={isFocus}
-              language={language}
-            />
-            <Box width={1}>
+          <Box key={`sbs-${absIndex}`} flexDirection="row" overflow="hidden">
+            <Box flexGrow={1} flexBasis={0} minWidth={0} flexShrink={1} overflow="hidden">
+              <SideBySideLine
+                line={row.left}
+                isFocus={isFocus}
+                language={language}
+                contentWidth={contentWidth}
+                scrollOffsetX={scrollOffsetX}
+              />
+            </Box>
+            <Box width={1} flexShrink={0} flexGrow={0}>
               <Text color={theme.colors.border}>|</Text>
             </Box>
-            <SideBySideLine
-              line={row.right}
-              width={halfWidth}
-              isFocus={isFocus}
-              language={language}
-            />
+            <Box flexGrow={1} flexBasis={0} minWidth={0} flexShrink={1} overflow="hidden">
+              <SideBySideLine
+                line={row.right}
+                isFocus={isFocus}
+                language={language}
+                contentWidth={contentWidth}
+                scrollOffsetX={scrollOffsetX}
+              />
+            </Box>
           </Box>
         )
       })}

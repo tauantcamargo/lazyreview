@@ -133,26 +133,29 @@ export function FileItem({
   const viewedIndicator = isViewed ? '\u2713' : '\u00B7'
 
   return (
-    <Box paddingX={0} gap={1} width="100%">
+    <Box paddingX={0} gap={1} width="100%" flexWrap="nowrap" minWidth={0}>
       <Text color={isViewed ? theme.colors.success : theme.colors.muted}>
         {viewedIndicator}
       </Text>
       <Text color={statusColor} bold>
         {statusIcon}
       </Text>
-      <Text
-        color={
-          isFocus
-            ? theme.colors.listSelectedFg
-            : isSelected
-              ? theme.colors.accent
-              : theme.colors.text
-        }
-        bold={isFocus || isSelected}
-        inverse={isFocus}
-      >
-        {filename}
-      </Text>
+      <Box flexGrow={1} minWidth={0} overflow="hidden">
+        <Text
+          wrap="truncate-end"
+          color={
+            isFocus
+              ? theme.colors.listSelectedFg
+              : isSelected
+                ? theme.colors.accent
+                : theme.colors.text
+          }
+          bold={isFocus || isSelected}
+          inverse={isFocus}
+        >
+          {filename}
+        </Text>
+      </Box>
     </Box>
   )
 }

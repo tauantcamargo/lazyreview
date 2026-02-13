@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
-import { TextInput } from '@inkjs/ui'
+import { PasswordInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
@@ -91,7 +91,7 @@ export function TokenInputModal({
           paddingX={1}
           width={50}
         >
-          <TextInput defaultValue={value} onChange={setValue} />
+          <PasswordInput onChange={setValue} placeholder="ghp_xxxx..." />
         </Box>
         <Box flexDirection="column">
           <Text color={theme.colors.muted} dimColor>

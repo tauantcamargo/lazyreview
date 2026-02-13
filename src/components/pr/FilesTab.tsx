@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react'
-import { Box, Text, useInput, useStdout } from 'ink'
+import React, { useMemo, useRef, useState } from 'react'
+import { Box, Text, useInput, useStdout, measureElement } from 'ink'
+import type { DOMElement } from 'ink'
 import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
@@ -10,7 +11,7 @@ import { parseDiffPatch } from '../../models/diff'
 import type { Comment } from '../../models/comment'
 import type { ReviewThread } from '../../services/GitHubApiTypes'
 import { EmptyState } from '../common/EmptyState'
-import { DiffView, buildDiffRows } from './DiffView'
+import { DiffView, buildDiffRows, expandTabs } from './DiffView'
 import {
   SideBySideDiffView,
   buildSideBySideRows,
@@ -27,6 +28,7 @@ import {
 } from './FileTree'
 import type { DiffLine } from '../../models/diff'
 import type { InlineCommentContext } from '../../models/inline-comment'
+import { stripAnsi } from '../../utils/sanitize'
 
 /**
  * Resolve the focused DiffCommentThread from either unified or side-by-side rows.
@@ -159,15 +161,33 @@ export function FilesTab({
   const [visualStart, setVisualStart] = useState<number | null>(null)
   const [diffMode, setDiffMode] = useState<DiffMode>('unified')
 
+  // Measure actual container width (accounts for sidebar, borders, padding)
+  const containerRef = useRef<DOMElement>(null)
+  const [measuredWidth, setMeasuredWidth] = useState(0)
+  React.useEffect(() => {
+    if (containerRef.current) {
+      const { width } = measureElement(containerRef.current)
+      setMeasuredWidth((prev) => (prev === width ? prev : width))
+    }
+  })
+
   // Fall back to unified if terminal is too narrow
   const terminalWidth = stdout?.columns ?? 120
+  const containerWidth = measuredWidth > 0 ? measuredWidth : terminalWidth
   const effectiveDiffMode =
-    diffMode === 'side-by-side' && terminalWidth < SIDE_BY_SIDE_MIN_WIDTH
+    diffMode === 'side-by-side' && containerWidth < SIDE_BY_SIDE_MIN_WIDTH
       ? 'unified'
       : diffMode
   const [isFiltering, setIsFiltering] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('')
+  const [diffScrollOffsetX, setDiffScrollOffsetX] = useState(0)
+
+  // Yoga 3.x uses border-box: width="30%" includes border
+  // Remaining = containerWidth - treePanelTotal
+  // diffContent = remaining - 2 (diff border) - 5 (linenum) - 1 (prefix) = remaining - 8
+  const treePanelWidth = Math.max(32, Math.floor(containerWidth * 0.3))
+  const diffContentWidth = Math.max(10, containerWidth - treePanelWidth - 8)
 
   const filteredFiles = useMemo(() => {
     if (!activeFilter && !isFiltering) return files
@@ -218,6 +238,10 @@ export function FilesTab({
       setSelectedFileIndex(treeSelectedIndex)
     }
   }, [treeSelectedIndex, focusPanel])
+
+  React.useEffect(() => {
+    setDiffScrollOffsetX(0)
+  }, [selectedFileIndex])
 
   // Auto-mark file as viewed when selected
   React.useEffect(() => {
@@ -293,6 +317,50 @@ export function FilesTab({
       ? sideBySideRows.length
       : allRows.length
 
+  const maxDiffLineLength = useMemo(() => {
+    let max = 0
+    for (const row of allRows) {
+      if (row.type === 'line') {
+        const len = expandTabs(stripAnsi(row.line.content)).length
+        if (len > max) max = len
+      }
+    }
+    return max
+  }, [allRows])
+
+  const diffContentWidthSbs = Math.max(
+    10,
+    Math.floor((diffContentWidth - 1) / 2),
+  )
+  const maxDiffLineLengthSbs = useMemo(() => {
+    let max = 0
+    for (const row of sideBySideRows) {
+      if (row.type === 'paired' || row.type === 'header') {
+        const left = row.type === 'header' ? row.left : row.left
+        const right = row.type === 'paired' ? row.right : null
+        if (left?.content) {
+          const len = expandTabs(stripAnsi(left.content)).length
+          if (len > max) max = len
+        }
+        if (right?.content) {
+          const len = expandTabs(stripAnsi(right.content)).length
+          if (len > max) max = len
+        }
+      }
+    }
+    return max
+  }, [sideBySideRows])
+
+  const maxDiffScrollXUnified = Math.max(0, maxDiffLineLength - diffContentWidth)
+  const maxDiffScrollXSbs = Math.max(
+    0,
+    maxDiffLineLengthSbs - diffContentWidthSbs,
+  )
+  const maxDiffScrollX =
+    effectiveDiffMode === 'side-by-side'
+      ? maxDiffScrollXSbs
+      : maxDiffScrollXUnified
+
   const { selectedIndex: diffSelectedLine, scrollOffset: diffScrollOffset } =
     useListNavigation({
       itemCount: totalDiffLines,
@@ -337,7 +405,21 @@ export function FilesTab({
       if (key.tab) {
         setVisualStart(null)
         setFocusPanel((prev) => (prev === 'tree' ? 'diff' : 'tree'))
-      } else if (input === 'h' || key.leftArrow) {
+      } else       if (focusPanel === 'diff' && (key.leftArrow || key.rightArrow)) {
+        const step = key.shift ? 16 : 4
+        setDiffScrollOffsetX((prev) =>
+          Math.max(
+            0,
+            Math.min(
+              maxDiffScrollX,
+              prev + (key.leftArrow ? -step : step),
+            ),
+          ),
+        )
+        return
+      }
+
+      if (input === 'h' || key.leftArrow) {
         setVisualStart(null)
         setFocusPanel('tree')
       } else if (input === 'l' || key.rightArrow) {
@@ -497,10 +579,11 @@ export function FilesTab({
   const isPanelFocused = focusPanel === 'tree' && isActive
 
   return (
-    <Box flexDirection="row" flexGrow={1}>
+    <Box ref={containerRef} flexDirection="row" flexGrow={1}>
       <Box
         flexDirection="column"
         width="30%"
+        minWidth={32}
         minHeight={0}
         overflow="hidden"
         borderStyle="single"
@@ -540,6 +623,8 @@ export function FilesTab({
         )}
         <Box
           flexDirection="column"
+          width="100%"
+          minWidth={0}
           paddingX={1}
           overflow="hidden"
           height={treeViewportHeight}
@@ -549,11 +634,25 @@ export function FilesTab({
           {visibleRows.map((row, i) => {
             const rowIndex = treeScrollOffset + i
             return row.type === 'dir' ? (
-              <Box key={`row-${rowIndex}`} paddingLeft={row.indent * 2}>
-                <Text color={theme.colors.muted}>{row.name}/</Text>
+              <Box
+                key={`row-${rowIndex}`}
+                width="100%"
+                minWidth={0}
+                overflow="hidden"
+                paddingLeft={row.indent * 2}
+              >
+                <Text wrap="truncate-end" color={theme.colors.muted}>
+                  {row.name}/
+                </Text>
               </Box>
             ) : (
-              <Box key={`row-${rowIndex}`} paddingLeft={row.indent * 2}>
+              <Box
+                key={`row-${rowIndex}`}
+                width="100%"
+                minWidth={0}
+                overflow="hidden"
+                paddingLeft={row.indent * 2}
+              >
                 <FileItem
                   item={row.file}
                   isFocus={
@@ -572,6 +671,8 @@ export function FilesTab({
       <Box
         flexDirection="column"
         flexGrow={1}
+        minWidth={0}
+        overflow="hidden"
         borderStyle="single"
         borderColor={
           focusPanel === 'diff' && isActive
@@ -579,8 +680,8 @@ export function FilesTab({
             : theme.colors.border
         }
       >
-        <Box paddingX={1} paddingY={0} gap={2}>
-          <Text color={theme.colors.accent} bold>
+        <Box paddingX={1} paddingY={0} gap={2} overflow="hidden">
+          <Text wrap="truncate-end" color={theme.colors.accent} bold>
             {selectedFile?.filename ?? 'No file selected'}
           </Text>
           {selectedFile && (
@@ -596,13 +697,16 @@ export function FilesTab({
           {effectiveDiffMode === 'side-by-side' && (
             <Text color={theme.colors.info}>[split]</Text>
           )}
+          {maxDiffScrollX > 0 && (
+            <Text color={theme.colors.muted}>[←/→ h-scroll]</Text>
+          )}
           {visualStart != null && focusPanel === 'diff' && (
             <Text color={theme.colors.warning} bold>
               -- VISUAL LINE --
             </Text>
           )}
         </Box>
-        <Box flexDirection="column" flexGrow={1} overflowY="hidden">
+        <Box flexDirection="column" flexGrow={1} minWidth={0} overflow="hidden">
           {effectiveDiffMode === 'side-by-side' ? (
             <SideBySideDiffView
               rows={sideBySideRows}
@@ -611,6 +715,8 @@ export function FilesTab({
               viewportHeight={viewportHeight - 2}
               isActive={isActive && focusPanel === 'diff'}
               filename={selectedFile?.filename}
+              contentWidth={diffContentWidthSbs}
+              scrollOffsetX={Math.min(diffScrollOffsetX, maxDiffScrollXSbs)}
             />
           ) : (
             <DiffView
@@ -621,6 +727,8 @@ export function FilesTab({
               isActive={isActive && focusPanel === 'diff'}
               filename={selectedFile?.filename}
               visualStart={focusPanel === 'diff' ? visualStart : null}
+              contentWidth={diffContentWidth}
+              scrollOffsetX={Math.min(diffScrollOffsetX, maxDiffScrollXUnified)}
             />
           )}
         </Box>

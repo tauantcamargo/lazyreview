@@ -19,8 +19,8 @@ export function createDebouncedWriter<T>(filePath: string): DebouncedWriter<T> {
 
   const writeAsync = (data: T): void => {
     const dir = dirname(filePath)
-    mkdir(dir, { recursive: true })
-      .then(() => writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8'))
+    mkdir(dir, { recursive: true, mode: 0o700 })
+      .then(() => writeFile(filePath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 }))
       .catch(() => {
         // Silently fail on write errors
       })
@@ -29,8 +29,8 @@ export function createDebouncedWriter<T>(filePath: string): DebouncedWriter<T> {
   const writeSync = (data: T): void => {
     try {
       const dir = dirname(filePath)
-      mkdirSync(dir, { recursive: true })
-      writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+      mkdirSync(dir, { recursive: true, mode: 0o700 })
+      writeFileSync(filePath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 })
     } catch {
       // Silently fail on write errors
     }

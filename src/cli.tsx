@@ -2,6 +2,7 @@ import React from 'react'
 import { render } from 'ink'
 import { App } from './app'
 import { detectGitRepo } from './utils/git'
+import { validateOwner, validateRepo } from './utils/sanitize'
 
 // ANSI escape codes for alternate screen buffer
 const ENTER_ALT_SCREEN = '\x1b[?1049h'
@@ -22,7 +23,13 @@ function parseArgs(argv: string[]): RepoInfo | null {
   if (repoArg && repoArg.includes('/')) {
     const [owner, repo] = repoArg.split('/')
     if (owner && repo) {
-      return { owner, repo }
+      try {
+        validateOwner(owner)
+        validateRepo(repo)
+        return { owner, repo }
+      } catch {
+        return null
+      }
     }
   }
 
@@ -118,8 +125,8 @@ async function main(): Promise<void> {
   render(<App repoOwner={repoOwner} repoName={repoName} />)
 }
 
-main().catch((error) => {
+main().catch((error: unknown) => {
   cleanup()
-  console.error('Failed to start:', error)
+  console.error('Failed to start:', error instanceof Error ? error.message : 'Unknown error')
   process.exit(1)
 })

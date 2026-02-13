@@ -25,11 +25,24 @@ interface ReadStateStore {
   readonly isUnread: (htmlUrl: string, prUpdatedAt: string) => boolean
 }
 
+function isReadEntry(value: unknown): value is ReadEntry {
+  if (value == null || typeof value !== 'object') return false
+  const obj = value as Record<string, unknown>
+  return typeof obj['lastSeenAt'] === 'string' && typeof obj['prUpdatedAt'] === 'string'
+}
+
 function loadFromDisk(): ReadStateData {
   try {
     const raw = readFileSync(READ_STATE_FILE, 'utf-8')
-    const parsed = JSON.parse(raw) as Record<string, ReadEntry>
-    return parsed
+    const parsed = JSON.parse(raw)
+    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const result: Record<string, ReadEntry> = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (isReadEntry(value)) {
+        result[key] = value
+      }
+    }
+    return result
   } catch {
     return {}
   }

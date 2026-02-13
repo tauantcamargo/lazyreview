@@ -82,7 +82,7 @@ export const ConfigLive = Layer.succeed(
           const configPath = getConfigPath()
           try {
             const content = await readFile(configPath, 'utf-8')
-            const parsed = parse(content)
+            const parsed = parse(content, { maxAliasCount: 10 })
             return S.decodeUnknownSync(AppConfig)(parsed)
           } catch {
             return defaultConfig
@@ -99,8 +99,8 @@ export const ConfigLive = Layer.succeed(
       Effect.tryPromise({
         try: async () => {
           const configPath = getConfigPath()
-          await mkdir(dirname(configPath), { recursive: true })
-          await writeFile(configPath, stringify(config), 'utf-8')
+          await mkdir(dirname(configPath), { recursive: true, mode: 0o700 })
+          await writeFile(configPath, stringify(config), { encoding: 'utf-8', mode: 0o600 })
         },
         catch: (error) =>
           new ConfigError({

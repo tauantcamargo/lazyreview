@@ -17,6 +17,7 @@ import {
   fetchGitHubSearchPaginated,
   buildQueryString,
 } from './GitHubApiHelpers'
+import { validateOwner, validateRepo, validateNumber, validateRef } from '../utils/sanitize'
 
 function buildStateQualifier(stateFilter: 'open' | 'closed' | 'all' = 'open'): string {
   switch (stateFilter) {
@@ -37,6 +38,8 @@ export const GitHubApiLive = Layer.effect(
     return CodeReviewApi.of({
       listPullRequests: (owner, repo, options = {}) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
           const token = yield* auth.getToken()
           const mergedOptions = { ...options, perPage: options.perPage ?? 100 }
           const qs = buildQueryString(mergedOptions)
@@ -49,6 +52,9 @@ export const GitHubApiLive = Layer.effect(
 
       getPullRequest: (owner, repo, number) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(number)
           const token = yield* auth.getToken()
           return yield* fetchGitHub(
             `/repos/${owner}/${repo}/pulls/${number}`,
@@ -59,6 +65,9 @@ export const GitHubApiLive = Layer.effect(
 
       getPullRequestFiles: (owner, repo, number) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(number)
           const token = yield* auth.getToken()
           return yield* fetchGitHubPaginated(
             `/repos/${owner}/${repo}/pulls/${number}/files`,
@@ -69,6 +78,9 @@ export const GitHubApiLive = Layer.effect(
 
       getPullRequestComments: (owner, repo, number) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(number)
           const token = yield* auth.getToken()
           return yield* fetchGitHubPaginated(
             `/repos/${owner}/${repo}/pulls/${number}/comments`,
@@ -79,6 +91,9 @@ export const GitHubApiLive = Layer.effect(
 
       getIssueComments: (owner, repo, issueNumber) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(issueNumber)
           const token = yield* auth.getToken()
           return yield* fetchGitHubPaginated(
             `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
@@ -89,6 +104,9 @@ export const GitHubApiLive = Layer.effect(
 
       getPullRequestReviews: (owner, repo, number) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(number)
           const token = yield* auth.getToken()
           return yield* fetchGitHubPaginated(
             `/repos/${owner}/${repo}/pulls/${number}/reviews`,
@@ -99,6 +117,9 @@ export const GitHubApiLive = Layer.effect(
 
       getPullRequestCommits: (owner, repo, number) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(number)
           const token = yield* auth.getToken()
           return yield* fetchGitHubPaginated(
             `/repos/${owner}/${repo}/pulls/${number}/commits`,
@@ -133,6 +154,9 @@ export const GitHubApiLive = Layer.effect(
 
       getCheckRuns: (owner, repo, ref) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateRef(ref)
           const token = yield* auth.getToken()
           return yield* fetchGitHub(
             `/repos/${owner}/${repo}/commits/${ref}/check-runs`,
@@ -143,6 +167,9 @@ export const GitHubApiLive = Layer.effect(
 
       submitReview: (owner, repo, prNumber, body, event) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'POST',
@@ -154,6 +181,9 @@ export const GitHubApiLive = Layer.effect(
 
       createComment: (owner, repo, issueNumber, body) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(issueNumber)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'POST',
@@ -165,6 +195,9 @@ export const GitHubApiLive = Layer.effect(
 
       createReviewComment: (owner, repo, prNumber, body, commitId, path, line, side, startLine, startSide) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'POST',
@@ -183,6 +216,9 @@ export const GitHubApiLive = Layer.effect(
 
       getReviewThreads: (owner, repo, prNumber) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
           const token = yield* auth.getToken()
           const gqlQuery = `
             query($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
@@ -289,6 +325,10 @@ export const GitHubApiLive = Layer.effect(
 
       replyToReviewComment: (owner, repo, prNumber, body, inReplyTo) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
+          validateNumber(inReplyTo)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'POST',
@@ -300,6 +340,9 @@ export const GitHubApiLive = Layer.effect(
 
       requestReReview: (owner, repo, prNumber, reviewers) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'POST',
@@ -311,6 +354,9 @@ export const GitHubApiLive = Layer.effect(
 
       mergePullRequest: (owner, repo, prNumber, mergeMethod, commitTitle, commitMessage) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'PUT',
@@ -326,6 +372,9 @@ export const GitHubApiLive = Layer.effect(
 
       deleteReviewComment: (owner, repo, commentId) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(commentId)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'DELETE',
@@ -337,6 +386,9 @@ export const GitHubApiLive = Layer.effect(
 
       createPendingReview: (owner, repo, prNumber) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
           const token = yield* auth.getToken()
           const result = yield* mutateGitHubJson<{ id: number }>(
             'POST',
@@ -349,6 +401,10 @@ export const GitHubApiLive = Layer.effect(
 
       addPendingReviewComment: (owner, repo, prNumber, reviewId, body, path, line, side, startLine, startSide) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
+          validateNumber(reviewId)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'POST',
@@ -366,6 +422,10 @@ export const GitHubApiLive = Layer.effect(
 
       submitPendingReview: (owner, repo, prNumber, reviewId, body, event) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
+          validateNumber(reviewId)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'POST',
@@ -377,6 +437,10 @@ export const GitHubApiLive = Layer.effect(
 
       discardPendingReview: (owner, repo, prNumber, reviewId) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
+          validateNumber(reviewId)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'DELETE',
@@ -388,6 +452,9 @@ export const GitHubApiLive = Layer.effect(
 
       closePullRequest: (owner, repo, prNumber) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'PATCH',
@@ -399,6 +466,9 @@ export const GitHubApiLive = Layer.effect(
 
       reopenPullRequest: (owner, repo, prNumber) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'PATCH',
@@ -410,6 +480,9 @@ export const GitHubApiLive = Layer.effect(
 
       editIssueComment: (owner, repo, commentId, body) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(commentId)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'PATCH',
@@ -421,6 +494,9 @@ export const GitHubApiLive = Layer.effect(
 
       editReviewComment: (owner, repo, commentId, body) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(commentId)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'PATCH',
@@ -432,6 +508,9 @@ export const GitHubApiLive = Layer.effect(
 
       updatePRDescription: (owner, repo, prNumber, body) =>
         Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
           const token = yield* auth.getToken()
           yield* mutateGitHub(
             'PATCH',

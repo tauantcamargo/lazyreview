@@ -37,7 +37,7 @@ describe('createDebouncedWriter', () => {
     const writer = createDebouncedWriter<{ value: number }>('/tmp/test.json')
     writer.schedule({ value: 1 })
     vi.advanceTimersByTime(300)
-    expect(mockMkdir).toHaveBeenCalledWith('/tmp', { recursive: true })
+    expect(mockMkdir).toHaveBeenCalledWith('/tmp', { recursive: true, mode: 0o700 })
   })
 
   it('debounces multiple rapid writes', () => {
@@ -58,11 +58,11 @@ describe('createDebouncedWriter', () => {
     writer.schedule({ value: 42 })
     writer.flush()
 
-    expect(mockMkdirSync).toHaveBeenCalledWith('/tmp', { recursive: true })
+    expect(mockMkdirSync).toHaveBeenCalledWith('/tmp', { recursive: true, mode: 0o700 })
     expect(mockWriteFileSync).toHaveBeenCalledWith(
       '/tmp/test.json',
       JSON.stringify({ value: 42 }, null, 2),
-      'utf-8',
+      { encoding: 'utf-8', mode: 0o600 },
     )
   })
 
@@ -105,7 +105,7 @@ describe('createDebouncedWriter', () => {
     expect(mockWriteFileSync).toHaveBeenCalledWith(
       '/tmp/test.json',
       JSON.stringify({ value: 3 }, null, 2),
-      'utf-8',
+      { encoding: 'utf-8', mode: 0o600 },
     )
   })
 })

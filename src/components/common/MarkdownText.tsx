@@ -1,6 +1,7 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
+import { stripAnsi } from '../../utils/sanitize'
 
 interface MarkdownTextProps {
   readonly content: string | null
@@ -236,7 +237,7 @@ export function MarkdownText({ content }: MarkdownTextProps): React.ReactElement
     )
   }
 
-  const blocks = parseBlocks(content)
+  const blocks = parseBlocks(stripAnsi(content))
 
   return (
     <Box flexDirection="column" gap={1}>

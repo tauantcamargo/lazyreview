@@ -3,7 +3,10 @@ import { GitHubError, NetworkError } from '../models/errors'
 import { PullRequest } from '../models/pull-request'
 import { updateRateLimit } from '../hooks/useRateLimit'
 import { touchLastUpdated } from '../hooks/useLastUpdated'
+import { sanitizeApiError } from '../utils/sanitize'
 import type { ListPRsOptions } from './GitHubApiTypes'
+
+const MAX_PAGES = 20
 
 const BASE_URL = 'https://api.github.com'
 
@@ -37,7 +40,8 @@ export function fetchGitHub<A, I>(
       if (!response.ok) {
         const body = await response.text().catch(() => '')
         throw new GitHubError({
-          message: `GitHub API error: ${response.status} ${response.statusText} - ${body}`,
+          message: sanitizeApiError(response.status, response.statusText),
+          detail: body,
           status: response.status,
           url,
         })
@@ -50,7 +54,7 @@ export function fetchGitHub<A, I>(
     catch: (error) => {
       if (error instanceof GitHubError) return error
       return new NetworkError({
-        message: `Network request failed: ${String(error)}`,
+        message: `Network request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         cause: error,
       })
     },
@@ -83,7 +87,8 @@ export function mutateGitHub(
       if (!response.ok) {
         const responseBody = await response.text().catch(() => '')
         throw new GitHubError({
-          message: `GitHub API error: ${response.status} ${response.statusText} - ${responseBody}`,
+          message: sanitizeApiError(response.status, response.statusText),
+          detail: responseBody,
           status: response.status,
           url,
         })
@@ -94,7 +99,7 @@ export function mutateGitHub(
     catch: (error) => {
       if (error instanceof GitHubError) return error
       return new NetworkError({
-        message: `Network request failed: ${String(error)}`,
+        message: `Network request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         cause: error,
       })
     },
@@ -127,7 +132,8 @@ export function mutateGitHubJson<T>(
       if (!response.ok) {
         const responseBody = await response.text().catch(() => '')
         throw new GitHubError({
-          message: `GitHub API error: ${response.status} ${response.statusText} - ${responseBody}`,
+          message: sanitizeApiError(response.status, response.statusText),
+          detail: responseBody,
           status: response.status,
           url,
         })
@@ -147,7 +153,7 @@ export function mutateGitHubJson<T>(
     catch: (error) => {
       if (error instanceof GitHubError) return error
       return new NetworkError({
-        message: `Network request failed: ${String(error)}`,
+        message: `Network request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         cause: error,
       })
     },
@@ -179,7 +185,8 @@ export function graphqlGitHub<T>(
       if (!response.ok) {
         const responseBody = await response.text().catch(() => '')
         throw new GitHubError({
-          message: `GitHub GraphQL error: ${response.status} ${response.statusText} - ${responseBody}`,
+          message: sanitizeApiError(response.status, response.statusText),
+          detail: responseBody,
           status: response.status,
           url,
         })
@@ -188,7 +195,8 @@ export function graphqlGitHub<T>(
       const data = await response.json()
       if (data.errors) {
         throw new GitHubError({
-          message: `GitHub GraphQL error: ${JSON.stringify(data.errors)}`,
+          message: 'GraphQL request returned errors.',
+          detail: JSON.stringify(data.errors),
           status: 200,
           url,
         })
@@ -207,7 +215,7 @@ export function graphqlGitHub<T>(
     catch: (error) => {
       if (error instanceof GitHubError) return error
       return new NetworkError({
-        message: `Network request failed: ${String(error)}`,
+        message: `Network request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         cause: error,
       })
     },
@@ -236,7 +244,8 @@ export function fetchGitHubSearch(
       if (!response.ok) {
         const body = await response.text().catch(() => '')
         throw new GitHubError({
-          message: `GitHub API error: ${response.status} ${response.statusText} - ${body}`,
+          message: sanitizeApiError(response.status, response.statusText),
+          detail: body,
           status: response.status,
           url,
         })
@@ -250,7 +259,7 @@ export function fetchGitHubSearch(
     catch: (error) => {
       if (error instanceof GitHubError) return error
       return new NetworkError({
-        message: `Network request failed: ${String(error)}`,
+        message: `Network request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         cause: error,
       })
     },
@@ -291,13 +300,15 @@ export function fetchGitHubPaginated<A, I>(
     try: async () => {
       const allItems: A[] = []
       let url: string | null = `${BASE_URL}${path}`
+      let pageCount = 0
 
       // Ensure per_page=100 is set if not already present
       if (!url.includes('per_page=')) {
         url += url.includes('?') ? '&per_page=100' : '?per_page=100'
       }
 
-      while (url) {
+      while (url && pageCount < MAX_PAGES) {
+        pageCount++
         const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -311,7 +322,8 @@ export function fetchGitHubPaginated<A, I>(
         if (!response.ok) {
           const body = await response.text().catch(() => '')
           throw new GitHubError({
-            message: `GitHub API error: ${response.status} ${response.statusText} - ${body}`,
+            message: sanitizeApiError(response.status, response.statusText),
+            detail: body,
             status: response.status,
             url,
           })
@@ -332,7 +344,7 @@ export function fetchGitHubPaginated<A, I>(
     catch: (error) => {
       if (error instanceof GitHubError) return error
       return new NetworkError({
-        message: `Network request failed: ${String(error)}`,
+        message: `Network request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         cause: error,
       })
     },
@@ -354,8 +366,10 @@ export function fetchGitHubSearchPaginated(
     try: async () => {
       const allItems: PullRequest[] = []
       let url: string | null = `${BASE_URL}/search/issues?q=${encodeURIComponent(query)}&per_page=100`
+      let pageCount = 0
 
-      while (url) {
+      while (url && pageCount < MAX_PAGES) {
+        pageCount++
         const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -369,7 +383,8 @@ export function fetchGitHubSearchPaginated(
         if (!response.ok) {
           const body = await response.text().catch(() => '')
           throw new GitHubError({
-            message: `GitHub API error: ${response.status} ${response.statusText} - ${body}`,
+            message: sanitizeApiError(response.status, response.statusText),
+            detail: body,
             status: response.status,
             url,
           })
@@ -390,7 +405,7 @@ export function fetchGitHubSearchPaginated(
     catch: (error) => {
       if (error instanceof GitHubError) return error
       return new NetworkError({
-        message: `Network request failed: ${String(error)}`,
+        message: `Network request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         cause: error,
       })
     },

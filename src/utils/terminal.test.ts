@@ -83,18 +83,15 @@ describe('openInBrowser', () => {
     expect(openInBrowser('not-a-url')).toBe(false)
   })
 
-  it('rejects non-http(s) protocols', () => {
+  it('rejects non-https protocols', () => {
     expect(openInBrowser('ftp://example.com')).toBe(false)
     expect(openInBrowser('file:///etc/passwd')).toBe(false)
     expect(openInBrowser('javascript:alert(1)')).toBe(false)
+    expect(openInBrowser('http://github.com/foo/bar')).toBe(false)
   })
 
   it('accepts https URLs', () => {
     expect(openInBrowser('https://github.com/foo/bar')).toBe(true)
-  })
-
-  it('accepts http URLs', () => {
-    expect(openInBrowser('http://github.com/foo/bar')).toBe(true)
   })
 })
 

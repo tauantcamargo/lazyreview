@@ -62,8 +62,8 @@ jobs:
         if: steps.version.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           TAG="v${VERSION}"
 
           # Configure git identity for tagging
@@ -121,8 +121,9 @@ jobs:
 
       - name: Get tarball SHA256
         id: sha
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
         run: |
-          VERSION="${{ needs.publish.outputs.version }}"
           URL="https://registry.npmjs.org/lazyreview/-/lazyreview-${VERSION}.tgz"
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           SHA=$(curl -sL "$URL" | sha256sum | awk '{print $1}')
@@ -132,10 +133,11 @@ jobs:
       - name: Update Homebrew formula
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          SHA256: ${{ steps.sha.outputs.sha256 }}
+          TARBALL_URL: ${{ steps.sha.outputs.url }}
         run: |
-          VERSION="${{ needs.publish.outputs.version }}"
-          SHA256="${{ steps.sha.outputs.sha256 }}"
-          URL="${{ steps.sha.outputs.url }}"
+          URL="${TARBALL_URL}"
 
           FORMULA=$(cat <<RUBY
           class Lazyreview < Formula

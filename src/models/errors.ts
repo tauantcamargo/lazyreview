@@ -2,6 +2,7 @@ import { Data } from 'effect'
 
 export class GitHubError extends Data.TaggedError('GitHubError')<{
   readonly message: string
+  readonly detail?: string
   readonly status?: number
   readonly url?: string
 }> {}

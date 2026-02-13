@@ -28,11 +28,28 @@ export interface ViewedFilesStore {
   readonly getViewedCount: (prUrl: string) => number
 }
 
+function isViewedEntry(value: unknown): value is ViewedEntry {
+  if (value == null || typeof value !== 'object') return false
+  const obj = value as Record<string, unknown>
+  return (
+    Array.isArray(obj['viewedFiles']) &&
+    obj['viewedFiles'].every((f: unknown) => typeof f === 'string') &&
+    typeof obj['lastUpdated'] === 'string'
+  )
+}
+
 function loadFromDisk(): ViewedFilesData {
   try {
     const raw = readFileSync(VIEWED_FILES_PATH, 'utf-8')
-    const parsed = JSON.parse(raw) as Record<string, ViewedEntry>
-    return parsed
+    const parsed = JSON.parse(raw)
+    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const result: Record<string, ViewedEntry> = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (isViewedEntry(value)) {
+        result[key] = value
+      }
+    }
+    return result
   } catch {
     return {}
   }

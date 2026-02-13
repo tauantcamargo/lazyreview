@@ -4,7 +4,7 @@ import { platform } from 'node:os'
 export function openInBrowser(url: string): boolean {
   try {
     const parsed = new URL(url)
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    if (parsed.protocol !== 'https:') {
       return false
     }
   } catch {
@@ -15,7 +15,7 @@ export function openInBrowser(url: string): boolean {
   if (os === 'darwin') {
     execFile('open', [url])
   } else if (os === 'win32') {
-    execFile('cmd', ['/c', 'start', '', url])
+    execFile('powershell.exe', ['-NoProfile', '-Command', 'Start-Process', url])
   } else {
     execFile('xdg-open', [url])
   }
