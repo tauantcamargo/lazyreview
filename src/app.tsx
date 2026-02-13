@@ -21,8 +21,11 @@ import { ThisRepoScreen } from './screens/ThisRepoScreen'
 import { BrowseRepoScreen } from './screens/BrowseRepoScreen'
 import { Match } from 'effect'
 import { parseGitHubPRUrl } from './utils/git'
+import type { ProviderType } from './utils/git'
 import { useAuth } from './hooks/useAuth'
 import { useConfig } from './hooks/useConfig'
+import { setAuthProvider, setAuthBaseUrl } from './services/Auth'
+import type { Provider } from './services/Config'
 import { useListNavigation } from './hooks/useListNavigation'
 import { useActivePanel } from './hooks/useActivePanel'
 import { InputFocusProvider, useInputFocus } from './hooks/useInputFocus'
@@ -47,11 +50,13 @@ type AppScreen =
 interface AppContentProps {
   readonly repoOwner: string | null
   readonly repoName: string | null
+  readonly activeProvider: Provider
 }
 
 function AppContent({
   repoOwner,
   repoName,
+  activeProvider,
 }: AppContentProps): React.ReactElement {
   const { exit } = useApp()
   const { stdout } = useStdout()
@@ -314,7 +319,7 @@ function AppContent({
     <Box flexDirection="column" height={terminalHeight}>
       <TopBar
         username={user?.login ?? 'anonymous'}
-        provider="github"
+        provider={activeProvider}
         repoPath={repoPath}
         browseRepoPath={browseRepoPath}
         screenName={currentScreenName}
@@ -367,38 +372,53 @@ const queryClient = new QueryClient({
 interface AppProps {
   readonly repoOwner: string | null
   readonly repoName: string | null
+  readonly detectedProvider?: ProviderType | null
+  readonly detectedBaseUrl?: string | null
 }
 
-function GitLabUnsupportedScreen(): React.ReactElement {
-  return (
-    <Box flexDirection="column" padding={2}>
-      <Text color="red" bold>
-        GitLab provider not yet supported
-      </Text>
-      <Text>
-        Your config (~/.config/lazyreview/config.yaml) has provider set to
-        &quot;gitlab&quot;. Please change it to &quot;github&quot; or remove the
-        provider field to use the default.
-      </Text>
-    </Box>
-  )
+/**
+ * Map a ProviderType from git detection to the Config Provider type.
+ * Falls back to 'github' for unknown providers.
+ */
+function toConfigProvider(providerType: ProviderType | null | undefined): Provider | null {
+  if (!providerType) return null
+  switch (providerType) {
+    case 'github':
+    case 'gitlab':
+    case 'bitbucket':
+    case 'azure':
+    case 'gitea':
+      return providerType
+    default:
+      return null
+  }
 }
 
 function AppWithTheme({
   repoOwner,
   repoName,
+  detectedProvider,
+  detectedBaseUrl,
 }: AppProps): React.ReactElement {
   const { config } = useConfig()
   const themeName = (config?.theme ?? 'tokyo-night') as ThemeName
   const theme = getThemeByName(themeName)
 
-  if (config?.provider === 'gitlab') {
-    return (
-      <ThemeProvider theme={theme}>
-        <GitLabUnsupportedScreen />
-      </ThemeProvider>
-    )
-  }
+  // Determine the active provider:
+  // 1. Config takes precedence (user explicitly chose a provider)
+  // 2. Git remote detection is used as fallback
+  // 3. Default to 'github'
+  const configProvider = config?.provider ?? null
+  const gitDetectedProvider = toConfigProvider(detectedProvider)
+  const activeProvider: Provider = configProvider ?? gitDetectedProvider ?? 'github'
+
+  // Sync auth module with the active provider and base URL
+  React.useEffect(() => {
+    setAuthProvider(activeProvider)
+    if (detectedBaseUrl && activeProvider === gitDetectedProvider) {
+      setAuthBaseUrl(detectedBaseUrl)
+    }
+  }, [activeProvider, detectedBaseUrl, gitDetectedProvider])
 
   const localRepo =
     repoOwner && repoName ? { owner: repoOwner, repo: repoName } : null
@@ -407,18 +427,32 @@ function AppWithTheme({
     <ThemeProvider theme={theme}>
       <RepoContextProvider localRepo={localRepo}>
         <ErrorBoundary>
-          <AppContent repoOwner={repoOwner} repoName={repoName} />
+          <AppContent
+            repoOwner={repoOwner}
+            repoName={repoName}
+            activeProvider={activeProvider}
+          />
         </ErrorBoundary>
       </RepoContextProvider>
     </ThemeProvider>
   )
 }
 
-export function App({ repoOwner, repoName }: AppProps): React.ReactElement {
+export function App({
+  repoOwner,
+  repoName,
+  detectedProvider,
+  detectedBaseUrl,
+}: AppProps): React.ReactElement {
   return (
     <QueryClientProvider client={queryClient}>
       <InputFocusProvider>
-        <AppWithTheme repoOwner={repoOwner} repoName={repoName} />
+        <AppWithTheme
+          repoOwner={repoOwner}
+          repoName={repoName}
+          detectedProvider={detectedProvider}
+          detectedBaseUrl={detectedBaseUrl}
+        />
       </InputFocusProvider>
     </QueryClientProvider>
   )

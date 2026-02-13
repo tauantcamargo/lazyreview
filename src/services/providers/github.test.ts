@@ -448,7 +448,7 @@ describe('createProvider factory', () => {
       service,
     )
     expect(provider.type).toBe('gitlab')
-    expect(provider.capabilities.supportsCheckRuns).toBe(false)
+    expect(provider.capabilities.supportsCheckRuns).toBe(true)
     expect(provider.capabilities.supportsDraftPR).toBe(true)
   })
 

@@ -498,8 +498,41 @@ function getGitHubUser(token: string): Effect.Effect<User, AuthError> {
   })
 }
 
-function getProviderUser(provider: Provider, _token: string): Effect.Effect<User, AuthError> {
-  if (provider === 'github') return getGitHubUser(_token)
+function getGitLabUser(token: string): Effect.Effect<User, AuthError> {
+  return Effect.tryPromise({
+    try: async () => {
+      const baseUrl = getState().baseUrl ?? 'https://gitlab.com'
+      const apiUrl = baseUrl.includes('/api/v4') ? baseUrl : `${baseUrl}/api/v4`
+      const response = await fetch(`${apiUrl}/user`, {
+        headers: {
+          'PRIVATE-TOKEN': token,
+          Accept: 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`GitLab API returned ${response.status}`)
+      }
+
+      const data = await response.json() as { username: string; avatar_url: string; id: number }
+      // Map GitLab user fields to our User schema
+      return S.decodeUnknownSync(User)({
+        login: data.username,
+        avatar_url: data.avatar_url ?? '',
+        id: data.id,
+      })
+    },
+    catch: (error) =>
+      new AuthError({
+        message: `Failed to get user: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'invalid_token',
+      }),
+  })
+}
+
+function getProviderUser(provider: Provider, token: string): Effect.Effect<User, AuthError> {
+  if (provider === 'github') return getGitHubUser(token)
+  if (provider === 'gitlab') return getGitLabUser(token)
   return Effect.fail(
     new AuthError({ message: `${PROVIDER_META[provider].label} not yet supported`, reason: 'no_token' }),
   )

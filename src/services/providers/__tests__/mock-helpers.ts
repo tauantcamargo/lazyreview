@@ -285,8 +285,8 @@ export function createMockGitLabProvider(
     supportsReviewThreads: true,
     supportsGraphQL: true,
     supportsReactions: true,
-    supportsCheckRuns: false,
-    supportsMergeStrategies: ['merge', 'squash'],
+    supportsCheckRuns: true,
+    supportsMergeStrategies: ['merge', 'squash', 'rebase'],
   }, overrides)
 }
 

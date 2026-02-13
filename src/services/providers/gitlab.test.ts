@@ -130,34 +130,72 @@ describe('createGitLabProvider', () => {
     expect(provider.capabilities.supportsReviewThreads).toBe(true)
     expect(provider.capabilities.supportsGraphQL).toBe(true)
     expect(provider.capabilities.supportsReactions).toBe(true)
-    expect(provider.capabilities.supportsCheckRuns).toBe(false)
+    expect(provider.capabilities.supportsCheckRuns).toBe(true)
     expect(provider.capabilities.supportsMergeStrategies).toEqual([
       'merge',
       'squash',
+      'rebase',
     ])
   })
 
   // -----------------------------------------------------------------------
-  // Read operations (stubbed)
+  // Read operations (see gitlab-reads.test.ts for full read operation tests)
   // -----------------------------------------------------------------------
 
-  describe('read operations (stubbed)', () => {
-    it('listPRs fails with not-implemented error', async () => {
+  describe('read operations', () => {
+    it('listPRs returns items when API responds', async () => {
+      const mr = {
+        id: 1, iid: 1, title: 'MR', description: null,
+        state: 'opened', draft: false, source_branch: 'feat', target_branch: 'main',
+        author: { id: 1, username: 'u', name: 'U', avatar_url: null, web_url: 'https://gl.com/u' },
+        assignees: [], reviewers: [], labels: [],
+        created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+        merged_at: null, closed_at: null, merge_commit_sha: null,
+        sha: 'abc', web_url: 'https://gl.com/mr/1', user_notes_count: 0,
+        has_conflicts: false,
+      }
+      mockFetchResponse({ body: [mr] })
       const provider = createGitLabProvider(TEST_CONFIG)
-      const exit = await Effect.runPromiseExit(provider.listPRs({}))
-      expect(Exit.isFailure(exit)).toBe(true)
+      const result = await Effect.runPromise(provider.listPRs({}))
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0]!.number).toBe(1)
     })
 
-    it('getPR fails with not-implemented error', async () => {
+    it('getPR returns a PullRequest when API responds', async () => {
+      const mr = {
+        id: 1, iid: 1, title: 'MR', description: null,
+        state: 'opened', draft: false, source_branch: 'feat', target_branch: 'main',
+        author: { id: 1, username: 'u', name: 'U', avatar_url: null, web_url: 'https://gl.com/u' },
+        assignees: [], reviewers: [], labels: [],
+        created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+        merged_at: null, closed_at: null, merge_commit_sha: null,
+        sha: 'abc', web_url: 'https://gl.com/mr/1', user_notes_count: 0,
+        has_conflicts: false,
+      }
+      mockFetchResponse({ body: mr })
       const provider = createGitLabProvider(TEST_CONFIG)
-      const exit = await Effect.runPromiseExit(provider.getPR(1))
-      expect(Exit.isFailure(exit)).toBe(true)
+      const result = await Effect.runPromise(provider.getPR(1))
+      expect(result.number).toBe(1)
+      expect(result.title).toBe('MR')
     })
 
-    it('getMyPRs fails with not-implemented error', async () => {
+    it('getMyPRs returns PRs from created_by_me scope', async () => {
+      const mr = {
+        id: 1, iid: 1, title: 'My MR', description: null,
+        state: 'opened', draft: false, source_branch: 'feat', target_branch: 'main',
+        author: { id: 1, username: 'u', name: 'U', avatar_url: null, web_url: 'https://gl.com/u' },
+        assignees: [], reviewers: [], labels: [],
+        created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+        merged_at: null, closed_at: null, merge_commit_sha: null,
+        sha: 'abc', web_url: 'https://gl.com/mr/1', user_notes_count: 0,
+        has_conflicts: false,
+      }
+      mockFetchResponse({ body: [mr], headers: { 'x-next-page': '' } })
       const provider = createGitLabProvider(TEST_CONFIG)
-      const exit = await Effect.runPromiseExit(provider.getMyPRs())
-      expect(Exit.isFailure(exit)).toBe(true)
+      const result = await Effect.runPromise(provider.getMyPRs())
+      expect(result).toHaveLength(1)
+      const calledUrl = getLastFetchUrl()
+      expect(calledUrl).toContain('scope=created_by_me')
     })
   })
 
@@ -522,15 +560,16 @@ describe('createProvider with gitlab type', () => {
     const mockService = {} as never
     const provider = createProvider(TEST_CONFIG, mockService)
     expect(provider.type).toBe('gitlab')
-    expect(provider.capabilities.supportsCheckRuns).toBe(false)
+    expect(provider.capabilities.supportsCheckRuns).toBe(true)
   })
 
-  it('GitLab provider has merge and squash strategies', () => {
+  it('GitLab provider has merge, squash and rebase strategies', () => {
     const mockService = {} as never
     const provider = createProvider(TEST_CONFIG, mockService)
     expect(provider.capabilities.supportsMergeStrategies).toEqual([
       'merge',
       'squash',
+      'rebase',
     ])
   })
 })

@@ -2,6 +2,7 @@ import React from 'react'
 import { render } from 'ink'
 import { App } from './app'
 import { detectGitRepo } from './utils/git'
+import type { ProviderType } from './utils/git'
 import { validateOwner, validateRepo } from './utils/sanitize'
 
 // ANSI escape codes for alternate screen buffer
@@ -65,7 +66,7 @@ async function main(): Promise<void> {
     const help = [
       `lazyreview v${version}`,
       '',
-      'A TUI code review tool for GitHub PRs.',
+      'A TUI code review tool for GitHub and GitLab PRs.',
       '',
       'USAGE:',
       '  lazyreview                   Launch TUI (auto-detects repo)',
@@ -77,6 +78,9 @@ async function main(): Promise<void> {
       '  LAZYREVIEW_GITHUB_TOKEN      GitHub personal access token (preferred)',
       '  GITHUB_TOKEN                 Fallback if LAZYREVIEW_GITHUB_TOKEN is not set',
       '                               (also supports gh CLI token and in-app Settings)',
+      '  LAZYREVIEW_GITLAB_TOKEN      GitLab personal access token',
+      '  GITLAB_TOKEN                 Fallback if LAZYREVIEW_GITLAB_TOKEN is not set',
+      '                               (also supports glab CLI token and in-app Settings)',
       '',
       'CONFIG:',
       '  ~/.config/lazyreview/config.yaml',
@@ -110,6 +114,8 @@ async function main(): Promise<void> {
   // If no args, try to detect from current git repo
   let repoOwner: string | null = null
   let repoName: string | null = null
+  let detectedProvider: ProviderType | null = null
+  let detectedBaseUrl: string | null = null
 
   if (argsRepo) {
     repoOwner = argsRepo.owner
@@ -119,10 +125,19 @@ async function main(): Promise<void> {
     if (gitInfo.isGitRepo && gitInfo.owner && gitInfo.repo) {
       repoOwner = gitInfo.owner
       repoName = gitInfo.repo
+      detectedProvider = gitInfo.provider
+      detectedBaseUrl = gitInfo.baseUrl
     }
   }
 
-  render(<App repoOwner={repoOwner} repoName={repoName} />)
+  render(
+    <App
+      repoOwner={repoOwner}
+      repoName={repoName}
+      detectedProvider={detectedProvider}
+      detectedBaseUrl={detectedBaseUrl}
+    />,
+  )
 }
 
 main().catch((error: unknown) => {

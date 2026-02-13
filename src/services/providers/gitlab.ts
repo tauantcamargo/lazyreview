@@ -1,15 +1,48 @@
 import { Effect } from 'effect'
+import { z } from 'zod'
 import { GitHubError } from '../../models/errors'
 import type { ApiError } from '../CodeReviewApiTypes'
+import type { ReviewThread } from '../CodeReviewApiTypes'
 import type {
   Provider,
   ProviderConfig,
   ProviderCapabilities,
+  ListPRsParams,
+  PRListResult,
   AddDiffCommentParams,
 } from './types'
 import {
+  gitlabFetchJson,
+  gitlabFetchAllPages,
+  buildGitLabUrl,
+} from '../GitLabApiHelpers'
+import {
+  GitLabMergeRequestSchema,
+  GitLabNoteSchema,
+  GitLabDiffSchema,
+  GitLabCommitSchema,
+  GitLabPipelineJobSchema,
+  GitLabDiscussionSchema,
+  GitLabUserSchema,
+  mapMergeRequestToPR,
+  mapNotesToComments,
+  mapNotesToIssueComments,
+  mapDiffToFileChange,
+  mapCommit,
+  mapPipelineJobsToCheckRunsResponse,
+  mapApprovalToReview,
+} from '../../models/gitlab'
+import type {
+  GitLabMergeRequest,
+  GitLabNote,
+  GitLabDiff,
+  GitLabCommit,
+  GitLabPipelineJob,
+  GitLabDiscussion,
+} from '../../models/gitlab'
+import { CheckRunsResponse } from '../../models/check'
+import {
   approveMR,
-  unapproveMR,
   addNote,
   addDiffNote,
   replyToDiscussion,
@@ -27,6 +60,7 @@ import {
   requestReview,
   getCurrentUser,
 } from './gitlab-mutations'
+import { encodeProjectPath } from './gitlab-helpers'
 
 // ---------------------------------------------------------------------------
 // GitLab capabilities
@@ -37,24 +71,97 @@ const GITLAB_CAPABILITIES: ProviderCapabilities = {
   supportsReviewThreads: true,
   supportsGraphQL: true,
   supportsReactions: true,
-  supportsCheckRuns: false, // GitLab uses pipelines, not check runs
-  supportsMergeStrategies: ['merge', 'squash'] as const,
+  supportsCheckRuns: true,
+  supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
 }
 
 // ---------------------------------------------------------------------------
-// Stub helper for unimplemented read operations
-//
-// Read operations (ticket #14) are being implemented by another agent.
-// These stubs will be replaced once the read operations are available.
+// Zod schemas for GitLab-specific response shapes
 // ---------------------------------------------------------------------------
 
-function notImplemented<A>(operation: string): Effect.Effect<A, ApiError> {
-  return Effect.fail(
-    new GitHubError({
-      message: `GitLab read operation '${operation}' not yet implemented (see ticket #14)`,
-      status: 501,
+const GitLabApprovalSchema = z.object({
+  approved: z.boolean(),
+  approved_by: z.array(
+    z.object({
+      user: GitLabUserSchema,
     }),
-  )
+  ),
+})
+
+const GitLabPipelineSchema = z.object({
+  id: z.number(),
+  status: z.string(),
+  ref: z.string(),
+  sha: z.string(),
+  web_url: z.string(),
+})
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+function mapProviderStateToGitLabState(
+  state?: 'open' | 'closed' | 'all',
+): string {
+  switch (state) {
+    case 'open':
+      return 'opened'
+    case 'closed':
+      return 'closed'
+    case 'all':
+      return 'all'
+    default:
+      return 'opened'
+  }
+}
+
+function mapDiscussionToThread(
+  discussion: GitLabDiscussion,
+): ReviewThread | null {
+  if (discussion.individual_note) return null
+  const firstNote = discussion.notes[0]
+  if (!firstNote || firstNote.system) return null
+  if (!firstNote.resolvable) return null
+
+  return {
+    id: discussion.id,
+    isResolved: firstNote.resolved ?? false,
+    comments: discussion.notes.map((note) => ({
+      databaseId: note.id,
+    })),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Parse helpers with Zod validation
+// ---------------------------------------------------------------------------
+
+function parseMergeRequests(data: unknown): readonly GitLabMergeRequest[] {
+  return z.array(GitLabMergeRequestSchema).parse(data)
+}
+
+function parseMergeRequest(data: unknown): GitLabMergeRequest {
+  return GitLabMergeRequestSchema.parse(data)
+}
+
+function parseNotes(data: unknown): readonly GitLabNote[] {
+  return z.array(GitLabNoteSchema).parse(data)
+}
+
+function parseDiffs(data: unknown): readonly GitLabDiff[] {
+  return z.array(GitLabDiffSchema).parse(data)
+}
+
+function parseCommits(data: unknown): readonly GitLabCommit[] {
+  return z.array(GitLabCommitSchema).parse(data)
+}
+
+function parsePipelineJobs(data: unknown): readonly GitLabPipelineJob[] {
+  return z.array(GitLabPipelineJobSchema).parse(data)
+}
+
+function parseDiscussions(data: unknown): readonly GitLabDiscussion[] {
+  return z.array(GitLabDiscussionSchema).parse(data)
 }
 
 // ---------------------------------------------------------------------------
@@ -76,7 +183,9 @@ export function encodeThreadId(iid: number, discussionId: string): string {
 /**
  * Decode a thread identifier back into MR iid and discussion ID.
  */
-export function decodeThreadId(threadId: string): { readonly iid: number; readonly discussionId: string } {
+export function decodeThreadId(
+  threadId: string,
+): { readonly iid: number; readonly discussionId: string } {
   const separatorIndex = threadId.indexOf(':')
   if (separatorIndex === -1) {
     return { iid: 0, discussionId: threadId }
@@ -90,42 +199,265 @@ export function decodeThreadId(threadId: string): { readonly iid: number; readon
 // GitLab Provider factory
 // ---------------------------------------------------------------------------
 
-/**
- * Creates a Provider implementation for GitLab.
- *
- * Mutation operations are fully implemented. Read operations return
- * "not implemented" errors and will be provided by ticket #14.
- */
 export function createGitLabProvider(config: ProviderConfig): Provider {
   const { baseUrl, token, owner, repo } = config
+  const projectPath = encodeProjectPath(owner, repo)
+  const projectBase = `/projects/${projectPath}`
+
+  // Cache the current user for user-scoped queries
+  let cachedUsername: string | null = null
+
+  const fetchCurrentUsername = (): Effect.Effect<string, ApiError> =>
+    cachedUsername != null
+      ? Effect.succeed(cachedUsername)
+      : Effect.map(
+          gitlabFetchJson<unknown>('/user', baseUrl, token),
+          (data) => {
+            const user = GitLabUserSchema.parse(data)
+            cachedUsername = user.username
+            return user.username
+          },
+        )
 
   return {
     type: 'gitlab',
     capabilities: GITLAB_CAPABILITIES,
 
-    // -- PR reads (stubbed for ticket #14) ----------------------------------
+    // -- PR reads -----------------------------------------------------------
 
-    listPRs: () => notImplemented('listPRs'),
-    getPR: () => notImplemented('getPR'),
-    getPRFiles: () => notImplemented('getPRFiles'),
-    getPRComments: () => notImplemented('getPRComments'),
-    getIssueComments: () => notImplemented('getIssueComments'),
-    getPRReviews: () => notImplemented('getPRReviews'),
-    getPRCommits: () => notImplemented('getPRCommits'),
-    getPRChecks: () => notImplemented('getPRChecks'),
-    getReviewThreads: () => notImplemented('getReviewThreads'),
-    getCommitDiff: () => notImplemented('getCommitDiff'),
+    listPRs: (params: ListPRsParams): Effect.Effect<PRListResult, ApiError> => {
+      const glState = mapProviderStateToGitLabState(params.state)
+      const queryParams: Record<string, string> = {
+        state: glState,
+        per_page: String(params.perPage ?? 30),
+        page: String(params.page ?? 1),
+      }
 
-    // -- User-scoped queries (stubbed for ticket #14) -----------------------
+      if (params.sort) {
+        queryParams.order_by = params.sort === 'popularity' ? 'popularity' : params.sort
+      }
+      if (params.direction) {
+        queryParams.sort = params.direction
+      }
 
-    getMyPRs: () => notImplemented('getMyPRs'),
-    getReviewRequests: () => notImplemented('getReviewRequests'),
-    getInvolvedPRs: () => notImplemented('getInvolvedPRs'),
+      const qs = new URLSearchParams(queryParams).toString()
+      const path = `${projectBase}/merge_requests?${qs}`
+
+      return Effect.map(
+        gitlabFetchJson<unknown>(path, baseUrl, token),
+        (data) => ({
+          items: parseMergeRequests(data).map(mapMergeRequestToPR),
+        }),
+      )
+    },
+
+    getPR: (number) =>
+      Effect.map(
+        gitlabFetchJson<unknown>(
+          `${projectBase}/merge_requests/${number}`,
+          baseUrl,
+          token,
+        ),
+        (data) => mapMergeRequestToPR(parseMergeRequest(data)),
+      ),
+
+    getPRFiles: (number) =>
+      Effect.map(
+        gitlabFetchAllPages<unknown>(
+          `${projectBase}/merge_requests/${number}/diffs`,
+          baseUrl,
+          token,
+        ),
+        (data) => parseDiffs(data).map(mapDiffToFileChange),
+      ),
+
+    getPRComments: (number) =>
+      Effect.gen(function* () {
+        const [notesData, mrData] = yield* Effect.all([
+          gitlabFetchAllPages<unknown>(
+            `${projectBase}/merge_requests/${number}/notes`,
+            baseUrl,
+            token,
+          ),
+          gitlabFetchJson<unknown>(
+            `${projectBase}/merge_requests/${number}`,
+            baseUrl,
+            token,
+          ),
+        ])
+
+        const notes = parseNotes(notesData)
+        const mr = parseMergeRequest(mrData)
+
+        // Only diff-attached notes (those with a position) are "PR comments"
+        const diffNotes = notes.filter(
+          (note) => !note.system && note.position != null,
+        )
+        return mapNotesToComments(diffNotes, mr.web_url)
+      }),
+
+    getIssueComments: (issueNumber) =>
+      Effect.gen(function* () {
+        const [notesData, mrData] = yield* Effect.all([
+          gitlabFetchAllPages<unknown>(
+            `${projectBase}/merge_requests/${issueNumber}/notes`,
+            baseUrl,
+            token,
+          ),
+          gitlabFetchJson<unknown>(
+            `${projectBase}/merge_requests/${issueNumber}`,
+            baseUrl,
+            token,
+          ),
+        ])
+
+        const notes = parseNotes(notesData)
+        const mr = parseMergeRequest(mrData)
+
+        // Non-positional, non-system notes are issue-level comments
+        return mapNotesToIssueComments(notes, mr.web_url)
+      }),
+
+    getPRReviews: (number) =>
+      Effect.gen(function* () {
+        const [approvalData, mrData] = yield* Effect.all([
+          gitlabFetchJson<unknown>(
+            `${projectBase}/merge_requests/${number}/approvals`,
+            baseUrl,
+            token,
+          ),
+          gitlabFetchJson<unknown>(
+            `${projectBase}/merge_requests/${number}`,
+            baseUrl,
+            token,
+          ),
+        ])
+
+        const approvals = GitLabApprovalSchema.parse(approvalData)
+        const mr = parseMergeRequest(mrData)
+
+        return approvals.approved_by.map((entry) =>
+          mapApprovalToReview(entry.user, mr.updated_at, mr.web_url),
+        )
+      }),
+
+    getPRCommits: (number) =>
+      Effect.map(
+        gitlabFetchAllPages<unknown>(
+          `${projectBase}/merge_requests/${number}/commits`,
+          baseUrl,
+          token,
+        ),
+        (data) => parseCommits(data).map((c) => mapCommit(c)),
+      ),
+
+    getPRChecks: (ref) =>
+      Effect.gen(function* () {
+        // GitLab: get pipelines for the ref (sha), then get jobs
+        const pipelinesData = yield* gitlabFetchJson<unknown>(
+          `${projectBase}/pipelines?sha=${encodeURIComponent(ref)}&per_page=1`,
+          baseUrl,
+          token,
+        )
+
+        const pipelines = z.array(GitLabPipelineSchema).parse(pipelinesData)
+
+        if (pipelines.length === 0) {
+          return new CheckRunsResponse({
+            total_count: 0,
+            check_runs: [],
+          })
+        }
+
+        const pipelineId = pipelines[0]!.id
+        const jobsData = yield* gitlabFetchAllPages<unknown>(
+          `${projectBase}/pipelines/${pipelineId}/jobs`,
+          baseUrl,
+          token,
+        )
+
+        return mapPipelineJobsToCheckRunsResponse(parsePipelineJobs(jobsData))
+      }),
+
+    getReviewThreads: (prNumber) =>
+      Effect.map(
+        gitlabFetchAllPages<unknown>(
+          `${projectBase}/merge_requests/${prNumber}/discussions`,
+          baseUrl,
+          token,
+        ),
+        (data) => {
+          const discussions = parseDiscussions(data)
+          return discussions
+            .map(mapDiscussionToThread)
+            .filter(
+              (thread): thread is ReviewThread => thread != null,
+            )
+        },
+      ),
+
+    getCommitDiff: (sha) =>
+      Effect.map(
+        gitlabFetchJson<unknown>(
+          `${projectBase}/repository/commits/${encodeURIComponent(sha)}/diff`,
+          baseUrl,
+          token,
+        ),
+        (data) => {
+          // GitLab returns an array of diffs directly for commit diff
+          const diffs = parseDiffs(Array.isArray(data) ? data : [])
+          return diffs.map(mapDiffToFileChange)
+        },
+      ),
+
+    // -- User-scoped queries ------------------------------------------------
+
+    getMyPRs: (stateFilter) =>
+      Effect.map(
+        gitlabFetchAllPages<unknown>(
+          '/merge_requests',
+          baseUrl,
+          token,
+          {
+            scope: 'created_by_me',
+            state: mapProviderStateToGitLabState(stateFilter),
+          },
+        ),
+        (data) => parseMergeRequests(data).map(mapMergeRequestToPR),
+      ),
+
+    getReviewRequests: (stateFilter) =>
+      Effect.gen(function* () {
+        const username = yield* fetchCurrentUsername()
+        const data = yield* gitlabFetchAllPages<unknown>(
+          '/merge_requests',
+          baseUrl,
+          token,
+          {
+            reviewer_username: username,
+            state: mapProviderStateToGitLabState(stateFilter),
+          },
+        )
+        return parseMergeRequests(data).map(mapMergeRequestToPR)
+      }),
+
+    getInvolvedPRs: (stateFilter) =>
+      Effect.map(
+        gitlabFetchAllPages<unknown>(
+          '/merge_requests',
+          baseUrl,
+          token,
+          {
+            scope: 'all',
+            state: mapProviderStateToGitLabState(stateFilter),
+          },
+        ),
+        (data) => parseMergeRequests(data).map(mapMergeRequestToPR),
+      ),
 
     // -- Review mutations ---------------------------------------------------
 
     submitReview: (prNumber, body, event) => {
-      // GitLab has no review concept. Map events to approve/unapprove + note.
       switch (event) {
         case 'APPROVE':
           return Effect.gen(function* () {
@@ -135,7 +467,6 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
             }
           })
         case 'REQUEST_CHANGES':
-          // GitLab has no "request changes" — post the body as a note
           return addNote(
             baseUrl,
             token,
@@ -157,11 +488,9 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
     },
 
     createPendingReview: () =>
-      // GitLab has no pending review concept; return a dummy ID
       Effect.succeed({ id: 0 }),
 
     addPendingReviewComment: (params) =>
-      // GitLab has no pending reviews — post inline comment immediately
       addDiffNote(baseUrl, token, owner, repo, params.prNumber, params.body, {
         baseSha: '',
         headSha: '',
@@ -172,7 +501,6 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
       }),
 
     submitPendingReview: (prNumber, _reviewId, body, event) => {
-      // GitLab has no pending reviews; just submit the review action
       switch (event) {
         case 'APPROVE':
           return Effect.gen(function* () {
@@ -198,7 +526,6 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
     },
 
     discardPendingReview: () =>
-      // GitLab has no pending reviews — nothing to discard
       Effect.succeed(undefined as void),
 
     // -- Comment mutations --------------------------------------------------
@@ -217,8 +544,6 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
       }),
 
     replyToComment: (prNumber, commentId, body) =>
-      // In GitLab, commentId is used as the discussion ID for replies.
-      // The provider layer encodes discussion IDs as the commentId.
       replyToDiscussion(
         baseUrl,
         token,
@@ -230,8 +555,6 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
       ),
 
     editIssueComment: (commentId, body) =>
-      // GitLab notes don't have a separate "issue comment" — we need the MR iid.
-      // Use commentId as note_id with iid=0 (the caller must encode properly).
       editNote(baseUrl, token, owner, repo, 0, commentId, body),
 
     editReviewComment: (commentId, body) =>
@@ -258,8 +581,6 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
       updateMRBody(baseUrl, token, owner, repo, prNumber, body),
 
     requestReReview: (prNumber, reviewers) => {
-      // GitLab requires numeric user IDs for reviewers.
-      // Parse string IDs to numbers; filter out non-numeric values.
       const numericIds = reviewers
         .map((r) => parseInt(r, 10))
         .filter((id) => Number.isFinite(id) && id > 0)
@@ -291,7 +612,6 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
     // -- Draft operations ---------------------------------------------------
 
     convertToDraft: (prNodeId) => {
-      // prNodeId is expected to be "iid:currentTitle" for GitLab
       const separatorIndex = prNodeId.indexOf(':')
       if (separatorIndex === -1) {
         return Effect.fail(

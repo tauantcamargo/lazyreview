@@ -11,19 +11,99 @@ import { setScreenContext } from '../hooks/useScreenContext'
 import { PRListScreen } from './PRListScreen'
 import { Divider } from '../components/common/Divider'
 import { validateOwner, validateRepo } from '../utils/sanitize'
+import { parseGitRemote } from '../utils/git'
 import type { PullRequest } from '../models/pull-request'
+
+/**
+ * Parse a URL or owner/repo string entered in the browse input.
+ * Supports:
+ *   - owner/repo (GitHub default)
+ *   - group/subgroup/project (GitLab nested groups)
+ *   - https://github.com/owner/repo
+ *   - https://gitlab.com/group/subgroup/project
+ *   - git@gitlab.com:group/project.git
+ */
+function parseRepoUrl(input: string): { readonly owner: string; readonly repo: string } | null {
+  const trimmed = input.trim()
+
+  // Try parsing as a git remote URL first
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('git@')) {
+    const parsed = parseGitRemote(trimmed)
+    if (parsed) {
+      return { owner: parsed.owner, repo: parsed.repo }
+    }
+
+    // Also try parsing HTTPS URLs that might not have .git suffix
+    // e.g. https://gitlab.com/group/subgroup/project
+    try {
+      const url = new URL(trimmed)
+      const pathParts = url.pathname.split('/').filter(Boolean)
+      if (pathParts.length >= 2) {
+        const repo = pathParts[pathParts.length - 1] ?? ''
+        const owner = pathParts.slice(0, -1).join('/')
+        if (owner && repo) {
+          return { owner, repo }
+        }
+      }
+    } catch {
+      // Not a URL, fall through
+    }
+
+    return null
+  }
+
+  return null
+}
 
 function validateRepoInput(input: string): { readonly valid: boolean; readonly owner: string; readonly repo: string; readonly error: string | null } {
   const trimmed = input.trim()
-  if (!trimmed.includes('/')) {
-    return { valid: false, owner: '', repo: '', error: 'Format: owner/repo' }
+
+  // Try URL parsing first
+  const urlParsed = parseRepoUrl(trimmed)
+  if (urlParsed) {
+    return { valid: true, owner: urlParsed.owner, repo: urlParsed.repo, error: null }
   }
+
+  if (!trimmed.includes('/')) {
+    return { valid: false, owner: '', repo: '', error: 'Format: owner/repo or full URL' }
+  }
+
   const parts = trimmed.split('/')
   const owner = parts[0]?.trim() ?? ''
-  const repo = parts.slice(1).join('/').trim()
+  const remainingParts = parts.slice(1)
+
   if (!owner) {
     return { valid: false, owner: '', repo: '', error: 'Owner cannot be empty' }
   }
+
+  // Support GitLab nested group format: group/subgroup/project
+  // The last segment is the repo, everything before is the owner/namespace
+  if (remainingParts.length > 1) {
+    const repo = remainingParts[remainingParts.length - 1]?.trim() ?? ''
+    const fullOwner = [owner, ...remainingParts.slice(0, -1).map((p) => p.trim())].join('/')
+    if (!repo) {
+      return { valid: false, owner: '', repo: '', error: 'Repo cannot be empty' }
+    }
+    // For nested paths, validate each segment
+    const allSegments = [fullOwner.split('/'), [repo]].flat()
+    for (const segment of allSegments) {
+      try {
+        if (segment.includes('/')) {
+          // validateOwner doesn't handle slashes, validate segments individually
+          for (const sub of segment.split('/')) {
+            validateOwner(sub)
+          }
+        } else {
+          validateOwner(segment)
+        }
+      } catch {
+        return { valid: false, owner: '', repo: '', error: 'Invalid characters in path' }
+      }
+    }
+    return { valid: true, owner: fullOwner, repo, error: null }
+  }
+
+  const repo = remainingParts[0]?.trim() ?? ''
   if (!repo) {
     return { valid: false, owner: '', repo: '', error: 'Repo cannot be empty' }
   }
@@ -155,7 +235,7 @@ function BrowsePicker({ onSelectRepo, isActive }: BrowsePickerProps): React.Reac
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Box gap={1}>
-          <Text color={theme.colors.secondary}>owner/repo:</Text>
+          <Text color={theme.colors.secondary}>repo path or URL:</Text>
           <Box
             borderStyle="single"
             borderColor={isInputFocused ? theme.colors.accent : theme.colors.border}
@@ -168,7 +248,7 @@ function BrowsePicker({ onSelectRepo, isActive }: BrowsePickerProps): React.Reac
                 setInputValue(val)
                 setInputError(null)
               }}
-              placeholder="e.g. facebook/react"
+              placeholder="e.g. owner/repo or group/subgroup/project"
             />
           </Box>
         </Box>
@@ -325,4 +405,4 @@ export function BrowseRepoScreen({ onSelect, isActive = true }: BrowseRepoScreen
   return <BrowsePicker onSelectRepo={handleSelectRepo} isActive={isActive} />
 }
 
-export { validateRepoInput }
+export { validateRepoInput, parseRepoUrl }

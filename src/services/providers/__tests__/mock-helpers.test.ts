@@ -218,10 +218,11 @@ describe('createMockGitLabProvider', () => {
   it('creates a GitLab provider with appropriate capabilities', () => {
     const provider = createMockGitLabProvider()
     expect(provider.type).toBe('gitlab')
-    expect(provider.capabilities.supportsCheckRuns).toBe(false)
+    expect(provider.capabilities.supportsCheckRuns).toBe(true)
     expect(provider.capabilities.supportsMergeStrategies).toEqual([
       'merge',
       'squash',
+      'rebase',
     ])
   })
 })

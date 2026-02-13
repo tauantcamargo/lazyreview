@@ -11,12 +11,26 @@ import { useBookmarkedRepos, validateBookmarkInput } from '../hooks/useBookmarke
 import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { SettingRow, TokenSourceLabel } from '../components/settings/SettingRow'
-import { getAuthProvider, getProviderTokenFilePath } from '../services/Auth'
+import { getAuthProvider, setAuthProvider, getProviderTokenFilePath, getProviderMeta } from '../services/Auth'
 import type { TokenSource } from '../services/Auth'
+import type { Provider } from '../services/Config'
 
 const THEME_ORDER: readonly ThemeName[] = ['tokyo-night', 'dracula', 'catppuccin-mocha', 'gruvbox', 'high-contrast']
 
+const PROVIDER_ORDER: readonly Provider[] = ['github', 'gitlab', 'bitbucket', 'azure', 'gitea']
+
+const PROVIDER_LABELS: Readonly<Record<Provider, string>> = {
+  github: 'GitHub',
+  gitlab: 'GitLab',
+  bitbucket: 'Bitbucket (coming soon)',
+  azure: 'Azure DevOps (coming soon)',
+  gitea: 'Gitea (coming soon)',
+}
+
+const SUPPORTED_PROVIDERS: ReadonlySet<Provider> = new Set(['github', 'gitlab'])
+
 type SettingsItem =
+  | 'provider'
   | 'token_source'
   | 'new_token'
   | 'theme'
@@ -29,6 +43,7 @@ type SettingsItem =
 type EditingField = 'page_size' | 'refresh_interval' | 'default_owner' | 'default_repo' | 'new_token' | 'bookmark_add' | null
 
 const SETTINGS_ITEMS: readonly SettingsItem[] = [
+  'provider',
   'token_source',
   'new_token',
   'theme',
@@ -48,6 +63,7 @@ export function SettingsScreen(): React.ReactElement {
     setPreferredSource,
     saveToken,
     loading: authLoading,
+    refetch,
   } = useAuth()
 
   const { setStatusMessage } = useStatusMessage()
@@ -62,6 +78,23 @@ export function SettingsScreen(): React.ReactElement {
 
   const isEditing = editingField !== null
   const isBookmarkSection = selectedItem === 'bookmarked_repos'
+
+  const cycleProvider = (): void => {
+    const currentProvider = (config?.provider ?? 'github') as Provider
+    const currentIndex = PROVIDER_ORDER.indexOf(currentProvider)
+    // Only cycle through supported providers
+    const supportedProviders = PROVIDER_ORDER.filter((p) => SUPPORTED_PROVIDERS.has(p))
+    const currentSupportedIndex = supportedProviders.indexOf(currentProvider)
+    const nextIndex = (currentSupportedIndex + 1) % supportedProviders.length
+    const nextProvider = supportedProviders[nextIndex]
+    if (nextProvider) {
+      updateConfig({ provider: nextProvider })
+      setAuthProvider(nextProvider)
+      // Invalidate auth queries so token re-check occurs
+      refetch()
+      setStatusMessage(`Provider switched to ${PROVIDER_LABELS[nextProvider]}`)
+    }
+  }
 
   const cycleTheme = (): void => {
     const currentTheme = (config?.theme ?? 'tokyo-night') as ThemeName
@@ -166,7 +199,9 @@ export function SettingsScreen(): React.ReactElement {
         const prevIndex = Math.max(currentIndex - 1, 0)
         setSelectedItem(SETTINGS_ITEMS[prevIndex]!)
       } else if (key.return) {
-        if (selectedItem === 'token_source') {
+        if (selectedItem === 'provider') {
+          cycleProvider()
+        } else if (selectedItem === 'token_source') {
           const currentSource = tokenInfo?.source ?? 'none'
           const sourceOrder: TokenSource[] = ['gh_cli', 'env', 'manual']
           const availableInOrder = sourceOrder.filter((s) => availableSources.includes(s))
@@ -322,7 +357,7 @@ export function SettingsScreen(): React.ReactElement {
             </Text>
           </Box>
           {editingField === 'new_token' ? (
-            renderEditableField('new_token', 'ghp_xxxx...')
+            renderEditableField('new_token', getProviderMeta(getAuthProvider()).tokenPlaceholder)
           ) : (
             <Text color={theme.colors.muted} dimColor>
               (Enter to add)
@@ -353,6 +388,12 @@ export function SettingsScreen(): React.ReactElement {
 
       <Box flexDirection="column" gap={0}>
         <SettingRow
+          label="Provider"
+          value={PROVIDER_LABELS[config?.provider ?? 'github'] ?? config?.provider ?? 'github'}
+          isSelected={selectedItem === 'provider'}
+          hint="Enter to switch"
+        />
+        <SettingRow
           label="Theme"
           value={config?.theme ?? 'tokyo-night'}
           isSelected={selectedItem === 'theme'}
@@ -380,11 +421,6 @@ export function SettingsScreen(): React.ReactElement {
             ? renderEditableField('refresh_interval', '10-600')
             : undefined}
         </SettingRow>
-        <SettingRow
-          label="Provider"
-          value={config?.provider ?? 'github'}
-          hint={config?.provider === 'gitlab' ? '(gitlab support coming soon)' : undefined}
-        />
         <SettingRow
           label="Default Owner"
           value={config?.defaultOwner ?? '(not set)'}
