@@ -3,6 +3,7 @@ import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import type { PullRequest } from '../../models/pull-request'
 import { timeAgo } from '../../utils/date'
+import { contrastForeground, normalizeHexColor } from '../../utils/color'
 
 interface PRHeaderProps {
   readonly pr: PullRequest
@@ -12,6 +13,7 @@ interface PRHeaderProps {
 
 export function PRHeader({ pr, prIndex, prTotal }: PRHeaderProps): React.ReactElement {
   const theme = useTheme()
+  const totalComments = pr.comments + pr.review_comments
 
   const stateColor = pr.draft
     ? theme.colors.muted
@@ -61,14 +63,27 @@ export function PRHeader({ pr, prIndex, prTotal }: PRHeaderProps): React.ReactEl
         <Text color={theme.colors.muted}>
           {pr.changed_files} files changed
         </Text>
+        {totalComments > 0 && (
+          <Text color={theme.colors.info}>
+            {totalComments} comment{totalComments !== 1 ? 's' : ''}
+          </Text>
+        )}
       </Box>
       {pr.labels.length > 0 && (
         <Box gap={1} paddingLeft={2}>
-          {pr.labels.map((label) => (
-            <Text key={label.id} color={`#${label.color}`}>
-              [{label.name}]
-            </Text>
-          ))}
+          {pr.labels.map((label) => {
+            const bgColor = label.color ? normalizeHexColor(label.color) : undefined
+            const fgColor = label.color ? contrastForeground(label.color) : theme.colors.muted
+            return (
+              <Text
+                key={label.id}
+                color={fgColor}
+                backgroundColor={bgColor}
+              >
+                {` ${label.name} `}
+              </Text>
+            )
+          })}
         </Box>
       )}
     </Box>

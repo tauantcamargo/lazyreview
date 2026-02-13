@@ -6,6 +6,7 @@ import { timeAgo } from '../../utils/date'
 import { CheckStatusIcon } from './CheckStatusIcon'
 import { ReviewStatusIcon } from './ReviewStatusIcon'
 import { useReadState } from '../../hooks/useReadState'
+import { contrastForeground, normalizeHexColor } from '../../utils/color'
 
 interface PRListItemProps {
   readonly item: PullRequest
@@ -82,11 +83,20 @@ export function PRListItem({
         {item.labels.length > 0 && (
           <Box gap={0}>
             {item.labels.map(
-              (label: { id: number; name: string; color: string }) => (
-                <Text key={label.id} color={`#${label.color}`} bold>
-                  {` ${label.name} `}
-                </Text>
-              ),
+              (label: { id: number; name: string; color: string }) => {
+                const bgColor = label.color ? normalizeHexColor(label.color) : undefined
+                const fgColor = label.color ? contrastForeground(label.color) : theme.colors.muted
+                return (
+                  <Text
+                    key={label.id}
+                    color={fgColor}
+                    backgroundColor={bgColor}
+                    bold
+                  >
+                    {` ${label.name} `}
+                  </Text>
+                )
+              },
             )}
           </Box>
         )}
