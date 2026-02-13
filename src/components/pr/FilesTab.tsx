@@ -4,6 +4,7 @@ import type { DOMElement } from 'ink'
 import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
+import { setScreenContext } from '../../hooks/useScreenContext'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { useViewedFiles } from '../../hooks/useViewedFiles'
 import { useDiffSearch } from '../../hooks/useDiffSearch'
@@ -171,6 +172,12 @@ export function FilesTab({
     treeScrollOffset,
     treeScrollOffset + treeViewportHeight,
   )
+
+  React.useEffect(() => {
+    if (isActive) {
+      setScreenContext(focusPanel === 'tree' ? 'pr-detail-files-tree' : 'pr-detail-files-diff')
+    }
+  }, [focusPanel, isActive])
 
   React.useEffect(() => {
     if (focusPanel === 'tree') {

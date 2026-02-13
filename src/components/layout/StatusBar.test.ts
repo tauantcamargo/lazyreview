@@ -24,18 +24,37 @@ describe('getContextHints', () => {
 
   it('returns description tab hints for pr-detail-description', () => {
     const hints = getContextHints('detail', 'pr-detail-description')
-    expect(hints).toContain('j/k:nav')
-    expect(hints).toContain('D:edit-desc')
-    expect(hints).toContain('Tab:tabs')
+    expect(hints).toContain('1-5:tabs')
+    expect(hints).toContain('R:review')
+    expect(hints).toContain('m:merge')
+    expect(hints).toContain('o:open')
+    expect(hints).toContain('?:help')
   })
 
-  it('returns files tab hints for pr-detail-files', () => {
+  it('returns files tab (diff panel) hints for pr-detail-files', () => {
     const hints = getContextHints('detail', 'pr-detail-files')
-    expect(hints).toContain('h/l:tree/diff')
-    expect(hints).toContain('/:filter/search')
     expect(hints).toContain('c:comment')
-    expect(hints).toContain('n/N:next/prev-match')
-    expect(hints).toContain('R:review')
+    expect(hints).toContain('v:visual')
+    expect(hints).toContain('d:split')
+    expect(hints).toContain('/:search')
+    expect(hints).toContain('Tab:tree')
+  })
+
+  it('returns files tab tree panel hints for pr-detail-files-tree', () => {
+    const hints = getContextHints('detail', 'pr-detail-files-tree')
+    expect(hints).toContain('Enter:view')
+    expect(hints).toContain('/:filter')
+    expect(hints).toContain('v:viewed')
+    expect(hints).toContain('Tab:diff')
+  })
+
+  it('returns files tab diff panel hints for pr-detail-files-diff', () => {
+    const hints = getContextHints('detail', 'pr-detail-files-diff')
+    expect(hints).toContain('c:comment')
+    expect(hints).toContain('v:visual')
+    expect(hints).toContain('d:split')
+    expect(hints).toContain('/:search')
+    expect(hints).toContain('Tab:tree')
   })
 
   it('returns conversations tab hints for pr-detail-conversations', () => {
@@ -43,9 +62,8 @@ describe('getContextHints', () => {
     expect(hints).toContain('c:comment')
     expect(hints).toContain('r:reply')
     expect(hints).toContain('x:resolve')
-    expect(hints).toContain('R:review')
     expect(hints).toContain('e:edit')
-    expect(hints).toContain('g:go-to-file')
+    expect(hints).toContain('f:filter')
   })
 
   it('returns checks tab hints for pr-detail-checks', () => {
@@ -60,6 +78,7 @@ describe('getContextHints', () => {
     expect(hints).toContain('j/k:nav')
     expect(hints).toContain('y:copy-sha')
     expect(hints).toContain('R:review')
+    expect(hints).toContain('m:merge')
   })
 
   it('returns settings hints for settings context', () => {
