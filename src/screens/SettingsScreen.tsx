@@ -16,7 +16,7 @@ import type { TokenSource } from '../services/Auth'
 import { getConfiguredInstances } from '../services/Config'
 import type { Provider, ConfiguredInstance } from '../services/Config'
 
-const THEME_ORDER: readonly ThemeName[] = ['tokyo-night', 'dracula', 'catppuccin-mocha', 'gruvbox', 'high-contrast']
+const THEME_ORDER: readonly ThemeName[] = ['tokyo-night', 'dracula', 'catppuccin-mocha', 'gruvbox', 'high-contrast', 'github-light']
 
 const PROVIDER_ORDER: readonly Provider[] = ['github', 'gitlab', 'bitbucket', 'azure', 'gitea']
 

@@ -1,16 +1,24 @@
 import { useCallback, useSyncExternalStore } from 'react'
 
+export type StatusMessageType = 'success' | 'error' | 'info'
+
 type Listener = () => void
 
-interface StatusMessageStore {
+interface StatusState {
   readonly message: string | null
-  readonly subscribe: (listener: Listener) => () => void
-  readonly setMessage: (msg: string, durationMs?: number) => void
-  readonly getSnapshot: () => string | null
+  readonly type: StatusMessageType
 }
 
+interface StatusMessageStore {
+  readonly subscribe: (listener: Listener) => () => void
+  readonly setMessage: (msg: string, durationMs?: number, type?: StatusMessageType) => void
+  readonly getSnapshot: () => StatusState
+}
+
+const EMPTY_STATE: StatusState = { message: null, type: 'info' }
+
 function createStatusMessageStore(): StatusMessageStore {
-  let message: string | null = null
+  let state: StatusState = EMPTY_STATE
   let listeners: readonly Listener[] = []
   let timerId: ReturnType<typeof setTimeout> | null = null
 
@@ -19,29 +27,26 @@ function createStatusMessageStore(): StatusMessageStore {
   }
 
   return {
-    get message() {
-      return message
-    },
     subscribe(listener: Listener) {
       listeners = [...listeners, listener]
       return () => {
         listeners = listeners.filter((l) => l !== listener)
       }
     },
-    setMessage(msg: string, durationMs = 2000) {
+    setMessage(msg: string, durationMs = 2000, type: StatusMessageType = 'info') {
       if (timerId !== null) {
         clearTimeout(timerId)
       }
-      message = msg
+      state = { message: msg, type }
       notify()
       timerId = setTimeout(() => {
-        message = null
+        state = EMPTY_STATE
         timerId = null
         notify()
       }, durationMs)
     },
     getSnapshot() {
-      return message
+      return state
     },
   }
 }
@@ -50,20 +55,28 @@ const store = createStatusMessageStore()
 
 export function useStatusMessage(): {
   readonly message: string | null
-  readonly setStatusMessage: (msg: string, durationMs?: number) => void
+  readonly messageType: StatusMessageType
+  readonly setStatusMessage: (msg: string, durationMsOrType?: number | StatusMessageType, type?: StatusMessageType) => void
 } {
-  const message = useSyncExternalStore(
+  const state = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
-    () => null,
+    () => EMPTY_STATE,
   )
 
   const setStatusMessage = useCallback(
-    (msg: string, durationMs?: number) => {
-      store.setMessage(msg, durationMs)
+    (msg: string, durationMsOrType?: number | StatusMessageType, type?: StatusMessageType) => {
+      // Support both call signatures:
+      // setStatusMessage('msg', 2000, 'success')
+      // setStatusMessage('msg', 'success')
+      if (typeof durationMsOrType === 'string') {
+        store.setMessage(msg, undefined, durationMsOrType)
+      } else {
+        store.setMessage(msg, durationMsOrType, type)
+      }
     },
     [],
   )
 
-  return { message, setStatusMessage } as const
+  return { message: state.message, messageType: state.type, setStatusMessage } as const
 }

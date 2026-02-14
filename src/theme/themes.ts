@@ -116,12 +116,37 @@ const highContrast: Theme = {
     warning: '#ffff00',
     info: '#5555ff',
 
-    diffAdd: '#00ff00',
-    diffDel: '#ff0000',
+    diffAdd: '#58a6ff',
+    diffDel: '#d29922',
 
     selection: '#333333',
     listSelectedFg: '#ffffff',
     listSelectedBg: '#333333',
+  },
+}
+
+const githubLight: Theme = {
+  name: 'github-light',
+  colors: {
+    bg: '#ffffff',
+    text: '#1f2328',
+    accent: '#0969da',
+    muted: '#656d76',
+    border: '#d0d7de',
+    primary: '#0969da',
+    secondary: '#8250df',
+
+    success: '#1a7f37',
+    error: '#cf222e',
+    warning: '#9a6700',
+    info: '#0969da',
+
+    diffAdd: '#1a7f37',
+    diffDel: '#cf222e',
+
+    selection: '#ddf4ff',
+    listSelectedFg: '#1f2328',
+    listSelectedBg: '#ddf4ff',
   },
 }
 
@@ -131,6 +156,7 @@ export const themes: Record<ThemeName, Theme> = {
   'catppuccin-mocha': catppuccinMocha,
   gruvbox,
   'high-contrast': highContrast,
+  'github-light': githubLight,
 }
 
 export const defaultTheme: Theme = tokyoNight

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useStatusMessage } from '../../hooks/useStatusMessage'
+import type { StatusMessageType } from '../../hooks/useStatusMessage'
 import { useLastUpdated } from '../../hooks/useLastUpdated'
 import { useRateLimit } from '../../hooks/useRateLimit'
 import { useKeybindings } from '../../hooks/useKeybindings'
@@ -202,7 +203,7 @@ export function StatusBar({
   screenContext,
 }: StatusBarProps): React.ReactElement {
   const theme = useTheme()
-  const { message: statusMessage } = useStatusMessage()
+  const { message: statusMessage, messageType } = useStatusMessage()
   const { label: lastUpdatedLabel } = useLastUpdated()
   const rateLimit = useRateLimit()
   const { overrides } = useKeybindings('global')
@@ -214,9 +215,20 @@ export function StatusBar({
 
   const showRateLimitWarning = rateLimit.remaining < RATE_LIMIT_WARNING_THRESHOLD
 
+  const statusColor = (type: StatusMessageType): string => {
+    switch (type) {
+      case 'success':
+        return theme.colors.success
+      case 'error':
+        return theme.colors.error
+      case 'info':
+        return theme.colors.info
+    }
+  }
+
   const renderStatus = (): React.ReactElement => {
     if (statusMessage) {
-      return <Text color={theme.colors.info}>{statusMessage}</Text>
+      return <Text color={statusColor(messageType)}>{statusMessage}</Text>
     }
     if (lastUpdatedLabel) {
       return <Text color={theme.colors.muted}>{lastUpdatedLabel}</Text>

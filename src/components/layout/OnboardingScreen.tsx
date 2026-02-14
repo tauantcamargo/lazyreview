@@ -23,7 +23,8 @@ const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     title: 'Navigation',
     lines: [
       'j/k        Move up/down in lists',
-      'h/l        Switch between sidebar and main panel',
+      'Tab        Switch between panels',
+      'Escape     Go back to sidebar',
       'Enter      Select / open',
       'q          Back / quit',
       '?          Open help',

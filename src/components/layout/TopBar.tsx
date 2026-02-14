@@ -110,7 +110,6 @@ export function TopBar({
       width="100%"
       justifyContent="space-between"
       paddingX={1}
-      marginTop={0.6}
     >
       <Box gap={0}>
         {breadcrumbs.map((segment, i) => (
