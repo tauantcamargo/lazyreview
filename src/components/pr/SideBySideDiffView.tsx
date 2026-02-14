@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Box, Text } from 'ink'
 import SyntaxHighlight from 'ink-syntax-highlight'
 import { useTheme } from '../../theme/index'
@@ -8,6 +8,7 @@ import { expandTabs, sliceWordDiffSegments } from './DiffView'
 import { getLanguageFromFilename } from '../../utils/languages'
 import { stripAnsi } from '../../utils/sanitize'
 import { computeWordDiff, type WordDiffSegment } from '../../utils/word-diff'
+import { computeVirtualWindow } from '../../utils/virtual-window'
 
 export type SideBySideRow =
   | {
@@ -348,6 +349,17 @@ export function SideBySideDiffView({
   const theme = useTheme()
   const language = filename ? getLanguageFromFilename(filename) : undefined
 
+  const virtualWindow = useMemo(
+    () =>
+      computeVirtualWindow({
+        totalItems: rows.length,
+        viewportSize: viewportHeight,
+        scrollOffset,
+        overscan: 5,
+      }),
+    [rows.length, viewportHeight, scrollOffset],
+  )
+
   if (rows.length === 0) {
     return (
       <Box paddingX={1}>
@@ -356,12 +368,12 @@ export function SideBySideDiffView({
     )
   }
 
-  const visibleRows = rows.slice(scrollOffset, scrollOffset + viewportHeight)
+  const visibleRows = rows.slice(virtualWindow.startIndex, virtualWindow.endIndex)
 
   return (
     <Box flexDirection="column" flexGrow={1} minWidth={0} overflow="hidden">
       {visibleRows.map((row, index) => {
-        const absIndex = scrollOffset + index
+        const absIndex = virtualWindow.startIndex + index
         const isFocus = isActive && absIndex === selectedLine
 
         if (row.type === 'comment') {

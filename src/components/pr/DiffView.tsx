@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Box, Text } from 'ink'
 import SyntaxHighlight from 'ink-syntax-highlight'
 import { useTheme } from '../../theme/index'
@@ -7,6 +7,7 @@ import { DiffCommentView, type DiffCommentThread } from './DiffComment'
 import { stripAnsi } from '../../utils/sanitize'
 import { getLanguageFromFilename } from '../../utils/languages'
 import { computeWordDiff, type WordDiffSegment } from '../../utils/word-diff'
+import { computeVirtualWindow } from '../../utils/virtual-window'
 import type { FoldableRow } from '../../utils/hunk-folding'
 
 /**
@@ -450,6 +451,17 @@ export function DiffView({
   const language = filename ? getLanguageFromFilename(filename) : undefined
   const theme = useTheme()
 
+  const virtualWindow = useMemo(
+    () =>
+      computeVirtualWindow({
+        totalItems: allRows.length,
+        viewportSize: viewportHeight,
+        scrollOffset,
+        overscan: 5,
+      }),
+    [allRows.length, viewportHeight, scrollOffset],
+  )
+
   if (allRows.length === 0) {
     return (
       <Box paddingX={1}>
@@ -459,8 +471,8 @@ export function DiffView({
   }
 
   const visibleRows = allRows.slice(
-    scrollOffset,
-    scrollOffset + viewportHeight,
+    virtualWindow.startIndex,
+    virtualWindow.endIndex,
   )
 
   const selMin = visualStart != null ? Math.min(visualStart, selectedLine) : -1
@@ -469,7 +481,7 @@ export function DiffView({
   return (
     <Box flexDirection="column" flexGrow={1} minWidth={0} overflow="hidden">
       {visibleRows.map((row, index) => {
-        const absIndex = scrollOffset + index
+        const absIndex = virtualWindow.startIndex + index
         if (row.type === 'folded') {
           return (
             <FoldedHunkPlaceholderView
