@@ -193,6 +193,54 @@ describe('AppConfig schema', () => {
     }
   })
 
+  it('keybindingOverrides is optional and defaults to undefined', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    expect(config.keybindingOverrides).toBeUndefined()
+  })
+
+  it('accepts keybindingOverrides with string bindings', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      keybindingOverrides: {
+        global: { toggleHelp: 'h' },
+      },
+    })
+    expect(config.keybindingOverrides?.['global']?.['toggleHelp']).toBe('h')
+  })
+
+  it('accepts keybindingOverrides with array bindings', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      keybindingOverrides: {
+        prList: { filterPRs: ['/', 'f'] },
+      },
+    })
+    expect(config.keybindingOverrides?.['prList']?.['filterPRs']).toEqual(['/', 'f'])
+  })
+
+  it('accepts keybindingOverrides for multiple contexts', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      keybindingOverrides: {
+        global: { toggleHelp: 'h' },
+        prList: { filterPRs: 'f' },
+        prDetail: { mergePR: 'M' },
+      },
+    })
+    expect(config.keybindingOverrides?.['global']?.['toggleHelp']).toBe('h')
+    expect(config.keybindingOverrides?.['prList']?.['filterPRs']).toBe('f')
+    expect(config.keybindingOverrides?.['prDetail']?.['mergePR']).toBe('M')
+  })
+
+  it('keybindingOverrides round-trips through encode/decode', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      keybindingOverrides: {
+        global: { toggleHelp: 'h', moveDown: ['j', 'ctrl+n'] },
+      },
+    })
+    const encoded = S.encodeSync(AppConfig)(config)
+    const decoded = S.decodeUnknownSync(AppConfig)(encoded)
+    expect(decoded.keybindingOverrides?.['global']?.['toggleHelp']).toBe('h')
+    expect(decoded.keybindingOverrides?.['global']?.['moveDown']).toEqual(['j', 'ctrl+n'])
+  })
+
   it('config with gitlab round-trips through encode/decode', () => {
     const input = {
       provider: 'gitlab' as const,

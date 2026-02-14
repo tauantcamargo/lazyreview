@@ -4,6 +4,7 @@ import { useTheme } from '../theme/index'
 import { useListNavigation } from '../hooks/useListNavigation'
 import { usePagination } from '../hooks/usePagination'
 import { useFilter } from '../hooks/useFilter'
+import { useKeybindings } from '../hooks/useKeybindings'
 import { PRListItem } from '../components/pr/PRListItem'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorWithRetry } from '../components/common/ErrorWithRetry'
@@ -126,34 +127,36 @@ export function PRListScreen({
     isActive: !showFilter && !showSort,
   })
 
+  const { matchesAction } = useKeybindings('prList')
+
   useInput(
     (input, key) => {
       if (key.return && pageItems[selectedIndex]) {
         // Pass the full display list and absolute index for next/prev navigation
         const absoluteIndex = startIndex + selectedIndex
         onSelect(pageItems[selectedIndex], displayItems, absoluteIndex)
-      } else if (input === 'n' && hasNextPage) {
+      } else if (matchesAction(input, key, 'nextPage') && hasNextPage) {
         nextPage()
-      } else if (input === 'p' && hasPrevPage) {
+      } else if (matchesAction(input, key, 'prevPage') && hasPrevPage) {
         prevPage()
-      } else if (input === '/') {
+      } else if (matchesAction(input, key, 'filterPRs')) {
         setShowFilter(true)
-      } else if (input === 's') {
+      } else if (matchesAction(input, key, 'sortPRs')) {
         setShowSort(true)
-      } else if (input === 'o' && pageItems[selectedIndex]) {
+      } else if (matchesAction(input, key, 'openInBrowser') && pageItems[selectedIndex]) {
         openInBrowser(pageItems[selectedIndex].html_url)
         setStatusMessage('Opened in browser')
-      } else if (input === 'y' && pageItems[selectedIndex]) {
+      } else if (matchesAction(input, key, 'copyUrl') && pageItems[selectedIndex]) {
         const url = pageItems[selectedIndex].html_url
         if (copyToClipboard(url)) {
           setStatusMessage('Copied PR URL to clipboard')
         } else {
           setStatusMessage('Failed to copy to clipboard')
         }
-      } else if (input === 'u') {
+      } else if (matchesAction(input, key, 'toggleUnread')) {
         setShowUnreadOnly((prev) => !prev)
         setStatusMessage(showUnreadOnly ? 'Showing all PRs' : 'Showing unread PRs only')
-      } else if (input === 't' && onStateChange) {
+      } else if (matchesAction(input, key, 'toggleState') && onStateChange) {
         const currentIdx = STATE_CYCLE.indexOf(stateFilter)
         const nextIdx = (currentIdx + 1) % STATE_CYCLE.length
         onStateChange(STATE_CYCLE[nextIdx]!)

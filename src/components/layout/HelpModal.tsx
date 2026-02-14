@@ -1,6 +1,9 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
+import { useKeybindings } from '../../hooks/useKeybindings'
+import { mergeKeybindings, formatActionBindings } from '../../config/keybindings'
+import type { KeybindingOverrides } from '../../config/keybindings'
 import { Divider } from '../common/Divider'
 import { Modal } from '../common/Modal'
 
@@ -18,104 +21,160 @@ interface ShortcutGroup {
   readonly items: readonly ShortcutEntry[]
 }
 
-const shortcutGroups: readonly ShortcutGroup[] = [
+/**
+ * Description labels for each action, used in the help modal.
+ */
+const ACTION_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  // Global
+  moveDown: 'Move down',
+  moveUp: 'Move up',
+  select: 'Select / Open',
+  toggleSidebar: 'Toggle sidebar',
+  toggleHelp: 'Toggle this help',
+  back: 'Back / Quit',
+  quit: 'Force quit',
+  refresh: 'Refresh',
+  // PR List
+  filterPRs: 'Filter PRs',
+  sortPRs: 'Sort PRs',
+  nextPage: 'Next page',
+  prevPage: 'Previous page',
+  openInBrowser: 'Open in browser',
+  copyUrl: 'Copy URL',
+  toggleUnread: 'Toggle unread only',
+  toggleState: 'Toggle state (Open/Closed/All)',
+  // PR Detail
+  submitReview: 'Submit review',
+  batchReview: 'Start batch review',
+  reReview: 'Request re-review',
+  mergePR: 'Merge PR',
+  editTitle: 'Edit PR title',
+  toggleDraft: 'Toggle draft / ready for review',
+  closePR: 'Close / Reopen PR',
+  checkoutBranch: 'Checkout PR branch locally',
+  nextPR: 'Next PR',
+  prevPR: 'Previous PR',
+  // Conversations
+  newComment: 'New comment',
+  reply: 'Reply to comment',
+  editComment: 'Edit own comment',
+  editDescription: 'Edit PR description (author only)',
+  resolveThread: 'Resolve / unresolve thread',
+  toggleResolved: 'Toggle resolved comments',
+  goToFile: 'Go to file in diff',
+  // Files Tab
+  focusTree: 'Focus tree',
+  focusDiff: 'Focus diff',
+  switchPanel: 'Switch tree / diff panel',
+  filterFiles: 'Filter files / Search diff',
+  toggleSideBySide: 'Toggle side-by-side diff',
+  visualSelect: 'Visual line select',
+  inlineComment: 'Inline comment',
+  // Commits Tab
+  copyCommitSha: 'Copy commit SHA',
+  // Input
+  submit: 'Submit',
+  newLine: 'New line',
+  indent: 'Insert indent (2 spaces)',
+}
+
+/**
+ * Defines which actions appear in each help section and in what order.
+ * Some entries are static (not backed by the keybinding system).
+ */
+interface HelpSectionDef {
+  readonly title: string
+  readonly context: string
+  readonly actions: readonly string[]
+  readonly staticEntries?: readonly ShortcutEntry[]
+}
+
+const HELP_SECTIONS: readonly HelpSectionDef[] = [
   {
     title: 'Global',
-    items: [
-      { key: 'j / k', description: 'Move down / up' },
-      { key: 'Enter', description: 'Select / Open' },
-      { key: 'Ctrl+b', description: 'Toggle sidebar' },
-      { key: '?', description: 'Toggle this help' },
-      { key: 'q / Esc', description: 'Back / Quit' },
-      { key: 'Ctrl+c', description: 'Force quit' },
-    ],
+    context: 'global',
+    actions: ['moveDown', 'moveUp', 'select', 'toggleSidebar', 'toggleHelp', 'back', 'quit'],
   },
   {
     title: 'PR List',
-    items: [
-      { key: '/', description: 'Filter PRs' },
-      { key: 's', description: 'Sort PRs' },
-      { key: 'n / p', description: 'Next / Previous page' },
-      { key: 'o', description: 'Open PR in browser' },
-      { key: 'y', description: 'Copy PR URL' },
-      { key: 'u', description: 'Toggle unread only' },
-      { key: 't', description: 'Toggle state (Open/Closed/All)' },
+    context: 'prList',
+    actions: ['filterPRs', 'sortPRs', 'nextPage', 'prevPage', 'openInBrowser', 'copyUrl', 'toggleUnread', 'toggleState'],
+    staticEntries: [
       { key: 'R', description: 'Refresh' },
     ],
   },
   {
     title: 'PR Detail',
-    items: [
+    context: 'prDetail',
+    actions: ['openInBrowser', 'copyUrl', 'submitReview', 'batchReview', 'reReview', 'mergePR', 'editTitle', 'toggleDraft', 'closePR', 'checkoutBranch', 'nextPR', 'prevPR'],
+    staticEntries: [
       { key: '1-5', description: 'Switch tabs (Desc/Conv/Commits/Files/Checks)' },
-      { key: 'o', description: 'Open PR in browser' },
-      { key: 'y', description: 'Copy PR URL' },
-      { key: 'R', description: 'Submit review' },
-      { key: 'S', description: 'Start batch review' },
-      { key: 'E', description: 'Request re-review' },
-      { key: 'm', description: 'Merge PR' },
-      { key: 'T', description: 'Edit PR title' },
-      { key: 'W', description: 'Toggle draft / ready for review' },
-      { key: 'X', description: 'Close / Reopen PR' },
-      { key: 'G', description: 'Checkout PR branch locally' },
-      { key: '] / [', description: 'Next / Previous PR' },
     ],
   },
   {
     title: 'Conversations Tab',
-    items: [
-      { key: 'c', description: 'New comment' },
-      { key: 'r', description: 'Reply to comment (review + issue)' },
-      { key: 'e', description: 'Edit own comment' },
-      { key: 'D', description: 'Edit PR description (author only)' },
-      { key: 'x', description: 'Resolve / unresolve thread' },
-      { key: 'f', description: 'Toggle resolved comments' },
-      { key: 'g', description: 'Go to file in diff (inline comments)' },
-    ],
+    context: 'conversations',
+    actions: ['newComment', 'reply', 'editComment', 'editDescription', 'resolveThread', 'toggleResolved', 'goToFile'],
   },
   {
     title: 'Files Tab',
-    items: [
-      { key: 'h / l', description: 'Focus tree / diff' },
-      { key: 'Tab', description: 'Switch tree / diff panel' },
-      { key: '/', description: 'Filter files (tree) / Search diff (diff)' },
+    context: 'filesTab',
+    actions: ['focusTree', 'focusDiff', 'switchPanel', 'filterFiles', 'toggleSideBySide', 'visualSelect', 'inlineComment', 'reply', 'editComment', 'resolveThread'],
+    staticEntries: [
       { key: 'F', description: 'Search across all files' },
       { key: 'n / N', description: 'Next / previous search match' },
-      { key: 'd', description: 'Toggle side-by-side diff' },
-      { key: 'v', description: 'Visual line select (diff)' },
-      { key: 'c', description: 'Inline comment (diff)' },
-      { key: 'r', description: 'Reply to diff comment' },
-      { key: 'e', description: 'Edit own diff comment' },
-      { key: 'x', description: 'Resolve / unresolve (diff)' },
     ],
   },
   {
     title: 'Checks Tab',
-    items: [
-      { key: 'o', description: 'Open check run in browser' },
-      { key: 'y', description: 'Copy check run URL' },
-    ],
+    context: 'checksTab',
+    actions: ['openInBrowser', 'copyUrl'],
   },
   {
     title: 'Commits Tab',
-    items: [
-      { key: 'Enter', description: 'View commit diff' },
-      { key: 'y', description: 'Copy commit SHA' },
-      { key: 'q / Esc', description: 'Back to commit list (in diff view)' },
-    ],
+    context: 'commitsTab',
+    actions: ['select', 'copyCommitSha', 'back'],
   },
   {
     title: 'Comment / Review Input',
-    items: [
-      { key: 'Enter', description: 'New line' },
-      { key: 'Tab', description: 'Insert indent (2 spaces)' },
-      { key: 'Ctrl+S', description: 'Submit' },
-      { key: 'Esc', description: 'Cancel / Back' },
-    ],
+    context: 'input',
+    actions: ['newLine', 'indent', 'submit', 'back'],
   },
 ]
 
+/**
+ * Build shortcut groups by merging keybinding defaults with user overrides.
+ */
+export function buildShortcutGroups(
+  overrides: KeybindingOverrides | undefined,
+): readonly ShortcutGroup[] {
+  return HELP_SECTIONS.map((section) => {
+    const bindings = mergeKeybindings(section.context, overrides)
+
+    const actionItems: readonly ShortcutEntry[] = section.actions
+      .filter((action) => bindings[action] != null)
+      .map((action) => ({
+        key: formatActionBindings(bindings[action]!),
+        description: ACTION_DESCRIPTIONS[action] ?? action,
+      }))
+
+    const staticItems = section.staticEntries ?? []
+
+    // Place static entries at the front (like tab switching or search nav)
+    const items = [...staticItems, ...actionItems]
+
+    return { title: section.title, items }
+  })
+}
+
 export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
   const theme = useTheme()
+  const { overrides } = useKeybindings('global')
+
+  const shortcutGroups = useMemo(
+    () => buildShortcutGroups(overrides),
+    [overrides],
+  )
 
   return (
     <Modal>
@@ -139,7 +198,7 @@ export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
                 {group.title}
               </Text>
               {group.items.map((s) => (
-                <Box key={`${group.title}-${s.key}`} gap={2}>
+                <Box key={`${group.title}-${s.key}-${s.description}`} gap={2}>
                   <Box width={16}>
                     <Text color={theme.colors.warning}>{s.key}</Text>
                   </Box>

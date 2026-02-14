@@ -28,6 +28,7 @@ import { setAuthProvider, setAuthBaseUrl } from './services/Auth'
 import type { Provider } from './services/Config'
 import { useListNavigation } from './hooks/useListNavigation'
 import { useActivePanel } from './hooks/useActivePanel'
+import { useKeybindings } from './hooks/useKeybindings'
 import { InputFocusProvider, useInputFocus } from './hooks/useInputFocus'
 import { RepoContextProvider, useRepoContext } from './hooks/useRepoContext'
 import { useSidebarCounts } from './hooks/useSidebarCounts'
@@ -147,20 +148,22 @@ function AppContent({
     [saveToken, queryClient],
   )
 
-  // Global keyboard shortcuts
+  // Global keyboard shortcuts (using configurable keybindings)
+  const { matchesAction } = useKeybindings('global')
+
   useInput(
     (input, key) => {
       // Handle modals first
       if (showHelp || showTokenInput || showOnboarding) {
-        if (key.escape || (showHelp && input === '?')) {
+        if (key.escape || (showHelp && matchesAction(input, key, 'toggleHelp'))) {
           setShowHelp(false)
         }
         return
       }
 
-      if (key.ctrl && input === 'b') {
+      if (matchesAction(input, key, 'toggleSidebar')) {
         setSidebarVisible((prev) => !prev)
-      } else if (input === '?') {
+      } else if (matchesAction(input, key, 'toggleHelp')) {
         setShowHelp(true)
       } else if (input === 'q') {
         if (currentScreen.type === 'detail') {

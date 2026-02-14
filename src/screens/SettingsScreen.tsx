@@ -574,6 +574,9 @@ export function SettingsScreen(): React.ReactElement {
         <Text color={theme.colors.muted} dimColor>
           Token: {getProviderTokenFilePath(getAuthProvider()).replace(process.env['HOME'] ?? '', '~')}
         </Text>
+        <Text color={theme.colors.muted} dimColor>
+          Keybindings: add keybindingOverrides to config.yaml (see ? help for defaults)
+        </Text>
       </Box>
 
       <Box paddingX={1} paddingTop={1}>
