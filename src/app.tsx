@@ -36,8 +36,12 @@ import { useReadState } from './hooks/useReadState'
 import { useRateLimit } from './hooks/useRateLimit'
 import { useSidebarSections, getItemIndex } from './hooks/useSidebarSections'
 import { useTokenExpired, clearTokenExpired } from './hooks/useTokenExpired'
+import { usePullRequest } from './hooks/useGitHub'
+import { LoadingIndicator } from './components/common/LoadingIndicator'
+import { ErrorWithRetry } from './components/common/ErrorWithRetry'
 import type { ConnectionStatus } from './components/layout/TopBar'
 import type { PullRequest } from './models/pull-request'
+import type { DirectPR } from './utils/cli-args'
 
 type AppScreen =
   | { readonly type: 'list' }
@@ -52,12 +56,14 @@ interface AppContentProps {
   readonly repoOwner: string | null
   readonly repoName: string | null
   readonly activeProvider: Provider
+  readonly directPR: DirectPR | null
 }
 
 function AppContent({
   repoOwner,
   repoName,
   activeProvider,
+  directPR,
 }: AppContentProps): React.ReactElement {
   const { exit } = useApp()
   const { stdout } = useStdout()
@@ -68,6 +74,32 @@ function AppContent({
   const [currentScreen, setCurrentScreen] = useState<AppScreen>({
     type: 'list',
   })
+
+  // Direct PR fetching — resolve owner/repo from directPR or fall back to detected repo
+  const directPROwner = directPR?.owner ?? repoOwner ?? ''
+  const directPRRepo = directPR?.repo ?? repoName ?? ''
+  const directPRNumber = directPR?.prNumber ?? 0
+
+  const {
+    data: directPRData,
+    isLoading: directPRLoading,
+    error: directPRError,
+    refetch: directPRRefetch,
+  } = usePullRequest(directPROwner, directPRRepo, directPRNumber)
+
+  // Auto-navigate to detail screen when direct PR data loads
+  const [directPRNavigated, setDirectPRNavigated] = useState(false)
+  React.useEffect(() => {
+    if (directPR && directPRData && !directPRNavigated) {
+      setDirectPRNavigated(true)
+      setCurrentScreen({
+        type: 'detail',
+        pr: directPRData,
+        prList: [directPRData],
+        prIndex: 0,
+      })
+    }
+  }, [directPR, directPRData, directPRNavigated])
   const [tokenError, setTokenError] = useState<string | null>(null)
   const [showHelp, setShowHelp] = useState(false)
   // Start with modal hidden, show only after auth check fails
@@ -167,7 +199,12 @@ function AppContent({
         setShowHelp(true)
       } else if (input === 'q') {
         if (currentScreen.type === 'detail') {
-          setCurrentScreen({ type: 'list' })
+          // If opened via --pr or URL, exit the app (no list to go back to)
+          if (directPR) {
+            exit()
+          } else {
+            setCurrentScreen({ type: 'list' })
+          }
         } else {
           exit()
         }
@@ -195,8 +232,12 @@ function AppContent({
   )
 
   const handleBackToList = useCallback(() => {
-    setCurrentScreen({ type: 'list' })
-  }, [])
+    if (directPR) {
+      exit()
+    } else {
+      setCurrentScreen({ type: 'list' })
+    }
+  }, [directPR, exit])
 
   const handleNavigatePR = useCallback(
     (direction: 'next' | 'prev') => {
@@ -223,6 +264,31 @@ function AppContent({
   )
 
   function renderScreen(): React.ReactElement {
+    // Show loading/error for direct PR fetch before navigating to detail
+    if (directPR && !directPRNavigated) {
+      if (directPRLoading) {
+        return (
+          <Box flexDirection="column" padding={1}>
+            <LoadingIndicator message={`Loading PR #${directPR.prNumber}...`} />
+          </Box>
+        )
+      }
+      if (directPRError) {
+        const errorMessage =
+          directPRError instanceof Error
+            ? directPRError.message
+            : String(directPRError)
+        return (
+          <ErrorWithRetry
+            message={`Failed to load PR #${directPR.prNumber}: ${errorMessage}`}
+            onRetry={() => {
+              directPRRefetch()
+            }}
+          />
+        )
+      }
+    }
+
     if (currentScreen.type === 'detail') {
       // Extract owner/repo from PR URL for detail view
       const parsed = parseGitHubPRUrl(currentScreen.pr.html_url)
@@ -377,6 +443,7 @@ interface AppProps {
   readonly repoName: string | null
   readonly detectedProvider?: ProviderType | null
   readonly detectedBaseUrl?: string | null
+  readonly directPR?: DirectPR | null
 }
 
 /**
@@ -402,6 +469,7 @@ function AppWithTheme({
   repoName,
   detectedProvider,
   detectedBaseUrl,
+  directPR,
 }: AppProps): React.ReactElement {
   const { config } = useConfig()
   const themeName = (config?.theme ?? 'tokyo-night') as ThemeName
@@ -434,6 +502,7 @@ function AppWithTheme({
             repoOwner={repoOwner}
             repoName={repoName}
             activeProvider={activeProvider}
+            directPR={directPR ?? null}
           />
         </ErrorBoundary>
       </RepoContextProvider>
@@ -446,6 +515,7 @@ export function App({
   repoName,
   detectedProvider,
   detectedBaseUrl,
+  directPR,
 }: AppProps): React.ReactElement {
   return (
     <QueryClientProvider client={queryClient}>
@@ -455,6 +525,7 @@ export function App({
           repoName={repoName}
           detectedProvider={detectedProvider}
           detectedBaseUrl={detectedBaseUrl}
+          directPR={directPR}
         />
       </InputFocusProvider>
     </QueryClientProvider>

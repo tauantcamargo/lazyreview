@@ -296,6 +296,20 @@ export function parsePRUrl(url: string): ParsedPRUrl | null {
     }
   }
 
+  // Gitea/Forgejo: https://host/owner/repo/pulls/123
+  // This is a catch-all for self-hosted Gitea instances (any domain)
+  const giteaMatch = url.match(
+    /https?:\/\/[^/]+\/([^/]+)\/([^/]+)\/pulls\/(\d+)/,
+  )
+  if (giteaMatch?.[1] && giteaMatch[2] && giteaMatch[3]) {
+    return {
+      provider: 'gitea',
+      owner: giteaMatch[1],
+      repo: giteaMatch[2],
+      number: parseInt(giteaMatch[3], 10),
+    }
+  }
+
   return null
 }
 

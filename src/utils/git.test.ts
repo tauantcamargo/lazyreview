@@ -544,6 +544,38 @@ describe('parsePRUrl', () => {
     })
   })
 
+  describe('Gitea/Forgejo PR URLs', () => {
+    it('parses a Gitea PR URL', () => {
+      const result = parsePRUrl('https://gitea.example.com/owner/repo/pulls/42')
+      expect(result).toEqual<ParsedPRUrl>({
+        provider: 'gitea',
+        owner: 'owner',
+        repo: 'repo',
+        number: 42,
+      })
+    })
+
+    it('parses a Forgejo PR URL', () => {
+      const result = parsePRUrl('https://codeberg.org/owner/repo/pulls/7')
+      expect(result).toEqual<ParsedPRUrl>({
+        provider: 'gitea',
+        owner: 'owner',
+        repo: 'repo',
+        number: 7,
+      })
+    })
+
+    it('parses Gitea PR URL with query parameters', () => {
+      const result = parsePRUrl('https://gitea.example.com/owner/repo/pulls/42?tab=diff')
+      expect(result).toEqual<ParsedPRUrl>({
+        provider: 'gitea',
+        owner: 'owner',
+        repo: 'repo',
+        number: 42,
+      })
+    })
+  })
+
   describe('Edge cases', () => {
     it('returns null for empty string', () => {
       expect(parsePRUrl('')).toBeNull()
