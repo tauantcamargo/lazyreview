@@ -71,3 +71,15 @@ export function formatCount(count: number): string {
   }
   return String(count)
 }
+
+/**
+ * Compute the sidebar width based on the terminal column count.
+ * - Terminals < 100 cols: 28
+ * - Terminals 100-140 cols: 34
+ * - Terminals > 140 cols: 40
+ */
+export function computeSidebarWidth(columns: number): number {
+  if (columns < 100) return 28
+  if (columns <= 140) return 34
+  return 40
+}

@@ -148,4 +148,89 @@ describe('buildDisplayRows', () => {
     expect(rows[1]!.indent).toBe(1) // components/
     expect(rows[2]!.indent).toBe(2) // Button.tsx
   })
+
+  it('includes dirPath on dir rows', () => {
+    const files = [makeFile('src/components/Button.tsx')]
+    const tree = buildFileTree(files)
+    const ref = { current: 0 }
+    const rows = buildDisplayRows(tree, 0, ref)
+    const dirRows = rows.filter((r) => r.type === 'dir')
+    expect(dirRows).toHaveLength(2)
+    expect(dirRows[0]!.type === 'dir' && dirRows[0]!.dirPath).toBe('src')
+    expect(dirRows[1]!.type === 'dir' && dirRows[1]!.dirPath).toBe('src/components')
+  })
+
+  it('marks dirs as not collapsed by default', () => {
+    const files = [makeFile('src/index.ts')]
+    const tree = buildFileTree(files)
+    const ref = { current: 0 }
+    const rows = buildDisplayRows(tree, 0, ref)
+    const dirRow = rows.find((r) => r.type === 'dir')
+    expect(dirRow?.type === 'dir' && dirRow.isCollapsed).toBe(false)
+  })
+
+  it('hides children of collapsed directories', () => {
+    const files = [makeFile('src/a.ts'), makeFile('src/b.ts'), makeFile('README.md')]
+    const tree = buildFileTree(files)
+    const collapsed = new Set(['src'])
+    const ref = { current: 0 }
+    const rows = buildDisplayRows(tree, 0, ref, collapsed)
+    // Should only show: dir "src" (collapsed), file "README.md"
+    expect(rows).toHaveLength(2)
+    expect(rows[0]!.type).toBe('dir')
+    if (rows[0]!.type === 'dir') {
+      expect(rows[0]!.name).toBe('src')
+      expect(rows[0]!.isCollapsed).toBe(true)
+    }
+    expect(rows[1]!.type).toBe('file')
+    if (rows[1]!.type === 'file') {
+      expect(rows[1]!.name).toBe('README.md')
+    }
+  })
+
+  it('advances fileIndex correctly when directories are collapsed', () => {
+    const files = [makeFile('src/a.ts'), makeFile('src/b.ts'), makeFile('README.md')]
+    const tree = buildFileTree(files)
+    const collapsed = new Set(['src'])
+    const ref = { current: 0 }
+    const rows = buildDisplayRows(tree, 0, ref, collapsed)
+    // src dir is collapsed (2 files hidden), README.md should have fileIndex 2
+    const readmeRow = rows.find((r) => r.type === 'file')
+    expect(readmeRow?.type === 'file' && readmeRow.fileIndex).toBe(2)
+  })
+
+  it('collapses nested directories independently', () => {
+    const files = [
+      makeFile('src/components/Button.tsx'),
+      makeFile('src/hooks/useAuth.ts'),
+      makeFile('src/index.ts'),
+    ]
+    const tree = buildFileTree(files)
+    // Collapse only src/components
+    const collapsed = new Set(['src/components'])
+    const ref = { current: 0 }
+    const rows = buildDisplayRows(tree, 0, ref, collapsed)
+    // Should show: dir "src", dir "components" (collapsed), dir "hooks", file useAuth.ts, file index.ts
+    const dirRows = rows.filter((r) => r.type === 'dir')
+    const componentsDir = dirRows.find(
+      (r) => r.type === 'dir' && r.name === 'components',
+    )
+    expect(componentsDir?.type === 'dir' && componentsDir.isCollapsed).toBe(true)
+    // hooks dir should still be expanded
+    const hooksDir = dirRows.find((r) => r.type === 'dir' && r.name === 'hooks')
+    expect(hooksDir?.type === 'dir' && hooksDir.isCollapsed).toBe(false)
+    // Should have useAuth.ts and index.ts visible
+    const fileRows = rows.filter((r) => r.type === 'file')
+    expect(fileRows).toHaveLength(2)
+  })
+
+  it('returns all rows when no directories are collapsed (empty set)', () => {
+    const files = [makeFile('src/a.ts'), makeFile('src/b.ts')]
+    const tree = buildFileTree(files)
+    const collapsed = new Set<string>()
+    const ref = { current: 0 }
+    const rows = buildDisplayRows(tree, 0, ref, collapsed)
+    // Should show: dir "src", file "a.ts", file "b.ts"
+    expect(rows).toHaveLength(3)
+  })
 })

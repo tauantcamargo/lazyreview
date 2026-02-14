@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { truncate, padRight, pluralize, formatCount, openInBrowser, copyToClipboard } from './terminal'
+import { truncate, padRight, pluralize, formatCount, openInBrowser, copyToClipboard, computeSidebarWidth } from './terminal'
 
 vi.mock('node:child_process', () => ({
   execFile: vi.fn(),
@@ -116,5 +116,30 @@ describe('copyToClipboard', () => {
     const sha = 'abc123def456789'
     const result = copyToClipboard(sha)
     expect(result).toBe(true)
+  })
+})
+
+describe('computeSidebarWidth', () => {
+  it('returns 28 for terminals under 100 columns', () => {
+    expect(computeSidebarWidth(80)).toBe(28)
+    expect(computeSidebarWidth(99)).toBe(28)
+    expect(computeSidebarWidth(60)).toBe(28)
+  })
+
+  it('returns 34 for terminals 100-140 columns', () => {
+    expect(computeSidebarWidth(100)).toBe(34)
+    expect(computeSidebarWidth(120)).toBe(34)
+    expect(computeSidebarWidth(140)).toBe(34)
+  })
+
+  it('returns 40 for terminals over 140 columns', () => {
+    expect(computeSidebarWidth(141)).toBe(40)
+    expect(computeSidebarWidth(200)).toBe(40)
+    expect(computeSidebarWidth(300)).toBe(40)
+  })
+
+  it('returns 28 for very small terminals', () => {
+    expect(computeSidebarWidth(40)).toBe(28)
+    expect(computeSidebarWidth(20)).toBe(28)
   })
 })

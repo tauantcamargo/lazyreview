@@ -5,7 +5,8 @@ import { Text } from 'ink'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider, defaultTheme } from '../../theme/index'
 import { TopBar, providerBadge, providerColor } from './TopBar'
-import { Sidebar, SIDEBAR_ITEMS } from './Sidebar'
+import { Sidebar, SIDEBAR_ITEMS, cycleSidebarMode } from './Sidebar'
+import type { SidebarMode } from './Sidebar'
 import { MainPanel } from './MainPanel'
 import { StatusBar } from './StatusBar'
 import type { NavigableEntry } from '../../hooks/useSidebarSections'
@@ -356,6 +357,77 @@ describe('Sidebar', () => {
     // ▸ is used for both the selection pointer and collapse, but collapsed section has ▸ before name
     expect(reviewsLine).toBeDefined()
     expect(appLine).toBeDefined()
+  })
+})
+
+describe('cycleSidebarMode', () => {
+  it('cycles full -> icon-only', () => {
+    expect(cycleSidebarMode('full')).toBe('icon-only')
+  })
+
+  it('cycles icon-only -> hidden', () => {
+    expect(cycleSidebarMode('icon-only')).toBe('hidden')
+  })
+
+  it('cycles hidden -> full', () => {
+    expect(cycleSidebarMode('hidden')).toBe('full')
+  })
+})
+
+describe('Sidebar icon-only mode', () => {
+  it('renders abbreviated labels in icon-only mode', () => {
+    const { lastFrame } = render(
+      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} mode="icon-only" />),
+    )
+    const frame = lastFrame() ?? ''
+    // Should show abbreviated single-char labels, NOT full labels
+    expect(frame).toContain('Nav')
+    expect(frame).not.toContain('Navigation')
+    expect(frame).not.toContain('Involved')
+    expect(frame).not.toContain('My PRs')
+  })
+
+  it('returns null when mode is hidden', () => {
+    const { lastFrame } = render(
+      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} mode="hidden" />),
+    )
+    expect(lastFrame()).toBe('')
+  })
+
+  it('renders full sidebar with custom width', () => {
+    const { lastFrame } = render(
+      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} mode="full" width={28} />),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('Navigation')
+    expect(frame).toContain('Involved')
+  })
+
+  it('shows icons in icon-only mode', () => {
+    const { lastFrame } = render(
+      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} mode="icon-only" />),
+    )
+    const frame = lastFrame() ?? ''
+    // Should show sidebar icons
+    expect(frame).toContain('\u25C6') // Involved icon
+    expect(frame).toContain('\u2699') // Settings icon
+  })
+
+  it('shows counts in icon-only mode when available', () => {
+    const counts = {
+      involved: 5,
+      myPrs: 3,
+      forReview: 2,
+      forReviewUnread: null,
+      thisRepo: 10,
+      browse: null,
+    }
+    const { lastFrame } = render(
+      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} mode="icon-only" counts={counts} />),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('5')
+    expect(frame).toContain('3')
   })
 })
 

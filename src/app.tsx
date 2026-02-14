@@ -4,7 +4,9 @@ import { Box, Text, useApp, useInput, useStdout } from 'ink'
 import { ThemeProvider, getThemeByName } from './theme/index'
 import type { ThemeName } from './theme/index'
 import { TopBar } from './components/layout/TopBar'
-import { Sidebar, SIDEBAR_ITEMS } from './components/layout/Sidebar'
+import { Sidebar, SIDEBAR_ITEMS, cycleSidebarMode } from './components/layout/Sidebar'
+import type { SidebarMode } from './components/layout/Sidebar'
+import { computeSidebarWidth } from './utils/terminal'
 import { MainPanel } from './components/layout/MainPanel'
 import { StatusBar } from './components/layout/StatusBar'
 import { useScreenContext, setScreenContext } from './hooks/useScreenContext'
@@ -70,7 +72,7 @@ function AppContent({
   const { user, isAuthenticated, loading, saveToken, error } = useAuth()
   const { config, updateConfig } = useConfig()
   const queryClient = useQueryClient()
-  const [sidebarVisible, setSidebarVisible] = useState(true)
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>('full')
   const [currentScreen, setCurrentScreen] = useState<AppScreen>({
     type: 'list',
   })
@@ -194,7 +196,7 @@ function AppContent({
       }
 
       if (matchesAction(input, key, 'toggleSidebar')) {
-        setSidebarVisible((prev) => !prev)
+        setSidebarMode((prev) => cycleSidebarMode(prev))
       } else if (matchesAction(input, key, 'toggleHelp')) {
         setShowHelp(true)
       } else if (input === 'q') {
@@ -335,6 +337,8 @@ function AppContent({
   }
 
   const terminalHeight = stdout?.rows ?? 24
+  const terminalWidth = stdout?.columns ?? 120
+  const sidebarWidth = computeSidebarWidth(terminalWidth)
 
   const { browseRepo } = useRepoContext()
 
@@ -399,12 +403,14 @@ function AppContent({
       <Box flexDirection="row" flexGrow={1}>
         <Sidebar
           selectedIndex={sidebarIndex}
-          visible={sidebarVisible}
+          visible={sidebarMode !== 'hidden'}
           isActive={activePanel === 'sidebar'}
           counts={sidebarCounts}
           collapsedSections={collapsedSections}
           navigableEntries={navigableEntries}
           navIndex={navIndex}
+          mode={sidebarMode}
+          width={sidebarWidth}
         />
         <MainPanel isActive={activePanel === 'list'}>
           {renderScreen()}

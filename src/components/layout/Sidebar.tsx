@@ -16,6 +16,33 @@ export const SIDEBAR_ITEMS = [
 
 export type SidebarItem = (typeof SIDEBAR_ITEMS)[number]
 
+/**
+ * Sidebar display mode:
+ * - 'full': show icons + full labels
+ * - 'icon-only': show only first character of label + icon (~8 cols)
+ * - 'hidden': sidebar is not rendered
+ */
+export type SidebarMode = 'full' | 'icon-only' | 'hidden'
+
+/**
+ * Width for icon-only sidebar mode.
+ */
+export const SIDEBAR_ICON_ONLY_WIDTH = 8
+
+/**
+ * Cycle sidebar mode: full -> icon-only -> hidden -> full
+ */
+export function cycleSidebarMode(current: SidebarMode): SidebarMode {
+  switch (current) {
+    case 'full':
+      return 'icon-only'
+    case 'icon-only':
+      return 'hidden'
+    case 'hidden':
+      return 'full'
+  }
+}
+
 const sidebarIcons: Record<SidebarItem, string> = {
   Involved: '◆',
   'My PRs': '●',
@@ -63,6 +90,8 @@ interface SidebarProps {
   readonly collapsedSections?: ReadonlySet<string>
   readonly navigableEntries?: readonly NavigableEntry[]
   readonly navIndex?: number
+  readonly mode?: SidebarMode
+  readonly width?: number
 }
 
 export function Sidebar({
@@ -73,10 +102,16 @@ export function Sidebar({
   collapsedSections,
   navigableEntries,
   navIndex,
+  mode = 'full',
+  width = 40,
 }: SidebarProps): React.ReactElement | null {
   const theme = useTheme()
 
-  if (!visible) return null
+  if (!visible || mode === 'hidden') return null
+
+  if (mode === 'icon-only') {
+    return renderIconOnly(selectedIndex, isActive, theme, counts)
+  }
 
   // Determine if we're in section mode or legacy mode
   const hasSections =
@@ -91,7 +126,7 @@ export function Sidebar({
   return (
     <Box
       flexDirection="column"
-      width={40}
+      width={width}
       borderStyle="single"
       borderColor={isActive ? theme.colors.accent : theme.colors.border}
     >
@@ -111,6 +146,53 @@ export function Sidebar({
               currentNavEntry,
             )
           : renderFlatItems(selectedIndex, isActive, theme, counts)}
+      </Box>
+    </Box>
+  )
+}
+
+function renderIconOnly(
+  selectedIndex: number,
+  isActive: boolean,
+  theme: ReturnType<typeof useTheme>,
+  counts: SidebarCounts | undefined,
+): React.ReactElement {
+  return (
+    <Box
+      flexDirection="column"
+      width={SIDEBAR_ICON_ONLY_WIDTH}
+      borderStyle="single"
+      borderColor={isActive ? theme.colors.accent : theme.colors.border}
+    >
+      <Box paddingX={1} paddingY={0}>
+        <Text color={theme.colors.accent} bold={isActive} dimColor={!isActive}>
+          Nav
+        </Text>
+      </Box>
+      <Box flexDirection="column" paddingTop={1}>
+        {SIDEBAR_ITEMS.map((label, index) => {
+          const isSelected = index === selectedIndex
+          const icon = sidebarIcons[label]
+          const count = getCountForItem(label, counts)
+          const abbrev = label[0] ?? ''
+          return (
+            <Box key={label} paddingX={0} marginLeft={1}>
+              <Text
+                color={isSelected ? theme.colors.accent : theme.colors.text}
+                backgroundColor={isSelected ? theme.colors.selection : undefined}
+                bold={isSelected}
+                dimColor={!isActive && !isSelected}
+              >
+                {icon}{abbrev}
+              </Text>
+              {count !== null && count > 0 && (
+                <Text color={theme.colors.muted} dimColor={!isActive}>
+                  {count}
+                </Text>
+              )}
+            </Box>
+          )
+        })}
       </Box>
     </Box>
   )

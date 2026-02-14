@@ -13,7 +13,7 @@ export interface DirNode {
 }
 
 export type DisplayRow =
-  | { indent: number; type: 'dir'; name: string }
+  | { indent: number; type: 'dir'; name: string; dirPath: string; isCollapsed: boolean }
   | {
       indent: number
       type: 'file'
@@ -75,6 +75,8 @@ export function buildDisplayRows(
   nodes: TreeNode[],
   indent = 0,
   fileIndexRef: { current: number },
+  collapsedDirs?: ReadonlySet<string>,
+  parentPath = '',
 ): DisplayRow[] {
   const rows: DisplayRow[] = []
   for (const node of nodes) {
@@ -90,11 +92,43 @@ export function buildDisplayRows(
       })
       fileIndexRef.current += 1
     } else {
-      rows.push({ indent, type: 'dir', name: node.name })
-      rows.push(...buildDisplayRows(node.children, indent + 1, fileIndexRef))
+      const dirPath = parentPath ? `${parentPath}/${node.name}` : node.name
+      const isCollapsed = collapsedDirs?.has(dirPath) ?? false
+      rows.push({ indent, type: 'dir', name: node.name, dirPath, isCollapsed })
+      if (!isCollapsed) {
+        rows.push(
+          ...buildDisplayRows(
+            node.children,
+            indent + 1,
+            fileIndexRef,
+            collapsedDirs,
+            dirPath,
+          ),
+        )
+      } else {
+        // Count files in collapsed subtree to advance fileIndexRef
+        countFilesInTree(node.children, fileIndexRef)
+      }
     }
   }
   return rows
+}
+
+/**
+ * Advance the fileIndexRef by the number of files in a subtree.
+ * Used when a directory is collapsed to keep file indices consistent.
+ */
+function countFilesInTree(
+  nodes: TreeNode[],
+  fileIndexRef: { current: number },
+): void {
+  for (const node of nodes) {
+    if (node.type === 'file') {
+      fileIndexRef.current += 1
+    } else {
+      countFilesInTree(node.children, fileIndexRef)
+    }
+  }
 }
 
 interface FileItemProps {
