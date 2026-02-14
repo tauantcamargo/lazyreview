@@ -6,6 +6,7 @@ import { usePagination } from '../hooks/usePagination'
 import { useFilter } from '../hooks/useFilter'
 import { useKeybindings } from '../hooks/useKeybindings'
 import { setSelectionContext } from '../hooks/useSelectionContext'
+import { usePrefetch } from '../hooks/usePrefetch'
 import { PRListItem } from '../components/pr/PRListItem'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorWithRetry } from '../components/common/ErrorWithRetry'
@@ -21,6 +22,7 @@ import { useNotifications } from '../hooks/useNotifications'
 import { useConfig } from '../hooks/useConfig'
 import { useCurrentUser } from '../hooks/useGitHub'
 import { findNextUnread } from '../utils/listHelpers'
+import { parseGitHubPRUrl } from '../utils/git'
 import {
   PRPreviewPanel,
   PREVIEW_PANEL_MIN_TERMINAL_WIDTH,
@@ -48,6 +50,10 @@ interface PRListScreenProps {
   readonly stateFilter?: PRStateFilter
   readonly onStateChange?: (state: PRStateFilter) => void
   readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
+  /** Owner for prefetch context. If not provided, extracted from selected PR's html_url. */
+  readonly owner?: string
+  /** Repo for prefetch context. If not provided, extracted from selected PR's html_url. */
+  readonly repo?: string
 }
 
 export function PRListScreen({
@@ -61,6 +67,8 @@ export function PRListScreen({
   stateFilter = 'open',
   onStateChange,
   onSelect,
+  owner: ownerProp,
+  repo: repoProp,
 }: PRListScreenProps): React.ReactElement {
   const theme = useTheme()
   const { setStatusMessage } = useStatusMessage()
@@ -141,6 +149,30 @@ export function PRListScreen({
     itemCount: pageItems.length,
     viewportHeight: pageItems.length,
     isActive: !showFilter && !showSort,
+  })
+
+  // Derive owner/repo for prefetch from props or selected PR's html_url
+  const selectedPRForPrefetch = pageItems[selectedIndex]
+  const parsedUrl = useMemo(
+    () =>
+      !ownerProp && selectedPRForPrefetch
+        ? parseGitHubPRUrl(selectedPRForPrefetch.html_url)
+        : null,
+    [ownerProp, selectedPRForPrefetch?.html_url],
+  )
+  const prefetchOwner = ownerProp ?? parsedUrl?.owner ?? ''
+  const prefetchRepo = repoProp ?? parsedUrl?.repo ?? ''
+  const prefetchEnabled = config?.prefetchEnabled ?? true
+  const prefetchDelayMs = config?.prefetchDelayMs ?? 500
+
+  // Background prefetch of PR detail data for the highlighted item
+  usePrefetch({
+    items: pageItems,
+    selectedIndex,
+    enabled: prefetchEnabled && !showFilter && !showSort,
+    owner: prefetchOwner,
+    repo: prefetchRepo,
+    delayMs: prefetchDelayMs,
   })
 
   const { matchesAction } = useKeybindings('prList')

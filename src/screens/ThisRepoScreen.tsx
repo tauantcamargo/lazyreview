@@ -154,6 +154,8 @@ export function ThisRepoScreen({ owner, repo, onSelect }: ThisRepoScreenProps): 
         stateFilter={stateFilter}
         onStateChange={setStateFilter}
         onSelect={onSelect}
+        owner={owner}
+        repo={repo}
       />
       {showCreatePR && branchInfo && branchInfo.currentBranch && (
         <CreatePRModal

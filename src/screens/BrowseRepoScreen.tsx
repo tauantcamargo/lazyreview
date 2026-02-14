@@ -434,6 +434,8 @@ function BrowseList({ owner, repo, onBack, onSelect }: BrowseListProps): React.R
       stateFilter={stateFilter}
       onStateChange={setStateFilter}
       onSelect={onSelect}
+      owner={owner}
+      repo={repo}
     />
   )
 }
