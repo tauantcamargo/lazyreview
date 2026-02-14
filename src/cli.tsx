@@ -1,9 +1,13 @@
 import React from 'react'
 import { render } from 'ink'
 import { App } from './app'
-import { detectGitRepo } from './utils/git'
-import type { ProviderType } from './utils/git'
+import { detectGitRepo, buildConfiguredHosts } from './utils/git'
+import type { ProviderType, ConfiguredHosts } from './utils/git'
 import { parseCliArgs } from './utils/cli-args'
+import { readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { parse as parseYaml } from 'yaml'
 
 // ANSI escape codes for alternate screen buffer
 const ENTER_ALT_SCREEN = '\x1b[?1049h'
@@ -90,6 +94,25 @@ async function showHelp(): Promise<void> {
   process.exit(0)
 }
 
+/**
+ * Load configured hosts from config file for self-hosted provider detection.
+ * This runs before the React app starts so we can pass hosts to git detection.
+ * Returns an empty map if config is missing or invalid.
+ */
+async function loadConfiguredHosts(): Promise<ConfiguredHosts> {
+  try {
+    const configPath = join(homedir(), '.config', 'lazyreview', 'config.yaml')
+    const content = await readFile(configPath, 'utf-8')
+    const parsed = parseYaml(content, { maxAliasCount: 10 })
+    if (parsed && typeof parsed === 'object') {
+      return buildConfiguredHosts(parsed as Record<string, unknown>)
+    }
+  } catch {
+    // Config file doesn't exist or is invalid -- that's fine
+  }
+  return {}
+}
+
 async function main(): Promise<void> {
   const parsed = parseCliArgs(process.argv)
 
@@ -118,6 +141,9 @@ async function main(): Promise<void> {
     process.exit(0)
   })
 
+  // Load configured hosts from config for self-hosted provider detection
+  const configuredHosts = await loadConfiguredHosts()
+
   // Resolve repo info: CLI args take priority, then git detection
   let repoOwner: string | null = parsed.owner
   let repoName: string | null = parsed.repo
@@ -126,7 +152,7 @@ async function main(): Promise<void> {
 
   // If no repo specified in args, try to detect from current git repo
   if (!repoOwner || !repoName) {
-    const gitInfo = await detectGitRepo()
+    const gitInfo = await detectGitRepo(configuredHosts)
     if (gitInfo.isGitRepo && gitInfo.owner && gitInfo.repo) {
       repoOwner = repoOwner ?? gitInfo.owner
       repoName = repoName ?? gitInfo.repo

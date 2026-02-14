@@ -24,19 +24,89 @@ export interface ParsedRemote {
 }
 
 // ---------------------------------------------------------------------------
+// Configured hosts for self-hosted provider detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Map of hostnames to provider types, sourced from user config.
+ * Keys are lowercase hostnames (e.g., "gitlab.mycompany.com").
+ */
+export interface ConfiguredHosts {
+  readonly [hostname: string]: ProviderType
+}
+
+/**
+ * Build a ConfiguredHosts map from config's providers and hostMappings.
+ *
+ * Merges:
+ *   - providers.github.hosts -> all map to 'github'
+ *   - providers.gitlab.hosts -> all map to 'gitlab'
+ *   - gitlab.hosts -> all map to 'gitlab' (legacy field)
+ *   - hostMappings -> explicit host-to-provider mappings
+ */
+export function buildConfiguredHosts(config: {
+  readonly providers?: {
+    readonly github?: { readonly hosts?: readonly string[] }
+    readonly gitlab?: { readonly hosts?: readonly string[] }
+  }
+  readonly gitlab?: { readonly hosts?: readonly string[] }
+  readonly hostMappings?: ReadonlyArray<{
+    readonly host: string
+    readonly provider: ProviderType
+  }>
+}): ConfiguredHosts {
+  const hosts: Record<string, ProviderType> = {}
+
+  // Add GitHub Enterprise hosts
+  for (const h of config.providers?.github?.hosts ?? []) {
+    hosts[h.toLowerCase()] = 'github'
+  }
+
+  // Add self-hosted GitLab hosts from providers.gitlab.hosts
+  for (const h of config.providers?.gitlab?.hosts ?? []) {
+    hosts[h.toLowerCase()] = 'gitlab'
+  }
+
+  // Add self-hosted GitLab hosts from legacy gitlab.hosts field
+  for (const h of config.gitlab?.hosts ?? []) {
+    hosts[h.toLowerCase()] = 'gitlab'
+  }
+
+  // Add explicit host mappings (these take precedence)
+  for (const mapping of config.hostMappings ?? []) {
+    hosts[mapping.host.toLowerCase()] = mapping.provider
+  }
+
+  return hosts
+}
+
+// ---------------------------------------------------------------------------
 // Provider detection
 // ---------------------------------------------------------------------------
 
 /**
  * Detect the git hosting provider from a hostname.
+ *
+ * First checks well-known hosts (github.com, gitlab.com, etc.),
+ * then falls back to user-configured hosts from config.
  */
-export function detectProvider(host: string): ProviderType {
+export function detectProvider(
+  host: string,
+  configuredHosts?: ConfiguredHosts,
+): ProviderType {
   const lower = host.toLowerCase()
   if (lower === 'github.com') return 'github'
   if (lower === 'gitlab.com') return 'gitlab'
   if (lower === 'bitbucket.org') return 'bitbucket'
   if (lower.includes('dev.azure.com') || lower.includes('visualstudio.com')) return 'azure'
   if (lower.includes('ssh.dev.azure.com')) return 'azure'
+
+  // Check user-configured host mappings
+  if (configuredHosts) {
+    const mapped = configuredHosts[lower]
+    if (mapped) return mapped
+  }
+
   return 'unknown'
 }
 
@@ -125,48 +195,112 @@ function parseAzureHttps(url: string): ParsedRemote | null {
 
 /**
  * Parse a generic SSH URL: git@host:owner/repo.git
+ *
+ * For GitLab (including self-hosted), supports nested group paths:
+ *   git@gitlab.com:group/subgroup/project.git
+ *   -> owner = "group/subgroup", repo = "project"
  */
-function parseSshUrl(url: string): ParsedRemote | null {
+function parseSshUrl(
+  url: string,
+  configuredHosts?: ConfiguredHosts,
+): ParsedRemote | null {
   // Handle Azure SSH first (special format)
   const azureResult = parseAzureSsh(url)
   if (azureResult) return azureResult
 
-  const match = url.match(/git@([^:]+):([^/]+)\/([^/.]+?)(?:\.git)?$/)
-  if (!match?.[1] || !match[2] || !match[3]) return null
+  // Match: git@host:path.git or git@host:path
+  // Capture host and the full path after the colon
+  const match = url.match(/git@([^:]+):(.+?)(?:\.git)?$/)
+  if (!match?.[1] || !match[2]) return null
 
   const host = match[1]
-  const provider = detectProvider(host)
+  const fullPath = match[2]
+  const provider = detectProvider(host, configuredHosts)
+
+  // Split path into segments
+  const segments = fullPath.split('/')
+  if (segments.length < 2) return null
+
+  // For GitLab, support nested groups: group/subgroup/project
+  // The last segment is always the repo, everything before is the owner
+  if (provider === 'gitlab' && segments.length > 2) {
+    const repo = segments[segments.length - 1]!
+    const owner = segments.slice(0, -1).join('/')
+    return {
+      provider,
+      host,
+      owner,
+      repo,
+      baseUrl: getApiBaseUrl(provider, host),
+    }
+  }
+
+  // Standard two-segment path: owner/repo
+  const owner = segments[0]
+  const repo = segments[1]
+  if (!owner || !repo) return null
 
   return {
     provider,
     host,
-    owner: match[2],
-    repo: match[3],
+    owner,
+    repo,
     baseUrl: getApiBaseUrl(provider, host),
   }
 }
 
 /**
  * Parse a generic HTTPS URL: https://host/owner/repo.git
+ *
+ * For GitLab (including self-hosted), supports nested group paths:
+ *   https://gitlab.com/group/subgroup/project.git
+ *   -> owner = "group/subgroup", repo = "project"
  */
-function parseHttpsUrl(url: string): ParsedRemote | null {
+function parseHttpsUrl(
+  url: string,
+  configuredHosts?: ConfiguredHosts,
+): ParsedRemote | null {
   // Handle Azure HTTPS first (special format with _git)
   const azureResult = parseAzureHttps(url)
   if (azureResult) return azureResult
 
-  const match = url.match(
-    /https?:\/\/([^/]+)\/([^/]+)\/([^/?#.]+?)(?:\.git)?$/,
-  )
-  if (!match?.[1] || !match[2] || !match[3]) return null
+  // Extract host and full path
+  const baseMatch = url.match(/https?:\/\/([^/]+)\/(.+?)(?:\.git)?$/)
+  if (!baseMatch?.[1] || !baseMatch[2]) return null
 
-  const host = match[1]
-  const provider = detectProvider(host)
+  const host = baseMatch[1]
+  const fullPath = baseMatch[2]
+  const provider = detectProvider(host, configuredHosts)
+
+  // Remove query string and hash
+  const cleanPath = fullPath.replace(/[?#].*$/, '')
+  const segments = cleanPath.split('/').filter((s) => s.length > 0)
+
+  if (segments.length < 2) return null
+
+  // For GitLab, support nested groups: group/subgroup/project
+  if (provider === 'gitlab' && segments.length > 2) {
+    const repo = segments[segments.length - 1]!
+    const owner = segments.slice(0, -1).join('/')
+    return {
+      provider,
+      host,
+      owner,
+      repo,
+      baseUrl: getApiBaseUrl(provider, host),
+    }
+  }
+
+  // Standard two-segment path: owner/repo
+  const owner = segments[0]
+  const repo = segments[1]
+  if (!owner || !repo) return null
 
   return {
     provider,
     host,
-    owner: match[2],
-    repo: match[3],
+    owner,
+    repo,
     baseUrl: getApiBaseUrl(provider, host),
   }
 }
@@ -181,22 +315,27 @@ function parseHttpsUrl(url: string): ParsedRemote | null {
  *   - Azure HTTPS: https://dev.azure.com/org/project/_git/repo
  *   - Legacy Azure: https://org.visualstudio.com/project/_git/repo
  *   - Self-hosted: any SSH/HTTPS git URL
+ *   - GitLab nested groups: git@gitlab.com:group/subgroup/project.git
  *
+ * Pass configuredHosts to detect self-hosted instances from config.
  * Returns null for unparseable URLs.
  */
-export function parseGitRemote(url: string): ParsedRemote | null {
+export function parseGitRemote(
+  url: string,
+  configuredHosts?: ConfiguredHosts,
+): ParsedRemote | null {
   if (!url) return null
 
   const trimmed = url.trim()
 
   // Try SSH format first
   if (trimmed.startsWith('git@')) {
-    return parseSshUrl(trimmed)
+    return parseSshUrl(trimmed, configuredHosts)
   }
 
   // Try HTTPS/HTTP format
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return parseHttpsUrl(trimmed)
+    return parseHttpsUrl(trimmed, configuredHosts)
   }
 
   return null
@@ -238,10 +377,17 @@ export interface ParsedPRUrl {
  * Supported URL patterns:
  *   - GitHub:    https://github.com/owner/repo/pull/123
  *   - GitLab:    https://gitlab.com/owner/repo/-/merge_requests/123
+ *   - GitLab:    https://gitlab.com/group/subgroup/project/-/merge_requests/123
+ *   - GitLab:    https://gitlab.mycompany.com/group/project/-/merge_requests/123 (self-hosted)
  *   - Bitbucket: https://bitbucket.org/owner/repo/pull-requests/123
  *   - Azure:     https://dev.azure.com/org/project/_git/repo/pullrequest/123
+ *
+ * Pass configuredHosts to detect self-hosted GitLab MR URLs.
  */
-export function parsePRUrl(url: string): ParsedPRUrl | null {
+export function parsePRUrl(
+  url: string,
+  configuredHosts?: ConfiguredHosts,
+): ParsedPRUrl | null {
   if (!url) return null
 
   // GitHub: https://github.com/owner/repo/pull/123
@@ -257,16 +403,28 @@ export function parsePRUrl(url: string): ParsedPRUrl | null {
     }
   }
 
-  // GitLab: https://gitlab.com/owner/repo/-/merge_requests/123
+  // GitLab: https://host/.../-/merge_requests/123
+  // Supports gitlab.com, self-hosted, and nested groups
   const glMatch = url.match(
-    /https?:\/\/gitlab\.com\/([^/]+)\/([^/]+)\/-\/merge_requests\/(\d+)/,
+    /https?:\/\/([^/]+)\/(.+?)\/-\/merge_requests\/(\d+)/,
   )
   if (glMatch?.[1] && glMatch[2] && glMatch[3]) {
-    return {
-      provider: 'gitlab',
-      owner: glMatch[1],
-      repo: glMatch[2],
-      number: parseInt(glMatch[3], 10),
+    const glHost = glMatch[1]
+    const glProvider = detectProvider(glHost, configuredHosts)
+    // Only match if this is a known GitLab host
+    if (glProvider === 'gitlab') {
+      const pathSegments = glMatch[2].split('/')
+      const repo = pathSegments[pathSegments.length - 1]!
+      const owner =
+        pathSegments.length > 1
+          ? pathSegments.slice(0, -1).join('/')
+          : pathSegments[0]!
+      return {
+        provider: 'gitlab',
+        owner,
+        repo,
+        number: parseInt(glMatch[3], 10),
+      }
     }
   }
 
@@ -398,8 +556,13 @@ export interface GitRepoInfo {
 /**
  * Detect if current directory is a git repo and extract owner/repo from remote.
  * Uses provider-agnostic parsing to support GitHub, GitLab, Bitbucket, Azure, and more.
+ *
+ * Pass configuredHosts to resolve self-hosted instances (e.g., GitHub Enterprise)
+ * from user config.
  */
-export async function detectGitRepo(): Promise<GitRepoInfo> {
+export async function detectGitRepo(
+  configuredHosts?: ConfiguredHosts,
+): Promise<GitRepoInfo> {
   try {
     // Check if we're in a git repo
     await execFileAsync('git', ['rev-parse', '--git-dir'])
@@ -413,7 +576,7 @@ export async function detectGitRepo(): Promise<GitRepoInfo> {
     const remoteUrl = stdout.trim()
 
     // Parse owner/repo from URL (provider-agnostic)
-    const parsed = parseGitRemote(remoteUrl)
+    const parsed = parseGitRemote(remoteUrl, configuredHosts)
 
     return {
       isGitRepo: true,
