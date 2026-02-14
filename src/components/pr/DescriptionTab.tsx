@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useMemo } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
 import { Divider } from '../common/Divider'
@@ -7,6 +7,11 @@ import type { PullRequest } from '../../models/pull-request'
 import type { Review } from '../../models/review'
 import { MarkdownText } from '../common/MarkdownText'
 import { ReviewSummary } from './ReviewSummary'
+import { BotSummarySection } from './BotSummarySection'
+import {
+  findMostRecentBotComment,
+  type BotDetectableComment,
+} from '../../utils/bot-detection'
 
 const PR_DETAIL_CONTENT_HEIGHT_RESERVED = 18
 const DESCRIPTION_HEADER_LINES = 2
@@ -16,6 +21,8 @@ interface DescriptionTabProps {
   readonly reviews: readonly Review[]
   readonly isActive: boolean
   readonly onEditDescription?: (context: { readonly body: string }) => void
+  readonly issueComments?: readonly BotDetectableComment[]
+  readonly botUsernames?: readonly string[]
 }
 
 function PRInfoSection({
@@ -104,9 +111,12 @@ export function DescriptionTab({
   reviews,
   isActive,
   onEditDescription,
+  issueComments,
+  botUsernames,
 }: DescriptionTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
+  const [botSummaryExpanded, setBotSummaryExpanded] = useState(false)
   const contentHeight = Math.max(
     1,
     (stdout?.rows ?? 24) - PR_DETAIL_CONTENT_HEIGHT_RESERVED,
@@ -116,8 +126,22 @@ export function DescriptionTab({
     contentHeight - DESCRIPTION_HEADER_LINES,
   )
 
+  const botComment = useMemo(
+    () => findMostRecentBotComment(issueComments ?? [], botUsernames),
+    [issueComments, botUsernames],
+  )
+
   const sections = [
     <PRInfoSection key="info" pr={pr} />,
+    ...(botComment
+      ? [
+          <BotSummarySection
+            key="bot-summary"
+            comment={botComment}
+            isExpanded={botSummaryExpanded}
+          />,
+        ]
+      : []),
     <PRDescriptionSection key="desc" pr={pr} />,
     <ReviewSummary key="reviews" reviews={reviews} />,
   ]
@@ -132,6 +156,9 @@ export function DescriptionTab({
     (input) => {
       if (input === 'D' && onEditDescription) {
         onEditDescription({ body: pr.body ?? '' })
+      }
+      if (input === 'B' && botComment) {
+        setBotSummaryExpanded((prev) => !prev)
       }
     },
     { isActive },

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { Schema as S } from 'effect'
-import { AppConfig, buildHostMappings, toConfiguredHosts } from './Config'
+import { AppConfig, buildHostMappings, toConfiguredHosts, getConfiguredInstances } from './Config'
+import type { ConfiguredInstance } from './Config'
 
 describe('AppConfig schema', () => {
   it('creates default config from empty object', () => {
@@ -434,5 +435,107 @@ describe('toConfiguredHosts', () => {
     const result = toConfiguredHosts(config)
     // Verify it works with detectProvider from git.ts
     expect(result['ghe.corp.com']).toBe('github')
+  })
+})
+
+// ===========================================================================
+// getConfiguredInstances
+// ===========================================================================
+
+describe('getConfiguredInstances', () => {
+  it('returns default instances for all providers with empty config', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    const instances = getConfiguredInstances(config)
+    // At minimum, the active provider (github) should have its default instance
+    const githubInstances = instances.filter((i) => i.provider === 'github')
+    expect(githubInstances.length).toBeGreaterThanOrEqual(1)
+    expect(githubInstances[0]?.host).toBe('github.com')
+    expect(githubInstances[0]?.isDefault).toBe(true)
+  })
+
+  it('includes custom github hosts from providers config', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: {
+        github: { hosts: ['github.mycompany.com'] },
+      },
+    })
+    const instances = getConfiguredInstances(config)
+    const githubInstances = instances.filter((i) => i.provider === 'github')
+    expect(githubInstances.length).toBe(2)
+    const defaultInstance = githubInstances.find((i) => i.isDefault)
+    const customInstance = githubInstances.find((i) => !i.isDefault)
+    expect(defaultInstance?.host).toBe('github.com')
+    expect(customInstance?.host).toBe('github.mycompany.com')
+  })
+
+  it('includes custom gitlab hosts from providers config', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: {
+        gitlab: { hosts: ['gitlab.internal.io'] },
+      },
+    })
+    const instances = getConfiguredInstances(config)
+    const gitlabInstances = instances.filter((i) => i.provider === 'gitlab')
+    expect(gitlabInstances.length).toBe(2)
+    expect(gitlabInstances.some((i) => i.host === 'gitlab.com')).toBe(true)
+    expect(gitlabInstances.some((i) => i.host === 'gitlab.internal.io')).toBe(true)
+  })
+
+  it('includes instances from hostMappings', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      hostMappings: [
+        { host: 'gitea.mycompany.com', provider: 'gitea' },
+      ],
+    })
+    const instances = getConfiguredInstances(config)
+    const giteaInstances = instances.filter((i) => i.provider === 'gitea')
+    expect(giteaInstances.length).toBe(2) // default + custom
+    expect(giteaInstances.some((i) => i.host === 'gitea.mycompany.com')).toBe(true)
+  })
+
+  it('does not duplicate default hosts', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: {
+        github: { hosts: ['github.com'] },
+      },
+    })
+    const instances = getConfiguredInstances(config)
+    const githubInstances = instances.filter((i) => i.provider === 'github')
+    // github.com should appear only once
+    const defaultInstances = githubInstances.filter((i) => i.host === 'github.com')
+    expect(defaultInstances.length).toBe(1)
+    expect(defaultInstances[0]?.isDefault).toBe(true)
+  })
+
+  it('combines multiple sources without duplicates', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: {
+        github: { hosts: ['github.acme.com'] },
+        gitlab: { hosts: ['gitlab.acme.com'] },
+      },
+      hostMappings: [
+        { host: 'gitea.acme.com', provider: 'gitea' },
+      ],
+    })
+    const instances = getConfiguredInstances(config)
+    // Should have defaults for all provider types + 3 custom
+    const hosts = instances.map((i) => i.host)
+    expect(hosts).toContain('github.com')
+    expect(hosts).toContain('github.acme.com')
+    expect(hosts).toContain('gitlab.com')
+    expect(hosts).toContain('gitlab.acme.com')
+    expect(hosts).toContain('gitea.acme.com')
+  })
+
+  it('instance has correct shape', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: { github: { hosts: ['ghe.corp.com'] } },
+    })
+    const instances = getConfiguredInstances(config)
+    const custom = instances.find((i) => i.host === 'ghe.corp.com')
+    expect(custom).toBeDefined()
+    expect(custom?.provider).toBe('github')
+    expect(custom?.host).toBe('ghe.corp.com')
+    expect(custom?.isDefault).toBe(false)
   })
 })

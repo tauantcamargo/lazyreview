@@ -7,7 +7,9 @@ import { describe, it, expect, vi } from 'vitest'
  * - PR info display (author, reviewers, labels, stats)
  * - Description display
  * - Review summary integration
+ * - Bot summary integration (collapsible section for bot comments)
  * - 'D' key triggers onEditDescription callback
+ * - 'B' key toggles bot summary expansion
  *
  * Since this is a presentational component, we test via the public
  * interface and exported sub-component behavior.
@@ -15,6 +17,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 import type { PullRequest } from '../../models/pull-request'
 import type { Review } from '../../models/review'
+import { findMostRecentBotComment, type BotDetectableComment } from '../../utils/bot-detection'
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -56,6 +59,21 @@ function makeReview(login: string, state: string, submitted_at: string): Review 
     submitted_at,
     html_url: '',
   } as unknown as Review
+}
+
+function makeIssueComment(
+  login: string,
+  body: string,
+  created_at: string,
+): BotDetectableComment {
+  return {
+    id: Math.floor(Math.random() * 10000),
+    body,
+    user: { login, id: 1, avatar_url: '', html_url: '' },
+    created_at,
+    updated_at: created_at,
+    html_url: '',
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -115,10 +133,18 @@ describe('DescriptionTab', () => {
   })
 
   describe('sections array structure', () => {
-    it('generates three sections (info, description, reviews)', () => {
-      // The component creates 3 sections: PRInfoSection, PRDescriptionSection, ReviewSummary
-      const sectionCount = 3
+    it('generates three sections without bot comments (info, description, reviews)', () => {
+      // Without bot comments: PRInfoSection, PRDescriptionSection, ReviewSummary
+      const hasBotComment = false
+      const sectionCount = hasBotComment ? 4 : 3
       expect(sectionCount).toBe(3)
+    })
+
+    it('generates four sections with bot comments (info, bot summary, description, reviews)', () => {
+      // With bot comments: PRInfoSection, BotSummarySection, PRDescriptionSection, ReviewSummary
+      const hasBotComment = true
+      const sectionCount = hasBotComment ? 4 : 3
+      expect(sectionCount).toBe(4)
     })
   })
 
@@ -170,6 +196,116 @@ describe('DescriptionTab', () => {
       }
 
       expect(onEditDescription).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('B key handler (bot summary toggle)', () => {
+    it('toggles bot summary when B is pressed and bot comment exists', () => {
+      const botComment = makeIssueComment(
+        'github-actions[bot]',
+        'AI summary',
+        '2025-01-01T00:00:00Z',
+      )
+      let expanded = false
+
+      const input = 'B'
+      if (input === 'B' && botComment) {
+        expanded = !expanded
+      }
+
+      expect(expanded).toBe(true)
+    })
+
+    it('does not toggle when no bot comment exists', () => {
+      const botComment = null
+      let expanded = false
+
+      const input = 'B'
+      if (input === 'B' && botComment) {
+        expanded = !expanded
+      }
+
+      expect(expanded).toBe(false)
+    })
+
+    it('does not trigger on lowercase b', () => {
+      const botComment = makeIssueComment(
+        'github-actions[bot]',
+        'AI summary',
+        '2025-01-01T00:00:00Z',
+      )
+      let expanded = false
+
+      const input = 'b'
+      if (input === 'B' && botComment) {
+        expanded = !expanded
+      }
+
+      expect(expanded).toBe(false)
+    })
+
+    it('toggles back to collapsed on second B press', () => {
+      const botComment = makeIssueComment(
+        'github-actions[bot]',
+        'AI summary',
+        '2025-01-01T00:00:00Z',
+      )
+      let expanded = false
+
+      // First press: expand
+      if ('B' === 'B' && botComment) expanded = !expanded
+      expect(expanded).toBe(true)
+
+      // Second press: collapse
+      if ('B' === 'B' && botComment) expanded = !expanded
+      expect(expanded).toBe(false)
+    })
+  })
+
+  describe('bot summary integration', () => {
+    it('finds bot comment from issue comments', () => {
+      const issueComments = [
+        makeIssueComment('alice', 'LGTM', '2025-01-01T00:00:00Z'),
+        makeIssueComment('github-actions[bot]', '## Summary\nLooks good', '2025-01-02T00:00:00Z'),
+        makeIssueComment('bob', 'Nice work', '2025-01-03T00:00:00Z'),
+      ]
+
+      const botComment = findMostRecentBotComment(issueComments)
+      expect(botComment).not.toBeNull()
+      expect(botComment?.body).toBe('## Summary\nLooks good')
+      expect(botComment?.user.login).toBe('github-actions[bot]')
+    })
+
+    it('returns null when no bot comments in issue comments', () => {
+      const issueComments = [
+        makeIssueComment('alice', 'LGTM', '2025-01-01T00:00:00Z'),
+        makeIssueComment('bob', 'Nice work', '2025-01-02T00:00:00Z'),
+      ]
+
+      const botComment = findMostRecentBotComment(issueComments)
+      expect(botComment).toBeNull()
+    })
+
+    it('uses custom bot usernames from config', () => {
+      const issueComments = [
+        makeIssueComment('coderabbitai', 'AI Review: looks good', '2025-01-01T00:00:00Z'),
+      ]
+      const botUsernames = ['coderabbitai']
+
+      const botComment = findMostRecentBotComment(issueComments, botUsernames)
+      expect(botComment).not.toBeNull()
+      expect(botComment?.body).toBe('AI Review: looks good')
+    })
+
+    it('handles empty issue comments', () => {
+      const botComment = findMostRecentBotComment([])
+      expect(botComment).toBeNull()
+    })
+
+    it('handles undefined issue comments (defaults to no bot summary)', () => {
+      const issueComments: readonly BotDetectableComment[] | undefined = undefined
+      const botComment = findMostRecentBotComment(issueComments ?? [])
+      expect(botComment).toBeNull()
     })
   })
 

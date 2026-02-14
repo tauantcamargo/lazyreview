@@ -122,6 +122,9 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
   hostMappings: S.optionalWith(S.Array(HostMappingSchema), {
     default: () => [],
   }),
+  botUsernames: S.optionalWith(S.Array(S.String), {
+    default: () => [] as readonly string[],
+  }),
 }) {}
 
 const defaultConfig = S.decodeUnknownSync(AppConfig)({})
@@ -175,6 +178,76 @@ export function toConfiguredHosts(
     result[host] = provider
   }
   return result
+}
+
+// ---------------------------------------------------------------------------
+// Multi-instance support
+// ---------------------------------------------------------------------------
+
+/**
+ * A configured provider instance, combining provider type with its host.
+ */
+export interface ConfiguredInstance {
+  readonly provider: Provider
+  readonly host: string
+  readonly isDefault: boolean
+}
+
+const DEFAULT_HOSTS: Readonly<Record<Provider, string>> = {
+  github: 'github.com',
+  gitlab: 'gitlab.com',
+  bitbucket: 'bitbucket.org',
+  azure: 'dev.azure.com',
+  gitea: 'gitea.com',
+}
+
+const ALL_PROVIDERS: readonly Provider[] = ['github', 'gitlab', 'bitbucket', 'azure', 'gitea']
+
+/**
+ * Build a list of all configured provider instances from AppConfig.
+ *
+ * Includes:
+ * - Default host for each provider type
+ * - Custom hosts from providers.github.hosts and providers.gitlab.hosts
+ * - Custom hosts from hostMappings
+ *
+ * De-duplicates by provider+host combination.
+ */
+export function getConfiguredInstances(config: AppConfig): readonly ConfiguredInstance[] {
+  const seen = new Set<string>()
+  const instances: ConfiguredInstance[] = []
+
+  function addInstance(provider: Provider, host: string, isDefault: boolean): void {
+    const key = `${provider}:${host.toLowerCase()}`
+    if (seen.has(key)) return
+    seen.add(key)
+    instances.push({ provider, host: host.toLowerCase(), isDefault })
+  }
+
+  // Add default instances for all providers
+  for (const provider of ALL_PROVIDERS) {
+    addInstance(provider, DEFAULT_HOSTS[provider], true)
+  }
+
+  // Add custom github hosts
+  const gheHosts = config.providers?.github?.hosts ?? []
+  for (const host of gheHosts) {
+    addInstance('github', host, false)
+  }
+
+  // Add custom gitlab hosts
+  const glHosts = config.providers?.gitlab?.hosts ?? []
+  for (const host of glHosts) {
+    addInstance('gitlab', host, false)
+  }
+
+  // Add hosts from hostMappings
+  const mappings = config.hostMappings ?? []
+  for (const mapping of mappings) {
+    addInstance(mapping.provider, mapping.host, false)
+  }
+
+  return instances
 }
 
 export interface ConfigService {
