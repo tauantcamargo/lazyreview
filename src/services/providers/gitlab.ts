@@ -14,7 +14,6 @@ import type {
 import {
   gitlabFetchJson,
   gitlabFetchAllPages,
-  buildGitLabUrl,
 } from '../GitLabApiHelpers'
 import {
   GitLabMergeRequestSchema,
