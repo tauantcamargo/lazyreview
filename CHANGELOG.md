@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.74] - 2026-02-14
+
+### Added
+- **Direct PR navigation**: `--pr 42` CLI flag to jump directly to a specific PR, supports full URLs for all providers
+- **PR creation from TUI**: Press `N` in This Repo screen to create PRs with title, body, branch selection, and draft toggle
+- **Label management**: Press `L` in PR detail to add/remove labels via picker modal (GitHub)
+- **Assignee management**: Press `A` in PR detail to add/remove assignees via picker modal (GitHub)
+- **Comment reactions**: Press `+` on a comment to add emoji reactions with 8 reaction types (GitHub)
+- **Bot summary display**: Press `B` in Description tab to see AI/bot-generated PR summaries
+- **GitHub Enterprise support**: Config `providers.github.hosts` for custom GHE domains with correct API URL derivation
+- **Self-hosted GitLab support**: Config `providers.gitlab.hosts` with nested group paths and MR URL parsing
+- **Multi-instance provider support**: Per-host token storage for multiple instances of the same provider
+- **Syntax highlighting**: Expanded from 12 to 73 language mappings, extracted to `src/utils/languages.ts`
+- **Diff statistics summary**: Compact stats bar in Files tab showing file count, +/-, extension breakdown, top files
+- **Enhanced markdown**: Task lists with completion counts, pipe-delimited tables, image placeholders, strikethrough, nested lists
+- **Scroll position indicator**: Shows current line/total lines in diff panel header
+- **Hunk navigation**: `{`/`}` keys to jump between diff hunks, skip context lines
+- **Go-to-line**: `:` key in diff view to jump to a specific line number
+- **Jump to unread**: `U` key in PR list to jump to next unread PR
+- **Compact list mode**: `Ctrl+L` to toggle single-line PR list items, configurable via `compactList` in config
+- **PR preview panel**: `P` key shows PR description preview on wide terminals (140+ columns)
+- **Responsive sidebar**: Width adapts to terminal size (28/34/40 columns), `Ctrl+B` cycles full/icon-only/hidden
+- **Panel resizing**: `<`/`>` keys to resize file tree panel width in Files tab
+- **File tree collapse**: `Enter`/`Space` on directories to collapse/expand subtrees
+- **github-light theme**: Light background theme for users with light terminal backgrounds
+- **Color-coded status messages**: Success (green), error (red), info (default) status bar messages
+- **Color-blind accessible high-contrast theme**: Changed diff colors from red/green to blue/orange
+
+### Changed
+- **Unified interfaces**: Aligned CodeReviewApiService method names 1:1 with Provider interface (17 renames)
+- **Optimistic updates**: Comments, reviews, and thread resolution now update the UI cache instantly with rollback on failure
+- **Request deduplication**: Shared PR cache reduces API calls ~40-66% during sidebar navigation
+- **Lazy file loading**: Diffs load on-demand per file; pagination support for 300+ file PRs
+- Fixed onboarding screen to show correct panel switching keys (Tab/Escape instead of h/l)
+- Removed TopBar margin to reclaim terminal space
+
 ## [1.0.68] - 2026-02-13
 
 ### Added

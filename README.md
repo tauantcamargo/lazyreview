@@ -20,6 +20,17 @@
 
 Code review shouldn't require a browser. LazyReview brings the full PR experience into your terminal with vim-style navigation, syntax-highlighted diffs, and a clean panel layout — so you can review without leaving your workflow.
 
+## How Is This Different?
+
+| Tool | What it does | LazyReview's advantage |
+|------|-------------|----------------------|
+| `gh pr` / `glab` | CLI PR commands | LazyReview is a full TUI with visual diffs, not just CLI commands |
+| lazygit / gitui | Git TUI | These manage git operations; LazyReview manages **code review** -- they're complementary |
+| GitHub/GitLab web | Browser PR review | LazyReview keeps you in the terminal with vim-style navigation |
+| tig | Git log/diff viewer | No PR review, no comments, no multi-provider support |
+
+LazyReview is the only TUI that provides a full code review workflow across GitHub, GitLab, Bitbucket, Azure DevOps, and Gitea.
+
 ## Supported Providers
 
 LazyReview works with five git hosting providers. The provider is auto-detected from your git remote, or you can set it in `config.yaml`.
