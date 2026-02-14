@@ -40,3 +40,10 @@ export {
   AcceptSuggestionParamsSchema,
   formatSuggestionBody,
 } from './suggestion'
+
+export type { CommentTemplate } from './comment-template'
+export {
+  CommentTemplateSchema,
+  DEFAULT_TEMPLATES,
+  mergeTemplates,
+} from './comment-template'

@@ -94,6 +94,7 @@ const ACTION_DESCRIPTIONS: Readonly<Record<string, string>> = {
   prevHunk: 'Previous diff hunk',
   goToLine: 'Go to line number',
   toggleHunkFold: 'Toggle hunk fold/unfold',
+  fuzzyFilePicker: 'Go to file (fuzzy search)',
   // Commits Tab
   copyCommitSha: 'Copy commit SHA',
   // Checks Tab (openInBrowser + copyUrl handled above)
