@@ -42,6 +42,46 @@ function truncate(text: string, maxLen: number): string {
   return `${text.slice(0, maxLen - 1)}~`
 }
 
+/**
+ * Short provider badge label for the status area.
+ */
+export function providerBadge(provider: string): string {
+  switch (provider) {
+    case 'github':
+      return '[GH]'
+    case 'gitlab':
+      return '[GL]'
+    case 'bitbucket':
+      return '[BB]'
+    case 'azure':
+      return '[AZ]'
+    case 'gitea':
+      return '[GT]'
+    default:
+      return `[${provider.slice(0, 2).toUpperCase()}]`
+  }
+}
+
+/**
+ * Provider-specific badge color for visual identification.
+ */
+export function providerColor(provider: string): string {
+  switch (provider) {
+    case 'github':
+      return 'white'
+    case 'gitlab':
+      return '#FC6D26' // GitLab orange
+    case 'bitbucket':
+      return '#0052CC' // Bitbucket blue
+    case 'azure':
+      return 'cyan'
+    case 'gitea':
+      return 'green'
+    default:
+      return 'white'
+  }
+}
+
 export function TopBar({
   username,
   provider,
@@ -93,7 +133,7 @@ export function TopBar({
         </Text>
         <Text color={theme.colors.muted}>{connectionLabel(connectionStatus)}</Text>
         <Text color={theme.colors.muted}>│</Text>
-        <Text color={theme.colors.muted}>{provider}</Text>
+        <Text color={providerColor(provider)} bold>{providerBadge(provider)}</Text>
         <Text color={theme.colors.muted}>│</Text>
         <Text color={theme.colors.secondary}>{username}</Text>
       </Box>

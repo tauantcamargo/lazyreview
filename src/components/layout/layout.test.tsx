@@ -4,7 +4,7 @@ import { render } from 'ink-testing-library'
 import { Text } from 'ink'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider, defaultTheme } from '../../theme/index'
-import { TopBar } from './TopBar'
+import { TopBar, providerBadge, providerColor } from './TopBar'
 import { Sidebar, SIDEBAR_ITEMS } from './Sidebar'
 import { MainPanel } from './MainPanel'
 import { StatusBar } from './StatusBar'
@@ -33,7 +33,7 @@ describe('TopBar', () => {
     const frame = lastFrame() ?? ''
     expect(frame).toContain('LazyReview')
     expect(frame).toContain('alice')
-    expect(frame).toContain('github')
+    expect(frame).toContain('[GH]')
   })
 
   it('renders repo path when provided', () => {
@@ -112,6 +112,52 @@ describe('TopBar', () => {
     const frame = lastFrame() ?? ''
     expect(frame).toContain('disconnected')
   })
+
+  it('renders GitLab provider badge', () => {
+    const { lastFrame } = render(
+      themed(<TopBar username="alice" provider="gitlab" />),
+    )
+    expect(lastFrame()).toContain('[GL]')
+  })
+
+  it('renders Bitbucket provider badge', () => {
+    const { lastFrame } = render(
+      themed(<TopBar username="alice" provider="bitbucket" />),
+    )
+    expect(lastFrame()).toContain('[BB]')
+  })
+
+  it('renders Azure provider badge', () => {
+    const { lastFrame } = render(
+      themed(<TopBar username="alice" provider="azure" />),
+    )
+    expect(lastFrame()).toContain('[AZ]')
+  })
+
+  it('renders Gitea provider badge', () => {
+    const { lastFrame } = render(
+      themed(<TopBar username="alice" provider="gitea" />),
+    )
+    expect(lastFrame()).toContain('[GT]')
+  })
+})
+
+describe('providerBadge', () => {
+  it('returns [GH] for github', () => expect(providerBadge('github')).toBe('[GH]'))
+  it('returns [GL] for gitlab', () => expect(providerBadge('gitlab')).toBe('[GL]'))
+  it('returns [BB] for bitbucket', () => expect(providerBadge('bitbucket')).toBe('[BB]'))
+  it('returns [AZ] for azure', () => expect(providerBadge('azure')).toBe('[AZ]'))
+  it('returns [GT] for gitea', () => expect(providerBadge('gitea')).toBe('[GT]'))
+  it('returns uppercase abbreviation for unknown', () => expect(providerBadge('custom')).toBe('[CU]'))
+})
+
+describe('providerColor', () => {
+  it('returns white for github', () => expect(providerColor('github')).toBe('white'))
+  it('returns orange for gitlab', () => expect(providerColor('gitlab')).toBe('#FC6D26'))
+  it('returns blue for bitbucket', () => expect(providerColor('bitbucket')).toBe('#0052CC'))
+  it('returns cyan for azure', () => expect(providerColor('azure')).toBe('cyan'))
+  it('returns green for gitea', () => expect(providerColor('gitea')).toBe('green'))
+  it('returns white for unknown', () => expect(providerColor('unknown')).toBe('white'))
 })
 
 describe('Sidebar', () => {
