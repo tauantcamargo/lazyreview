@@ -91,6 +91,7 @@ export type KeybindingContext =
   | 'filesTab'
   | 'checksTab'
   | 'commitsTab'
+  | 'timelineTab'
   | 'input'
 
 /**
@@ -221,6 +222,10 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     select: 'return',
     copyCommitSha: 'y',
     back: ['q', 'escape'],
+  },
+  timelineTab: {
+    openInBrowser: 'o',
+    copyUrl: 'y',
   },
   input: {
     submit: 'ctrl+s',

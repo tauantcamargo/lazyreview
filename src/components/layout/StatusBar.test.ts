@@ -24,7 +24,7 @@ describe('getContextHints', () => {
 
   it('returns description tab hints for pr-detail-description', () => {
     const hints = getContextHints('detail', 'pr-detail-description')
-    expect(hints).toContain('1-5:tabs')
+    expect(hints).toContain('1-6:tabs')
     expect(hints).toContain('R:review')
     expect(hints).toContain('m:merge')
     expect(hints).toContain('o:open')

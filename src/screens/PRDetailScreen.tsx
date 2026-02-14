@@ -30,6 +30,7 @@ import { FilesTab } from '../components/pr/FilesTab'
 import { ConversationsTab } from '../components/pr/ConversationsTab'
 import { CommitsTab } from '../components/pr/CommitsTab'
 import { ChecksTab } from '../components/pr/ChecksTab'
+import { TimelineTab } from '../components/pr/TimelineTab'
 import { ReviewModal } from '../components/pr/ReviewModal'
 import { CommentModal } from '../components/pr/CommentModal'
 import { MergeModal } from '../components/pr/MergeModal'
@@ -111,6 +112,7 @@ export function PRDetailScreen({
       'pr-detail-commits',
       'pr-detail-files',
       'pr-detail-checks',
+      'pr-detail-timeline',
     ] as const
     setScreenContext(tabContexts[currentTab] ?? 'pr-detail-description')
   }, [currentTab])
@@ -119,7 +121,7 @@ export function PRDetailScreen({
   // Conversations and files tabs publish their own more specific context.
   // Uses `pr` prop directly because `activePR` (fullPR ?? pr) is declared later.
   React.useEffect(() => {
-    if (currentTab === 0 || currentTab === 2 || currentTab === 4) {
+    if (currentTab === 0 || currentTab === 2 || currentTab === 4 || currentTab === 5) {
       setSelectionContext({
         type: 'pr-detail',
         prState: pr.state,
@@ -372,6 +374,8 @@ export function PRDetailScreen({
         setCurrentTab(3)
       } else if (input === '5') {
         setCurrentTab(4)
+      } else if (input === '6') {
+        setCurrentTab(5)
       } else if (input === 'o') {
         openInBrowser(pr.html_url)
         setStatusMessage('Opened in browser')
@@ -531,6 +535,14 @@ export function PRDetailScreen({
           owner={owner}
           repo={repo}
           sha={activePR.head.sha}
+          isActive={!anyModalOpen}
+        />
+      )),
+      Match.when(5, () => (
+        <TimelineTab
+          owner={owner}
+          repo={repo}
+          prNumber={pr.number}
           isActive={!anyModalOpen}
         />
       )),

@@ -22,6 +22,7 @@ export type ScreenContext =
   | 'pr-detail-conversations'
   | 'pr-detail-commits'
   | 'pr-detail-checks'
+  | 'pr-detail-timeline'
   | 'settings'
   | 'browse-picker'
   | 'browse-list'
@@ -78,7 +79,7 @@ export const SCREEN_HINT_ENTRIES: Readonly<Record<ScreenContext, readonly HintEn
     { ctx: 'global', action: 'refresh', label: 'refresh' },
   ],
   'pr-detail-description': [
-    { ctx: 'global', action: 'select', label: 'tabs', key: '1-5' },
+    { ctx: 'global', action: 'select', label: 'tabs', key: '1-6' },
     { ctx: 'prDetail', action: 'submitReview', label: 'review' },
     { ctx: 'prDetail', action: 'mergePR', label: 'merge' },
     { ctx: 'prDetail', action: 'openInBrowser', label: 'open' },
@@ -122,6 +123,10 @@ export const SCREEN_HINT_ENTRIES: Readonly<Record<ScreenContext, readonly HintEn
     { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
     { ctx: 'checksTab', action: 'openInBrowser', label: 'open' },
     { ctx: 'checksTab', action: 'copyUrl', label: 'copy' },
+    { ctx: 'prDetail', action: 'nextPR', label: 'pr', key: '[/]' },
+  ],
+  'pr-detail-timeline': [
+    { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
     { ctx: 'prDetail', action: 'nextPR', label: 'pr', key: '[/]' },
   ],
   'settings': [

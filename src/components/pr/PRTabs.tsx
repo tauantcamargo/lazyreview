@@ -3,7 +3,7 @@ import { Box } from 'ink'
 import { Tab, Tabs } from 'ink-tab'
 import { useTheme } from '../../theme/index'
 
-export const PR_TAB_NAMES = ['Description', 'Conversations', 'Commits', 'Files', 'Checks'] as const
+export const PR_TAB_NAMES = ['Description', 'Conversations', 'Commits', 'Files', 'Checks', 'Timeline'] as const
 export type PRTabName = (typeof PR_TAB_NAMES)[number]
 
 interface PRTabsProps {

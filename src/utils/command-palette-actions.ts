@@ -137,6 +137,10 @@ const SCREEN_TO_CONTEXTS: Readonly<
     { context: 'prDetail', label: 'PR Detail' },
     { context: 'checksTab', label: 'Checks' },
   ],
+  'pr-detail-timeline': [
+    { context: 'prDetail', label: 'PR Detail' },
+    { context: 'timelineTab', label: 'Timeline' },
+  ],
   'settings': [],
   'browse-picker': [],
   'browse-list': [

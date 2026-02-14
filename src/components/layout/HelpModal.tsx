@@ -109,7 +109,7 @@ const HELP_SECTIONS: readonly HelpSectionDef[] = [
     context: 'prDetail',
     actions: ['openInBrowser', 'copyUrl', 'submitReview', 'batchReview', 'reReview', 'mergePR', 'editTitle', 'toggleDraft', 'closePR', 'checkoutBranch', 'nextPR', 'prevPR'],
     staticEntries: [
-      { key: '1-5', description: 'Switch tabs (Desc/Conv/Commits/Files/Checks)' },
+      { key: '1-6', description: 'Switch tabs (Desc/Conv/Commits/Files/Checks/Timeline)' },
     ],
   },
   {
@@ -129,6 +129,11 @@ const HELP_SECTIONS: readonly HelpSectionDef[] = [
   {
     title: 'Checks Tab',
     context: 'checksTab',
+    actions: ['openInBrowser', 'copyUrl'],
+  },
+  {
+    title: 'Timeline Tab',
+    context: 'timelineTab',
     actions: ['openInBrowser', 'copyUrl'],
   },
   {

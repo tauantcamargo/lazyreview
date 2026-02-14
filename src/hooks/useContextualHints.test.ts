@@ -341,7 +341,7 @@ describe('getContextualHints', () => {
     expect(hints).not.toContain('m:merge')
     expect(hints).not.toContain('R:review')
     // Tabs and help remain
-    expect(hints).toContain('1-5:tabs')
+    expect(hints).toContain('1-6:tabs')
     expect(hints).toContain('?:help')
   })
 
@@ -363,7 +363,7 @@ describe('getContextualHints', () => {
     // Should include all hints, same as before
     expect(hints).toContain('R:review')
     expect(hints).toContain('m:merge')
-    expect(hints).toContain('1-5:tabs')
+    expect(hints).toContain('1-6:tabs')
   })
 
   it('respects keybinding overrides', () => {
