@@ -66,6 +66,11 @@ const GITEA_CAPABILITIES: ProviderCapabilities = {
   supportsLabels: false,
   supportsAssignees: false,
   supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
+  supportsStreaming: false,
+  supportsBatchFetch: false,
+  supportsWebhooks: false,
+  supportsSuggestions: false,
+  supportsTimeline: false,
 }
 
 // ---------------------------------------------------------------------------

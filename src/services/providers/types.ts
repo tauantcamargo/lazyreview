@@ -9,6 +9,8 @@ import type { CheckRunsResponse } from '../../models/check'
 import type { RepoLabel } from '../../models/label'
 import type { User } from '../../models/user'
 import type { ReactionType } from '../../models/reaction'
+import type { TimelineEvent } from '../../models/timeline-event'
+import type { SuggestionParams, AcceptSuggestionParams } from '../../models/suggestion'
 import type { ApiError, ReviewThread } from '../CodeReviewApiTypes'
 
 // ---------------------------------------------------------------------------
@@ -42,6 +44,12 @@ export interface ProviderCapabilities {
   readonly supportsLabels: boolean
   readonly supportsAssignees: boolean
   readonly supportsMergeStrategies: readonly string[]
+  // V2 capability flags
+  readonly supportsStreaming: boolean
+  readonly supportsBatchFetch: boolean
+  readonly supportsWebhooks: boolean
+  readonly supportsSuggestions: boolean
+  readonly supportsTimeline: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +202,35 @@ export interface Provider {
 
   // User info
   readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>
+
+  // V2 optional methods — providers may implement these for enhanced functionality.
+  // The ProviderV1Adapter supplies default implementations for any that are missing.
+
+  /** Batch fetch PR metadata for multiple PRs */
+  readonly batchGetPRs?: (
+    prNumbers: readonly number[],
+  ) => Effect.Effect<readonly PullRequest[], ApiError>
+
+  /** Stream diff for a single file (for large files) */
+  readonly streamFileDiff?: (
+    prNumber: number,
+    filePath: string,
+  ) => AsyncIterable<string>
+
+  /** Get unified timeline events */
+  readonly getTimeline?: (
+    prNumber: number,
+  ) => Effect.Effect<readonly TimelineEvent[], ApiError>
+
+  /** Submit a code suggestion comment */
+  readonly submitSuggestion?: (
+    params: SuggestionParams,
+  ) => Effect.Effect<Comment, ApiError>
+
+  /** Accept a code suggestion (creates a commit) */
+  readonly acceptSuggestion?: (
+    params: AcceptSuggestionParams,
+  ) => Effect.Effect<void, ApiError>
 }
 
 // ---------------------------------------------------------------------------

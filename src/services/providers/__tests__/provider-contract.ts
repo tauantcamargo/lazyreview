@@ -84,6 +84,27 @@ export function testProviderContract(
           expect(validStrategies).toContain(strategy)
         }
       })
+
+      // V2 capability flags
+      it('should declare supportsStreaming as boolean', () => {
+        expect(typeof provider.capabilities.supportsStreaming).toBe('boolean')
+      })
+
+      it('should declare supportsBatchFetch as boolean', () => {
+        expect(typeof provider.capabilities.supportsBatchFetch).toBe('boolean')
+      })
+
+      it('should declare supportsWebhooks as boolean', () => {
+        expect(typeof provider.capabilities.supportsWebhooks).toBe('boolean')
+      })
+
+      it('should declare supportsSuggestions as boolean', () => {
+        expect(typeof provider.capabilities.supportsSuggestions).toBe('boolean')
+      })
+
+      it('should declare supportsTimeline as boolean', () => {
+        expect(typeof provider.capabilities.supportsTimeline).toBe('boolean')
+      })
     })
 
     // -----------------------------------------------------------------------

@@ -55,4 +55,25 @@ export class NetworkError extends Data.TaggedError('NetworkError')<{
   readonly cause?: unknown
 }> {}
 
-export type AppError = GitHubError | GitLabError | BitbucketError | AzureError | GiteaError | AuthError | ConfigError | NetworkError
+export class StreamError extends Data.TaggedError('StreamError')<{
+  readonly message: string
+  readonly detail?: string
+  readonly cause?: unknown
+}> {}
+
+export class TimelineError extends Data.TaggedError('TimelineError')<{
+  readonly message: string
+  readonly detail?: string
+  readonly status?: number
+}> {}
+
+export type ProviderError =
+  | GitHubError
+  | GitLabError
+  | BitbucketError
+  | AzureError
+  | GiteaError
+  | StreamError
+  | TimelineError
+
+export type AppError = GitHubError | GitLabError | BitbucketError | AzureError | GiteaError | AuthError | ConfigError | NetworkError | StreamError | TimelineError

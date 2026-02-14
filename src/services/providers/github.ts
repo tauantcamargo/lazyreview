@@ -1,5 +1,9 @@
 import { Effect } from 'effect'
 import { GitHubError } from '../../models/errors'
+import { formatSuggestionBody } from '../../models/suggestion'
+import type { SuggestionParams } from '../../models/suggestion'
+import type { Comment } from '../../models/comment'
+import type { PullRequest } from '../../models/pull-request'
 import type { CodeReviewApiService, ApiError } from '../CodeReviewApiTypes'
 import type {
   Provider,
@@ -25,6 +29,11 @@ const GITHUB_CAPABILITIES: ProviderCapabilities = {
   supportsLabels: true,
   supportsAssignees: true,
   supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
+  supportsStreaming: false,
+  supportsBatchFetch: true,
+  supportsWebhooks: true,
+  supportsSuggestions: true,
+  supportsTimeline: true,
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +223,40 @@ export function createGitHubProvider(
     // -- User info ----------------------------------------------------------
 
     getCurrentUser: () => service.getCurrentUser(),
+
+    // -- V2 methods (GitHub-native implementations) -------------------------
+
+    batchGetPRs: (prNumbers: readonly number[]): Effect.Effect<readonly PullRequest[], ApiError> =>
+      Effect.all(
+        prNumbers.map((n) => service.getPR(owner, repo, n)),
+        { concurrency: 'unbounded' },
+      ),
+
+    submitSuggestion: (params: SuggestionParams): Effect.Effect<Comment, ApiError> =>
+      Effect.flatMap(
+        service.addDiffComment(
+          owner,
+          repo,
+          params.prNumber,
+          formatSuggestionBody(params.body, params.suggestion),
+          params.commitId ?? '',
+          params.path,
+          params.line,
+          params.side,
+          params.startLine,
+          params.side,
+        ),
+        () =>
+          Effect.map(
+            service.getPRComments(owner, repo, params.prNumber),
+            (comments) => {
+              const matching = [...comments]
+                .reverse()
+                .find((c) => c.path === params.path)
+              return matching ?? comments[comments.length - 1]!
+            },
+          ),
+      ),
   }
 }
 
@@ -241,6 +284,11 @@ export function createUnsupportedProvider(type: string): Provider {
       supportsLabels: false,
       supportsAssignees: false,
       supportsMergeStrategies: [],
+      supportsStreaming: false,
+      supportsBatchFetch: false,
+      supportsWebhooks: false,
+      supportsSuggestions: false,
+      supportsTimeline: false,
     },
     listPRs: fail,
     getPR: fail,

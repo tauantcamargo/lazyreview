@@ -202,6 +202,11 @@ export function createMockProvider(
     supportsLabels: true,
     supportsAssignees: true,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
+    supportsStreaming: false,
+    supportsBatchFetch: false,
+    supportsWebhooks: false,
+    supportsSuggestions: false,
+    supportsTimeline: false,
     ...capabilities,
   }
 
@@ -305,6 +310,11 @@ export function createMockGitHubProvider(
     supportsLabels: true,
     supportsAssignees: true,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
+    supportsStreaming: false,
+    supportsBatchFetch: true,
+    supportsWebhooks: true,
+    supportsSuggestions: true,
+    supportsTimeline: true,
   }, overrides)
 }
 
@@ -323,6 +333,11 @@ export function createMockGitLabProvider(
     supportsLabels: false,
     supportsAssignees: false,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
+    supportsStreaming: false,
+    supportsBatchFetch: false,
+    supportsWebhooks: false,
+    supportsSuggestions: false,
+    supportsTimeline: false,
   }, overrides)
 }
 
@@ -341,6 +356,11 @@ export function createMockBitbucketProvider(
     supportsLabels: false,
     supportsAssignees: false,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
+    supportsStreaming: false,
+    supportsBatchFetch: false,
+    supportsWebhooks: false,
+    supportsSuggestions: false,
+    supportsTimeline: false,
   }, overrides)
 }
 
@@ -361,5 +381,10 @@ export function createMinimalMockProvider(
     supportsLabels: false,
     supportsAssignees: false,
     supportsMergeStrategies: ['merge'],
+    supportsStreaming: false,
+    supportsBatchFetch: false,
+    supportsWebhooks: false,
+    supportsSuggestions: false,
+    supportsTimeline: false,
   }, overrides)
 }

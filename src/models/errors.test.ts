@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { GitHubError, AuthError, ConfigError, NetworkError } from './errors'
+import { GitHubError, AuthError, ConfigError, NetworkError, StreamError, TimelineError } from './errors'
 
 describe('GitHubError', () => {
   it('creates instance with message', () => {
@@ -56,5 +56,42 @@ describe('NetworkError', () => {
     const cause = new Error('ECONNREFUSED')
     const error = new NetworkError({ message: 'Failed', cause })
     expect(error.cause).toBe(cause)
+  })
+})
+
+describe('StreamError', () => {
+  it('creates instance with message', () => {
+    const error = new StreamError({ message: 'Stream interrupted' })
+    expect(error.message).toBe('Stream interrupted')
+    expect(error._tag).toBe('StreamError')
+  })
+
+  it('includes optional detail and cause', () => {
+    const cause = new Error('connection reset')
+    const error = new StreamError({
+      message: 'Stream failed',
+      detail: 'Connection was reset by peer',
+      cause,
+    })
+    expect(error.detail).toBe('Connection was reset by peer')
+    expect(error.cause).toBe(cause)
+  })
+})
+
+describe('TimelineError', () => {
+  it('creates instance with message', () => {
+    const error = new TimelineError({ message: 'Timeline unavailable' })
+    expect(error.message).toBe('Timeline unavailable')
+    expect(error._tag).toBe('TimelineError')
+  })
+
+  it('includes optional detail and status', () => {
+    const error = new TimelineError({
+      message: 'Timeline fetch failed',
+      detail: 'API returned 503',
+      status: 503,
+    })
+    expect(error.detail).toBe('API returned 503')
+    expect(error.status).toBe(503)
   })
 })

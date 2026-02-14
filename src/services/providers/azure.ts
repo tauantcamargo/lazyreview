@@ -68,6 +68,11 @@ const AZURE_CAPABILITIES: ProviderCapabilities = {
   supportsLabels: false,
   supportsAssignees: false,
   supportsMergeStrategies: ['noFastForward', 'squash', 'rebase', 'rebaseMerge'] as const,
+  supportsStreaming: false,
+  supportsBatchFetch: false,
+  supportsWebhooks: false,
+  supportsSuggestions: false,
+  supportsTimeline: false,
 }
 
 // ---------------------------------------------------------------------------

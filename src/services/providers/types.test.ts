@@ -48,13 +48,25 @@ describe('ProviderCapabilities', () => {
       supportsGraphQL: true,
       supportsReactions: true,
       supportsCheckRuns: true,
+      supportsLabels: true,
+      supportsAssignees: true,
       supportsMergeStrategies: ['merge', 'squash', 'rebase'],
+      supportsStreaming: true,
+      supportsBatchFetch: true,
+      supportsWebhooks: true,
+      supportsSuggestions: true,
+      supportsTimeline: true,
     }
     expect(caps.supportsDraftPR).toBe(true)
     expect(caps.supportsReviewThreads).toBe(true)
     expect(caps.supportsGraphQL).toBe(true)
     expect(caps.supportsReactions).toBe(true)
     expect(caps.supportsCheckRuns).toBe(true)
+    expect(caps.supportsStreaming).toBe(true)
+    expect(caps.supportsBatchFetch).toBe(true)
+    expect(caps.supportsWebhooks).toBe(true)
+    expect(caps.supportsSuggestions).toBe(true)
+    expect(caps.supportsTimeline).toBe(true)
     expect(caps.supportsMergeStrategies).toEqual(['merge', 'squash', 'rebase'])
   })
 
@@ -65,7 +77,14 @@ describe('ProviderCapabilities', () => {
       supportsGraphQL: false,
       supportsReactions: false,
       supportsCheckRuns: false,
+      supportsLabels: false,
+      supportsAssignees: false,
       supportsMergeStrategies: [],
+      supportsStreaming: false,
+      supportsBatchFetch: false,
+      supportsWebhooks: false,
+      supportsSuggestions: false,
+      supportsTimeline: false,
     }
     expect(caps.supportsDraftPR).toBe(false)
     expect(caps.supportsMergeStrategies).toHaveLength(0)
@@ -105,7 +124,14 @@ describe('Provider interface', () => {
         supportsGraphQL: true,
         supportsReactions: true,
         supportsCheckRuns: true,
+        supportsLabels: true,
+        supportsAssignees: true,
         supportsMergeStrategies: ['merge', 'squash', 'rebase'],
+        supportsStreaming: false,
+        supportsBatchFetch: true,
+        supportsWebhooks: true,
+        supportsSuggestions: true,
+        supportsTimeline: true,
       },
     }
     expect(partialCheck.type).toBe('github')

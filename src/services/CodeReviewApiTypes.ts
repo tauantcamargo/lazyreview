@@ -9,6 +9,8 @@ import type { CheckRunsResponse } from '../models/check'
 import type { RepoLabel } from '../models/label'
 import type { User } from '../models/user'
 import type { ReactionType } from '../models/reaction'
+import type { TimelineEvent } from '../models/timeline-event'
+import type { SuggestionParams, AcceptSuggestionParams } from '../models/suggestion'
 import type { PRFilesPage } from './providers/types'
 import type {
   AuthError,
@@ -347,6 +349,44 @@ export interface CodeReviewApiService {
   // -- User info ------------------------------------------------------------
 
   readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>
+
+  // -- V2 optional methods (providers may or may not implement these) -------
+
+  /** Batch fetch PR metadata for multiple PRs */
+  readonly batchGetPRs?: (
+    owner: string,
+    repo: string,
+    prNumbers: readonly number[],
+  ) => Effect.Effect<readonly PullRequest[], ApiError>
+
+  /** Stream diff for a single file (for large files) */
+  readonly streamFileDiff?: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    filePath: string,
+  ) => AsyncIterable<string>
+
+  /** Get unified timeline events */
+  readonly getTimeline?: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ) => Effect.Effect<readonly TimelineEvent[], ApiError>
+
+  /** Submit a code suggestion comment */
+  readonly submitSuggestion?: (
+    owner: string,
+    repo: string,
+    params: SuggestionParams,
+  ) => Effect.Effect<Comment, ApiError>
+
+  /** Accept a code suggestion (creates a commit) */
+  readonly acceptSuggestion?: (
+    owner: string,
+    repo: string,
+    params: AcceptSuggestionParams,
+  ) => Effect.Effect<void, ApiError>
 }
 
 export class CodeReviewApi extends Context.Tag('CodeReviewApi')<
