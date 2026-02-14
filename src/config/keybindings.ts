@@ -76,6 +76,8 @@ export type Action =
   | 'aiSummary'
   | 'aiRegenerate'
   | 'suggest'
+  | 'recordMacro'
+  | 'replayMacro'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -137,6 +139,8 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     toggleHelp: '?',
     refresh: 'R',
     commandPalette: 'ctrl+p',
+    recordMacro: 'q',
+    replayMacro: '@',
   },
   prList: {
     filterPRs: '/',

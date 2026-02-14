@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useSyncExternalStore } from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useStatusMessage } from '../../hooks/useStatusMessage'
@@ -8,6 +8,7 @@ import { useRateLimit } from '../../hooks/useRateLimit'
 import { useKeybindings } from '../../hooks/useKeybindings'
 import { useSelectionContext } from '../../hooks/useSelectionContext'
 import { getContextualHints } from '../../hooks/useContextualHints'
+import { macroStore } from '../../hooks/useMacros'
 import { mergeKeybindings, formatActionBindings } from '../../config/keybindings'
 import type { KeybindingOverrides } from '../../config/keybindings'
 import type { Panel } from '../../hooks/useActivePanel'
@@ -210,6 +211,11 @@ export function StatusBar({
   const rateLimit = useRateLimit()
   const { overrides } = useKeybindings('global')
   const selectionContext = useSelectionContext()
+  const macroState = useSyncExternalStore(
+    macroStore.subscribe,
+    macroStore.getSnapshot,
+    () => macroStore.getSnapshot(),
+  )
 
   const hints = useMemo(
     () => getContextualHints(activePanel, screenContext, selectionContext, overrides),
@@ -247,6 +253,11 @@ export function StatusBar({
       paddingX={1}
     >
       <Box gap={2}>
+        {macroState.isRecording && macroState.activeRegister && (
+          <Text color={theme.colors.error} bold>
+            Recording @{macroState.activeRegister}...
+          </Text>
+        )}
         {renderStatus()}
         {showRateLimitWarning && (
           <Text color={theme.colors.warning}>
