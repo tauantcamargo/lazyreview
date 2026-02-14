@@ -62,6 +62,10 @@ export function testProviderContract(
         expect(typeof provider.capabilities.supportsLabels).toBe('boolean')
       })
 
+      it('should declare supportsAssignees as boolean', () => {
+        expect(typeof provider.capabilities.supportsAssignees).toBe('boolean')
+      })
+
       it('should declare supportsMergeStrategies as array', () => {
         expect(Array.isArray(provider.capabilities.supportsMergeStrategies)).toBe(
           true,
@@ -226,6 +230,18 @@ export function testProviderContract(
       it('should implement setLabels', () => {
         expect(typeof provider.setLabels).toBe('function')
       })
+
+      it('should implement createPR', () => {
+        expect(typeof provider.createPR).toBe('function')
+      })
+
+      it('should implement getCollaborators', () => {
+        expect(typeof provider.getCollaborators).toBe('function')
+      })
+
+      it('should implement updateAssignees', () => {
+        expect(typeof provider.updateAssignees).toBe('function')
+      })
     })
 
     // -----------------------------------------------------------------------
@@ -377,6 +393,22 @@ export function testProviderContract(
         await expect(
           Effect.runPromise(provider.reopenPR(1)),
         ).resolves.toBeUndefined()
+      })
+
+      it('createPR should return a result with number and html_url', async () => {
+        const result = await Effect.runPromise(
+          provider.createPR({
+            title: 'Test PR',
+            body: 'Test body',
+            baseBranch: 'main',
+            headBranch: 'feature/test',
+            draft: false,
+          }),
+        )
+        expect(result).toHaveProperty('number')
+        expect(typeof result.number).toBe('number')
+        expect(result).toHaveProperty('html_url')
+        expect(typeof result.html_url).toBe('string')
       })
     })
 

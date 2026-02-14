@@ -200,6 +200,7 @@ export function createMockProvider(
     supportsReactions: true,
     supportsCheckRuns: true,
     supportsLabels: true,
+    supportsAssignees: true,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
     ...capabilities,
   }
@@ -266,9 +267,16 @@ export function createMockProvider(
     convertToDraft: () => Effect.succeed(undefined as void),
     markReadyForReview: () => Effect.succeed(undefined as void),
 
+    // PR creation
+    createPR: () => Effect.succeed({ number: 42, html_url: 'https://github.com/owner/repo/pull/42' }),
+
     // Label operations
     getLabels: () => Effect.succeed([createMockLabel()]),
     setLabels: () => Effect.succeed(undefined as void),
+
+    // Assignee operations
+    getCollaborators: () => Effect.succeed([createMockUser()]),
+    updateAssignees: () => Effect.succeed(undefined as void),
 
     // User info
     getCurrentUser: () => Effect.succeed({ login: 'testuser' }),
@@ -290,6 +298,7 @@ export function createMockGitHubProvider(
     supportsReactions: true,
     supportsCheckRuns: true,
     supportsLabels: true,
+    supportsAssignees: true,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
   }, overrides)
 }
@@ -307,6 +316,7 @@ export function createMockGitLabProvider(
     supportsReactions: true,
     supportsCheckRuns: true,
     supportsLabels: false,
+    supportsAssignees: false,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
   }, overrides)
 }
@@ -324,6 +334,7 @@ export function createMockBitbucketProvider(
     supportsReactions: false,
     supportsCheckRuns: true,
     supportsLabels: false,
+    supportsAssignees: false,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
   }, overrides)
 }
@@ -343,6 +354,7 @@ export function createMinimalMockProvider(
     supportsReactions: false,
     supportsCheckRuns: false,
     supportsLabels: false,
+    supportsAssignees: false,
     supportsMergeStrategies: ['merge'],
   }, overrides)
 }

@@ -11,7 +11,14 @@ import {
   useCurrentUser,
   useIssueComments,
 } from '../hooks/useGitHub'
-import { useConvertToDraft, useMarkReadyForReview, useSetLabels, useRepoLabels } from '../hooks/useGitHub'
+import {
+  useConvertToDraft,
+  useMarkReadyForReview,
+  useSetLabels,
+  useRepoLabels,
+  useCollaborators,
+  useUpdateAssignees,
+} from '../hooks/useGitHub'
 import { usePRDetailModals } from '../hooks/usePRDetailModals'
 import { usePendingReview } from '../hooks/usePendingReview'
 import { PRHeader } from '../components/pr/PRHeader'
@@ -26,6 +33,7 @@ import { CommentModal } from '../components/pr/CommentModal'
 import { MergeModal } from '../components/pr/MergeModal'
 import { ReReviewModal, buildReviewerList } from '../components/pr/ReReviewModal'
 import { LabelPickerModal } from '../components/pr/LabelPickerModal'
+import { AssigneePickerModal } from '../components/pr/AssigneePickerModal'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { openInBrowser, copyToClipboard } from '../utils/terminal'
 import { checkoutPR } from '../utils/git'
@@ -71,6 +79,8 @@ export function PRDetailScreen({
   const [showDraftConfirm, setShowDraftConfirm] = useState(false)
   const [showLabelPicker, setShowLabelPicker] = useState(false)
   const [labelError, setLabelError] = useState<string | null>(null)
+  const [showAssigneePicker, setShowAssigneePicker] = useState(false)
+  const [assigneeError, setAssigneeError] = useState<string | null>(null)
   const [initialFile, setInitialFile] = useState<string | undefined>(undefined)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
 
@@ -160,6 +170,12 @@ export function PRDetailScreen({
     repo,
     { enabled: showLabelPicker },
   )
+  const updateAssigneesMutation = useUpdateAssignees()
+  const { data: collaborators = [], isLoading: collaboratorsLoading } = useCollaborators(
+    owner,
+    repo,
+    { enabled: showAssigneePicker },
+  )
 
   const handleReviewSubmit = useCallback(
     (body: string, event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT') => {
@@ -201,7 +217,7 @@ export function PRDetailScreen({
     setStatusMessage(`Jumped to ${path}`)
   }, [setStatusMessage])
 
-  const anyModalOpen = modals.hasModal || showLabelPicker
+  const anyModalOpen = modals.hasModal || showLabelPicker || showAssigneePicker
 
   useManualRefresh({
     isActive: !anyModalOpen,
@@ -310,6 +326,9 @@ export function PRDetailScreen({
       } else if (input === 'L') {
         setLabelError(null)
         setShowLabelPicker(true)
+      } else if (input === 'A') {
+        setAssigneeError(null)
+        setShowAssigneePicker(true)
       } else if (input === 'G') {
         setStatusMessage('Checking out PR #' + pr.number + '...', 10000)
         checkoutPR(pr.number).then((result) => {
@@ -526,6 +545,34 @@ export function PRDetailScreen({
           isSubmitting={setLabelsMutation.isPending}
           isLoading={labelsLoading}
           error={labelError}
+        />
+      )}
+      {showAssigneePicker && (
+        <AssigneePickerModal
+          collaborators={collaborators}
+          currentAssignees={activePR.assignees.map((a) => a.login)}
+          onSubmit={(assignees) => {
+            updateAssigneesMutation.mutate(
+              { owner, repo, prNumber: pr.number, assignees: [...assignees] },
+              {
+                onSuccess: () => {
+                  setShowAssigneePicker(false)
+                  setAssigneeError(null)
+                  setStatusMessage('Assignees updated')
+                },
+                onError: (err) => {
+                  setAssigneeError(String(err))
+                },
+              },
+            )
+          }}
+          onClose={() => {
+            setShowAssigneePicker(false)
+            setAssigneeError(null)
+          }}
+          isSubmitting={updateAssigneesMutation.isPending}
+          isLoading={collaboratorsLoading}
+          error={assigneeError}
         />
       )}
     </Box>
