@@ -15,6 +15,9 @@ import { openInBrowser, copyToClipboard } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useManualRefresh } from '../hooks/useManualRefresh'
 import { useReadState } from '../hooks/useReadState'
+import { useNotifications } from '../hooks/useNotifications'
+import { useConfig } from '../hooks/useConfig'
+import { useCurrentUser } from '../hooks/useGitHub'
 import type { PullRequest } from '../models/pull-request'
 import type { PRStateFilter } from '../hooks/useGitHub'
 
@@ -54,6 +57,22 @@ export function PRListScreen({
   const theme = useTheme()
   const { setStatusMessage } = useStatusMessage()
   const { isUnread } = useReadState()
+  const { config } = useConfig()
+  const { data: currentUser } = useCurrentUser()
+
+  // Desktop notifications for PR activity
+  const notificationsEnabled = config?.notifications ?? true
+  useNotifications(
+    prs.length > 0 ? prs : undefined,
+    {
+      enabled: notificationsEnabled,
+      notifyOnNewPR: config?.notifyOnNewPR ?? true,
+      notifyOnUpdate: config?.notifyOnUpdate ?? true,
+      notifyOnReviewRequest: config?.notifyOnReviewRequest ?? true,
+    },
+    currentUser?.login,
+  )
+
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
   const [showUnreadOnly, setShowUnreadOnly] = useState(false)

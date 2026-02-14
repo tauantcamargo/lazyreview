@@ -66,6 +66,21 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
   hasOnboarded: S.optionalWith(S.Boolean, {
     default: () => false,
   }),
+  keybindingOverrides: S.optional(
+    S.Record({ key: S.String, value: S.Record({ key: S.String, value: S.Union(S.String, S.Array(S.String)) }) }),
+  ),
+  notifications: S.optionalWith(S.Boolean, {
+    default: () => true,
+  }),
+  notifyOnNewPR: S.optionalWith(S.Boolean, {
+    default: () => true,
+  }),
+  notifyOnUpdate: S.optionalWith(S.Boolean, {
+    default: () => true,
+  }),
+  notifyOnReviewRequest: S.optionalWith(S.Boolean, {
+    default: () => true,
+  }),
 }) {}
 
 const defaultConfig = S.decodeUnknownSync(AppConfig)({})

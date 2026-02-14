@@ -38,6 +38,10 @@ type SettingsItem =
   | 'refresh_interval'
   | 'default_owner'
   | 'default_repo'
+  | 'notifications'
+  | 'notify_new_pr'
+  | 'notify_update'
+  | 'notify_review_request'
   | 'bookmarked_repos'
 
 type EditingField = 'page_size' | 'refresh_interval' | 'default_owner' | 'default_repo' | 'new_token' | 'bookmark_add' | null
@@ -51,6 +55,10 @@ const SETTINGS_ITEMS: readonly SettingsItem[] = [
   'refresh_interval',
   'default_owner',
   'default_repo',
+  'notifications',
+  'notify_new_pr',
+  'notify_update',
+  'notify_review_request',
   'bookmarked_repos',
 ]
 
@@ -223,6 +231,22 @@ export function SettingsScreen(): React.ReactElement {
           startEditing('default_owner')
         } else if (selectedItem === 'default_repo') {
           startEditing('default_repo')
+        } else if (selectedItem === 'notifications') {
+          const current = config?.notifications ?? true
+          updateConfig({ notifications: !current })
+          setStatusMessage(`Notifications ${!current ? 'enabled' : 'disabled'}`)
+        } else if (selectedItem === 'notify_new_pr') {
+          const current = config?.notifyOnNewPR ?? true
+          updateConfig({ notifyOnNewPR: !current })
+          setStatusMessage('Saved')
+        } else if (selectedItem === 'notify_update') {
+          const current = config?.notifyOnUpdate ?? true
+          updateConfig({ notifyOnUpdate: !current })
+          setStatusMessage('Saved')
+        } else if (selectedItem === 'notify_review_request') {
+          const current = config?.notifyOnReviewRequest ?? true
+          updateConfig({ notifyOnReviewRequest: !current })
+          setStatusMessage('Saved')
         }
       } else if (isBookmarkSection && input === 'a') {
         startEditing('bookmark_add')
@@ -443,6 +467,43 @@ export function SettingsScreen(): React.ReactElement {
             ? renderEditableField('default_repo', 'repo')
             : undefined}
         </SettingRow>
+      </Box>
+
+      <Box paddingX={1} marginTop={1}>
+        <Divider title="Notifications" />
+      </Box>
+      {/* Notifications Section */}
+      <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
+        <Text color={theme.colors.secondary} bold>
+          Notifications
+        </Text>
+      </Box>
+
+      <Box flexDirection="column" gap={0}>
+        <SettingRow
+          label="Notifications"
+          value={(config?.notifications ?? true) ? 'On' : 'Off'}
+          isSelected={selectedItem === 'notifications'}
+          hint="Enter to toggle"
+        />
+        <SettingRow
+          label="New PRs"
+          value={(config?.notifyOnNewPR ?? true) ? 'On' : 'Off'}
+          isSelected={selectedItem === 'notify_new_pr'}
+          hint="Enter to toggle"
+        />
+        <SettingRow
+          label="PR Updates"
+          value={(config?.notifyOnUpdate ?? true) ? 'On' : 'Off'}
+          isSelected={selectedItem === 'notify_update'}
+          hint="Enter to toggle"
+        />
+        <SettingRow
+          label="Review Requests"
+          value={(config?.notifyOnReviewRequest ?? true) ? 'On' : 'Off'}
+          isSelected={selectedItem === 'notify_review_request'}
+          hint="Enter to toggle"
+        />
       </Box>
 
       <Box paddingX={1} marginTop={1}>
