@@ -4,7 +4,8 @@ import SyntaxHighlight from 'ink-syntax-highlight'
 import { useTheme } from '../../theme/index'
 import type { Hunk, DiffLine } from '../../models/diff'
 import { DiffCommentView, type DiffCommentThread } from './DiffComment'
-import { getLanguageFromFilename, expandTabs } from './DiffView'
+import { expandTabs } from './DiffView'
+import { getLanguageFromFilename } from '../../utils/languages'
 import { stripAnsi } from '../../utils/sanitize'
 
 export type SideBySideRow =

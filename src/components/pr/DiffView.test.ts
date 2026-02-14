@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildDiffRows, getLanguageFromFilename, getDiffLineNumber, computeDiffSearchMatches } from './DiffView'
+import { buildDiffRows, getDiffLineNumber, computeDiffSearchMatches } from './DiffView'
 import type { Hunk, DiffLine } from '../../models/diff'
 import { parseDiffPatch } from '../../models/diff'
 import type { DiffCommentThread } from './DiffComment'
@@ -42,36 +42,6 @@ const mockThread: DiffCommentThread = {
   threadId: 'thread-1',
   isResolved: false,
 }
-
-describe('getLanguageFromFilename', () => {
-  it('returns typescript for .ts files', () => {
-    expect(getLanguageFromFilename('src/index.ts')).toBe('typescript')
-  })
-
-  it('returns typescript for .tsx files', () => {
-    expect(getLanguageFromFilename('Component.tsx')).toBe('typescript')
-  })
-
-  it('returns javascript for .js files', () => {
-    expect(getLanguageFromFilename('utils.js')).toBe('javascript')
-  })
-
-  it('returns python for .py files', () => {
-    expect(getLanguageFromFilename('script.py')).toBe('python')
-  })
-
-  it('returns undefined for unknown extensions', () => {
-    expect(getLanguageFromFilename('file.xyz')).toBeUndefined()
-  })
-
-  it('returns undefined for files with no extension', () => {
-    expect(getLanguageFromFilename('Makefile')).toBeUndefined()
-  })
-
-  it('returns yaml for .yml files', () => {
-    expect(getLanguageFromFilename('config.yml')).toBe('yaml')
-  })
-})
 
 describe('getDiffLineNumber', () => {
   it('returns newLineNumber for add lines', () => {

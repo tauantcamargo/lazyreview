@@ -5,6 +5,7 @@ import { useTheme } from '../../theme/index'
 import type { Hunk, DiffLine } from '../../models/diff'
 import { DiffCommentView, type DiffCommentThread } from './DiffComment'
 import { stripAnsi } from '../../utils/sanitize'
+import { getLanguageFromFilename } from '../../utils/languages'
 
 /**
  * Expand tab characters to spaces using tab stops.
@@ -25,29 +26,6 @@ export function expandTabs(text: string, tabWidth: number = 4): string {
     }
   }
   return result
-}
-
-export function getLanguageFromFilename(
-  filename: string,
-): string | undefined {
-  const ext = filename.split('.').pop()?.toLowerCase()
-  const map: Record<string, string> = {
-    ts: 'typescript',
-    tsx: 'typescript',
-    js: 'javascript',
-    jsx: 'javascript',
-    json: 'json',
-    md: 'markdown',
-    py: 'python',
-    go: 'go',
-    rs: 'rust',
-    css: 'css',
-    scss: 'scss',
-    html: 'html',
-    yaml: 'yaml',
-    yml: 'yaml',
-  }
-  return ext ? map[ext] : undefined
 }
 
 /**
