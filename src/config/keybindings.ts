@@ -54,6 +54,15 @@ export type Action =
   | 'createPR'
   | 'botSummary'
   | 'addReaction'
+  | 'jumpToUnread'
+  | 'toggleCompactList'
+  | 'togglePreview'
+  | 'shrinkTreePanel'
+  | 'growTreePanel'
+  | 'toggleDirCollapse'
+  | 'nextHunk'
+  | 'prevHunk'
+  | 'goToLine'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -125,6 +134,9 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     toggleUnread: 'u',
     toggleState: 't',
     createPR: 'N',
+    jumpToUnread: 'U',
+    toggleCompactList: 'ctrl+l',
+    togglePreview: 'P',
   },
   prDetail: {
     submitReview: 'R',
@@ -165,6 +177,12 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     editComment: 'e',
     resolveThread: 'x',
     addReaction: '+',
+    shrinkTreePanel: '<',
+    growTreePanel: '>',
+    toggleDirCollapse: ['return', ' '],
+    nextHunk: '}',
+    prevHunk: '{',
+    goToLine: ':',
   },
   checksTab: {
     openInBrowser: 'o',

@@ -2,6 +2,7 @@ import { useInput } from 'ink'
 import type { DiffDisplayRow } from '../components/pr/DiffView'
 import type { SideBySideRow } from '../components/pr/SideBySideDiffView'
 import type { DiffCommentThread } from '../components/pr/DiffComment'
+import type { DisplayRow } from '../components/pr/FileTree'
 import type { DiffLine } from '../models/diff'
 import type { FileChange } from '../models/file-change'
 import type { InlineCommentContext } from '../models/inline-comment'
@@ -9,6 +10,14 @@ import type { ReactionContext } from './useReactionActions'
 import type { DiffSearchActions } from './useDiffSearch'
 import type { CrossFileSearchState, CrossFileSearchActions } from './useCrossFileSearch'
 import type { VisualSelectActions, VisualSelectState } from './useVisualSelect'
+import {
+  findNextHunkStart,
+  findPrevHunkStart,
+  findRowByLineNumber,
+  findNextSbsHunkStart,
+  findPrevSbsHunkStart,
+  findSbsRowByLineNumber,
+} from '../components/pr/diffNavigationHelpers'
 
 type FocusPanel = 'tree' | 'diff'
 type DiffMode = 'unified' | 'side-by-side'
@@ -129,6 +138,21 @@ interface UseFilesTabKeyboardOptions {
   readonly crossFileSearch?: CrossFileSearchState & CrossFileSearchActions
   readonly setSelectedFileIndex?: (index: number) => void
 
+  // Tree panel resizing
+  readonly treePanelPct?: number
+  readonly setTreePanelPct?: (fn: number | ((prev: number) => number)) => void
+
+  // Directory collapse/expand
+  readonly displayRows?: readonly DisplayRow[]
+  readonly collapsedDirs?: ReadonlySet<string>
+  readonly setCollapsedDirs?: (fn: ReadonlySet<string> | ((prev: ReadonlySet<string>) => ReadonlySet<string>)) => void
+
+  // Go-to-line
+  readonly isGoToLine?: boolean
+  readonly setIsGoToLine?: (v: boolean) => void
+  readonly goToLineQuery?: string
+  readonly setGoToLineQuery?: (v: string) => void
+
   // Callbacks
   readonly onReply?: (context: {
     readonly commentId: number
@@ -176,6 +200,21 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
             opts.allRows,
             opts.setDiffSelectedLine,
           )
+          opts.setInputActive(false)
+        }
+        return
+      }
+
+      // Go-to-line input mode
+      if (opts.isGoToLine) {
+        if (key.escape) {
+          opts.setIsGoToLine?.(false)
+          opts.setGoToLineQuery?.('')
+          opts.setInputActive(false)
+        } else if (key.return) {
+          handleGoToLineSubmit(opts)
+          opts.setIsGoToLine?.(false)
+          opts.setGoToLineQuery?.('')
           opts.setInputActive(false)
         }
         return
@@ -327,6 +366,24 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
         handleInlineComment(opts)
       } else if (input === '+' && opts.focusPanel === 'diff' && opts.onAddReaction) {
         handleAddReaction(opts)
+      } else if (input === '}' && opts.focusPanel === 'diff') {
+        handleNextHunk(opts)
+      } else if (input === '{' && opts.focusPanel === 'diff') {
+        handlePrevHunk(opts)
+      } else if (input === ':' && opts.focusPanel === 'diff' && opts.setIsGoToLine) {
+        opts.setIsGoToLine(true)
+        opts.setInputActive(true)
+      } else if (input === '<' && opts.setTreePanelPct) {
+        opts.setTreePanelPct((prev: number) => Math.max(15, prev - 5))
+      } else if (input === '>' && opts.setTreePanelPct) {
+        opts.setTreePanelPct((prev: number) => Math.min(50, prev + 5))
+      } else if (
+        (key.return || input === ' ') &&
+        opts.focusPanel === 'tree' &&
+        opts.displayRows &&
+        opts.setCollapsedDirs
+      ) {
+        handleToggleDirCollapse(opts)
       }
     },
     { isActive: opts.isActive },
@@ -482,6 +539,69 @@ function handleAddReaction(opts: UseFilesTabKeyboardOptions): void {
         commentId: lastComment.id,
         commentType: 'review_comment',
       })
+    }
+  }
+}
+
+function handleNextHunk(opts: UseFilesTabKeyboardOptions): void {
+  const target =
+    opts.effectiveDiffMode === 'side-by-side'
+      ? findNextSbsHunkStart(opts.sideBySideRows, opts.diffSelectedLine)
+      : findNextHunkStart(opts.allRows, opts.diffSelectedLine)
+  if (target >= 0) {
+    opts.setDiffSelectedLine(target)
+  }
+}
+
+function handlePrevHunk(opts: UseFilesTabKeyboardOptions): void {
+  const target =
+    opts.effectiveDiffMode === 'side-by-side'
+      ? findPrevSbsHunkStart(opts.sideBySideRows, opts.diffSelectedLine)
+      : findPrevHunkStart(opts.allRows, opts.diffSelectedLine)
+  if (target >= 0) {
+    opts.setDiffSelectedLine(target)
+  }
+}
+
+function handleGoToLineSubmit(opts: UseFilesTabKeyboardOptions): void {
+  const lineNum = parseInt(opts.goToLineQuery ?? '', 10)
+  if (isNaN(lineNum) || lineNum < 1) return
+
+  const target =
+    opts.effectiveDiffMode === 'side-by-side'
+      ? findSbsRowByLineNumber(opts.sideBySideRows, lineNum)
+      : findRowByLineNumber(opts.allRows, lineNum)
+
+  if (target >= 0) {
+    opts.setDiffSelectedLine(target)
+  }
+}
+
+function handleToggleDirCollapse(opts: UseFilesTabKeyboardOptions): void {
+  if (!opts.displayRows || !opts.setCollapsedDirs) return
+
+  // Find the display row corresponding to the current tree selection
+  const currentRow = opts.displayRows.find(
+    (r) => r.type === 'file' && r.fileIndex === opts.treeSelectedIndex,
+  )
+  if (!currentRow) return
+
+  // Look for the nearest dir row above the current file
+  const currentRowIndex = opts.displayRows.indexOf(currentRow)
+  for (let i = currentRowIndex; i >= 0; i--) {
+    const row = opts.displayRows[i]
+    if (row && row.type === 'dir') {
+      const dirPath = row.dirPath
+      opts.setCollapsedDirs((prev: ReadonlySet<string>) => {
+        const next = new Set(prev)
+        if (next.has(dirPath)) {
+          next.delete(dirPath)
+        } else {
+          next.add(dirPath)
+        }
+        return next
+      })
+      return
     }
   }
 }

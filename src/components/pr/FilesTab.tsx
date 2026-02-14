@@ -33,6 +33,7 @@ import {
 } from './FileTree'
 import type { InlineCommentContext } from '../../models/inline-comment'
 import { DiffStatsSummary } from './DiffStatsSummary'
+import { findRowByLineNumber, findSbsRowByLineNumber } from './diffNavigationHelpers'
 
 export function fuzzyMatch(filename: string, query: string): boolean {
   const lower = filename.toLowerCase()
@@ -125,6 +126,8 @@ export function FilesTab({
   const [focusPanel, setFocusPanel] = useState<FocusPanel>('tree')
   const [selectedFileIndex, setSelectedFileIndex] = useState(0)
   const [diffMode, setDiffMode] = useState<DiffMode>('unified')
+  const [treePanelPct, setTreePanelPct] = useState(30)
+  const [collapsedDirs, setCollapsedDirs] = useState<ReadonlySet<string>>(new Set())
   const visual = useVisualSelect()
 
   // Measure actual container width
@@ -151,8 +154,10 @@ export function FilesTab({
   const [filterQuery, setFilterQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('')
   const [diffScrollOffsetX, setDiffScrollOffsetX] = useState(0)
+  const [isGoToLine, setIsGoToLine] = useState(false)
+  const [goToLineQuery, setGoToLineQuery] = useState('')
 
-  const treePanelWidth = Math.max(32, Math.floor(containerWidth * 0.3))
+  const treePanelWidth = Math.max(32, Math.floor(containerWidth * (treePanelPct / 100)))
   const diffContentWidth = Math.max(10, containerWidth - treePanelWidth - 8)
 
   const filteredFiles = useMemo(() => {
@@ -171,8 +176,8 @@ export function FilesTab({
     [filteredTree],
   )
   const displayRows = useMemo(
-    () => buildDisplayRows(filteredTree, 0, { current: 0 }),
-    [filteredTree],
+    () => buildDisplayRows(filteredTree, 0, { current: 0 }, collapsedDirs),
+    [filteredTree, collapsedDirs],
   )
 
   const treeViewportHeight = Math.min(
@@ -326,7 +331,7 @@ export function FilesTab({
     useListNavigation({
       itemCount: totalDiffLines,
       viewportHeight,
-      isActive: isActive && focusPanel === 'diff' && !search.isDiffSearching && !crossFileSearch.isSearching,
+      isActive: isActive && focusPanel === 'diff' && !search.isDiffSearching && !crossFileSearch.isSearching && !isGoToLine,
     })
 
   useFilesTabKeyboard({
@@ -363,6 +368,15 @@ export function FilesTab({
     onInlineComment,
     onAddReaction,
     currentUser,
+    treePanelPct,
+    setTreePanelPct,
+    displayRows,
+    collapsedDirs,
+    setCollapsedDirs,
+    isGoToLine,
+    setIsGoToLine,
+    goToLineQuery,
+    setGoToLineQuery,
   })
 
   if (files.length === 0) {
@@ -375,7 +389,7 @@ export function FilesTab({
     <Box ref={containerRef} flexDirection="row" flexGrow={1}>
       <Box
         flexDirection="column"
-        width="30%"
+        width={`${treePanelPct}%`}
         minWidth={32}
         minHeight={0}
         overflow="hidden"
@@ -444,7 +458,7 @@ export function FilesTab({
                 paddingLeft={row.indent * 2}
               >
                 <Text wrap="truncate-end" color={theme.colors.muted}>
-                  {row.name}/
+                  {row.isCollapsed ? '\u25B8' : '\u25BE'} {row.name}/
                 </Text>
               </Box>
             ) : (
@@ -496,6 +510,11 @@ export function FilesTab({
               </Text>
             </Box>
           )}
+          {totalDiffLines > 0 && focusPanel === 'diff' && (
+            <Text color={theme.colors.muted}>
+              {diffSelectedLine + 1}/{totalDiffLines}
+            </Text>
+          )}
           {effectiveDiffMode === 'side-by-side' && (
             <Text color={theme.colors.info}>[split]</Text>
           )}
@@ -542,6 +561,16 @@ export function FilesTab({
             />
           </Box>
         )}
+        {isGoToLine && (
+          <Box paddingX={1}>
+            <Text color={theme.colors.accent}>:</Text>
+            <TextInput
+              defaultValue={goToLineQuery}
+              onChange={setGoToLineQuery}
+              placeholder="line number..."
+            />
+          </Box>
+        )}
         <Box flexDirection="column" flexGrow={1} minWidth={0} overflow="hidden">
           {isDiffLoading && needsLazyDiff ? (
             <Box justifyContent="center" alignItems="center" flexGrow={1}>
@@ -555,7 +584,7 @@ export function FilesTab({
               rows={sideBySideRows}
               selectedLine={diffSelectedLine}
               scrollOffset={diffScrollOffset}
-              viewportHeight={viewportHeight - 2 - (search.isDiffSearching || crossFileSearch.isSearching ? 1 : 0)}
+              viewportHeight={viewportHeight - 2 - (search.isDiffSearching || crossFileSearch.isSearching || isGoToLine ? 1 : 0)}
               isActive={isActive && focusPanel === 'diff'}
               filename={selectedFile?.filename}
               contentWidth={diffContentWidthSbs}
@@ -567,7 +596,7 @@ export function FilesTab({
               allRows={allRows}
               selectedLine={diffSelectedLine}
               scrollOffset={diffScrollOffset}
-              viewportHeight={viewportHeight - 2 - (search.isDiffSearching || crossFileSearch.isSearching ? 1 : 0)}
+              viewportHeight={viewportHeight - 2 - (search.isDiffSearching || crossFileSearch.isSearching || isGoToLine ? 1 : 0)}
               isActive={isActive && focusPanel === 'diff'}
               filename={selectedFile?.filename}
               visualStart={focusPanel === 'diff' ? visual.visualStart : null}

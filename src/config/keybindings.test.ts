@@ -66,6 +66,9 @@ describe('DEFAULT_KEYBINDINGS', () => {
     expect(prList['copyUrl']).toBe('y')
     expect(prList['toggleUnread']).toBe('u')
     expect(prList['toggleState']).toBe('t')
+    expect(prList['jumpToUnread']).toBe('U')
+    expect(prList['toggleCompactList']).toBe('ctrl+l')
+    expect(prList['togglePreview']).toBe('P')
   })
 
   it('prDetail context has expected actions', () => {
@@ -494,5 +497,72 @@ describe('getContextBindingsForDisplay', () => {
   it('returns empty array for unknown context', () => {
     const entries = getContextBindingsForDisplay('nonexistent')
     expect(entries).toEqual([])
+  })
+})
+
+describe('filesTab panel resizing and dir collapse keybindings', () => {
+  it('has shrinkTreePanel binding in filesTab context', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(filesTab['shrinkTreePanel']).toBe('<')
+  })
+
+  it('has growTreePanel binding in filesTab context', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(filesTab['growTreePanel']).toBe('>')
+  })
+
+  it('has toggleDirCollapse binding in filesTab context', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(filesTab['toggleDirCollapse']).toEqual(['return', ' '])
+  })
+
+  it('matches < for shrinkTreePanel', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(matchesAction('<', makeKey(), 'shrinkTreePanel', filesTab)).toBe(true)
+  })
+
+  it('matches > for growTreePanel', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(matchesAction('>', makeKey(), 'growTreePanel', filesTab)).toBe(true)
+  })
+
+  it('matches return for toggleDirCollapse', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(matchesAction('', makeKey({ return: true }), 'toggleDirCollapse', filesTab)).toBe(true)
+  })
+
+  it('matches space for toggleDirCollapse', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(matchesAction(' ', makeKey(), 'toggleDirCollapse', filesTab)).toBe(true)
+  })
+
+  it('has nextHunk binding in filesTab context', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(filesTab['nextHunk']).toBe('}')
+  })
+
+  it('has prevHunk binding in filesTab context', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(filesTab['prevHunk']).toBe('{')
+  })
+
+  it('has goToLine binding in filesTab context', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(filesTab['goToLine']).toBe(':')
+  })
+
+  it('matches } for nextHunk', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(matchesAction('}', makeKey(), 'nextHunk', filesTab)).toBe(true)
+  })
+
+  it('matches { for prevHunk', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(matchesAction('{', makeKey(), 'prevHunk', filesTab)).toBe(true)
+  })
+
+  it('matches : for goToLine', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(matchesAction(':', makeKey(), 'goToLine', filesTab)).toBe(true)
   })
 })
