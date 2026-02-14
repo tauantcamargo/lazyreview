@@ -11,6 +11,8 @@ import {
   parseLinkHeader,
   buildQueryString,
   parseRetryAfter,
+  getGitHubRestUrl,
+  getGitHubGraphqlUrl,
 } from './GitHubApiHelpers'
 import { GitHubError, NetworkError } from '../models/errors'
 import type { ListPRsOptions } from './GitHubApiTypes'
@@ -846,5 +848,183 @@ describe('429 rate limit handling', () => {
       expect(error.error.status).toBe(404)
       expect(error.error.retryAfterMs).toBeUndefined()
     }
+  })
+})
+
+// ===========================================================================
+// getGitHubRestUrl — GHE URL construction
+// ===========================================================================
+
+describe('getGitHubRestUrl', () => {
+  it('returns default api.github.com when no baseUrl is provided', () => {
+    expect(getGitHubRestUrl()).toBe('https://api.github.com')
+  })
+
+  it('returns default api.github.com when undefined is passed', () => {
+    expect(getGitHubRestUrl(undefined)).toBe('https://api.github.com')
+  })
+
+  it('returns the GHE base URL when provided', () => {
+    expect(getGitHubRestUrl('https://github.acme.com/api/v3')).toBe(
+      'https://github.acme.com/api/v3',
+    )
+  })
+
+  it('returns the base URL as-is for any custom URL', () => {
+    expect(getGitHubRestUrl('https://custom-host.com/api/v3')).toBe(
+      'https://custom-host.com/api/v3',
+    )
+  })
+
+  it('returns api.github.com when explicitly passed', () => {
+    expect(getGitHubRestUrl('https://api.github.com')).toBe(
+      'https://api.github.com',
+    )
+  })
+})
+
+// ===========================================================================
+// getGitHubGraphqlUrl — GHE GraphQL URL derivation
+// ===========================================================================
+
+describe('getGitHubGraphqlUrl', () => {
+  it('returns default graphql URL when no baseUrl is provided', () => {
+    expect(getGitHubGraphqlUrl()).toBe('https://api.github.com/graphql')
+  })
+
+  it('returns default graphql URL when undefined is passed', () => {
+    expect(getGitHubGraphqlUrl(undefined)).toBe(
+      'https://api.github.com/graphql',
+    )
+  })
+
+  it('returns default graphql URL when api.github.com is passed', () => {
+    expect(getGitHubGraphqlUrl('https://api.github.com')).toBe(
+      'https://api.github.com/graphql',
+    )
+  })
+
+  it('derives GHE graphql URL from /api/v3 base', () => {
+    expect(getGitHubGraphqlUrl('https://github.acme.com/api/v3')).toBe(
+      'https://github.acme.com/api/graphql',
+    )
+  })
+
+  it('derives GHE graphql URL for another host', () => {
+    expect(getGitHubGraphqlUrl('https://github.internal.io/api/v3')).toBe(
+      'https://github.internal.io/api/graphql',
+    )
+  })
+
+  it('appends /graphql for non-standard base URLs', () => {
+    expect(getGitHubGraphqlUrl('https://custom-host.com/api')).toBe(
+      'https://custom-host.com/api/graphql',
+    )
+  })
+})
+
+// ===========================================================================
+// GHE baseUrl parameter threading
+// ===========================================================================
+
+describe('GHE baseUrl parameter', () => {
+  it('fetchGitHub uses custom baseUrl when provided', async () => {
+    const mockData = { id: 1, name: 'test' }
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockData))
+
+    await Effect.runPromise(
+      fetchGitHub('/test/path', TOKEN, SimpleSchema, 'https://ghe.acme.com/api/v3'),
+    )
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://ghe.acme.com/api/v3/test/path',
+      expect.any(Object),
+    )
+  })
+
+  it('mutateGitHub uses custom baseUrl when provided', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      createMockResponse({}, { status: 200 }),
+    )
+
+    await Effect.runPromise(
+      mutateGitHub('POST', '/test', TOKEN, { key: 'val' }, 'https://ghe.acme.com/api/v3'),
+    )
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://ghe.acme.com/api/v3/test',
+      expect.any(Object),
+    )
+  })
+
+  it('mutateGitHubJson uses custom baseUrl when provided', async () => {
+    const responseData = { id: 42 }
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(responseData))
+
+    await Effect.runPromise(
+      mutateGitHubJson<{ id: number }>('POST', '/test', TOKEN, {}, 'https://ghe.acme.com/api/v3'),
+    )
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://ghe.acme.com/api/v3/test',
+      expect.any(Object),
+    )
+  })
+
+  it('graphqlGitHub uses GHE graphql URL when baseUrl is provided', async () => {
+    const graphqlResponse = { data: { viewer: { login: 'user' } } }
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(graphqlResponse))
+
+    await Effect.runPromise(
+      graphqlGitHub(TOKEN, 'query { viewer { login } }', {}, 'https://ghe.acme.com/api/v3'),
+    )
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://ghe.acme.com/api/graphql',
+      expect.any(Object),
+    )
+  })
+
+  it('fetchGitHubSearch uses custom baseUrl when provided', async () => {
+    const searchResponse = {
+      total_count: 0,
+      incomplete_results: false,
+      items: [],
+    }
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(searchResponse))
+
+    await Effect.runPromise(
+      fetchGitHubSearch('is:pr', TOKEN, 'https://ghe.acme.com/api/v3'),
+    )
+
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
+    expect(calledUrl).toContain('https://ghe.acme.com/api/v3/search/issues')
+  })
+
+  it('fetchGitHubPaginated uses custom baseUrl when provided', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([]))
+
+    await Effect.runPromise(
+      fetchGitHubPaginated('/test', TOKEN, SimpleSchema, 'https://ghe.acme.com/api/v3'),
+    )
+
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
+    expect(calledUrl).toContain('https://ghe.acme.com/api/v3/test')
+  })
+
+  it('fetchGitHubSearchPaginated uses custom baseUrl when provided', async () => {
+    const searchResponse = {
+      total_count: 0,
+      incomplete_results: false,
+      items: [],
+    }
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(searchResponse))
+
+    await Effect.runPromise(
+      fetchGitHubSearchPaginated('test', TOKEN, 'https://ghe.acme.com/api/v3'),
+    )
+
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
+    expect(calledUrl).toContain('https://ghe.acme.com/api/v3/search/issues')
   })
 })

@@ -17,6 +17,38 @@ const GitLabConfigSchema = S.Struct({
   host: S.optionalWith(S.String, { default: () => 'https://gitlab.com' }),
 })
 
+const GitHubConfigSchema = S.Struct({
+  hosts: S.optionalWith(S.Array(S.String), { default: () => [] as readonly string[] }),
+})
+
+const HostMappingSchema = S.Struct({
+  host: S.String,
+  provider: S.Union(
+    S.Literal('github'),
+    S.Literal('gitlab'),
+    S.Literal('bitbucket'),
+    S.Literal('azure'),
+    S.Literal('gitea'),
+  ),
+})
+
+export type HostMapping = S.Schema.Type<typeof HostMappingSchema>
+
+const GitLabProviderConfigSchema = S.Struct({
+  hosts: S.optionalWith(S.Array(S.String), { default: () => [] as readonly string[] }),
+})
+
+const ProvidersConfigSchema = S.Struct({
+  github: S.optionalWith(GitHubConfigSchema, {
+    default: () => ({ hosts: [] as readonly string[] }),
+  }),
+  gitlab: S.optionalWith(GitLabProviderConfigSchema, {
+    default: () => ({ hosts: [] as readonly string[] }),
+  }),
+})
+
+export type ProvidersConfig = S.Schema.Type<typeof ProvidersConfigSchema>
+
 const RecentRepoSchema = S.Struct({
   owner: S.String,
   repo: S.String,
@@ -81,9 +113,69 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
   notifyOnReviewRequest: S.optionalWith(S.Boolean, {
     default: () => true,
   }),
+  providers: S.optionalWith(ProvidersConfigSchema, {
+    default: () => ({
+      github: { hosts: [] as readonly string[] },
+      gitlab: { hosts: [] as readonly string[] },
+    }),
+  }),
+  hostMappings: S.optionalWith(S.Array(HostMappingSchema), {
+    default: () => [],
+  }),
 }) {}
 
 const defaultConfig = S.decodeUnknownSync(AppConfig)({})
+
+/**
+ * Build a host-to-provider lookup map from an AppConfig.
+ *
+ * Sources:
+ * 1. `providers.github.hosts` -- each entry maps to 'github'
+ * 2. `providers.gitlab.hosts` -- each entry maps to 'gitlab'
+ * 3. `hostMappings` -- each entry maps host -> provider (any provider type)
+ *
+ * Explicit `hostMappings` entries take precedence over provider-specific hosts.
+ */
+export function buildHostMappings(
+  config: AppConfig,
+): ReadonlyMap<string, Provider> {
+  const map = new Map<string, Provider>()
+
+  // Add providers.github.hosts entries
+  const gheHosts = config.providers?.github?.hosts ?? []
+  for (const host of gheHosts) {
+    map.set(host.toLowerCase(), 'github')
+  }
+
+  // Add providers.gitlab.hosts entries
+  const glHosts = config.providers?.gitlab?.hosts ?? []
+  for (const host of glHosts) {
+    map.set(host.toLowerCase(), 'gitlab')
+  }
+
+  // Add explicit hostMappings (takes precedence)
+  const mappings = config.hostMappings ?? []
+  for (const mapping of mappings) {
+    map.set(mapping.host.toLowerCase(), mapping.provider)
+  }
+
+  return map
+}
+
+/**
+ * Convert a buildHostMappings result to the ConfiguredHosts record
+ * expected by detectProvider / parseGitRemote in git.ts.
+ */
+export function toConfiguredHosts(
+  config: AppConfig,
+): Record<string, Provider> {
+  const map = buildHostMappings(config)
+  const result: Record<string, Provider> = {}
+  for (const [host, provider] of map) {
+    result[host] = provider
+  }
+  return result
+}
 
 export interface ConfigService {
   readonly load: () => Effect.Effect<AppConfig, ConfigError>

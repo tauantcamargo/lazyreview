@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { Schema as S } from 'effect'
-import { AppConfig } from './Config'
+import { AppConfig, buildHostMappings, toConfiguredHosts } from './Config'
 
 describe('AppConfig schema', () => {
   it('creates default config from empty object', () => {
@@ -253,5 +253,186 @@ describe('AppConfig schema', () => {
     expect(decoded.provider).toBe('gitlab')
     expect(decoded.gitlab?.host).toBe('https://my.gitlab.com')
     expect(decoded.theme).toBe('dracula')
+  })
+
+  it('defaults providers to empty github and gitlab hosts', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    expect(config.providers?.github?.hosts).toEqual([])
+    expect(config.providers?.gitlab?.hosts).toEqual([])
+  })
+
+  it('accepts providers.github.hosts array', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: {
+        github: { hosts: ['github.acme.com', 'ghe.corp.net'] },
+      },
+    })
+    expect(config.providers?.github?.hosts).toEqual(['github.acme.com', 'ghe.corp.net'])
+  })
+
+  it('accepts providers.gitlab.hosts array', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: {
+        gitlab: { hosts: ['gitlab.internal.io'] },
+      },
+    })
+    expect(config.providers?.gitlab?.hosts).toEqual(['gitlab.internal.io'])
+  })
+
+  it('defaults hostMappings to empty array', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    expect(config.hostMappings).toEqual([])
+  })
+
+  it('accepts hostMappings with various provider types', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      hostMappings: [
+        { host: 'ghe.corp.com', provider: 'github' },
+        { host: 'gl.corp.com', provider: 'gitlab' },
+        { host: 'bb.corp.com', provider: 'bitbucket' },
+        { host: 'az.corp.com', provider: 'azure' },
+        { host: 'gt.corp.com', provider: 'gitea' },
+      ],
+    })
+    expect(config.hostMappings).toHaveLength(5)
+    expect(config.hostMappings?.[0]?.host).toBe('ghe.corp.com')
+    expect(config.hostMappings?.[0]?.provider).toBe('github')
+  })
+
+  it('rejects hostMappings with unknown provider', () => {
+    expect(() =>
+      S.decodeUnknownSync(AppConfig)({
+        hostMappings: [{ host: 'x.com', provider: 'sourcehut' }],
+      }),
+    ).toThrow()
+  })
+
+  it('providers config round-trips through encode/decode', () => {
+    const input = {
+      providers: {
+        github: { hosts: ['ghe.corp.com'] },
+        gitlab: { hosts: ['gl.internal.io'] },
+      },
+      hostMappings: [
+        { host: 'gitea.corp.com', provider: 'gitea' as const },
+      ],
+    }
+    const config = S.decodeUnknownSync(AppConfig)(input)
+    const encoded = S.encodeSync(AppConfig)(config)
+    const decoded = S.decodeUnknownSync(AppConfig)(encoded)
+    expect(decoded.providers?.github?.hosts).toEqual(['ghe.corp.com'])
+    expect(decoded.providers?.gitlab?.hosts).toEqual(['gl.internal.io'])
+    expect(decoded.hostMappings).toHaveLength(1)
+    expect(decoded.hostMappings?.[0]?.host).toBe('gitea.corp.com')
+  })
+})
+
+// ===========================================================================
+// buildHostMappings
+// ===========================================================================
+
+describe('buildHostMappings', () => {
+  it('returns empty map when no hosts configured', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    const result = buildHostMappings(config)
+    expect(result.size).toBe(0)
+  })
+
+  it('maps providers.github.hosts to github', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: { github: { hosts: ['ghe.acme.com'] } },
+    })
+    const result = buildHostMappings(config)
+    expect(result.get('ghe.acme.com')).toBe('github')
+  })
+
+  it('maps providers.gitlab.hosts to gitlab', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: { gitlab: { hosts: ['gl.corp.io'] } },
+    })
+    const result = buildHostMappings(config)
+    expect(result.get('gl.corp.io')).toBe('gitlab')
+  })
+
+  it('hostMappings take precedence over provider-specific hosts', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: { github: { hosts: ['git.example.com'] } },
+      hostMappings: [{ host: 'git.example.com', provider: 'gitea' }],
+    })
+    const result = buildHostMappings(config)
+    expect(result.get('git.example.com')).toBe('gitea')
+  })
+
+  it('lowercases all hostnames in the map', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: { github: { hosts: ['GHE.ACME.COM'] } },
+    })
+    const result = buildHostMappings(config)
+    expect(result.get('ghe.acme.com')).toBe('github')
+    expect(result.has('GHE.ACME.COM')).toBe(false)
+  })
+
+  it('combines entries from multiple sources', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: {
+        github: { hosts: ['ghe.corp.com'] },
+        gitlab: { hosts: ['gl.corp.com'] },
+      },
+      hostMappings: [
+        { host: 'gitea.corp.com', provider: 'gitea' },
+      ],
+    })
+    const result = buildHostMappings(config)
+    expect(result.size).toBe(3)
+    expect(result.get('ghe.corp.com')).toBe('github')
+    expect(result.get('gl.corp.com')).toBe('gitlab')
+    expect(result.get('gitea.corp.com')).toBe('gitea')
+  })
+})
+
+// ===========================================================================
+// toConfiguredHosts
+// ===========================================================================
+
+describe('toConfiguredHosts', () => {
+  it('returns empty record when no hosts configured', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    const result = toConfiguredHosts(config)
+    expect(result).toEqual({})
+  })
+
+  it('converts buildHostMappings result to plain record', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: {
+        github: { hosts: ['ghe.acme.com'] },
+        gitlab: { hosts: ['gl.internal.io'] },
+      },
+    })
+    const result = toConfiguredHosts(config)
+    expect(result).toEqual({
+      'ghe.acme.com': 'github',
+      'gl.internal.io': 'gitlab',
+    })
+  })
+
+  it('includes hostMappings entries', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      hostMappings: [
+        { host: 'gitea.corp.com', provider: 'gitea' },
+        { host: 'bb.corp.com', provider: 'bitbucket' },
+      ],
+    })
+    const result = toConfiguredHosts(config)
+    expect(result['gitea.corp.com']).toBe('gitea')
+    expect(result['bb.corp.com']).toBe('bitbucket')
+  })
+
+  it('result is compatible with ConfiguredHosts type from git.ts', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      providers: { github: { hosts: ['ghe.corp.com'] } },
+    })
+    const result = toConfiguredHosts(config)
+    // Verify it works with detectProvider from git.ts
+    expect(result['ghe.corp.com']).toBe('github')
   })
 })

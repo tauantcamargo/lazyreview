@@ -476,7 +476,10 @@ function resolveTokenInfo(): Effect.Effect<TokenInfo, never> {
 function getGitHubUser(token: string): Effect.Effect<User, AuthError> {
   return Effect.tryPromise({
     try: async () => {
-      const response = await fetch('https://api.github.com/user', {
+      // Use configured baseUrl for GHE, fall back to api.github.com
+      const baseUrl = getState().baseUrl ?? 'https://api.github.com'
+      const apiUrl = baseUrl.endsWith('/api/v3') ? baseUrl : baseUrl
+      const response = await fetch(`${apiUrl}/user`, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/vnd.github+json',

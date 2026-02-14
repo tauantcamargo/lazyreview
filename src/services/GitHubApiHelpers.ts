@@ -9,7 +9,39 @@ import type { ListPRsOptions } from './GitHubApiTypes'
 
 const MAX_PAGES = 20
 
-const BASE_URL = 'https://api.github.com'
+const DEFAULT_BASE_URL = 'https://api.github.com'
+const DEFAULT_GRAPHQL_URL = 'https://api.github.com/graphql'
+
+/**
+ * Derive the GitHub REST API base URL from a provider baseUrl.
+ *
+ * - github.com uses https://api.github.com
+ * - GHE uses https://{host}/api/v3 (already encoded in the baseUrl from getApiBaseUrl)
+ *
+ * The passed `baseUrl` is expected to already be the REST base
+ * (e.g., "https://api.github.com" or "https://github.acme.com/api/v3").
+ */
+export function getGitHubRestUrl(baseUrl?: string): string {
+  return baseUrl ?? DEFAULT_BASE_URL
+}
+
+/**
+ * Derive the GitHub GraphQL endpoint from a REST API base URL.
+ *
+ * - github.com: https://api.github.com/graphql
+ * - GHE (https://host/api/v3): https://host/api/graphql
+ */
+export function getGitHubGraphqlUrl(baseUrl?: string): string {
+  if (!baseUrl || baseUrl === DEFAULT_BASE_URL) {
+    return DEFAULT_GRAPHQL_URL
+  }
+  // GHE: replace /api/v3 with /api/graphql
+  if (baseUrl.endsWith('/api/v3')) {
+    return baseUrl.replace(/\/api\/v3$/, '/api/graphql')
+  }
+  // Fallback: append /graphql
+  return `${baseUrl}/graphql`
+}
 
 /**
  * Parse the Retry-After header from a 429 response.
@@ -62,8 +94,9 @@ export function fetchGitHub<A, I>(
   path: string,
   token: string,
   schema: S.Schema<A, I>,
+  baseUrl?: string,
 ): Effect.Effect<A, GitHubError | NetworkError> {
-  const url = `${BASE_URL}${path}`
+  const url = `${getGitHubRestUrl(baseUrl)}${path}`
   const decode = S.decodeUnknownSync(schema)
 
   return Effect.tryPromise({
@@ -102,8 +135,9 @@ export function mutateGitHub(
   path: string,
   token: string,
   body: Record<string, unknown>,
+  baseUrl?: string,
 ): Effect.Effect<void, GitHubError | NetworkError> {
-  const url = `${BASE_URL}${path}`
+  const url = `${getGitHubRestUrl(baseUrl)}${path}`
 
   return Effect.tryPromise({
     try: async () => {
@@ -142,8 +176,9 @@ export function mutateGitHubJson<T>(
   path: string,
   token: string,
   body: Record<string, unknown>,
+  baseUrl?: string,
 ): Effect.Effect<T, GitHubError | NetworkError> {
-  const url = `${BASE_URL}${path}`
+  const url = `${getGitHubRestUrl(baseUrl)}${path}`
 
   return Effect.tryPromise({
     try: async () => {
@@ -190,8 +225,9 @@ export function graphqlGitHub<T>(
   token: string,
   query: string,
   variables: Record<string, unknown>,
+  baseUrl?: string,
 ): Effect.Effect<T, GitHubError | NetworkError> {
-  const url = 'https://api.github.com/graphql'
+  const url = getGitHubGraphqlUrl(baseUrl)
 
   return Effect.tryPromise({
     try: async () => {
@@ -246,8 +282,10 @@ export function graphqlGitHub<T>(
 export function fetchGitHubSearch(
   query: string,
   token: string,
+  baseUrl?: string,
 ): Effect.Effect<readonly PullRequest[], GitHubError | NetworkError> {
-  const url = `${BASE_URL}/search/issues?q=${encodeURIComponent(query)}&per_page=100`
+  const restBase = getGitHubRestUrl(baseUrl)
+  const url = `${restBase}/search/issues?q=${encodeURIComponent(query)}&per_page=100`
   const decode = S.decodeUnknownSync(SearchResultSchema)
 
   return Effect.tryPromise({
@@ -309,13 +347,14 @@ export function fetchGitHubPaginated<A, I>(
   path: string,
   token: string,
   schema: S.Schema<A, I>,
+  baseUrl?: string,
 ): Effect.Effect<readonly A[], GitHubError | NetworkError> {
   const decode = S.decodeUnknownSync(S.Array(schema))
 
   return Effect.tryPromise({
     try: async () => {
       const allItems: A[] = []
-      let url: string | null = `${BASE_URL}${path}`
+      let url: string | null = `${getGitHubRestUrl(baseUrl)}${path}`
       let pageCount = 0
 
       // Ensure per_page=100 is set if not already present
@@ -370,13 +409,15 @@ export function fetchGitHubPaginated<A, I>(
 export function fetchGitHubSearchPaginated(
   query: string,
   token: string,
+  baseUrl?: string,
 ): Effect.Effect<readonly PullRequest[], GitHubError | NetworkError> {
   const decode = S.decodeUnknownSync(SearchResultSchema)
 
   return Effect.tryPromise({
     try: async () => {
       const allItems: PullRequest[] = []
-      let url: string | null = `${BASE_URL}/search/issues?q=${encodeURIComponent(query)}&per_page=100`
+      const restBase = getGitHubRestUrl(baseUrl)
+      let url: string | null = `${restBase}/search/issues?q=${encodeURIComponent(query)}&per_page=100`
       let pageCount = 0
 
       while (url && pageCount < MAX_PAGES) {
