@@ -18,6 +18,11 @@ import {
   findPrevSbsHunkStart,
   findSbsRowByLineNumber,
 } from '../components/pr/diffNavigationHelpers'
+import {
+  getHunkIndexForRow,
+  toggleHunkFold,
+  type FoldableRow,
+} from '../utils/hunk-folding'
 
 type FocusPanel = 'tree' | 'diff'
 type DiffMode = 'unified' | 'side-by-side'
@@ -152,6 +157,11 @@ interface UseFilesTabKeyboardOptions {
   readonly setIsGoToLine?: (v: boolean) => void
   readonly goToLineQuery?: string
   readonly setGoToLineQuery?: (v: string) => void
+
+  // Hunk folding
+  readonly foldedHunks?: ReadonlySet<number>
+  readonly setFoldedHunks?: (fn: ReadonlySet<number> | ((prev: ReadonlySet<number>) => ReadonlySet<number>)) => void
+  readonly foldedRows?: readonly FoldableRow[]
 
   // Callbacks
   readonly onReply?: (context: {
@@ -373,6 +383,8 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
       } else if (input === ':' && opts.focusPanel === 'diff' && opts.setIsGoToLine) {
         opts.setIsGoToLine(true)
         opts.setInputActive(true)
+      } else if (input === 'z' && opts.focusPanel === 'diff' && opts.setFoldedHunks && opts.foldedRows) {
+        handleToggleHunkFold(opts)
       } else if (input === '<' && opts.setTreePanelPct) {
         opts.setTreePanelPct((prev: number) => Math.max(15, prev - 5))
       } else if (input === '>' && opts.setTreePanelPct) {
@@ -604,4 +616,15 @@ function handleToggleDirCollapse(opts: UseFilesTabKeyboardOptions): void {
       return
     }
   }
+}
+
+function handleToggleHunkFold(opts: UseFilesTabKeyboardOptions): void {
+  if (!opts.setFoldedHunks || !opts.foldedRows) return
+
+  const hunkIndex = getHunkIndexForRow(opts.foldedRows, opts.diffSelectedLine)
+  if (hunkIndex < 0) return
+
+  opts.setFoldedHunks((prev: ReadonlySet<number>) =>
+    toggleHunkFold(prev, hunkIndex),
+  )
 }

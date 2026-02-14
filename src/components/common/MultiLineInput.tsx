@@ -1,6 +1,17 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../../theme/index'
+import {
+  createUndoStack,
+  pushState,
+  undo as undoStack,
+  redo as redoStack,
+  canUndo,
+  canRedo,
+  currentState,
+  shouldPushState,
+  type UndoStack,
+} from '../../utils/undo-stack'
 
 interface MultiLineInputProps {
   readonly placeholder?: string
@@ -18,23 +29,85 @@ export function MultiLineInput({
   minHeight = 3,
 }: MultiLineInputProps): React.ReactElement {
   const theme = useTheme()
-  const [lines, setLines] = useState<readonly string[]>(
-    defaultValue ? defaultValue.split('\n') : [''],
-  )
+  const initialLines = defaultValue ? defaultValue.split('\n') : ['']
+  const [lines, setLines] = useState<readonly string[]>(initialLines)
   const [cursorRow, setCursorRow] = useState(0)
   const [cursorCol, setCursorCol] = useState(0)
+  const [undoState, setUndoState] = useState<UndoStack>(() =>
+    createUndoStack({ lines: initialLines, cursorRow: 0, cursorCol: 0 }),
+  )
+  const lastPushTimeRef = useRef(0)
+
+  const pushUndoSnapshot = useCallback(
+    (newLines: readonly string[], newRow: number, newCol: number) => {
+      if (shouldPushState(lastPushTimeRef.current)) {
+        setUndoState((prev) =>
+          pushState(prev, { lines: newLines, cursorRow: newRow, cursorCol: newCol }),
+        )
+        lastPushTimeRef.current = Date.now()
+      } else {
+        // Update the present state in-place for batched edits
+        setUndoState((prev) => ({
+          ...prev,
+          present: { lines: newLines, cursorRow: newRow, cursorCol: newCol },
+        }))
+      }
+    },
+    [],
+  )
 
   const updateLines = useCallback(
-    (newLines: readonly string[]) => {
+    (newLines: readonly string[], newRow: number, newCol: number) => {
       setLines(newLines)
+      setCursorRow(newRow)
+      setCursorCol(newCol)
       onChange(newLines.join('\n'))
+      pushUndoSnapshot(newLines, newRow, newCol)
     },
-    [onChange],
+    [onChange, pushUndoSnapshot],
   )
+
+  const handleUndo = useCallback(() => {
+    setUndoState((prev) => {
+      if (!canUndo(prev)) return prev
+      const next = undoStack(prev)
+      const state = currentState(next)
+      setLines(state.lines)
+      setCursorRow(state.cursorRow)
+      setCursorCol(state.cursorCol)
+      onChange(state.lines.join('\n'))
+      return next
+    })
+  }, [onChange])
+
+  const handleRedo = useCallback(() => {
+    setUndoState((prev) => {
+      if (!canRedo(prev)) return prev
+      const next = redoStack(prev)
+      const state = currentState(next)
+      setLines(state.lines)
+      setCursorRow(state.cursorRow)
+      setCursorCol(state.cursorCol)
+      onChange(state.lines.join('\n'))
+      return next
+    })
+  }, [onChange])
 
   useInput(
     (input, key) => {
       if (!isActive) return
+
+      // Ctrl+Z: undo
+      if (key.ctrl && input === 'z') {
+        handleUndo()
+        return
+      }
+
+      // Ctrl+Y: redo
+      if (key.ctrl && input === 'y') {
+        handleRedo()
+        return
+      }
 
       if (key.tab) {
         // Insert 2 spaces for indentation
@@ -43,8 +116,7 @@ export function MultiLineInput({
         const after = currentLine.slice(cursorCol)
         const newLine = `${before}  ${after}`
         const newLines = lines.map((l, i) => (i === cursorRow ? newLine : l))
-        updateLines(newLines)
-        setCursorCol(cursorCol + 2)
+        updateLines(newLines, cursorRow, cursorCol + 2)
         return
       }
 
@@ -59,9 +131,7 @@ export function MultiLineInput({
           after,
           ...lines.slice(cursorRow + 1),
         ]
-        updateLines(newLines)
-        setCursorRow(cursorRow + 1)
-        setCursorCol(0)
+        updateLines(newLines, cursorRow + 1, 0)
         return
       }
 
@@ -70,8 +140,7 @@ export function MultiLineInput({
           const currentLine = lines[cursorRow] ?? ''
           const newLine = currentLine.slice(0, cursorCol - 1) + currentLine.slice(cursorCol)
           const newLines = lines.map((l, i) => (i === cursorRow ? newLine : l))
-          updateLines(newLines)
-          setCursorCol(cursorCol - 1)
+          updateLines(newLines, cursorRow, cursorCol - 1)
         } else if (cursorRow > 0) {
           // Merge with previous line
           const prevLine = lines[cursorRow - 1] ?? ''
@@ -82,9 +151,7 @@ export function MultiLineInput({
             merged,
             ...lines.slice(cursorRow + 1),
           ]
-          updateLines(newLines)
-          setCursorRow(cursorRow - 1)
-          setCursorCol(prevLine.length)
+          updateLines(newLines, cursorRow - 1, prevLine.length)
         }
         return
       }
@@ -135,8 +202,7 @@ export function MultiLineInput({
         const after = currentLine.slice(cursorCol)
         const newLine = `${before}${input}${after}`
         const newLines = lines.map((l, i) => (i === cursorRow ? newLine : l))
-        updateLines(newLines)
-        setCursorCol(cursorCol + input.length)
+        updateLines(newLines, cursorRow, cursorCol + input.length)
       }
     },
     { isActive },

@@ -10,7 +10,11 @@ import { useViewedFiles } from '../../hooks/useViewedFiles'
 import { useDiffSearch } from '../../hooks/useDiffSearch'
 import { useCrossFileSearch } from '../../hooks/useCrossFileSearch'
 import { useVisualSelect } from '../../hooks/useVisualSelect'
-import { useFilesTabKeyboard } from '../../hooks/useFilesTabKeyboard'
+import {
+  useFilesTabKeyboard,
+  getFocusedCommentThread,
+} from '../../hooks/useFilesTabKeyboard'
+import { setSelectionContext } from '../../hooks/useSelectionContext'
 import { useFileDiff } from '../../hooks/useGitHub'
 import type { FileChange } from '../../models/file-change'
 import { parseDiffPatch } from '../../models/diff'
@@ -34,6 +38,7 @@ import {
 import type { InlineCommentContext } from '../../models/inline-comment'
 import { DiffStatsSummary } from './DiffStatsSummary'
 import { findRowByLineNumber, findSbsRowByLineNumber } from './diffNavigationHelpers'
+import { applyHunkFolding } from '../../utils/hunk-folding'
 
 export function fuzzyMatch(filename: string, query: string): boolean {
   const lower = filename.toLowerCase()
@@ -156,6 +161,7 @@ export function FilesTab({
   const [diffScrollOffsetX, setDiffScrollOffsetX] = useState(0)
   const [isGoToLine, setIsGoToLine] = useState(false)
   const [goToLineQuery, setGoToLineQuery] = useState('')
+  const [foldedHunks, setFoldedHunks] = useState<ReadonlySet<number>>(new Set())
 
   const treePanelWidth = Math.max(32, Math.floor(containerWidth * (treePanelPct / 100)))
   const diffContentWidth = Math.max(10, containerWidth - treePanelWidth - 8)
@@ -264,6 +270,10 @@ export function FilesTab({
     () => buildDiffRows(hunks, commentsByLine),
     [hunks, commentsByLine],
   )
+  const foldedRows = useMemo(
+    () => applyHunkFolding(allRows, foldedHunks),
+    [allRows, foldedHunks],
+  )
   const sideBySideRows = useMemo(
     () =>
       effectiveDiffMode === 'side-by-side'
@@ -274,13 +284,14 @@ export function FilesTab({
   const totalDiffLines =
     effectiveDiffMode === 'side-by-side'
       ? sideBySideRows.length
-      : allRows.length
+      : foldedRows.length
 
   const search = useDiffSearch(effectiveDiffMode, allRows, sideBySideRows)
 
-  // Reset search when file changes
+  // Reset search and folding state when file changes
   React.useEffect(() => {
     setDiffScrollOffsetX(0)
+    setFoldedHunks(new Set())
     search.resetOnFileChange()
   }, [selectedFileIndex]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -377,7 +388,41 @@ export function FilesTab({
     setIsGoToLine,
     goToLineQuery,
     setGoToLineQuery,
+    foldedHunks,
+    setFoldedHunks,
+    foldedRows,
   })
+
+  // Publish diff row selection context for status bar hints
+  React.useEffect(() => {
+    if (!isActive || focusPanel !== 'diff') return
+
+    const thread = getFocusedCommentThread(
+      effectiveDiffMode,
+      diffSelectedLine,
+      allRows,
+      sideBySideRows,
+    )
+
+    if (thread) {
+      const firstComment = thread.comments[0]
+      const isOwn =
+        !!currentUser && !!firstComment && firstComment.user.login === currentUser
+      setSelectionContext({
+        type: 'diff-row',
+        isCommentRow: true,
+        hasThread: !!thread.threadId,
+        isOwnComment: isOwn,
+      })
+    } else {
+      setSelectionContext({
+        type: 'diff-row',
+        isCommentRow: false,
+        hasThread: false,
+        isOwnComment: false,
+      })
+    }
+  }, [isActive, focusPanel, diffSelectedLine, effectiveDiffMode, allRows, sideBySideRows, currentUser])
 
   if (files.length === 0) {
     return <EmptyState message="No files changed" />
@@ -593,7 +638,7 @@ export function FilesTab({
             />
           ) : (
             <DiffView
-              allRows={allRows}
+              allRows={foldedRows}
               selectedLine={diffSelectedLine}
               scrollOffset={diffScrollOffset}
               viewportHeight={viewportHeight - 2 - (search.isDiffSearching || crossFileSearch.isSearching || isGoToLine ? 1 : 0)}
