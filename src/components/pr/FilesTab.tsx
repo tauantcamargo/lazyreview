@@ -31,6 +31,7 @@ import {
   FileItem,
 } from './FileTree'
 import type { InlineCommentContext } from '../../models/inline-comment'
+import { DiffStatsSummary } from './DiffStatsSummary'
 
 export function fuzzyMatch(filename: string, query: string): boolean {
   const lower = filename.toLowerCase()
@@ -93,7 +94,7 @@ export function FilesTab({
   const { markViewed, toggleViewed, isViewed, getViewedCount } =
     useViewedFiles()
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 13)
-  const FILES_TREE_HEADER_LINES = 4
+  const FILES_TREE_HEADER_LINES = 5
   const treeViewportMaxHeight = Math.max(
     1,
     (stdout?.rows ?? 24) - 18 - FILES_TREE_HEADER_LINES,
@@ -368,6 +369,7 @@ export function FilesTab({
             <Text color={theme.colors.warning}>[/{activeFilter}]</Text>
           )}
         </Box>
+        <DiffStatsSummary files={files} />
         {isFiltering && (
           <Box paddingX={1}>
             <Text color={theme.colors.accent}>/</Text>
