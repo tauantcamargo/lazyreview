@@ -3,7 +3,11 @@ import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
-import { MultiLineInput } from '../common/MultiLineInput'
+import { MultiLineInput, type InsertTextRequest } from '../common/MultiLineInput'
+import { TemplatePickerModal } from './TemplatePickerModal'
+import { DEFAULT_TEMPLATES, mergeTemplates, type CommentTemplate } from '../../models/comment-template'
+import { resolveTemplate, type TemplateVariables } from '../../utils/template-engine'
+import { useConfig } from '../../hooks/useConfig'
 import type { ReviewEvent } from '../../hooks/useGitHub'
 
 interface ReviewModalProps {
@@ -11,6 +15,7 @@ interface ReviewModalProps {
   readonly onClose: () => void
   readonly isSubmitting: boolean
   readonly error: string | null
+  readonly templateVariables?: TemplateVariables
 }
 
 const REVIEW_TYPES: readonly {
@@ -30,20 +35,24 @@ export function ReviewModal({
   onClose,
   isSubmitting,
   error,
+  templateVariables,
 }: ReviewModalProps): React.ReactElement {
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
+  const { config } = useConfig()
   const [step, setStep] = useState<Step>('select_type')
   const [selectedType, setSelectedType] = useState(0)
   const [reviewEvent, setReviewEvent] = useState<ReviewEvent>('APPROVE')
   const [body, setBody] = useState('')
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+  const [pendingInsert, setPendingInsert] = useState<InsertTextRequest | null>(null)
 
   useEffect(() => {
-    if (step === 'enter_body') {
+    if (step === 'enter_body' && !showTemplatePicker) {
       setInputActive(true)
     }
     return () => setInputActive(false)
-  }, [step, setInputActive])
+  }, [step, setInputActive, showTemplatePicker])
 
   const handleSubmit = useCallback(() => {
     if (reviewEvent === 'REQUEST_CHANGES' && !body.trim()) {
@@ -54,9 +63,23 @@ export function ReviewModal({
     }
   }, [body, reviewEvent, isSubmitting, onSubmit])
 
+  const handleTemplateSelect = useCallback(
+    (template: CommentTemplate) => {
+      const resolved = resolveTemplate(template, templateVariables ?? {})
+      setPendingInsert({ text: resolved.text, cursorOffset: resolved.cursorOffset })
+      setShowTemplatePicker(false)
+    },
+    [templateVariables],
+  )
+
+  const templates = mergeTemplates(
+    DEFAULT_TEMPLATES,
+    config?.commentTemplates as readonly CommentTemplate[] | undefined,
+  )
+
   useInput(
     (input, key) => {
-      if (isSubmitting) return
+      if (isSubmitting || showTemplatePicker) return
 
       if (step === 'select_type') {
         if (key.escape) {
@@ -77,11 +100,23 @@ export function ReviewModal({
           handleSubmit()
         } else if (input === 's' && key.ctrl) {
           handleSubmit()
+        } else if (input === 't' && key.ctrl) {
+          setShowTemplatePicker(true)
         }
       }
     },
-    { isActive: true },
+    { isActive: !showTemplatePicker },
   )
+
+  if (showTemplatePicker) {
+    return (
+      <TemplatePickerModal
+        templates={templates}
+        onSelect={handleTemplateSelect}
+        onClose={() => setShowTemplatePicker(false)}
+      />
+    )
+  }
 
   if (step === 'select_type') {
     return (
@@ -171,8 +206,9 @@ export function ReviewModal({
           <MultiLineInput
             placeholder="Review message... (Markdown supported)"
             onChange={setBody}
-            isActive={step === 'enter_body' && !isSubmitting}
+            isActive={step === 'enter_body' && !isSubmitting && !showTemplatePicker}
             minHeight={5}
+            insertText={pendingInsert}
           />
         </Box>
 
@@ -185,7 +221,7 @@ export function ReviewModal({
         )}
 
         <Text color={theme.colors.muted} dimColor>
-          Enter: new line | Ctrl+S: submit | Esc: back
+          Enter: new line | Ctrl+S: submit | Ctrl+T: template | Esc: back
         </Text>
       </Box>
     </Modal>

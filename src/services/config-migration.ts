@@ -44,6 +44,8 @@ export interface V2Defaults {
   readonly owner: string
   readonly repo: string
   readonly compactList: boolean
+  readonly prefetchEnabled?: boolean
+  readonly prefetchDelayMs?: number
   readonly hasOnboarded?: boolean
   readonly notifications?: boolean
   readonly notifyOnNewPR?: boolean
@@ -60,6 +62,13 @@ export interface V2Defaults {
   readonly botUsernames?: readonly string[]
 }
 
+export interface V2CommentTemplate {
+  readonly name: string
+  readonly prefix?: string
+  readonly body: string
+  readonly description?: string
+}
+
 export interface V2ConfigFile {
   readonly version: 2
   readonly defaults: V2Defaults
@@ -69,6 +78,7 @@ export interface V2ConfigFile {
   readonly keybindingOverrides: Readonly<Record<string, unknown>>
   readonly recentRepos: readonly { readonly owner: string; readonly repo: string; readonly lastUsed: string }[]
   readonly bookmarkedRepos: readonly { readonly owner: string; readonly repo: string }[]
+  readonly commentTemplates: readonly V2CommentTemplate[]
 }
 
 // ---------------------------------------------------------------------------
@@ -117,6 +127,8 @@ export function migrateV1Config(v1: Record<string, unknown>): V2ConfigFile {
     owner: (v1['defaultOwner'] as string) ?? '',
     repo: (v1['defaultRepo'] as string) ?? '',
     compactList: (v1['compactList'] as boolean) ?? false,
+    ...(v1['prefetchEnabled'] !== undefined ? { prefetchEnabled: v1['prefetchEnabled'] as boolean } : {}),
+    ...(v1['prefetchDelayMs'] !== undefined ? { prefetchDelayMs: v1['prefetchDelayMs'] as number } : {}),
     ...(v1['hasOnboarded'] !== undefined ? { hasOnboarded: v1['hasOnboarded'] as boolean } : {}),
     ...(v1['notifications'] !== undefined ? { notifications: v1['notifications'] as boolean } : {}),
     ...(v1['notifyOnNewPR'] !== undefined ? { notifyOnNewPR: v1['notifyOnNewPR'] as boolean } : {}),
@@ -146,6 +158,7 @@ export function migrateV1Config(v1: Record<string, unknown>): V2ConfigFile {
     keybindingOverrides: (v1['keybindingOverrides'] as Record<string, unknown>) ?? {},
     recentRepos: (v1['recentRepos'] as V2ConfigFile['recentRepos']) ?? [],
     bookmarkedRepos: (v1['bookmarkedRepos'] as V2ConfigFile['bookmarkedRepos']) ?? [],
+    commentTemplates: (v1['commentTemplates'] as V2ConfigFile['commentTemplates']) ?? [],
   }
 }
 
@@ -213,10 +226,17 @@ export function mergeRepoConfig(
     ...repoAi,
   }
 
+  // commentTemplates: repo config can override or add templates
+  const repoTemplates = (repo['commentTemplates'] ?? []) as readonly V2CommentTemplate[]
+  const mergedTemplates = repoTemplates.length > 0
+    ? [...global.commentTemplates, ...repoTemplates]
+    : global.commentTemplates
+
   return {
     ...global,
     defaults: mergedDefaults,
     providers: mergedProviders,
     ai: mergedAi,
+    commentTemplates: mergedTemplates,
   }
 }

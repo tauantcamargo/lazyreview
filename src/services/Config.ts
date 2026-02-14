@@ -138,6 +138,23 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
   compactList: S.optionalWith(S.Boolean, {
     default: () => false,
   }),
+  prefetchEnabled: S.optionalWith(S.Boolean, {
+    default: () => true,
+  }),
+  prefetchDelayMs: S.optionalWith(S.Number.pipe(S.int(), S.between(100, 5000)), {
+    default: () => 500,
+  }),
+  commentTemplates: S.optionalWith(
+    S.Array(
+      S.Struct({
+        name: S.String,
+        prefix: S.optional(S.String),
+        body: S.String,
+        description: S.optional(S.String),
+      }),
+    ),
+    { default: () => [] },
+  ),
 }) {}
 
 // ---------------------------------------------------------------------------
@@ -318,6 +335,8 @@ export function flattenV2ToAppConfig(v2: V2ConfigFile): AppConfig {
     defaultOwner: d.owner || undefined,
     defaultRepo: d.repo || undefined,
     compactList: d.compactList,
+    prefetchEnabled: d.prefetchEnabled,
+    prefetchDelayMs: d.prefetchDelayMs,
     hasOnboarded: d.hasOnboarded,
     notifications: d.notifications,
     notifyOnNewPR: d.notifyOnNewPR,
@@ -337,6 +356,7 @@ export function flattenV2ToAppConfig(v2: V2ConfigFile): AppConfig {
       : undefined,
     recentRepos: v2.recentRepos,
     bookmarkedRepos: v2.bookmarkedRepos,
+    commentTemplates: v2.commentTemplates,
   }
   return S.decodeUnknownSync(AppConfig)(flat)
 }

@@ -3,7 +3,11 @@ import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
-import { MultiLineInput } from '../common/MultiLineInput'
+import { MultiLineInput, type InsertTextRequest } from '../common/MultiLineInput'
+import { TemplatePickerModal } from './TemplatePickerModal'
+import { DEFAULT_TEMPLATES, mergeTemplates, type CommentTemplate } from '../../models/comment-template'
+import { resolveTemplate, type TemplateVariables } from '../../utils/template-engine'
+import { useConfig } from '../../hooks/useConfig'
 
 interface CommentModalProps {
   readonly title: string
@@ -13,6 +17,7 @@ interface CommentModalProps {
   readonly onClose: () => void
   readonly isSubmitting: boolean
   readonly error: string | null
+  readonly templateVariables?: TemplateVariables
 }
 
 export function CommentModal({
@@ -23,15 +28,19 @@ export function CommentModal({
   onClose,
   isSubmitting,
   error,
+  templateVariables,
 }: CommentModalProps): React.ReactElement {
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
+  const { config } = useConfig()
   const [body, setBody] = useState(defaultValue ?? '')
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+  const [pendingInsert, setPendingInsert] = useState<InsertTextRequest | null>(null)
 
   useEffect(() => {
-    setInputActive(true)
+    setInputActive(!showTemplatePicker)
     return () => setInputActive(false)
-  }, [setInputActive])
+  }, [setInputActive, showTemplatePicker])
 
   const handleSubmit = useCallback(() => {
     const trimmed = body.trim()
@@ -40,9 +49,23 @@ export function CommentModal({
     }
   }, [body, isSubmitting, onSubmit])
 
+  const handleTemplateSelect = useCallback(
+    (template: CommentTemplate) => {
+      const resolved = resolveTemplate(template, templateVariables ?? {})
+      setPendingInsert({ text: resolved.text, cursorOffset: resolved.cursorOffset })
+      setShowTemplatePicker(false)
+    },
+    [templateVariables],
+  )
+
+  const templates = mergeTemplates(
+    DEFAULT_TEMPLATES,
+    config?.commentTemplates as readonly CommentTemplate[] | undefined,
+  )
+
   useInput(
     (_input, key) => {
-      if (isSubmitting) return
+      if (isSubmitting || showTemplatePicker) return
 
       if (key.escape) {
         onClose()
@@ -50,12 +73,24 @@ export function CommentModal({
         handleSubmit()
       } else if (_input === 's' && key.ctrl) {
         handleSubmit()
+      } else if (_input === 't' && key.ctrl) {
+        setShowTemplatePicker(true)
       }
     },
-    { isActive: true },
+    { isActive: !showTemplatePicker },
   )
 
   const isInline = title === 'Add Inline Comment'
+
+  if (showTemplatePicker) {
+    return (
+      <TemplatePickerModal
+        templates={templates}
+        onSelect={handleTemplateSelect}
+        onClose={() => setShowTemplatePicker(false)}
+      />
+    )
+  }
 
   return (
     <Modal>
@@ -88,8 +123,9 @@ export function CommentModal({
             placeholder="Write your comment... (Markdown supported)"
             defaultValue={defaultValue}
             onChange={setBody}
-            isActive={!isSubmitting}
+            isActive={!isSubmitting && !showTemplatePicker}
             minHeight={5}
+            insertText={pendingInsert}
           />
         </Box>
 
@@ -103,7 +139,7 @@ export function CommentModal({
             </Text>
           )}
           <Text color={theme.colors.muted} dimColor>
-            Tab: indent | Enter: new line | Ctrl+S: submit | Esc: cancel
+            Tab: indent | Enter: new line | Ctrl+S: submit | Ctrl+T: template | Esc: cancel
           </Text>
         </Box>
 

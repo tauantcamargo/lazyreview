@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../../theme/index'
 import {
@@ -13,12 +13,22 @@ import {
   type UndoStack,
 } from '../../utils/undo-stack'
 
+/**
+ * Describes text to insert at the current cursor position.
+ * Change the reference (new object) to trigger insertion.
+ */
+export interface InsertTextRequest {
+  readonly text: string
+  readonly cursorOffset: number
+}
+
 interface MultiLineInputProps {
   readonly placeholder?: string
   readonly defaultValue?: string
   readonly onChange: (value: string) => void
   readonly isActive: boolean
   readonly minHeight?: number
+  readonly insertText?: InsertTextRequest | null
 }
 
 export function MultiLineInput({
@@ -27,6 +37,7 @@ export function MultiLineInput({
   onChange,
   isActive,
   minHeight = 3,
+  insertText,
 }: MultiLineInputProps): React.ReactElement {
   const theme = useTheme()
   const initialLines = defaultValue ? defaultValue.split('\n') : ['']
@@ -92,6 +103,32 @@ export function MultiLineInput({
       return next
     })
   }, [onChange])
+
+  // Handle external text insertion at cursor position
+  useEffect(() => {
+    if (!insertText) return
+
+    const currentLine = lines[cursorRow] ?? ''
+    const before = currentLine.slice(0, cursorCol)
+    const after = currentLine.slice(cursorCol)
+    const combined = `${before}${insertText.text}${after}`
+    const newLines = combined.split('\n')
+
+    // Build the full new lines array
+    const allLines = [
+      ...lines.slice(0, cursorRow),
+      ...newLines,
+      ...lines.slice(cursorRow + 1),
+    ]
+
+    // Compute cursor position from the offset within the inserted text
+    const textBeforeCursor = `${before}${insertText.text.slice(0, insertText.cursorOffset)}`
+    const linesBeforeCursor = textBeforeCursor.split('\n')
+    const newRow = cursorRow + linesBeforeCursor.length - 1
+    const newCol = linesBeforeCursor[linesBeforeCursor.length - 1]!.length
+
+    updateLines(allLines, newRow, newCol)
+  }, [insertText]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useInput(
     (input, key) => {
