@@ -2,6 +2,7 @@ import React from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import type { FileChange } from '../../models/file-change'
+import type { FileReviewStatus } from '../../hooks/useFileReviewStatus'
 
 export type TreeNode =
   | { type: 'dir'; name: string; children: TreeNode[] }
@@ -136,6 +137,31 @@ interface FileItemProps {
   readonly isFocus: boolean
   readonly isSelected: boolean
   readonly isViewed?: boolean
+  readonly reviewStatus?: FileReviewStatus
+}
+
+/**
+ * Map review status to display icon and color.
+ */
+function getReviewStatusDisplay(
+  status: FileReviewStatus | undefined,
+  isViewed: boolean | undefined,
+  theme: ReturnType<typeof useTheme>,
+): { readonly icon: string; readonly color: string } {
+  if (status === 'approved') {
+    return { icon: '\u2713', color: theme.colors.success }
+  }
+  if (status === 'needs-changes') {
+    return { icon: '\u2717', color: theme.colors.error }
+  }
+  if (status === 'skipped') {
+    return { icon: '\u2212', color: theme.colors.muted }
+  }
+  // No review status set - fall back to viewed indicator
+  if (isViewed) {
+    return { icon: '\u2713', color: theme.colors.success }
+  }
+  return { icon: '\u00B7', color: theme.colors.muted }
 }
 
 export function FileItem({
@@ -143,6 +169,7 @@ export function FileItem({
   isFocus,
   isSelected,
   isViewed,
+  reviewStatus,
 }: FileItemProps): React.ReactElement {
   const theme = useTheme()
 
@@ -164,12 +191,12 @@ export function FileItem({
 
   const parts = item.filename.split('/')
   const filename = parts[parts.length - 1] ?? item.filename
-  const viewedIndicator = isViewed ? '\u2713' : '\u00B7'
+  const reviewDisplay = getReviewStatusDisplay(reviewStatus, isViewed, theme)
 
   return (
     <Box paddingX={0} gap={1} width="100%" flexWrap="nowrap" minWidth={0}>
-      <Text color={isViewed ? theme.colors.success : theme.colors.muted}>
-        {viewedIndicator}
+      <Text color={reviewDisplay.color}>
+        {reviewDisplay.icon}
       </Text>
       <Text color={statusColor} bold>
         {statusIcon}
