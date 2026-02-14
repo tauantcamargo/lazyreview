@@ -19,6 +19,7 @@ import type { AiReviewLineContext } from '../../hooks/useFilesTabKeyboard'
 import { useAiConfig } from '../../hooks/useAiConfig'
 import { useAiReview } from '../../hooks/useAiReview'
 import { setSelectionContext } from '../../hooks/useSelectionContext'
+import { useStreamingDiff } from '../../hooks/useStreamingDiff'
 import { useFileDiff } from '../../hooks/useGitHub'
 import type { FileChange } from '../../models/file-change'
 import { parseDiffPatch } from '../../models/diff'
@@ -138,6 +139,9 @@ export function FilesTab({
   const { stdout } = useStdout()
   const theme = useTheme()
 
+  // Stream large file lists progressively to avoid blocking renders
+  const streaming = useStreamingDiff(files, { enabled: files.length > 10 })
+
   const conflictState = useMemo(
     () =>
       mergeable !== undefined
@@ -208,12 +212,14 @@ export function FilesTab({
   const treePanelWidth = Math.max(32, Math.floor(containerWidth * (treePanelPct / 100)))
   const diffContentWidth = Math.max(10, containerWidth - treePanelWidth - 8)
 
+  // Use streamed files as the base for filtering so large PRs render progressively
+  const streamedFiles = streaming.visibleFiles
   const filteredFiles = useMemo(() => {
-    if (!activeFilter && !isFiltering) return files
+    if (!activeFilter && !isFiltering) return streamedFiles
     const query = isFiltering ? filterQuery : activeFilter
-    if (!query) return files
-    return files.filter((f) => fuzzyMatch(f.filename, query))
-  }, [files, activeFilter, filterQuery, isFiltering])
+    if (!query) return streamedFiles
+    return streamedFiles.filter((f) => fuzzyMatch(f.filename, query))
+  }, [streamedFiles, activeFilter, filterQuery, isFiltering])
 
   const filteredTree = useMemo(
     () => buildFileTree(filteredFiles),
@@ -675,6 +681,11 @@ export function FilesTab({
           )}
           {hasMoreFiles && (
             <Text color={theme.colors.muted}>[more...]</Text>
+          )}
+          {streaming.isStreaming && (
+            <Text color={theme.colors.info}>
+              Loading files... ({streaming.progress.loaded}/{streaming.progress.total})
+            </Text>
           )}
           {commitRangeLabel && (
             <Text color={theme.colors.warning}>[range: {commitRangeLabel}]</Text>
