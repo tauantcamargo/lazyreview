@@ -15,6 +15,8 @@ function makeMockService(overrides: Partial<CodeReviewApiService> = {}): CodeRev
     listPRs: vi.fn(() => Effect.succeed([])),
     getPR: vi.fn(() => Effect.succeed({} as never)),
     getPRFiles: vi.fn(() => Effect.succeed([])),
+    getPRFilesPage: vi.fn(() => Effect.succeed({ items: [], hasNextPage: false })),
+    getFileDiff: vi.fn(() => Effect.succeed(null)),
     getPRComments: vi.fn(() => Effect.succeed([])),
     getIssueComments: vi.fn(() => Effect.succeed([])),
     getPRReviews: vi.fn(() => Effect.succeed([])),
@@ -121,6 +123,20 @@ describe('createGitHubProvider', () => {
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getPRFiles(7))
       expect(service.getPRFiles).toHaveBeenCalledWith('myorg', 'myrepo', 7)
+    })
+
+    it('getPRFilesPage delegates with owner/repo and page', async () => {
+      const service = makeMockService()
+      const provider = createGitHubProvider(TEST_CONFIG, service)
+      await Effect.runPromise(provider.getPRFilesPage(7, 2))
+      expect(service.getPRFilesPage).toHaveBeenCalledWith('myorg', 'myrepo', 7, 2)
+    })
+
+    it('getFileDiff delegates with owner/repo and filename', async () => {
+      const service = makeMockService()
+      const provider = createGitHubProvider(TEST_CONFIG, service)
+      await Effect.runPromise(provider.getFileDiff(7, 'src/index.ts'))
+      expect(service.getFileDiff).toHaveBeenCalledWith('myorg', 'myrepo', 7, 'src/index.ts')
     })
 
     it('getPRComments delegates with owner/repo', async () => {

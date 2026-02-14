@@ -402,6 +402,55 @@ export function fetchGitHubPaginated<A, I>(
 }
 
 /**
+ * Fetch a single page of a paginated GitHub REST API endpoint.
+ * Returns items + hasNextPage (based on Link header).
+ * Used for lazy/streamed file loading.
+ */
+export function fetchGitHubSinglePage<A, I>(
+  path: string,
+  token: string,
+  schema: S.Schema<A, I>,
+  baseUrl?: string,
+): Effect.Effect<{ readonly items: readonly A[]; readonly hasNextPage: boolean }, GitHubError | NetworkError> {
+  const decode = S.decodeUnknownSync(S.Array(schema))
+
+  return Effect.tryPromise({
+    try: async () => {
+      const url = `${getGitHubRestUrl(baseUrl)}${path}`
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      })
+
+      updateRateLimit(response.headers)
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => '')
+        throw buildGitHubError(response, body, url)
+      }
+
+      const data = await response.json()
+      touchLastUpdated()
+      const items = decode(data)
+      const linkHeader = response.headers.get('Link')
+      const hasNextPage = parseLinkHeader(linkHeader) !== null
+
+      return { items, hasNextPage }
+    },
+    catch: (error) => {
+      if (error instanceof GitHubError) return error
+      return new NetworkError({
+        message: `Network request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        cause: error,
+      })
+    },
+  })
+}
+
+/**
  * Fetch all pages of the GitHub Search API.
  * Follows Link header rel="next" until exhausted.
  * Search API returns { total_count, items } per page.

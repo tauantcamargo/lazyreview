@@ -8,6 +8,7 @@ import {
   fetchGitHubPaginated,
   fetchGitHubSearch,
   fetchGitHubSearchPaginated,
+  fetchGitHubSinglePage,
   parseLinkHeader,
   buildQueryString,
   parseRetryAfter,
@@ -1026,5 +1027,89 @@ describe('GHE baseUrl parameter', () => {
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
     expect(calledUrl).toContain('https://ghe.acme.com/api/v3/search/issues')
+  })
+})
+
+describe('fetchGitHubSinglePage', () => {
+  it('fetches a single page and returns items with hasNextPage false when no Link header', async () => {
+    const items = [
+      { id: 1, name: 'file1' },
+      { id: 2, name: 'file2' },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(items))
+
+    const result = await Effect.runPromise(
+      fetchGitHubSinglePage('/repos/owner/repo/pulls/1/files?per_page=100&page=1', TOKEN, SimpleSchema),
+    )
+
+    expect(result.items).toHaveLength(2)
+    expect(result.items[0]).toEqual({ id: 1, name: 'file1' })
+    expect(result.items[1]).toEqual({ id: 2, name: 'file2' })
+    expect(result.hasNextPage).toBe(false)
+  })
+
+  it('detects hasNextPage from Link header with rel="next"', async () => {
+    const items = [{ id: 1, name: 'file1' }]
+    const linkHeader = '<https://api.github.com/repos/owner/repo/pulls/1/files?per_page=100&page=2>; rel="next"'
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      createMockResponse(items, { headers: { Link: linkHeader } }),
+    )
+
+    const result = await Effect.runPromise(
+      fetchGitHubSinglePage('/repos/owner/repo/pulls/1/files?per_page=100&page=1', TOKEN, SimpleSchema),
+    )
+
+    expect(result.items).toHaveLength(1)
+    expect(result.hasNextPage).toBe(true)
+  })
+
+  it('sets hasNextPage false when Link header has no next', async () => {
+    const items = [{ id: 1, name: 'file1' }]
+    const linkHeader = '<https://api.github.com/repos/owner/repo/pulls/1/files?per_page=100&page=1>; rel="prev"'
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      createMockResponse(items, { headers: { Link: linkHeader } }),
+    )
+
+    const result = await Effect.runPromise(
+      fetchGitHubSinglePage('/repos/owner/repo/pulls/1/files?per_page=100&page=1', TOKEN, SimpleSchema),
+    )
+
+    expect(result.hasNextPage).toBe(false)
+  })
+
+  it('returns empty items array for empty response', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([]))
+
+    const result = await Effect.runPromise(
+      fetchGitHubSinglePage('/repos/owner/repo/pulls/1/files', TOKEN, SimpleSchema),
+    )
+
+    expect(result.items).toHaveLength(0)
+    expect(result.hasNextPage).toBe(false)
+  })
+
+  it('throws GitHubError on non-OK response', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      createMockResponse({ message: 'Not Found' }, { status: 404, statusText: 'Not Found' }),
+    )
+
+    const result = await Effect.runPromise(
+      Effect.either(
+        fetchGitHubSinglePage('/repos/owner/repo/pulls/999/files', TOKEN, SimpleSchema),
+      ),
+    )
+
+    expect(result._tag).toBe('Left')
+  })
+
+  it('uses custom baseUrl when provided', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([]))
+
+    await Effect.runPromise(
+      fetchGitHubSinglePage('/repos/owner/repo/pulls/1/files', TOKEN, SimpleSchema, 'https://ghe.acme.com/api/v3'),
+    )
+
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
+    expect(calledUrl).toContain('https://ghe.acme.com/api/v3/repos/owner/repo/pulls/1/files')
   })
 })
