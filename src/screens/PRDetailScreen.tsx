@@ -9,6 +9,7 @@ import {
   useReviewThreads,
   useCurrentUser,
   useIssueComments,
+  useCompareFiles,
 } from '../hooks/useGitHub'
 import { usePaginatedFiles } from '../hooks/usePaginatedFiles'
 import {
@@ -19,6 +20,7 @@ import {
   useCollaborators,
   useUpdateAssignees,
 } from '../hooks/useGitHub'
+import type { CommitRange } from '../hooks/useCommitRange'
 import { usePRDetailModals } from '../hooks/usePRDetailModals'
 import { usePendingReview } from '../hooks/usePendingReview'
 import { PRHeader } from '../components/pr/PRHeader'
@@ -46,6 +48,8 @@ import { setScreenContext } from '../hooks/useScreenContext'
 import { setSelectionContext } from '../hooks/useSelectionContext'
 import { useReactionActions } from '../hooks/useReactionActions'
 import { useTheme } from '../theme/index'
+import { useAiSummary } from '../hooks/useAiSummary'
+import { useAiConfig } from '../hooks/useAiConfig'
 import type { PullRequest } from '../models/pull-request'
 import type { InlineCommentContext } from '../models/inline-comment'
 
@@ -87,6 +91,8 @@ export function PRDetailScreen({
   const [showAssigneePicker, setShowAssigneePicker] = useState(false)
   const [assigneeError, setAssigneeError] = useState<string | null>(null)
   const [initialFile, setInitialFile] = useState<string | undefined>(undefined)
+  const [commitRange, setCommitRange] = useState<CommitRange | null>(null)
+  const [aiSummaryExpanded, setAiSummaryExpanded] = useState(false)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
 
   // Mark PR as read when entering detail view
@@ -162,6 +168,18 @@ export function PRDetailScreen({
   const { data: issueComments = [] } = useIssueComments(owner, repo, pr.number, { enabled: needsIssueComments })
   const { data: currentUser } = useCurrentUser()
 
+  // Fetch compare files when a commit range is active
+  const { data: compareFiles = [] } = useCompareFiles(
+    owner,
+    repo,
+    commitRange?.startSha ?? null,
+    commitRange?.endSha ?? null,
+    { enabled: commitRange !== null },
+  )
+
+  // Use compare files when range is active, otherwise use full PR files
+  const activeFiles = commitRange !== null && compareFiles.length > 0 ? compareFiles : files
+
   // Only show loading for data the current tab needs
   const isCurrentTabLoading = (): boolean => {
     if (currentTab === 0) return reviewsLoading
@@ -188,6 +206,37 @@ export function PRDetailScreen({
     prNumber: pr.number,
     setStatusMessage,
   })
+
+  // AI summary for Description tab
+  const { aiConfig } = useAiConfig()
+  const aiSummaryHook = useAiSummary(aiConfig)
+
+  const handleToggleAiSummary = useCallback(() => {
+    setAiSummaryExpanded((prev) => {
+      const next = !prev
+      // Auto-generate when first expanded and no summary yet
+      if (next && !aiSummaryHook.summary && !aiSummaryHook.isGenerating) {
+        aiSummaryHook.generateSummary({
+          owner,
+          repo,
+          prNumber: pr.number,
+          headSha: activePR.head.sha,
+          title: activePR.title,
+          description: activePR.body ?? '',
+          commits: commits.map((c) => ({
+            message: c.commit.message ?? '',
+            sha: c.sha ?? '',
+          })),
+          files: files.map((f) => ({
+            filename: f.filename,
+            additions: f.additions ?? 0,
+            deletions: f.deletions ?? 0,
+          })),
+        })
+      }
+      return next
+    })
+  }, [owner, repo, pr.number, activePR, commits, files, aiSummaryHook])
 
   const reactionActions = useReactionActions({
     owner,
@@ -376,6 +425,8 @@ export function PRDetailScreen({
             5000,
           )
         })
+      } else if (input === 'r' && key.ctrl && currentTab === 0 && aiSummaryExpanded) {
+        aiSummaryHook.regenerateSummary()
       } else if (input === 'q' || key.escape) {
         if (pendingReview.isActive) {
           setShowDiscardConfirm(true)
@@ -401,6 +452,16 @@ export function PRDetailScreen({
           onEditDescription={modals.handleOpenEditDescription}
           issueComments={issueComments}
           botUsernames={config?.botUsernames}
+          aiSummary={{
+            summary: aiSummaryHook.summary,
+            isGenerating: aiSummaryHook.isGenerating,
+            error: aiSummaryHook.error,
+            isConfigured: aiSummaryHook.isConfigured,
+            providerName: aiSummaryHook.providerName,
+            isExpanded: aiSummaryExpanded,
+          }}
+          aiSummaryExpanded={aiSummaryExpanded}
+          onToggleAiSummary={handleToggleAiSummary}
         />
       )),
       Match.when(1, () => (
@@ -425,11 +486,18 @@ export function PRDetailScreen({
         />
       )),
       Match.when(2, () => (
-        <CommitsTab commits={commits} isActive={!anyModalOpen} owner={owner} repo={repo} />
+        <CommitsTab
+          commits={commits}
+          isActive={!anyModalOpen}
+          owner={owner}
+          repo={repo}
+          onRangeChange={setCommitRange}
+        />
       )),
       Match.when(3, () => (
         <FilesTab
-          files={files}
+          files={activeFiles}
+          commitRangeLabel={commitRange?.label}
           isActive={!anyModalOpen}
           prUrl={activePR.html_url}
           onInlineComment={modals.handleOpenInlineComment}
@@ -466,6 +534,16 @@ export function PRDetailScreen({
           onEditDescription={modals.handleOpenEditDescription}
           issueComments={issueComments}
           botUsernames={config?.botUsernames}
+          aiSummary={{
+            summary: aiSummaryHook.summary,
+            isGenerating: aiSummaryHook.isGenerating,
+            error: aiSummaryHook.error,
+            isConfigured: aiSummaryHook.isConfigured,
+            providerName: aiSummaryHook.providerName,
+            isExpanded: aiSummaryExpanded,
+          }}
+          aiSummaryExpanded={aiSummaryExpanded}
+          onToggleAiSummary={handleToggleAiSummary}
         />
       ))
     )

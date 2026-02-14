@@ -3,6 +3,7 @@ import { GitHubError } from '../../models/errors'
 import { formatSuggestionBody } from '../../models/suggestion'
 import type { SuggestionParams } from '../../models/suggestion'
 import type { Comment } from '../../models/comment'
+import type { FileChange } from '../../models/file-change'
 import type { PullRequest } from '../../models/pull-request'
 import type { CodeReviewApiService, ApiError } from '../CodeReviewApiTypes'
 import type {
@@ -231,6 +232,11 @@ export function createGitHubProvider(
         prNumbers.map((n) => service.getPR(owner, repo, n)),
         { concurrency: 'unbounded' },
       ),
+
+    getCompareFiles: (base: string, head: string): Effect.Effect<readonly FileChange[], ApiError> =>
+      service.getCompareFiles
+        ? service.getCompareFiles(owner, repo, base, head)
+        : Effect.succeed([]),
 
     submitSuggestion: (params: SuggestionParams): Effect.Effect<Comment, ApiError> =>
       Effect.flatMap(

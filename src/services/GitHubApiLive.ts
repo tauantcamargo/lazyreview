@@ -711,6 +711,24 @@ export const GitHubApiLive = Layer.effect(
             S.Struct({ login: S.String }),
           )
         }),
+
+      getCompareFiles: (owner, repo, base, head) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateRef(base)
+          validateRef(head)
+          const token = yield* auth.getToken()
+          const CompareSchema = S.Struct({
+            files: S.optionalWith(S.Array(FileChange), { default: () => [] }),
+          })
+          const result = yield* fetchGitHub(
+            `/repos/${owner}/${repo}/compare/${base}...${head}`,
+            token,
+            CompareSchema,
+          )
+          return result.files
+        }),
     })
   }),
 )

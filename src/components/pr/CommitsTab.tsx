@@ -1,11 +1,13 @@
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
 import { useCommitDiff } from '../../hooks/useGitHub'
+import { useCommitRange } from '../../hooks/useCommitRange'
 import { copyToClipboard } from '../../utils/terminal'
 import { useStatusMessage } from '../../hooks/useStatusMessage'
 import type { Commit } from '../../models/commit'
+import type { CommitRange } from '../../hooks/useCommitRange'
 import { timeAgo } from '../../utils/date'
 import { EmptyState } from '../common/EmptyState'
 import { stripAnsi } from '../../utils/sanitize'
@@ -16,14 +18,17 @@ interface CommitsTabProps {
   readonly isActive: boolean
   readonly owner: string
   readonly repo: string
+  readonly onRangeChange?: (range: CommitRange | null) => void
 }
 
 function CommitItem({
   commit,
   isFocus,
+  isInRange,
 }: {
   readonly commit: Commit
   readonly isFocus: boolean
+  readonly isInRange: boolean
 }): React.ReactElement {
   const theme = useTheme()
 
@@ -32,16 +37,22 @@ function CommitItem({
   const author = commit.author?.login ?? commit.commit.author.name
   const date = commit.commit.author.date
 
+  const bgColor = isFocus
+    ? theme.colors.selection
+    : isInRange
+      ? theme.colors.diffAddHighlight
+      : undefined
+
   return (
     <Box
       paddingX={1}
       paddingY={0}
       gap={1}
-      backgroundColor={isFocus ? theme.colors.selection : undefined}
+      backgroundColor={bgColor}
     >
       <Box width={10}>
-        <Text color={theme.colors.warning} bold={isFocus}>
-          {shortSha}
+        <Text color={isInRange ? theme.colors.success : theme.colors.warning} bold={isFocus}>
+          {isInRange && !isFocus ? '\u2502 ' : ''}{shortSha}
         </Text>
       </Box>
       <Box flexGrow={1} flexShrink={1}>
@@ -63,17 +74,44 @@ function CommitItem({
   )
 }
 
+/**
+ * Build a CommitRange from the current selection state and end index.
+ */
+function buildRange(
+  commits: readonly Commit[],
+  startIdx: number | null,
+  endIdx: number,
+): CommitRange | null {
+  const resolvedStart = startIdx ?? endIdx
+  const normalizedStart = Math.min(resolvedStart, endIdx)
+  const normalizedEnd = Math.max(resolvedStart, endIdx)
+  const startCommit = commits[normalizedStart]
+  const endCommit = commits[normalizedEnd]
+  if (!startCommit || !endCommit) return null
+
+  return {
+    startSha: startCommit.sha,
+    endSha: endCommit.sha,
+    label: `${startCommit.sha.slice(0, 7)}..${endCommit.sha.slice(0, 7)}`,
+    startIndex: normalizedStart,
+    endIndex: normalizedEnd,
+  }
+}
+
 export function CommitsTab({
   commits,
   isActive,
   owner,
   repo,
+  onRangeChange,
 }: CommitsTabProps): React.ReactElement {
   const { stdout } = useStdout()
   const theme = useTheme()
   const { setStatusMessage } = useStatusMessage()
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 10)
   const [selectedCommitSha, setSelectedCommitSha] = useState<string | null>(null)
+
+  const commitRange = useCommitRange()
 
   const { selectedIndex } = useListNavigation({
     itemCount: commits.length,
@@ -88,10 +126,43 @@ export function CommitsTab({
     { enabled: selectedCommitSha !== null },
   )
 
+  const completeRangeSelection = useCallback(
+    (endIdx: number) => {
+      const commit = commits[endIdx]
+      if (!commit) return
+
+      commitRange.endSelection(endIdx, commit.sha)
+      setStatusMessage('Commit range selected - switch to Files tab to view')
+
+      if (onRangeChange) {
+        const range = buildRange(commits, commitRange.startIndex, endIdx)
+        onRangeChange(range)
+      }
+    },
+    [commits, commitRange, onRangeChange, setStatusMessage],
+  )
+
   useInput(
     (input, key) => {
-      if (key.return && commits[selectedIndex]) {
-        setSelectedCommitSha(commits[selectedIndex].sha)
+      if (input === 'v' && commits[selectedIndex]) {
+        if (commitRange.isSelecting) {
+          completeRangeSelection(selectedIndex)
+        } else {
+          commitRange.startSelection(selectedIndex, commits[selectedIndex].sha)
+          setStatusMessage('Range start set - move to end commit and press v or Enter')
+        }
+      } else if (key.return && commits[selectedIndex]) {
+        if (commitRange.isSelecting) {
+          completeRangeSelection(selectedIndex)
+        } else {
+          setSelectedCommitSha(commits[selectedIndex].sha)
+        }
+      } else if (key.escape) {
+        if (commitRange.isSelecting || commitRange.range) {
+          commitRange.clearRange()
+          onRangeChange?.(null)
+          setStatusMessage('Commit range cleared')
+        }
       } else if (input === 'y' && commits[selectedIndex]) {
         const sha = commits[selectedIndex].sha
         if (copyToClipboard(sha)) {
@@ -133,6 +204,16 @@ export function CommitsTab({
           Commits
         </Text>
         <Text color={theme.colors.muted}>({commits.length})</Text>
+        {commitRange.isSelecting && (
+          <Text color={theme.colors.warning} bold>
+            -- RANGE SELECT --
+          </Text>
+        )}
+        {commitRange.range && (
+          <Text color={theme.colors.info}>
+            [{commitRange.range.label}]
+          </Text>
+        )}
       </Box>
 
       <Box
@@ -168,13 +249,17 @@ export function CommitsTab({
       </Box>
 
       <Box flexDirection="column" overflow="hidden" height={viewportHeight}>
-        {visibleCommits.map((commit, i) => (
-          <CommitItem
-            key={commit.sha}
-            commit={commit}
-            isFocus={scrollOffset + i === selectedIndex}
-          />
-        ))}
+        {visibleCommits.map((commit, i) => {
+          const absoluteIndex = scrollOffset + i
+          return (
+            <CommitItem
+              key={commit.sha}
+              commit={commit}
+              isFocus={absoluteIndex === selectedIndex}
+              isInRange={commitRange.isInRange(absoluteIndex)}
+            />
+          )
+        })}
       </Box>
     </Box>
   )

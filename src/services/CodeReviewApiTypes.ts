@@ -387,6 +387,14 @@ export interface CodeReviewApiService {
     repo: string,
     params: AcceptSuggestionParams,
   ) => Effect.Effect<void, ApiError>
+
+  /** Compare two commits and return changed files */
+  readonly getCompareFiles?: (
+    owner: string,
+    repo: string,
+    base: string,
+    head: string,
+  ) => Effect.Effect<readonly FileChange[], ApiError>
 }
 
 export class CodeReviewApi extends Context.Tag('CodeReviewApi')<

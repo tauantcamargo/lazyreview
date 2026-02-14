@@ -7,6 +7,7 @@ import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNaviga
 import { setScreenContext } from '../../hooks/useScreenContext'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { useViewedFiles } from '../../hooks/useViewedFiles'
+import { useFileReviewStatus, computeSummary, findNextUnreviewed, findPrevUnreviewed } from '../../hooks/useFileReviewStatus'
 import { useDiffSearch } from '../../hooks/useDiffSearch'
 import { useCrossFileSearch } from '../../hooks/useCrossFileSearch'
 import { useVisualSelect } from '../../hooks/useVisualSelect'
@@ -98,6 +99,8 @@ interface FilesTabProps {
   readonly hasMoreFiles?: boolean
   // Callback to load the next page of files
   readonly onLoadMoreFiles?: () => void
+  // When viewing a commit range, shows the range label in the header
+  readonly commitRangeLabel?: string
 }
 
 type FocusPanel = 'tree' | 'diff'
@@ -123,12 +126,18 @@ export function FilesTab({
   totalFileCount,
   hasMoreFiles,
   onLoadMoreFiles,
+  commitRangeLabel,
 }: FilesTabProps): React.ReactElement {
   const { stdout } = useStdout()
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
   const { markViewed, toggleViewed, isViewed, getViewedCount } =
     useViewedFiles()
+
+  // File review status tracking
+  const prKey = owner && repo && prNumber ? `${owner}/${repo}/${prNumber}` : ''
+  const fileReview = useFileReviewStatus(prKey)
+
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 13)
   const FILES_TREE_HEADER_LINES = 5
   const treeViewportMaxHeight = Math.max(
@@ -417,6 +426,59 @@ export function FilesTab({
     })
   }, [aiReviewContext, aiReview])
 
+  // File review action callbacks
+  const handleApproveFile = useCallback(() => {
+    const file = fileOrder[treeSelectedIndex]
+    if (file && prKey) {
+      fileReview.setStatus(file.filename, 'approved')
+    }
+  }, [fileOrder, treeSelectedIndex, prKey, fileReview])
+
+  const handleRejectFile = useCallback(() => {
+    const file = fileOrder[treeSelectedIndex]
+    if (file && prKey) {
+      fileReview.setStatus(file.filename, 'needs-changes')
+    }
+  }, [fileOrder, treeSelectedIndex, prKey, fileReview])
+
+  const handleSkipFile = useCallback(() => {
+    const file = fileOrder[treeSelectedIndex]
+    if (file && prKey) {
+      fileReview.setStatus(file.filename, 'skipped')
+    }
+  }, [fileOrder, treeSelectedIndex, prKey, fileReview])
+
+  const handleNextUnreviewed = useCallback(() => {
+    const currentFile = fileOrder[treeSelectedIndex]
+    if (!currentFile) return
+    const filenames = fileOrder.map((f) => f.filename)
+    const next = findNextUnreviewed(currentFile.filename, filenames, fileReview.statuses)
+    if (next) {
+      const idx = fileOrder.findIndex((f) => f.filename === next)
+      if (idx >= 0) {
+        setSelectedFileIndex(idx)
+      }
+    }
+  }, [fileOrder, treeSelectedIndex, fileReview.statuses, setSelectedFileIndex])
+
+  const handlePrevUnreviewed = useCallback(() => {
+    const currentFile = fileOrder[treeSelectedIndex]
+    if (!currentFile) return
+    const filenames = fileOrder.map((f) => f.filename)
+    const prev = findPrevUnreviewed(currentFile.filename, filenames, fileReview.statuses)
+    if (prev) {
+      const idx = fileOrder.findIndex((f) => f.filename === prev)
+      if (idx >= 0) {
+        setSelectedFileIndex(idx)
+      }
+    }
+  }, [fileOrder, treeSelectedIndex, fileReview.statuses, setSelectedFileIndex])
+
+  const reviewSummary = useMemo(
+    () => computeSummary(fileReview.statuses, files.length),
+    [fileReview.statuses, files.length],
+  )
+
   useFilesTabKeyboard({
     isActive: isActive && !showAiReview,
     focusPanel,
@@ -465,6 +527,11 @@ export function FilesTab({
     foldedRows,
     onOpenFilePicker: () => setIsFilePickerOpen(true),
     onAiReview: handleAiReviewRequest,
+    onApproveFile: prKey ? handleApproveFile : undefined,
+    onRejectFile: prKey ? handleRejectFile : undefined,
+    onSkipFile: prKey ? handleSkipFile : undefined,
+    onNextUnreviewed: prKey ? handleNextUnreviewed : undefined,
+    onPrevUnreviewed: prKey ? handlePrevUnreviewed : undefined,
   })
 
   // Publish diff row selection context for status bar hints
@@ -563,11 +630,19 @@ export function FilesTab({
               ? `(${filteredFiles.length} of ${files.length})`
               : `(${files.length})`}
           </Text>
-          {prUrl && (
+          {prKey && reviewSummary.total > 0 && (reviewSummary.approved > 0 || reviewSummary.needsChanges > 0 || reviewSummary.skipped > 0) ? (
+            <Text color={theme.colors.info}>
+              {reviewSummary.approved + reviewSummary.needsChanges + reviewSummary.skipped}/{reviewSummary.total} reviewed
+              {reviewSummary.approved > 0 ? ` (${reviewSummary.approved} approved` : ''}
+              {reviewSummary.needsChanges > 0 ? `${reviewSummary.approved > 0 ? ', ' : ' ('}${reviewSummary.needsChanges} flagged` : ''}
+              {reviewSummary.skipped > 0 ? `${reviewSummary.approved > 0 || reviewSummary.needsChanges > 0 ? ', ' : ' ('}${reviewSummary.skipped} skipped` : ''}
+              {(reviewSummary.approved > 0 || reviewSummary.needsChanges > 0 || reviewSummary.skipped > 0) ? ')' : ''}
+            </Text>
+          ) : prUrl ? (
             <Text color={theme.colors.success}>
               {getViewedCount(prUrl)}/{files.length} viewed
             </Text>
-          )}
+          ) : null}
           {activeFilter && !isFiltering && (
             <Text color={theme.colors.warning}>[/{activeFilter}]</Text>
           )}
@@ -578,6 +653,9 @@ export function FilesTab({
           )}
           {hasMoreFiles && (
             <Text color={theme.colors.muted}>[more...]</Text>
+          )}
+          {commitRangeLabel && (
+            <Text color={theme.colors.warning}>[range: {commitRangeLabel}]</Text>
           )}
         </Box>
         <DiffStatsSummary files={files} />
@@ -631,6 +709,11 @@ export function FilesTab({
                   isSelected={row.fileIndex === selectedFileIndex}
                   isViewed={
                     prUrl ? isViewed(prUrl, row.file.filename) : undefined
+                  }
+                  reviewStatus={
+                    prKey
+                      ? fileReview.statuses.get(row.file.filename)
+                      : undefined
                   }
                 />
               </Box>

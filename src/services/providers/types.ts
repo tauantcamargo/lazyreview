@@ -231,6 +231,12 @@ export interface Provider {
   readonly acceptSuggestion?: (
     params: AcceptSuggestionParams,
   ) => Effect.Effect<void, ApiError>
+
+  /** Compare two commits and return changed files */
+  readonly getCompareFiles?: (
+    base: string,
+    head: string,
+  ) => Effect.Effect<readonly FileChange[], ApiError>
 }
 
 // ---------------------------------------------------------------------------

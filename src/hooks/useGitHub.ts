@@ -451,3 +451,33 @@ export function useFileDiff(
     staleTime: 60 * 1000, // 1 minute - file diffs don't change often during review
   })
 }
+
+/**
+ * Fetch files changed between two commits (compare API).
+ * Used for commit range selection in the Commits tab.
+ */
+export function useCompareFiles(
+  owner: string,
+  repo: string,
+  base: string | null,
+  head: string | null,
+  options?: { readonly enabled?: boolean },
+) {
+  const enabledFlag = options?.enabled ?? true
+
+  return useQuery({
+    queryKey: ['compare-files', owner, repo, base, head],
+    queryFn: () =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* CodeReviewApi
+          if (api.getCompareFiles) {
+            return yield* api.getCompareFiles(owner, repo, base!, head!)
+          }
+          return [] as const
+        }),
+      ),
+    enabled: enabledFlag && !!owner && !!repo && !!base && !!head,
+    staleTime: 60 * 1000,
+  })
+}
