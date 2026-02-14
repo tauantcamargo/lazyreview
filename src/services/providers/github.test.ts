@@ -12,40 +12,45 @@ import { GitHubError } from '../../models/errors'
 
 function makeMockService(overrides: Partial<CodeReviewApiService> = {}): CodeReviewApiService {
   return {
-    listPullRequests: vi.fn(() => Effect.succeed([])),
-    getPullRequest: vi.fn(() => Effect.succeed({} as never)),
-    getPullRequestFiles: vi.fn(() => Effect.succeed([])),
-    getPullRequestComments: vi.fn(() => Effect.succeed([])),
+    listPRs: vi.fn(() => Effect.succeed([])),
+    getPR: vi.fn(() => Effect.succeed({} as never)),
+    getPRFiles: vi.fn(() => Effect.succeed([])),
+    getPRComments: vi.fn(() => Effect.succeed([])),
     getIssueComments: vi.fn(() => Effect.succeed([])),
-    getPullRequestReviews: vi.fn(() => Effect.succeed([])),
-    getPullRequestCommits: vi.fn(() => Effect.succeed([])),
+    getPRReviews: vi.fn(() => Effect.succeed([])),
+    getPRCommits: vi.fn(() => Effect.succeed([])),
     getMyPRs: vi.fn(() => Effect.succeed([])),
     getReviewRequests: vi.fn(() => Effect.succeed([])),
     getInvolvedPRs: vi.fn(() => Effect.succeed([])),
-    getCheckRuns: vi.fn(() => Effect.succeed({ total_count: 0, check_runs: [] } as never)),
+    getPRChecks: vi.fn(() => Effect.succeed({ total_count: 0, check_runs: [] } as never)),
     submitReview: vi.fn(() => Effect.succeed(undefined as void)),
-    createComment: vi.fn(() => Effect.succeed(undefined as void)),
-    createReviewComment: vi.fn(() => Effect.succeed(undefined as void)),
+    addComment: vi.fn(() => Effect.succeed(undefined as void)),
+    addDiffComment: vi.fn(() => Effect.succeed(undefined as void)),
     getReviewThreads: vi.fn(() => Effect.succeed([])),
-    resolveReviewThread: vi.fn(() => Effect.succeed(undefined as void)),
-    unresolveReviewThread: vi.fn(() => Effect.succeed(undefined as void)),
-    replyToReviewComment: vi.fn(() => Effect.succeed(undefined as void)),
+    resolveThread: vi.fn(() => Effect.succeed(undefined as void)),
+    unresolveThread: vi.fn(() => Effect.succeed(undefined as void)),
+    replyToComment: vi.fn(() => Effect.succeed(undefined as void)),
     requestReReview: vi.fn(() => Effect.succeed(undefined as void)),
-    mergePullRequest: vi.fn(() => Effect.succeed(undefined as void)),
+    mergePR: vi.fn(() => Effect.succeed(undefined as void)),
     deleteReviewComment: vi.fn(() => Effect.succeed(undefined as void)),
     createPendingReview: vi.fn(() => Effect.succeed({ id: 42 })),
     addPendingReviewComment: vi.fn(() => Effect.succeed(undefined as void)),
     submitPendingReview: vi.fn(() => Effect.succeed(undefined as void)),
     discardPendingReview: vi.fn(() => Effect.succeed(undefined as void)),
-    closePullRequest: vi.fn(() => Effect.succeed(undefined as void)),
-    reopenPullRequest: vi.fn(() => Effect.succeed(undefined as void)),
+    closePR: vi.fn(() => Effect.succeed(undefined as void)),
+    reopenPR: vi.fn(() => Effect.succeed(undefined as void)),
     editIssueComment: vi.fn(() => Effect.succeed(undefined as void)),
     editReviewComment: vi.fn(() => Effect.succeed(undefined as void)),
-    updatePRDescription: vi.fn(() => Effect.succeed(undefined as void)),
+    updatePRBody: vi.fn(() => Effect.succeed(undefined as void)),
     updatePRTitle: vi.fn(() => Effect.succeed(undefined as void)),
     getCommitDiff: vi.fn(() => Effect.succeed([])),
     convertToDraft: vi.fn(() => Effect.succeed(undefined as void)),
     markReadyForReview: vi.fn(() => Effect.succeed(undefined as void)),
+    getLabels: vi.fn(() => Effect.succeed([])),
+    setLabels: vi.fn(() => Effect.succeed(undefined as void)),
+    createPR: vi.fn(() => Effect.succeed({ number: 1, html_url: 'https://github.com/test/test/pull/1' })),
+    getCollaborators: vi.fn(() => Effect.succeed([])),
+    updateAssignees: vi.fn(() => Effect.succeed(undefined as void)),
     getCurrentUser: vi.fn(() => Effect.succeed({ login: 'testuser' })),
     ...overrides,
   }
@@ -80,12 +85,12 @@ describe('createGitHubProvider', () => {
   })
 
   describe('PR reads', () => {
-    it('listPRs delegates to listPullRequests with owner/repo', async () => {
+    it('listPRs delegates to service.listPRs with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       const exit = await Effect.runPromiseExit(provider.listPRs({ state: 'open', perPage: 25 }))
       expect(Exit.isSuccess(exit)).toBe(true)
-      expect(service.listPullRequests).toHaveBeenCalledWith('myorg', 'myrepo', {
+      expect(service.listPRs).toHaveBeenCalledWith('myorg', 'myrepo', {
         state: 'open',
         sort: undefined,
         direction: undefined,
@@ -97,7 +102,7 @@ describe('createGitHubProvider', () => {
     it('listPRs wraps items in PRListResult', async () => {
       const mockPR = { number: 1 } as never
       const service = makeMockService({
-        listPullRequests: vi.fn(() => Effect.succeed([mockPR])),
+        listPRs: vi.fn(() => Effect.succeed([mockPR])),
       })
       const provider = createGitHubProvider(TEST_CONFIG, service)
       const result = await Effect.runPromise(provider.listPRs({}))
@@ -108,21 +113,21 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getPR(42))
-      expect(service.getPullRequest).toHaveBeenCalledWith('myorg', 'myrepo', 42)
+      expect(service.getPR).toHaveBeenCalledWith('myorg', 'myrepo', 42)
     })
 
     it('getPRFiles delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getPRFiles(7))
-      expect(service.getPullRequestFiles).toHaveBeenCalledWith('myorg', 'myrepo', 7)
+      expect(service.getPRFiles).toHaveBeenCalledWith('myorg', 'myrepo', 7)
     })
 
     it('getPRComments delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getPRComments(3))
-      expect(service.getPullRequestComments).toHaveBeenCalledWith('myorg', 'myrepo', 3)
+      expect(service.getPRComments).toHaveBeenCalledWith('myorg', 'myrepo', 3)
     })
 
     it('getIssueComments delegates with owner/repo', async () => {
@@ -136,21 +141,21 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getPRReviews(10))
-      expect(service.getPullRequestReviews).toHaveBeenCalledWith('myorg', 'myrepo', 10)
+      expect(service.getPRReviews).toHaveBeenCalledWith('myorg', 'myrepo', 10)
     })
 
     it('getPRCommits delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getPRCommits(11))
-      expect(service.getPullRequestCommits).toHaveBeenCalledWith('myorg', 'myrepo', 11)
+      expect(service.getPRCommits).toHaveBeenCalledWith('myorg', 'myrepo', 11)
     })
 
     it('getPRChecks delegates with owner/repo and ref', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getPRChecks('abc123'))
-      expect(service.getCheckRuns).toHaveBeenCalledWith('myorg', 'myrepo', 'abc123')
+      expect(service.getPRChecks).toHaveBeenCalledWith('myorg', 'myrepo', 'abc123')
     })
 
     it('getReviewThreads delegates with owner/repo', async () => {
@@ -247,7 +252,7 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.addComment(1, 'hello'))
-      expect(service.createComment).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'hello')
+      expect(service.addComment).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'hello')
     })
 
     it('addDiffComment delegates with all params', async () => {
@@ -263,7 +268,7 @@ describe('createGitHubProvider', () => {
           side: 'LEFT',
         }),
       )
-      expect(service.createReviewComment).toHaveBeenCalledWith(
+      expect(service.addDiffComment).toHaveBeenCalledWith(
         'myorg', 'myrepo', 2, 'nit', 'abc', 'src/bar.ts', 5, 'LEFT', undefined, undefined,
       )
     })
@@ -272,7 +277,7 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.replyToComment(1, 99, 'thanks'))
-      expect(service.replyToReviewComment).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'thanks', 99)
+      expect(service.replyToComment).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'thanks', 99)
     })
 
     it('editIssueComment delegates with owner/repo', async () => {
@@ -302,7 +307,7 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.mergePR(1, 'squash', 'my title', 'my message'))
-      expect(service.mergePullRequest).toHaveBeenCalledWith(
+      expect(service.mergePR).toHaveBeenCalledWith(
         'myorg', 'myrepo', 1, 'squash', 'my title', 'my message',
       )
     })
@@ -311,14 +316,14 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.closePR(1))
-      expect(service.closePullRequest).toHaveBeenCalledWith('myorg', 'myrepo', 1)
+      expect(service.closePR).toHaveBeenCalledWith('myorg', 'myrepo', 1)
     })
 
     it('reopenPR delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.reopenPR(1))
-      expect(service.reopenPullRequest).toHaveBeenCalledWith('myorg', 'myrepo', 1)
+      expect(service.reopenPR).toHaveBeenCalledWith('myorg', 'myrepo', 1)
     })
 
     it('updatePRTitle delegates with owner/repo', async () => {
@@ -332,7 +337,7 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.updatePRBody(1, 'new body'))
-      expect(service.updatePRDescription).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'new body')
+      expect(service.updatePRBody).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'new body')
     })
 
     it('requestReReview delegates with owner/repo', async () => {
@@ -348,14 +353,14 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.resolveThread('thread-id-1'))
-      expect(service.resolveReviewThread).toHaveBeenCalledWith('thread-id-1')
+      expect(service.resolveThread).toHaveBeenCalledWith('thread-id-1')
     })
 
     it('unresolveThread delegates threadId', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.unresolveThread('thread-id-2'))
-      expect(service.unresolveReviewThread).toHaveBeenCalledWith('thread-id-2')
+      expect(service.unresolveThread).toHaveBeenCalledWith('thread-id-2')
     })
   })
 
@@ -483,6 +488,6 @@ describe('createProvider factory', () => {
     const service = makeMockService()
     const provider = createProvider(TEST_CONFIG, service)
     await Effect.runPromise(provider.getPR(99))
-    expect(service.getPullRequest).toHaveBeenCalledWith('myorg', 'myrepo', 99)
+    expect(service.getPR).toHaveBeenCalledWith('myorg', 'myrepo', 99)
   })
 })

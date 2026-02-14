@@ -6,6 +6,7 @@ import { Review } from '../models/review'
 import { FileChange } from '../models/file-change'
 import { Commit } from '../models/commit'
 import { CheckRunsResponse } from '../models/check'
+import { User } from '../models/user'
 import { Auth } from './Auth'
 import { CodeReviewApi } from './CodeReviewApiTypes'
 import {
@@ -36,7 +37,7 @@ export const GitHubApiLive = Layer.effect(
     const auth = yield* Auth
 
     return CodeReviewApi.of({
-      listPullRequests: (owner, repo, options = {}) =>
+      listPRs: (owner, repo, options = {}) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -50,7 +51,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      getPullRequest: (owner, repo, number) =>
+      getPR: (owner, repo, number) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -63,7 +64,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      getPullRequestFiles: (owner, repo, number) =>
+      getPRFiles: (owner, repo, number) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -76,7 +77,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      getPullRequestComments: (owner, repo, number) =>
+      getPRComments: (owner, repo, number) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -102,7 +103,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      getPullRequestReviews: (owner, repo, number) =>
+      getPRReviews: (owner, repo, number) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -115,7 +116,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      getPullRequestCommits: (owner, repo, number) =>
+      getPRCommits: (owner, repo, number) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -152,7 +153,7 @@ export const GitHubApiLive = Layer.effect(
           return yield* fetchGitHubSearchPaginated(query, token)
         }),
 
-      getCheckRuns: (owner, repo, ref) =>
+      getPRChecks: (owner, repo, ref) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -179,7 +180,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      createComment: (owner, repo, issueNumber, body) =>
+      addComment: (owner, repo, issueNumber, body) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -193,7 +194,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      createReviewComment: (owner, repo, prNumber, body, commitId, path, line, side, startLine, startSide) =>
+      addDiffComment: (owner, repo, prNumber, body, commitId, path, line, side, startLine, startSide) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -295,7 +296,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      resolveReviewThread: (threadId) =>
+      resolveThread: (threadId) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
           yield* graphqlGitHub<unknown>(
@@ -309,7 +310,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      unresolveReviewThread: (threadId) =>
+      unresolveThread: (threadId) =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()
           yield* graphqlGitHub<unknown>(
@@ -323,7 +324,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      replyToReviewComment: (owner, repo, prNumber, body, inReplyTo) =>
+      replyToComment: (owner, repo, prNumber, body, inReplyTo) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -352,7 +353,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      mergePullRequest: (owner, repo, prNumber, mergeMethod, commitTitle, commitMessage) =>
+      mergePR: (owner, repo, prNumber, mergeMethod, commitTitle, commitMessage) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -450,7 +451,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      closePullRequest: (owner, repo, prNumber) =>
+      closePR: (owner, repo, prNumber) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -464,7 +465,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      reopenPullRequest: (owner, repo, prNumber) =>
+      reopenPR: (owner, repo, prNumber) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -506,7 +507,7 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      updatePRDescription: (owner, repo, prNumber, body) =>
+      updatePRBody: (owner, repo, prNumber, body) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -609,6 +610,52 @@ export const GitHubApiLive = Layer.effect(
             token,
             { labels: [...labels] },
           )
+        }),
+
+      getCollaborators: (owner, repo) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          const token = yield* auth.getToken()
+          return yield* fetchGitHubPaginated(
+            `/repos/${owner}/${repo}/collaborators`,
+            token,
+            User,
+          )
+        }),
+
+      updateAssignees: (owner, repo, prNumber, assignees) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
+          const token = yield* auth.getToken()
+          yield* mutateGitHub(
+            'POST',
+            `/repos/${owner}/${repo}/issues/${prNumber}/assignees`,
+            token,
+            { assignees: [...assignees] },
+          )
+        }),
+
+      createPR: (owner, repo, title, body, baseBranch, headBranch, draft) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          const token = yield* auth.getToken()
+          const result = yield* mutateGitHubJson<{ number: number; html_url: string }>(
+            'POST',
+            `/repos/${owner}/${repo}/pulls`,
+            token,
+            {
+              title,
+              body,
+              base: baseBranch,
+              head: headBranch,
+              ...(draft != null ? { draft } : {}),
+            },
+          )
+          return { number: result.number, html_url: result.html_url }
         }),
 
       getCurrentUser: () =>

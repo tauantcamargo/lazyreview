@@ -16,7 +16,7 @@ describe('createGitHubMutation', () => {
 
   it('accepts invalidateKeys as a function', () => {
     const hook = createGitHubMutation<{ owner: string; repo: string; prNumber: number }>({
-      effect: (api, params) => api.closePullRequest(params.owner, params.repo, params.prNumber),
+      effect: (api, params) => api.closePR(params.owner, params.repo, params.prNumber),
       invalidateKeys: (params) => [['pr', params.owner, params.repo, String(params.prNumber)]],
     })
     expect(typeof hook).toBe('function')

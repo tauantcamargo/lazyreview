@@ -7,7 +7,16 @@ import type { FileChange } from '../models/file-change'
 import type { Commit } from '../models/commit'
 import type { CheckRunsResponse } from '../models/check'
 import type { RepoLabel } from '../models/label'
-import type { AuthError, AzureError, BitbucketError, GiteaError, GitHubError, GitLabError, NetworkError } from '../models/errors'
+import type { User } from '../models/user'
+import type {
+  AuthError,
+  AzureError,
+  BitbucketError,
+  GiteaError,
+  GitHubError,
+  GitLabError,
+  NetworkError,
+} from '../models/errors'
 
 export interface ListPRsOptions {
   readonly state?: 'open' | 'closed' | 'all'
@@ -17,7 +26,14 @@ export interface ListPRsOptions {
   readonly page?: number
 }
 
-export type ApiError = GitHubError | GitLabError | BitbucketError | AzureError | GiteaError | NetworkError | AuthError
+export type ApiError =
+  | GitHubError
+  | GitLabError
+  | BitbucketError
+  | AzureError
+  | GiteaError
+  | NetworkError
+  | AuthError
 
 export interface ReviewThread {
   readonly id: string
@@ -25,26 +41,37 @@ export interface ReviewThread {
   readonly comments: readonly { readonly databaseId: number }[]
 }
 
+// ---------------------------------------------------------------------------
+// CodeReviewApiService -- the Effect service interface
+//
+// Method names are aligned 1:1 with the Provider interface
+// (src/services/providers/types.ts). The only difference is that these
+// methods receive owner/repo as explicit params because the Effect service
+// has no baked-in ProviderConfig.
+// ---------------------------------------------------------------------------
+
 export interface CodeReviewApiService {
-  readonly listPullRequests: (
+  // -- PR read operations (aligned with Provider) ---------------------------
+
+  readonly listPRs: (
     owner: string,
     repo: string,
     options?: ListPRsOptions,
   ) => Effect.Effect<readonly PullRequest[], ApiError>
 
-  readonly getPullRequest: (
+  readonly getPR: (
     owner: string,
     repo: string,
     number: number,
   ) => Effect.Effect<PullRequest, ApiError>
 
-  readonly getPullRequestFiles: (
+  readonly getPRFiles: (
     owner: string,
     repo: string,
     number: number,
   ) => Effect.Effect<readonly FileChange[], ApiError>
 
-  readonly getPullRequestComments: (
+  readonly getPRComments: (
     owner: string,
     repo: string,
     number: number,
@@ -56,17 +83,37 @@ export interface CodeReviewApiService {
     issueNumber: number,
   ) => Effect.Effect<readonly IssueComment[], ApiError>
 
-  readonly getPullRequestReviews: (
+  readonly getPRReviews: (
     owner: string,
     repo: string,
     number: number,
   ) => Effect.Effect<readonly Review[], ApiError>
 
-  readonly getPullRequestCommits: (
+  readonly getPRCommits: (
     owner: string,
     repo: string,
     number: number,
   ) => Effect.Effect<readonly Commit[], ApiError>
+
+  readonly getPRChecks: (
+    owner: string,
+    repo: string,
+    ref: string,
+  ) => Effect.Effect<CheckRunsResponse, ApiError>
+
+  readonly getReviewThreads: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ) => Effect.Effect<readonly ReviewThread[], ApiError>
+
+  readonly getCommitDiff: (
+    owner: string,
+    repo: string,
+    sha: string,
+  ) => Effect.Effect<readonly FileChange[], ApiError>
+
+  // -- User-scoped PR queries -----------------------------------------------
 
   readonly getMyPRs: (
     stateFilter?: 'open' | 'closed' | 'all',
@@ -80,11 +127,7 @@ export interface CodeReviewApiService {
     stateFilter?: 'open' | 'closed' | 'all',
   ) => Effect.Effect<readonly PullRequest[], ApiError>
 
-  readonly getCheckRuns: (
-    owner: string,
-    repo: string,
-    ref: string,
-  ) => Effect.Effect<CheckRunsResponse, ApiError>
+  // -- Review mutations -----------------------------------------------------
 
   readonly submitReview: (
     owner: string,
@@ -92,70 +135,6 @@ export interface CodeReviewApiService {
     prNumber: number,
     body: string,
     event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
-  ) => Effect.Effect<void, ApiError>
-
-  readonly createComment: (
-    owner: string,
-    repo: string,
-    issueNumber: number,
-    body: string,
-  ) => Effect.Effect<void, ApiError>
-
-  readonly createReviewComment: (
-    owner: string,
-    repo: string,
-    prNumber: number,
-    body: string,
-    commitId: string,
-    path: string,
-    line: number,
-    side: 'LEFT' | 'RIGHT',
-    startLine?: number,
-    startSide?: 'LEFT' | 'RIGHT',
-  ) => Effect.Effect<void, ApiError>
-
-  readonly getReviewThreads: (
-    owner: string,
-    repo: string,
-    prNumber: number,
-  ) => Effect.Effect<readonly ReviewThread[], ApiError>
-
-  readonly resolveReviewThread: (
-    threadId: string,
-  ) => Effect.Effect<void, ApiError>
-
-  readonly unresolveReviewThread: (
-    threadId: string,
-  ) => Effect.Effect<void, ApiError>
-
-  readonly replyToReviewComment: (
-    owner: string,
-    repo: string,
-    prNumber: number,
-    body: string,
-    inReplyTo: number,
-  ) => Effect.Effect<void, ApiError>
-
-  readonly requestReReview: (
-    owner: string,
-    repo: string,
-    prNumber: number,
-    reviewers: readonly string[],
-  ) => Effect.Effect<void, ApiError>
-
-  readonly mergePullRequest: (
-    owner: string,
-    repo: string,
-    prNumber: number,
-    mergeMethod: 'merge' | 'squash' | 'rebase',
-    commitTitle?: string,
-    commitMessage?: string,
-  ) => Effect.Effect<void, ApiError>
-
-  readonly deleteReviewComment: (
-    owner: string,
-    repo: string,
-    commentId: number,
   ) => Effect.Effect<void, ApiError>
 
   readonly createPendingReview: (
@@ -193,16 +172,34 @@ export interface CodeReviewApiService {
     reviewId: number,
   ) => Effect.Effect<void, ApiError>
 
-  readonly closePullRequest: (
+  // -- Comment mutations ----------------------------------------------------
+
+  readonly addComment: (
     owner: string,
     repo: string,
-    prNumber: number,
+    issueNumber: number,
+    body: string,
   ) => Effect.Effect<void, ApiError>
 
-  readonly reopenPullRequest: (
+  readonly addDiffComment: (
     owner: string,
     repo: string,
     prNumber: number,
+    body: string,
+    commitId: string,
+    path: string,
+    line: number,
+    side: 'LEFT' | 'RIGHT',
+    startLine?: number,
+    startSide?: 'LEFT' | 'RIGHT',
+  ) => Effect.Effect<void, ApiError>
+
+  readonly replyToComment: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    body: string,
+    inReplyTo: number,
   ) => Effect.Effect<void, ApiError>
 
   readonly editIssueComment: (
@@ -219,11 +216,33 @@ export interface CodeReviewApiService {
     body: string,
   ) => Effect.Effect<void, ApiError>
 
-  readonly updatePRDescription: (
+  readonly deleteReviewComment: (
+    owner: string,
+    repo: string,
+    commentId: number,
+  ) => Effect.Effect<void, ApiError>
+
+  // -- PR state mutations ---------------------------------------------------
+
+  readonly mergePR: (
     owner: string,
     repo: string,
     prNumber: number,
-    body: string,
+    mergeMethod: 'merge' | 'squash' | 'rebase',
+    commitTitle?: string,
+    commitMessage?: string,
+  ) => Effect.Effect<void, ApiError>
+
+  readonly closePR: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ) => Effect.Effect<void, ApiError>
+
+  readonly reopenPR: (
+    owner: string,
+    repo: string,
+    prNumber: number,
   ) => Effect.Effect<void, ApiError>
 
   readonly updatePRTitle: (
@@ -233,19 +252,33 @@ export interface CodeReviewApiService {
     title: string,
   ) => Effect.Effect<void, ApiError>
 
-  readonly getCommitDiff: (
+  readonly updatePRBody: (
     owner: string,
     repo: string,
-    sha: string,
-  ) => Effect.Effect<readonly FileChange[], ApiError>
-
-  readonly convertToDraft: (
-    nodeId: string,
+    prNumber: number,
+    body: string,
   ) => Effect.Effect<void, ApiError>
 
-  readonly markReadyForReview: (
-    nodeId: string,
+  readonly requestReReview: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    reviewers: readonly string[],
   ) => Effect.Effect<void, ApiError>
+
+  // -- Thread operations ----------------------------------------------------
+
+  readonly resolveThread: (threadId: string) => Effect.Effect<void, ApiError>
+
+  readonly unresolveThread: (threadId: string) => Effect.Effect<void, ApiError>
+
+  // -- Draft operations -----------------------------------------------------
+
+  readonly convertToDraft: (nodeId: string) => Effect.Effect<void, ApiError>
+
+  readonly markReadyForReview: (nodeId: string) => Effect.Effect<void, ApiError>
+
+  // -- Label operations -----------------------------------------------------
 
   readonly getLabels: (
     owner: string,
@@ -258,6 +291,34 @@ export interface CodeReviewApiService {
     prNumber: number,
     labels: readonly string[],
   ) => Effect.Effect<void, ApiError>
+
+  // -- PR creation ----------------------------------------------------------
+
+  readonly createPR: (
+    owner: string,
+    repo: string,
+    title: string,
+    body: string,
+    baseBranch: string,
+    headBranch: string,
+    draft?: boolean,
+  ) => Effect.Effect<{ readonly number: number; readonly html_url: string }, ApiError>
+
+  // -- Assignee operations --------------------------------------------------
+
+  readonly getCollaborators: (
+    owner: string,
+    repo: string,
+  ) => Effect.Effect<readonly User[], ApiError>
+
+  readonly updateAssignees: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    assignees: readonly string[],
+  ) => Effect.Effect<void, ApiError>
+
+  // -- User info ------------------------------------------------------------
 
   readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>
 }

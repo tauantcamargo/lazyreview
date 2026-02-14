@@ -26,6 +26,7 @@ export {
   useConvertToDraft,
   useMarkReadyForReview,
   useSetLabels,
+  useUpdateAssignees,
 } from './useGitHubMutations'
 export type { ReviewEvent, MergeMethod } from './useGitHubMutations'
 
@@ -42,7 +43,7 @@ export function usePullRequests(
       runEffect(
         Effect.gen(function* () {
           const api = yield* CodeReviewApi
-          return yield* api.listPullRequests(owner, repo, options)
+          return yield* api.listPRs(owner, repo, options)
         }),
       ),
     enabled: !!owner && !!repo,
@@ -59,7 +60,7 @@ export function usePullRequest(owner: string, repo: string, number: number) {
       runEffect(
         Effect.gen(function* () {
           const api = yield* CodeReviewApi
-          return yield* api.getPullRequest(owner, repo, number)
+          return yield* api.getPR(owner, repo, number)
         }),
       ),
     enabled: !!owner && !!repo && !!number,
@@ -82,7 +83,7 @@ export function usePRFiles(
       runEffect(
         Effect.gen(function* () {
           const api = yield* CodeReviewApi
-          return yield* api.getPullRequestFiles(owner, repo, number)
+          return yield* api.getPRFiles(owner, repo, number)
         }),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!number,
@@ -105,7 +106,7 @@ export function usePRComments(
       runEffect(
         Effect.gen(function* () {
           const api = yield* CodeReviewApi
-          return yield* api.getPullRequestComments(owner, repo, number)
+          return yield* api.getPRComments(owner, repo, number)
         }),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!number,
@@ -151,7 +152,7 @@ export function usePRReviews(
       runEffect(
         Effect.gen(function* () {
           const api = yield* CodeReviewApi
-          return yield* api.getPullRequestReviews(owner, repo, number)
+          return yield* api.getPRReviews(owner, repo, number)
         }),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!number,
@@ -174,7 +175,7 @@ export function usePRCommits(
       runEffect(
         Effect.gen(function* () {
           const api = yield* CodeReviewApi
-          return yield* api.getPullRequestCommits(owner, repo, number)
+          return yield* api.getPRCommits(owner, repo, number)
         }),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!number,
@@ -270,7 +271,7 @@ export function useCheckRuns(
       runEffect(
         Effect.gen(function* () {
           const api = yield* CodeReviewApi
-          return yield* api.getCheckRuns(owner, repo, ref)
+          return yield* api.getPRChecks(owner, repo, ref)
         }),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!ref,
@@ -331,5 +332,26 @@ export function useRepoLabels(
       ),
     enabled: enabledFlag && !!owner && !!repo,
     staleTime: 5 * 60 * 1000, // 5 minutes - labels don't change often
+  })
+}
+
+export function useCollaborators(
+  owner: string,
+  repo: string,
+  options?: { readonly enabled?: boolean },
+) {
+  const enabledFlag = options?.enabled ?? true
+
+  return useQuery({
+    queryKey: ['collaborators', owner, repo],
+    queryFn: () =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* CodeReviewApi
+          return yield* api.getCollaborators(owner, repo)
+        }),
+      ),
+    enabled: enabledFlag && !!owner && !!repo,
+    staleTime: 5 * 60 * 1000, // 5 minutes - collaborators don't change often
   })
 }

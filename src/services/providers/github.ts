@@ -9,6 +9,7 @@ import type {
   PRListResult,
   AddDiffCommentParams,
   AddPendingReviewCommentParams,
+  CreatePRParams,
 } from './types'
 
 // ---------------------------------------------------------------------------
@@ -22,6 +23,7 @@ const GITHUB_CAPABILITIES: ProviderCapabilities = {
   supportsReactions: true,
   supportsCheckRuns: true,
   supportsLabels: true,
+  supportsAssignees: true,
   supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
 }
 
@@ -50,7 +52,7 @@ export function createGitHubProvider(
 
     listPRs: (params: ListPRsParams): Effect.Effect<PRListResult, ApiError> =>
       Effect.map(
-        service.listPullRequests(owner, repo, {
+        service.listPRs(owner, repo, {
           state: params.state,
           sort: params.sort,
           direction: params.direction,
@@ -60,19 +62,19 @@ export function createGitHubProvider(
         (items) => ({ items }),
       ),
 
-    getPR: (number) => service.getPullRequest(owner, repo, number),
+    getPR: (number) => service.getPR(owner, repo, number),
 
-    getPRFiles: (number) => service.getPullRequestFiles(owner, repo, number),
+    getPRFiles: (number) => service.getPRFiles(owner, repo, number),
 
-    getPRComments: (number) => service.getPullRequestComments(owner, repo, number),
+    getPRComments: (number) => service.getPRComments(owner, repo, number),
 
     getIssueComments: (issueNumber) => service.getIssueComments(owner, repo, issueNumber),
 
-    getPRReviews: (number) => service.getPullRequestReviews(owner, repo, number),
+    getPRReviews: (number) => service.getPRReviews(owner, repo, number),
 
-    getPRCommits: (number) => service.getPullRequestCommits(owner, repo, number),
+    getPRCommits: (number) => service.getPRCommits(owner, repo, number),
 
-    getPRChecks: (ref) => service.getCheckRuns(owner, repo, ref),
+    getPRChecks: (ref) => service.getPRChecks(owner, repo, ref),
 
     getReviewThreads: (prNumber) => service.getReviewThreads(owner, repo, prNumber),
 
@@ -117,10 +119,10 @@ export function createGitHubProvider(
     // -- Comment mutations --------------------------------------------------
 
     addComment: (issueNumber, body) =>
-      service.createComment(owner, repo, issueNumber, body),
+      service.addComment(owner, repo, issueNumber, body),
 
     addDiffComment: (params: AddDiffCommentParams) =>
-      service.createReviewComment(
+      service.addDiffComment(
         owner,
         repo,
         params.prNumber,
@@ -134,7 +136,7 @@ export function createGitHubProvider(
       ),
 
     replyToComment: (prNumber, commentId, body) =>
-      service.replyToReviewComment(owner, repo, prNumber, body, commentId),
+      service.replyToComment(owner, repo, prNumber, body, commentId),
 
     editIssueComment: (commentId, body) =>
       service.editIssueComment(owner, repo, commentId, body),
@@ -148,26 +150,26 @@ export function createGitHubProvider(
     // -- PR state mutations -------------------------------------------------
 
     mergePR: (prNumber, method, commitTitle, commitMessage) =>
-      service.mergePullRequest(owner, repo, prNumber, method, commitTitle, commitMessage),
+      service.mergePR(owner, repo, prNumber, method, commitTitle, commitMessage),
 
-    closePR: (prNumber) => service.closePullRequest(owner, repo, prNumber),
+    closePR: (prNumber) => service.closePR(owner, repo, prNumber),
 
-    reopenPR: (prNumber) => service.reopenPullRequest(owner, repo, prNumber),
+    reopenPR: (prNumber) => service.reopenPR(owner, repo, prNumber),
 
     updatePRTitle: (prNumber, title) =>
       service.updatePRTitle(owner, repo, prNumber, title),
 
     updatePRBody: (prNumber, body) =>
-      service.updatePRDescription(owner, repo, prNumber, body),
+      service.updatePRBody(owner, repo, prNumber, body),
 
     requestReReview: (prNumber, reviewers) =>
       service.requestReReview(owner, repo, prNumber, reviewers),
 
     // -- Thread operations --------------------------------------------------
 
-    resolveThread: (threadId) => service.resolveReviewThread(threadId),
+    resolveThread: (threadId) => service.resolveThread(threadId),
 
-    unresolveThread: (threadId) => service.unresolveReviewThread(threadId),
+    unresolveThread: (threadId) => service.unresolveThread(threadId),
 
     // -- Draft operations ---------------------------------------------------
 
@@ -175,11 +177,30 @@ export function createGitHubProvider(
 
     markReadyForReview: (prNodeId) => service.markReadyForReview(prNodeId),
 
+    // -- PR creation --------------------------------------------------------
+
+    createPR: (params: CreatePRParams) =>
+      service.createPR(
+        owner,
+        repo,
+        params.title,
+        params.body,
+        params.baseBranch,
+        params.headBranch,
+        params.draft,
+      ),
+
     // -- Label operations ---------------------------------------------------
 
     getLabels: () => service.getLabels(owner, repo),
 
     setLabels: (prNumber, labels) => service.setLabels(owner, repo, prNumber, labels),
+
+    // -- Assignee operations ------------------------------------------------
+
+    getCollaborators: () => service.getCollaborators(owner, repo),
+
+    updateAssignees: (prNumber, assignees) => service.updateAssignees(owner, repo, prNumber, assignees),
 
     // -- User info ----------------------------------------------------------
 
@@ -209,6 +230,7 @@ export function createUnsupportedProvider(type: string): Provider {
       supportsReactions: false,
       supportsCheckRuns: false,
       supportsLabels: false,
+      supportsAssignees: false,
       supportsMergeStrategies: [],
     },
     listPRs: fail,
@@ -245,8 +267,11 @@ export function createUnsupportedProvider(type: string): Provider {
     unresolveThread: fail,
     convertToDraft: fail,
     markReadyForReview: fail,
+    createPR: fail,
     getLabels: fail,
     setLabels: fail,
+    getCollaborators: fail,
+    updateAssignees: fail,
     getCurrentUser: fail,
   }
 }
