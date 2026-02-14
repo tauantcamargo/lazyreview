@@ -8,6 +8,7 @@ import type { Review } from '../../models/review'
 import { MarkdownText } from '../common/MarkdownText'
 import { ReviewSummary } from './ReviewSummary'
 import { BotSummarySection } from './BotSummarySection'
+import { AiSummarySection } from './AiSummarySection'
 import {
   findMostRecentBotComment,
   type BotDetectableComment,
@@ -16,6 +17,15 @@ import {
 const PR_DETAIL_CONTENT_HEIGHT_RESERVED = 18
 const DESCRIPTION_HEADER_LINES = 2
 
+interface AiSummaryState {
+  readonly isExpanded: boolean
+  readonly summary: string
+  readonly isGenerating: boolean
+  readonly error: string | null
+  readonly isConfigured: boolean
+  readonly providerName: string
+}
+
 interface DescriptionTabProps {
   readonly pr: PullRequest
   readonly reviews: readonly Review[]
@@ -23,6 +33,9 @@ interface DescriptionTabProps {
   readonly onEditDescription?: (context: { readonly body: string }) => void
   readonly issueComments?: readonly BotDetectableComment[]
   readonly botUsernames?: readonly string[]
+  readonly aiSummary?: AiSummaryState
+  readonly aiSummaryExpanded?: boolean
+  readonly onToggleAiSummary?: () => void
 }
 
 function PRInfoSection({
@@ -113,6 +126,9 @@ export function DescriptionTab({
   onEditDescription,
   issueComments,
   botUsernames,
+  aiSummary,
+  aiSummaryExpanded,
+  onToggleAiSummary,
 }: DescriptionTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
@@ -133,6 +149,19 @@ export function DescriptionTab({
 
   const sections = [
     <PRInfoSection key="info" pr={pr} />,
+    ...(aiSummary
+      ? [
+          <AiSummarySection
+            key="ai-summary"
+            isExpanded={aiSummaryExpanded ?? false}
+            summary={aiSummary.summary}
+            isGenerating={aiSummary.isGenerating}
+            error={aiSummary.error}
+            isConfigured={aiSummary.isConfigured}
+            providerName={aiSummary.providerName}
+          />,
+        ]
+      : []),
     ...(botComment
       ? [
           <BotSummarySection
@@ -153,12 +182,15 @@ export function DescriptionTab({
   })
 
   useInput(
-    (input) => {
+    (input, key) => {
       if (input === 'D' && onEditDescription) {
         onEditDescription({ body: pr.body ?? '' })
       }
       if (input === 'B' && botComment) {
         setBotSummaryExpanded((prev) => !prev)
+      }
+      if (input === 'a' && key.ctrl && onToggleAiSummary) {
+        onToggleAiSummary()
       }
     },
     { isActive },
