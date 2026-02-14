@@ -43,6 +43,7 @@ import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useReadState } from '../hooks/useReadState'
 import { useManualRefresh } from '../hooks/useManualRefresh'
 import { setScreenContext } from '../hooks/useScreenContext'
+import { setSelectionContext } from '../hooks/useSelectionContext'
 import { useReactionActions } from '../hooks/useReactionActions'
 import { useTheme } from '../theme/index'
 import type { PullRequest } from '../models/pull-request'
@@ -103,6 +104,20 @@ export function PRDetailScreen({
     ] as const
     setScreenContext(tabContexts[currentTab] ?? 'pr-detail-description')
   }, [currentTab])
+
+  // Publish PR state context for status bar hints on description/commits/checks tabs.
+  // Conversations and files tabs publish their own more specific context.
+  // Uses `pr` prop directly because `activePR` (fullPR ?? pr) is declared later.
+  React.useEffect(() => {
+    if (currentTab === 0 || currentTab === 2 || currentTab === 4) {
+      setSelectionContext({
+        type: 'pr-detail',
+        prState: pr.state,
+        prMerged: pr.merged,
+        prDraft: pr.draft,
+      })
+    }
+  }, [currentTab, pr.state, pr.merged, pr.draft])
 
   // Track which tabs have been visited (once visited, data stays enabled for cache)
   const visitedTabsRef = useRef<ReadonlySet<number>>(new Set([0]))

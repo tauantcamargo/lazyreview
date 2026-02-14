@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
+import { setSelectionContext } from '../../hooks/useSelectionContext'
 import type { PullRequest } from '../../models/pull-request'
 import type { Comment } from '../../models/comment'
 import type { IssueComment } from '../../models/issue-comment'
@@ -160,6 +161,21 @@ export function ConversationsTab({
     viewportHeight,
     isActive,
   })
+
+  // Publish selection context for status bar hints
+  useEffect(() => {
+    const selected = timeline[selectedIndex]
+    if (selected && isActive) {
+      setSelectionContext({
+        type: 'timeline-item',
+        itemType: selected.type,
+        hasThread: !!selected.threadId,
+        isResolved: selected.isResolved ?? false,
+        isOwnComment: !!currentUser && selected.user === currentUser,
+        hasPath: !!selected.path,
+      })
+    }
+  }, [selectedIndex, timeline, isActive, currentUser])
 
   useInput(
     (input) => {

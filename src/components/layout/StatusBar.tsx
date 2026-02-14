@@ -6,6 +6,8 @@ import type { StatusMessageType } from '../../hooks/useStatusMessage'
 import { useLastUpdated } from '../../hooks/useLastUpdated'
 import { useRateLimit } from '../../hooks/useRateLimit'
 import { useKeybindings } from '../../hooks/useKeybindings'
+import { useSelectionContext } from '../../hooks/useSelectionContext'
+import { getContextualHints } from '../../hooks/useContextualHints'
 import { mergeKeybindings, formatActionBindings } from '../../config/keybindings'
 import type { KeybindingOverrides } from '../../config/keybindings'
 import type { Panel } from '../../hooks/useActivePanel'
@@ -29,14 +31,14 @@ export type ScreenContext =
 // Entries with a fixed `key` bypass the keybinding system (e.g. "1-5:tabs").
 // ---------------------------------------------------------------------------
 
-interface HintEntry {
+export interface HintEntry {
   readonly ctx: string
   readonly action: string
   readonly label: string
   readonly key?: string // override — use this literal key instead of looking up
 }
 
-const PANEL_HINT_ENTRIES: Readonly<Record<Panel, readonly HintEntry[]>> = {
+export const PANEL_HINT_ENTRIES: Readonly<Record<Panel, readonly HintEntry[]>> = {
   sidebar: [
     { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
     { ctx: 'global', action: 'select', label: 'select' },
@@ -63,7 +65,7 @@ const PANEL_HINT_ENTRIES: Readonly<Record<Panel, readonly HintEntry[]>> = {
   ],
 }
 
-const SCREEN_HINT_ENTRIES: Readonly<Record<ScreenContext, readonly HintEntry[]>> = {
+export const SCREEN_HINT_ENTRIES: Readonly<Record<ScreenContext, readonly HintEntry[]>> = {
   'pr-list': [
     { ctx: 'prList', action: 'filterPRs', label: 'filter' },
     { ctx: 'prList', action: 'sortPRs', label: 'sort' },
@@ -207,10 +209,11 @@ export function StatusBar({
   const { label: lastUpdatedLabel } = useLastUpdated()
   const rateLimit = useRateLimit()
   const { overrides } = useKeybindings('global')
+  const selectionContext = useSelectionContext()
 
   const hints = useMemo(
-    () => getContextHints(activePanel, screenContext, overrides),
-    [activePanel, screenContext, overrides],
+    () => getContextualHints(activePanel, screenContext, selectionContext, overrides),
+    [activePanel, screenContext, selectionContext, overrides],
   )
 
   const showRateLimitWarning = rateLimit.remaining < RATE_LIMIT_WARNING_THRESHOLD

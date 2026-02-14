@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../theme/index'
 import { useListNavigation } from '../hooks/useListNavigation'
 import { usePagination } from '../hooks/usePagination'
 import { useFilter } from '../hooks/useFilter'
 import { useKeybindings } from '../hooks/useKeybindings'
+import { setSelectionContext } from '../hooks/useSelectionContext'
 import { PRListItem } from '../components/pr/PRListItem'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorWithRetry } from '../components/common/ErrorWithRetry'
@@ -211,6 +212,18 @@ export function PRListScreen({
   }
 
   const selectedPR = pageItems[selectedIndex]
+
+  // Publish selection context for status bar hints
+  useEffect(() => {
+    if (selectedPR) {
+      setSelectionContext({
+        type: 'pr-list-item',
+        prState: selectedPR.state,
+        prMerged: selectedPR.merged,
+        prDraft: selectedPR.draft,
+      })
+    }
+  }, [selectedPR?.id, selectedPR?.state, selectedPR?.merged, selectedPR?.draft])
 
   return (
     <Box flexDirection="column" flexGrow={1}>
