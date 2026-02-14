@@ -6,6 +6,7 @@ import type { Review } from '../models/review'
 import type { FileChange } from '../models/file-change'
 import type { Commit } from '../models/commit'
 import type { CheckRunsResponse } from '../models/check'
+import type { RepoLabel } from '../models/label'
 import type { AuthError, AzureError, BitbucketError, GiteaError, GitHubError, GitLabError, NetworkError } from '../models/errors'
 
 export interface ListPRsOptions {
@@ -244,6 +245,18 @@ export interface CodeReviewApiService {
 
   readonly markReadyForReview: (
     nodeId: string,
+  ) => Effect.Effect<void, ApiError>
+
+  readonly getLabels: (
+    owner: string,
+    repo: string,
+  ) => Effect.Effect<readonly RepoLabel[], ApiError>
+
+  readonly setLabels: (
+    owner: string,
+    repo: string,
+    prNumber: number,
+    labels: readonly string[],
   ) => Effect.Effect<void, ApiError>
 
   readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>

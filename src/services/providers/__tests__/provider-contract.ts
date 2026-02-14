@@ -58,6 +58,10 @@ export function testProviderContract(
         expect(typeof provider.capabilities.supportsCheckRuns).toBe('boolean')
       })
 
+      it('should declare supportsLabels as boolean', () => {
+        expect(typeof provider.capabilities.supportsLabels).toBe('boolean')
+      })
+
       it('should declare supportsMergeStrategies as array', () => {
         expect(Array.isArray(provider.capabilities.supportsMergeStrategies)).toBe(
           true,
@@ -213,6 +217,14 @@ export function testProviderContract(
 
       it('should implement requestReReview', () => {
         expect(typeof provider.requestReReview).toBe('function')
+      })
+
+      it('should implement getLabels', () => {
+        expect(typeof provider.getLabels).toBe('function')
+      })
+
+      it('should implement setLabels', () => {
+        expect(typeof provider.setLabels).toBe('function')
       })
     })
 

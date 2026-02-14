@@ -1,5 +1,6 @@
 import { Effect } from 'effect'
 import { PullRequest, BranchRef, Label } from '../../../models/pull-request'
+import type { RepoLabel } from '../../../models/label'
 import { Review } from '../../../models/review'
 import { Comment } from '../../../models/comment'
 import { IssueComment } from '../../../models/issue-comment'
@@ -166,6 +167,19 @@ export function createMockReviewThread(
   }
 }
 
+export function createMockLabel(
+  overrides?: Partial<RepoLabel>,
+): RepoLabel {
+  return {
+    id: 1,
+    name: 'bug',
+    color: 'fc2929',
+    description: 'Something is broken',
+    default: false,
+    ...overrides,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Mock provider factory
 // ---------------------------------------------------------------------------
@@ -185,6 +199,7 @@ export function createMockProvider(
     supportsGraphQL: true,
     supportsReactions: true,
     supportsCheckRuns: true,
+    supportsLabels: true,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
     ...capabilities,
   }
@@ -251,6 +266,10 @@ export function createMockProvider(
     convertToDraft: () => Effect.succeed(undefined as void),
     markReadyForReview: () => Effect.succeed(undefined as void),
 
+    // Label operations
+    getLabels: () => Effect.succeed([createMockLabel()]),
+    setLabels: () => Effect.succeed(undefined as void),
+
     // User info
     getCurrentUser: () => Effect.succeed({ login: 'testuser' }),
 
@@ -270,6 +289,7 @@ export function createMockGitHubProvider(
     supportsGraphQL: true,
     supportsReactions: true,
     supportsCheckRuns: true,
+    supportsLabels: true,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
   }, overrides)
 }
@@ -286,6 +306,7 @@ export function createMockGitLabProvider(
     supportsGraphQL: true,
     supportsReactions: true,
     supportsCheckRuns: true,
+    supportsLabels: false,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
   }, overrides)
 }
@@ -302,6 +323,7 @@ export function createMockBitbucketProvider(
     supportsGraphQL: false,
     supportsReactions: false,
     supportsCheckRuns: true,
+    supportsLabels: false,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
   }, overrides)
 }
@@ -320,6 +342,7 @@ export function createMinimalMockProvider(
     supportsGraphQL: false,
     supportsReactions: false,
     supportsCheckRuns: false,
+    supportsLabels: false,
     supportsMergeStrategies: ['merge'],
   }, overrides)
 }

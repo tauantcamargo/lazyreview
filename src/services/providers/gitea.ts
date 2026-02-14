@@ -63,6 +63,7 @@ const GITEA_CAPABILITIES: ProviderCapabilities = {
   supportsGraphQL: false,
   supportsReactions: true,
   supportsCheckRuns: false,
+  supportsLabels: false,
   supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
 }
 
@@ -492,6 +493,18 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
           message: 'Gitea does not support draft pull requests',
           status: 400,
         }),
+      ),
+
+    // -- Label operations (not supported for Gitea) --------------------------
+
+    getLabels: () =>
+      Effect.fail(
+        new GiteaError({ message: 'Labels are not yet supported for Gitea', status: 501 }),
+      ),
+
+    setLabels: () =>
+      Effect.fail(
+        new GiteaError({ message: 'Labels are not yet supported for Gitea', status: 501 }),
       ),
 
     // -- User info ----------------------------------------------------------

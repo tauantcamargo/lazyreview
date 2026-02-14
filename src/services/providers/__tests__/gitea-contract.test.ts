@@ -8,6 +8,7 @@ testProviderContract('gitea', () =>
     supportsGraphQL: false,
     supportsReactions: true,
     supportsCheckRuns: false,
+    supportsLabels: false,
     supportsMergeStrategies: ['merge', 'squash', 'rebase'],
   }),
 )

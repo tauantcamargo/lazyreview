@@ -49,6 +49,7 @@ export type Action =
   | 'indent'
   | 'editTitle'
   | 'toggleDraft'
+  | 'labels'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -133,6 +134,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     copyUrl: 'y',
     editTitle: 'T',
     toggleDraft: 'W',
+    labels: 'L',
   },
   conversations: {
     newComment: 'c',

@@ -25,6 +25,7 @@ export {
   useEditReviewComment,
   useConvertToDraft,
   useMarkReadyForReview,
+  useSetLabels,
 } from './useGitHubMutations'
 export type { ReviewEvent, MergeMethod } from './useGitHubMutations'
 
@@ -309,5 +310,26 @@ export function useCurrentUser() {
         }),
       ),
     staleTime: Infinity,
+  })
+}
+
+export function useRepoLabels(
+  owner: string,
+  repo: string,
+  options?: { readonly enabled?: boolean },
+) {
+  const enabledFlag = options?.enabled ?? true
+
+  return useQuery({
+    queryKey: ['repo-labels', owner, repo],
+    queryFn: () =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* CodeReviewApi
+          return yield* api.getLabels(owner, repo)
+        }),
+      ),
+    enabled: enabledFlag && !!owner && !!repo,
+    staleTime: 5 * 60 * 1000, // 5 minutes - labels don't change often
   })
 }

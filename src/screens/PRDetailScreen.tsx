@@ -11,7 +11,7 @@ import {
   useCurrentUser,
   useIssueComments,
 } from '../hooks/useGitHub'
-import { useConvertToDraft, useMarkReadyForReview } from '../hooks/useGitHub'
+import { useConvertToDraft, useMarkReadyForReview, useSetLabels, useRepoLabels } from '../hooks/useGitHub'
 import { usePRDetailModals } from '../hooks/usePRDetailModals'
 import { usePendingReview } from '../hooks/usePendingReview'
 import { PRHeader } from '../components/pr/PRHeader'
@@ -25,6 +25,7 @@ import { ReviewModal } from '../components/pr/ReviewModal'
 import { CommentModal } from '../components/pr/CommentModal'
 import { MergeModal } from '../components/pr/MergeModal'
 import { ReReviewModal, buildReviewerList } from '../components/pr/ReReviewModal'
+import { LabelPickerModal } from '../components/pr/LabelPickerModal'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { openInBrowser, copyToClipboard } from '../utils/terminal'
 import { checkoutPR } from '../utils/git'
@@ -68,6 +69,8 @@ export function PRDetailScreen({
   const [currentTab, setCurrentTab] = useState(0)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const [showDraftConfirm, setShowDraftConfirm] = useState(false)
+  const [showLabelPicker, setShowLabelPicker] = useState(false)
+  const [labelError, setLabelError] = useState<string | null>(null)
   const [initialFile, setInitialFile] = useState<string | undefined>(undefined)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
 
@@ -151,6 +154,12 @@ export function PRDetailScreen({
 
   const convertToDraft = useConvertToDraft()
   const markReady = useMarkReadyForReview()
+  const setLabelsMutation = useSetLabels()
+  const { data: repoLabels = [], isLoading: labelsLoading } = useRepoLabels(
+    owner,
+    repo,
+    { enabled: showLabelPicker },
+  )
 
   const handleReviewSubmit = useCallback(
     (body: string, event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT') => {
@@ -192,8 +201,10 @@ export function PRDetailScreen({
     setStatusMessage(`Jumped to ${path}`)
   }, [setStatusMessage])
 
+  const anyModalOpen = modals.hasModal || showLabelPicker
+
   useManualRefresh({
-    isActive: !modals.hasModal,
+    isActive: !anyModalOpen,
   })
 
   useInput(
@@ -296,6 +307,9 @@ export function PRDetailScreen({
         }
       } else if (input === 'T') {
         modals.handleOpenEditTitle({ title: activePR.title })
+      } else if (input === 'L') {
+        setLabelError(null)
+        setShowLabelPicker(true)
       } else if (input === 'G') {
         setStatusMessage('Checking out PR #' + pr.number + '...', 10000)
         checkoutPR(pr.number).then((result) => {
@@ -317,7 +331,7 @@ export function PRDetailScreen({
         }
       }
     },
-    { isActive: !modals.hasModal },
+    { isActive: !anyModalOpen },
   )
 
   const renderTabContent = (): React.ReactElement => {
@@ -330,7 +344,7 @@ export function PRDetailScreen({
         <DescriptionTab
           pr={activePR}
           reviews={reviews}
-          isActive={!modals.hasModal}
+          isActive={!anyModalOpen}
           onEditDescription={modals.handleOpenEditDescription}
         />
       )),
@@ -341,7 +355,7 @@ export function PRDetailScreen({
           reviews={reviews}
           reviewThreads={reviewThreads}
           issueComments={issueComments}
-          isActive={!modals.hasModal}
+          isActive={!anyModalOpen}
           showResolved={modals.showResolved}
           currentUser={currentUser?.login}
           onComment={modals.handleOpenGeneralComment}
@@ -354,12 +368,12 @@ export function PRDetailScreen({
         />
       )),
       Match.when(2, () => (
-        <CommitsTab commits={commits} isActive={!modals.hasModal} owner={owner} repo={repo} />
+        <CommitsTab commits={commits} isActive={!anyModalOpen} owner={owner} repo={repo} />
       )),
       Match.when(3, () => (
         <FilesTab
           files={files}
-          isActive={!modals.hasModal}
+          isActive={!anyModalOpen}
           prUrl={activePR.html_url}
           onInlineComment={modals.handleOpenInlineComment}
           comments={comments}
@@ -377,14 +391,14 @@ export function PRDetailScreen({
           owner={owner}
           repo={repo}
           sha={activePR.head.sha}
-          isActive={!modals.hasModal}
+          isActive={!anyModalOpen}
         />
       )),
       Match.orElse(() => (
         <DescriptionTab
           pr={activePR}
           reviews={reviews}
-          isActive={!modals.hasModal}
+          isActive={!anyModalOpen}
           onEditDescription={modals.handleOpenEditDescription}
         />
       ))
@@ -484,6 +498,34 @@ export function PRDetailScreen({
           onClose={modals.closeReReviewModal}
           isSubmitting={modals.requestReReviewPending}
           error={modals.reReviewError}
+        />
+      )}
+      {showLabelPicker && (
+        <LabelPickerModal
+          repoLabels={repoLabels}
+          currentLabels={activePR.labels.map((l) => l.name)}
+          onSubmit={(labels) => {
+            setLabelsMutation.mutate(
+              { owner, repo, prNumber: pr.number, labels },
+              {
+                onSuccess: () => {
+                  setShowLabelPicker(false)
+                  setLabelError(null)
+                  setStatusMessage('Labels updated')
+                },
+                onError: (err) => {
+                  setLabelError(String(err))
+                },
+              },
+            )
+          }}
+          onClose={() => {
+            setShowLabelPicker(false)
+            setLabelError(null)
+          }}
+          isSubmitting={setLabelsMutation.isPending}
+          isLoading={labelsLoading}
+          error={labelError}
         />
       )}
     </Box>

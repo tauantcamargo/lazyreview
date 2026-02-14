@@ -21,6 +21,7 @@ const GITHUB_CAPABILITIES: ProviderCapabilities = {
   supportsGraphQL: true,
   supportsReactions: true,
   supportsCheckRuns: true,
+  supportsLabels: true,
   supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
 }
 
@@ -174,6 +175,12 @@ export function createGitHubProvider(
 
     markReadyForReview: (prNodeId) => service.markReadyForReview(prNodeId),
 
+    // -- Label operations ---------------------------------------------------
+
+    getLabels: () => service.getLabels(owner, repo),
+
+    setLabels: (prNumber, labels) => service.setLabels(owner, repo, prNumber, labels),
+
     // -- User info ----------------------------------------------------------
 
     getCurrentUser: () => service.getCurrentUser(),
@@ -201,6 +208,7 @@ export function createUnsupportedProvider(type: string): Provider {
       supportsGraphQL: false,
       supportsReactions: false,
       supportsCheckRuns: false,
+      supportsLabels: false,
       supportsMergeStrategies: [],
     },
     listPRs: fail,
@@ -237,6 +245,8 @@ export function createUnsupportedProvider(type: string): Provider {
     unresolveThread: fail,
     convertToDraft: fail,
     markReadyForReview: fail,
+    getLabels: fail,
+    setLabels: fail,
     getCurrentUser: fail,
   }
 }

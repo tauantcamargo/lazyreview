@@ -62,6 +62,7 @@ const BITBUCKET_CAPABILITIES: ProviderCapabilities = {
   supportsGraphQL: false,
   supportsReactions: false,
   supportsCheckRuns: true,
+  supportsLabels: false,
   supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
 }
 
@@ -572,6 +573,18 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
           message: 'Bitbucket does not support draft pull requests',
           status: 400,
         }),
+      ),
+
+    // -- Label operations (not supported for Bitbucket) ----------------------
+
+    getLabels: () =>
+      Effect.fail(
+        new BitbucketError({ message: 'Labels are not yet supported for Bitbucket', status: 501 }),
+      ),
+
+    setLabels: () =>
+      Effect.fail(
+        new BitbucketError({ message: 'Labels are not yet supported for Bitbucket', status: 501 }),
       ),
 
     // -- User info ----------------------------------------------------------

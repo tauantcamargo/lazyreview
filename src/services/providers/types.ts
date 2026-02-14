@@ -6,6 +6,7 @@ import type { Review } from '../../models/review'
 import type { FileChange } from '../../models/file-change'
 import type { Commit } from '../../models/commit'
 import type { CheckRunsResponse } from '../../models/check'
+import type { RepoLabel } from '../../models/label'
 import type { ApiError, ReviewThread } from '../CodeReviewApiTypes'
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,7 @@ export interface ProviderCapabilities {
   readonly supportsGraphQL: boolean
   readonly supportsReactions: boolean
   readonly supportsCheckRuns: boolean
+  readonly supportsLabels: boolean
   readonly supportsMergeStrategies: readonly string[]
 }
 
@@ -147,6 +149,10 @@ export interface Provider {
   // Draft operations (requires supportsDraftPR capability)
   readonly convertToDraft: (prNodeId: string) => Effect.Effect<void, ApiError>
   readonly markReadyForReview: (prNodeId: string) => Effect.Effect<void, ApiError>
+
+  // Label operations (requires supportsLabels capability)
+  readonly getLabels: () => Effect.Effect<readonly RepoLabel[], ApiError>
+  readonly setLabels: (prNumber: number, labels: readonly string[]) => Effect.Effect<void, ApiError>
 
   // User info
   readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>

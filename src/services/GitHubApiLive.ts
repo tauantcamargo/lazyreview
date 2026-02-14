@@ -579,6 +579,38 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
+      getLabels: (owner, repo) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          const token = yield* auth.getToken()
+          return yield* fetchGitHubPaginated(
+            `/repos/${owner}/${repo}/labels`,
+            token,
+            S.Struct({
+              id: S.Number,
+              name: S.String,
+              color: S.String,
+              description: S.NullOr(S.String),
+              default: S.optionalWith(S.Boolean, { default: () => false }),
+            }),
+          )
+        }),
+
+      setLabels: (owner, repo, prNumber, labels) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
+          const token = yield* auth.getToken()
+          yield* mutateGitHub(
+            'PUT',
+            `/repos/${owner}/${repo}/issues/${prNumber}/labels`,
+            token,
+            { labels: [...labels] },
+          )
+        }),
+
       getCurrentUser: () =>
         Effect.gen(function* () {
           const token = yield* auth.getToken()

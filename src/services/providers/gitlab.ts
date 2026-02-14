@@ -71,6 +71,7 @@ const GITLAB_CAPABILITIES: ProviderCapabilities = {
   supportsGraphQL: true,
   supportsReactions: true,
   supportsCheckRuns: true,
+  supportsLabels: false,
   supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
 }
 
@@ -655,6 +656,18 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
       }
       return markReadyForReview(baseUrl, token, owner, repo, iid, title)
     },
+
+    // -- Label operations (not supported for GitLab) -------------------------
+
+    getLabels: () =>
+      Effect.fail(
+        new GitHubError({ message: 'Labels are not yet supported for GitLab', status: 501 }),
+      ),
+
+    setLabels: () =>
+      Effect.fail(
+        new GitHubError({ message: 'Labels are not yet supported for GitLab', status: 501 }),
+      ),
 
     // -- User info ----------------------------------------------------------
 

@@ -76,6 +76,7 @@ describe('DEFAULT_KEYBINDINGS', () => {
     expect(prDetail['prevPR']).toBe('[')
     expect(prDetail['editTitle']).toBe('T')
     expect(prDetail['toggleDraft']).toBe('W')
+    expect(prDetail['labels']).toBe('L')
   })
 })
 

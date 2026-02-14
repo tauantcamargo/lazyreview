@@ -65,6 +65,7 @@ const AZURE_CAPABILITIES: ProviderCapabilities = {
   supportsGraphQL: false,
   supportsReactions: false,
   supportsCheckRuns: true,
+  supportsLabels: false,
   supportsMergeStrategies: ['noFastForward', 'squash', 'rebase', 'rebaseMerge'] as const,
 }
 
@@ -715,6 +716,18 @@ export function createAzureProvider(config: ProviderConfig): Provider {
       }
       return setDraftStatus(baseUrl, token, owner, repo, prId, false)
     },
+
+    // -- Label operations (not supported for Azure DevOps) -------------------
+
+    getLabels: () =>
+      Effect.fail(
+        new AzureError({ message: 'Labels are not yet supported for Azure DevOps', status: 501 }),
+      ),
+
+    setLabels: () =>
+      Effect.fail(
+        new AzureError({ message: 'Labels are not yet supported for Azure DevOps', status: 501 }),
+      ),
 
     // -- User info ----------------------------------------------------------
 

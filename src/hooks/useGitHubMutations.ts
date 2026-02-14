@@ -310,3 +310,19 @@ export const useMarkReadyForReview = createGitHubMutation<DraftToggleParams>({
     ...invalidatePRLists(),
   ],
 })
+
+// ---------------------------------------------------------------------------
+// Label management
+// ---------------------------------------------------------------------------
+
+interface SetLabelsParams extends PRParams {
+  readonly labels: readonly string[]
+}
+
+export const useSetLabels = createGitHubMutation<SetLabelsParams>({
+  effect: (api, p) => api.setLabels(p.owner, p.repo, p.prNumber, p.labels),
+  invalidateKeys: (p) => [
+    ['pr', p.owner, p.repo, p.prNumber],
+    ...invalidatePRLists(),
+  ],
+})
