@@ -31,6 +31,7 @@ const ACTION_DESCRIPTIONS: Readonly<Record<string, string>> = {
   select: 'Select / Open',
   toggleSidebar: 'Toggle sidebar',
   toggleHelp: 'Toggle this help',
+  commandPalette: 'Command palette',
   back: 'Back / Quit',
   quit: 'Force quit',
   refresh: 'Refresh',
@@ -93,7 +94,7 @@ const HELP_SECTIONS: readonly HelpSectionDef[] = [
   {
     title: 'Global',
     context: 'global',
-    actions: ['moveDown', 'moveUp', 'select', 'toggleSidebar', 'toggleHelp', 'back', 'quit'],
+    actions: ['moveDown', 'moveUp', 'select', 'toggleSidebar', 'toggleHelp', 'commandPalette', 'back', 'quit'],
   },
   {
     title: 'PR List',

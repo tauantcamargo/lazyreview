@@ -63,6 +63,8 @@ export type Action =
   | 'nextHunk'
   | 'prevHunk'
   | 'goToLine'
+  | 'toggleHunkFold'
+  | 'commandPalette'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -123,6 +125,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     toggleSidebar: 'ctrl+b',
     toggleHelp: '?',
     refresh: 'R',
+    commandPalette: 'ctrl+p',
   },
   prList: {
     filterPRs: '/',
@@ -183,6 +186,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     nextHunk: '}',
     prevHunk: '{',
     goToLine: ':',
+    toggleHunkFold: 'z',
   },
   checksTab: {
     openInBrowser: 'o',

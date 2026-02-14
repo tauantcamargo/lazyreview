@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { Box, Text, useApp, useInput, useStdout } from 'ink'
 import { ThemeProvider, getThemeByName } from './theme/index'
@@ -14,6 +14,8 @@ import { HelpModal } from './components/layout/HelpModal'
 import { TokenInputModal } from './components/layout/TokenInputModal'
 import { OnboardingScreen } from './components/layout/OnboardingScreen'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
+import { CommandPalette } from './components/common/CommandPalette'
+import { buildCommandPaletteActions } from './utils/command-palette-actions'
 import { PRDetailScreen } from './screens/PRDetailScreen'
 import { MyPRsScreen } from './screens/MyPRsScreen'
 import { ReviewRequestsScreen } from './screens/ReviewRequestsScreen'
@@ -104,6 +106,7 @@ function AppContent({
   }, [directPR, directPRData, directPRNavigated])
   const [tokenError, setTokenError] = useState<string | null>(null)
   const [showHelp, setShowHelp] = useState(false)
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
   // Start with modal hidden, show only after auth check fails
   const [showTokenInput, setShowTokenInput] = useState(false)
   // First-run onboarding
@@ -128,7 +131,7 @@ function AppContent({
   const { selectedIndex: navIndex } = useListNavigation({
     itemCount: navigableEntries.length,
     viewportHeight: navigableEntries.length,
-    isActive: activePanel === 'sidebar' && !showHelp && !showTokenInput && !showOnboarding && !isInputActive,
+    isActive: activePanel === 'sidebar' && !showHelp && !showTokenInput && !showOnboarding && !showCommandPalette && !isInputActive,
   })
 
   // Map navigation index to actual sidebar item index
@@ -183,19 +186,21 @@ function AppContent({
   )
 
   // Global keyboard shortcuts (using configurable keybindings)
-  const { matchesAction } = useKeybindings('global')
+  const { matchesAction, overrides: keybindingOverrides } = useKeybindings('global')
 
   useInput(
     (input, key) => {
       // Handle modals first
-      if (showHelp || showTokenInput || showOnboarding) {
+      if (showHelp || showTokenInput || showOnboarding || showCommandPalette) {
         if (key.escape || (showHelp && matchesAction(input, key, 'toggleHelp'))) {
           setShowHelp(false)
         }
         return
       }
 
-      if (matchesAction(input, key, 'toggleSidebar')) {
+      if (matchesAction(input, key, 'commandPalette')) {
+        setShowCommandPalette(true)
+      } else if (matchesAction(input, key, 'toggleSidebar')) {
         setSidebarMode((prev) => cycleSidebarMode(prev))
       } else if (matchesAction(input, key, 'toggleHelp')) {
         setShowHelp(true)
@@ -364,6 +369,36 @@ function AppContent({
 
   const screenContext = useScreenContext()
 
+  // Command palette: build the action list from the current screen context
+  const commandPaletteActions = useMemo(
+    () => buildCommandPaletteActions(screenContext ?? 'pr-list', keybindingOverrides),
+    [screenContext, keybindingOverrides],
+  )
+
+  const handleCommandPaletteSelect = useCallback(
+    (action: string) => {
+      setShowCommandPalette(false)
+      // Dispatch the selected action by simulating its keybinding
+      // This is a simple approach: map actions to direct state changes
+      switch (action) {
+        case 'toggleSidebar':
+          setSidebarMode((prev) => cycleSidebarMode(prev))
+          break
+        case 'toggleHelp':
+          setShowHelp(true)
+          break
+        case 'refresh':
+          queryClient.invalidateQueries()
+          break
+        default:
+          // For actions not directly handled here, close the palette
+          // The action will need to be handled by the active screen
+          break
+      }
+    },
+    [queryClient],
+  )
+
   // Connection status from rate limit + auth
   const rateLimit = useRateLimit()
   const connectionStatus: ConnectionStatus = !isAuthenticated
@@ -418,6 +453,13 @@ function AppContent({
       </Box>
       <StatusBar activePanel={activePanel} screenContext={screenContext} />
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showCommandPalette && (
+        <CommandPalette
+          actions={commandPaletteActions}
+          onSelect={handleCommandPaletteSelect}
+          onClose={() => setShowCommandPalette(false)}
+        />
+      )}
       {showOnboarding && (
         <OnboardingScreen onComplete={handleOnboardingComplete} />
       )}
