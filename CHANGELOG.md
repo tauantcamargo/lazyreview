@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.68] - 2026-02-13
+
+### Added
+- **Multi-provider support**: GitLab, Bitbucket, Azure DevOps, Gitea/Forgejo alongside GitHub
+- Provider abstraction layer with capabilities system and contract tests
+- Provider-agnostic authentication (CLI tools, env vars, manual tokens per provider)
+- Provider-agnostic git remote URL parsing (auto-detects provider from remote)
+- Provider switching in Settings (cycle between all 5 providers)
+- GitLab: Full MR support (list, diff, approve, comment, merge, pipelines, discussions)
+- Bitbucket: Full PR support (list, diff, approve, comment, merge, pipelines)
+- Azure DevOps: Full PR support (list, diff, vote, comment, complete, builds, threads)
+- Gitea/Forgejo: Full PR support (list, diff, review, comment, merge)
+- Desktop notifications for PR activity (new PRs, updates, review requests)
+- Cross-file diff search (F key to search across all files, n/N to navigate)
+- Configurable keybindings via config.yaml with per-context overrides
+- Context-sensitive shortcut hints in status bar
+- Provider indicator badge in top bar ([GH], [GL], [BB], [AZ], [GT])
+- Provider-specific error messages with actionable fix suggestions
+- CHANGELOG and release scripts (pnpm release:patch/minor/major)
+- Provider integration test framework with contract tests for all providers
+- Per-provider token storage (~/.config/lazyreview/tokens/{provider}.token)
+
+### Changed
+- Authentication system refactored for multi-provider support
+- HelpModal now dynamically built from keybinding config
+- Status bar shows actual keybindings (respects user overrides)
+- TopBar shows color-coded provider badge
+- ErrorWithRetry shows provider-specific help for auth failures
+- README expanded with provider comparison table and per-provider setup
+- CLAUDE.md updated with provider architecture documentation
+
 ## [1.0.49] - 2026-02-13
 
 ### Added
