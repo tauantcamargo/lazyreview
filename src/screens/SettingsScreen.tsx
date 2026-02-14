@@ -22,12 +22,12 @@ const PROVIDER_ORDER: readonly Provider[] = ['github', 'gitlab', 'bitbucket', 'a
 const PROVIDER_LABELS: Readonly<Record<Provider, string>> = {
   github: 'GitHub',
   gitlab: 'GitLab',
-  bitbucket: 'Bitbucket (coming soon)',
+  bitbucket: 'Bitbucket',
   azure: 'Azure DevOps (coming soon)',
   gitea: 'Gitea (coming soon)',
 }
 
-const SUPPORTED_PROVIDERS: ReadonlySet<Provider> = new Set(['github', 'gitlab'])
+const SUPPORTED_PROVIDERS: ReadonlySet<Provider> = new Set(['github', 'gitlab', 'bitbucket'])
 
 type SettingsItem =
   | 'provider'

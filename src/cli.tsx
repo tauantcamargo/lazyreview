@@ -66,7 +66,7 @@ async function main(): Promise<void> {
     const help = [
       `lazyreview v${version}`,
       '',
-      'A TUI code review tool for GitHub and GitLab PRs.',
+      'A TUI code review tool for GitHub, GitLab, and Bitbucket PRs.',
       '',
       'USAGE:',
       '  lazyreview                   Launch TUI (auto-detects repo)',
@@ -81,6 +81,9 @@ async function main(): Promise<void> {
       '  LAZYREVIEW_GITLAB_TOKEN      GitLab personal access token',
       '  GITLAB_TOKEN                 Fallback if LAZYREVIEW_GITLAB_TOKEN is not set',
       '                               (also supports glab CLI token and in-app Settings)',
+      '  LAZYREVIEW_BITBUCKET_TOKEN   Bitbucket app password (preferred)',
+      '  BITBUCKET_TOKEN              Fallback if LAZYREVIEW_BITBUCKET_TOKEN is not set',
+      '                               (also supports in-app Settings)',
       '',
       'CONFIG:',
       '  ~/.config/lazyreview/config.yaml',

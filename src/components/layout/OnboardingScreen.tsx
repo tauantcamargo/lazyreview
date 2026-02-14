@@ -12,8 +12,8 @@ const ONBOARDING_STEPS: readonly OnboardingStep[] = [
   {
     title: 'Welcome to LazyReview',
     lines: [
-      'LazyReview is a terminal-based code review tool for GitHub and',
-      'GitLab pull/merge requests.',
+      'LazyReview is a terminal-based code review tool for GitHub,',
+      'GitLab, and Bitbucket pull/merge requests.',
       '',
       'Review PRs/MRs, browse diffs, leave comments, approve or',
       'request changes -- all without leaving your terminal.',
@@ -58,6 +58,12 @@ const ONBOARDING_STEPS: readonly OnboardingStep[] = [
       '  2. Manually entered token (Settings > Set New Token)',
       '  3. GITLAB_TOKEN env variable',
       '  4. glab CLI (glab auth token)',
+      '',
+      'Bitbucket: app password with Repositories Read,',
+      '           Pull requests Read/Write permissions',
+      '  1. LAZYREVIEW_BITBUCKET_TOKEN env variable',
+      '  2. Manually entered token (Settings > Set New Token)',
+      '  3. BITBUCKET_TOKEN env variable',
       '',
       "Provider is auto-detected from your git remote. You can also",
       "switch providers in Settings.",

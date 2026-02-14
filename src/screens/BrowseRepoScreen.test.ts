@@ -123,9 +123,46 @@ describe('validateRepoInput', () => {
       expect(result.repo).toBe('myproject')
     })
 
+    it('accepts Bitbucket HTTPS URL', () => {
+      const result = validateRepoInput('https://bitbucket.org/workspace/repo')
+      expect(result.valid).toBe(true)
+      expect(result.owner).toBe('workspace')
+      expect(result.repo).toBe('repo')
+    })
+
+    it('accepts Bitbucket HTTPS URL with .git suffix', () => {
+      const result = validateRepoInput('https://bitbucket.org/workspace/repo.git')
+      expect(result.valid).toBe(true)
+      expect(result.owner).toBe('workspace')
+      expect(result.repo).toBe('repo')
+    })
+
+    it('accepts Bitbucket SSH URL', () => {
+      const result = validateRepoInput('git@bitbucket.org:workspace/repo.git')
+      expect(result.valid).toBe(true)
+      expect(result.owner).toBe('workspace')
+      expect(result.repo).toBe('repo')
+    })
+
     it('rejects invalid URL', () => {
       const result = validateRepoInput('https://example.com')
       expect(result.valid).toBe(false)
+    })
+  })
+
+  describe('Bitbucket workspace/repo format', () => {
+    it('accepts workspace/repo format', () => {
+      const result = validateRepoInput('atlassian/bitbucket-server')
+      expect(result.valid).toBe(true)
+      expect(result.owner).toBe('atlassian')
+      expect(result.repo).toBe('bitbucket-server')
+    })
+
+    it('accepts workspace/repo with underscores', () => {
+      const result = validateRepoInput('my_workspace/my_repo')
+      expect(result.valid).toBe(true)
+      expect(result.owner).toBe('my_workspace')
+      expect(result.repo).toBe('my_repo')
     })
   })
 })

@@ -530,9 +530,40 @@ function getGitLabUser(token: string): Effect.Effect<User, AuthError> {
   })
 }
 
+function getBitbucketUser(token: string): Effect.Effect<User, AuthError> {
+  return Effect.tryPromise({
+    try: async () => {
+      const response = await fetch('https://api.bitbucket.org/2.0/user', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Bitbucket API returned ${response.status}`)
+      }
+
+      const data = await response.json() as { username: string; links?: { avatar?: { href?: string } }; account_id?: string }
+      // Map Bitbucket user fields to our User schema
+      return S.decodeUnknownSync(User)({
+        login: data.username,
+        avatar_url: data.links?.avatar?.href ?? '',
+        id: 0,
+      })
+    },
+    catch: (error) =>
+      new AuthError({
+        message: `Failed to get user: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'invalid_token',
+      }),
+  })
+}
+
 function getProviderUser(provider: Provider, token: string): Effect.Effect<User, AuthError> {
   if (provider === 'github') return getGitHubUser(token)
   if (provider === 'gitlab') return getGitLabUser(token)
+  if (provider === 'bitbucket') return getBitbucketUser(token)
   return Effect.fail(
     new AuthError({ message: `${PROVIDER_META[provider].label} not yet supported`, reason: 'no_token' }),
   )
