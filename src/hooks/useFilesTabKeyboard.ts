@@ -6,6 +6,7 @@ import type { DiffLine } from '../models/diff'
 import type { FileChange } from '../models/file-change'
 import type { InlineCommentContext } from '../models/inline-comment'
 import type { DiffSearchActions } from './useDiffSearch'
+import type { CrossFileSearchState, CrossFileSearchActions } from './useCrossFileSearch'
 import type { VisualSelectActions, VisualSelectState } from './useVisualSelect'
 
 type FocusPanel = 'tree' | 'diff'
@@ -123,6 +124,10 @@ interface UseFilesTabKeyboardOptions {
   readonly toggleViewed: (prUrl: string, filename: string) => void
   readonly selectedFile: FileChange | null
 
+  // Cross-file search
+  readonly crossFileSearch?: CrossFileSearchState & CrossFileSearchActions
+  readonly setSelectedFileIndex?: (index: number) => void
+
   // Callbacks
   readonly onReply?: (context: {
     readonly commentId: number
@@ -174,7 +179,23 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
         return
       }
 
-      // n/N search navigation
+      // Cross-file search input mode
+      if (opts.crossFileSearch?.isSearching) {
+        if (key.escape) {
+          opts.crossFileSearch.cancelSearch()
+          opts.setInputActive(false)
+        } else if (key.return) {
+          const firstMatch = opts.crossFileSearch.confirmSearch()
+          opts.setInputActive(false)
+          if (firstMatch && opts.setSelectedFileIndex) {
+            opts.setSelectedFileIndex(firstMatch.fileIndex)
+            opts.setFocusPanel('diff')
+          }
+        }
+        return
+      }
+
+      // n/N search navigation (single-file search takes priority)
       if (
         input === 'n' &&
         opts.focusPanel === 'diff' &&
@@ -194,9 +215,41 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
         return
       }
 
+      // n/N cross-file search navigation (when no single-file search active)
+      if (
+        input === 'n' &&
+        opts.crossFileSearch?.activeQuery &&
+        opts.crossFileSearch.matches.length > 0 &&
+        opts.setSelectedFileIndex
+      ) {
+        const match = opts.crossFileSearch.navigateNext()
+        if (match) {
+          opts.setSelectedFileIndex(match.fileIndex)
+          opts.setFocusPanel('diff')
+        }
+        return
+      }
+      if (
+        input === 'N' &&
+        opts.crossFileSearch?.activeQuery &&
+        opts.crossFileSearch.matches.length > 0 &&
+        opts.setSelectedFileIndex
+      ) {
+        const match = opts.crossFileSearch.navigatePrev()
+        if (match) {
+          opts.setSelectedFileIndex(match.fileIndex)
+          opts.setFocusPanel('diff')
+        }
+        return
+      }
+
       // Escape: clear search, visual, or filter
       if (key.escape && opts.search.activeDiffSearch) {
         opts.search.clearSearch()
+        return
+      }
+      if (key.escape && opts.crossFileSearch?.activeQuery) {
+        opts.crossFileSearch.clearSearch()
         return
       }
       if (key.escape && opts.visual.visualStart != null) {
@@ -252,6 +305,9 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
           prev === 'unified' ? 'side-by-side' : 'unified',
         )
         opts.visual.clearVisual()
+      } else if (input === 'F' && opts.crossFileSearch) {
+        opts.crossFileSearch.startSearch()
+        opts.setInputActive(true)
       } else if (input === 'v' && opts.focusPanel === 'tree' && opts.prUrl) {
         const file = opts.fileOrder[opts.treeSelectedIndex]
         if (file) {

@@ -8,6 +8,7 @@ import { setScreenContext } from '../../hooks/useScreenContext'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { useViewedFiles } from '../../hooks/useViewedFiles'
 import { useDiffSearch } from '../../hooks/useDiffSearch'
+import { useCrossFileSearch } from '../../hooks/useCrossFileSearch'
 import { useVisualSelect } from '../../hooks/useVisualSelect'
 import { useFilesTabKeyboard } from '../../hooks/useFilesTabKeyboard'
 import type { FileChange } from '../../models/file-change'
@@ -121,6 +122,8 @@ export function FilesTab({
       ? 'unified'
       : diffMode
 
+  const crossFileSearch = useCrossFileSearch(files)
+
   const [isFiltering, setIsFiltering] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('')
@@ -157,7 +160,7 @@ export function FilesTab({
   const { selectedIndex: treeSelectedIndex } = useListNavigation({
     itemCount: fileOrder.length,
     viewportHeight: treeViewportHeight,
-    isActive: isActive && focusPanel === 'tree' && !isFiltering,
+    isActive: isActive && focusPanel === 'tree' && !isFiltering && !crossFileSearch.isSearching,
   })
   const selectedRowIndex = displayRows.findIndex(
     (r) => r.type === 'file' && r.fileIndex === treeSelectedIndex,
@@ -288,7 +291,7 @@ export function FilesTab({
     useListNavigation({
       itemCount: totalDiffLines,
       viewportHeight,
-      isActive: isActive && focusPanel === 'diff' && !search.isDiffSearching,
+      isActive: isActive && focusPanel === 'diff' && !search.isDiffSearching && !crossFileSearch.isSearching,
     })
 
   useFilesTabKeyboard({
@@ -305,6 +308,8 @@ export function FilesTab({
     setActiveFilter,
     setInputActive,
     search,
+    crossFileSearch,
+    setSelectedFileIndex,
     visual,
     diffSelectedLine,
     setDiffSelectedLine,
@@ -464,7 +469,24 @@ export function FilesTab({
                 : 'no matches'}
             </Text>
           )}
+          {crossFileSearch.activeQuery && !crossFileSearch.isSearching && !search.activeDiffSearch && (
+            <Text color={theme.colors.info}>
+              [F:{crossFileSearch.activeQuery}] {crossFileSearch.matches.length > 0
+                ? `${crossFileSearch.currentIndex + 1}/${crossFileSearch.matches.length} (${crossFileSearch.matchedFileCount()} files)`
+                : 'no matches'}
+            </Text>
+          )}
         </Box>
+        {crossFileSearch.isSearching && (
+          <Box paddingX={1}>
+            <Text color={theme.colors.info}>F/</Text>
+            <TextInput
+              defaultValue={crossFileSearch.query}
+              onChange={crossFileSearch.setQuery}
+              placeholder="search all files..."
+            />
+          </Box>
+        )}
         {search.isDiffSearching && (
           <Box paddingX={1}>
             <Text color={theme.colors.accent}>/</Text>
@@ -481,7 +503,7 @@ export function FilesTab({
               rows={sideBySideRows}
               selectedLine={diffSelectedLine}
               scrollOffset={diffScrollOffset}
-              viewportHeight={viewportHeight - 2 - (search.isDiffSearching ? 1 : 0)}
+              viewportHeight={viewportHeight - 2 - (search.isDiffSearching || crossFileSearch.isSearching ? 1 : 0)}
               isActive={isActive && focusPanel === 'diff'}
               filename={selectedFile?.filename}
               contentWidth={diffContentWidthSbs}
@@ -493,7 +515,7 @@ export function FilesTab({
               allRows={allRows}
               selectedLine={diffSelectedLine}
               scrollOffset={diffScrollOffset}
-              viewportHeight={viewportHeight - 2 - (search.isDiffSearching ? 1 : 0)}
+              viewportHeight={viewportHeight - 2 - (search.isDiffSearching || crossFileSearch.isSearching ? 1 : 0)}
               isActive={isActive && focusPanel === 'diff'}
               filename={selectedFile?.filename}
               visualStart={focusPanel === 'diff' ? visual.visualStart : null}
