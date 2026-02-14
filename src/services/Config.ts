@@ -155,6 +155,15 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
     ),
     { default: () => [] },
   ),
+  reviewChecklist: S.optionalWith(
+    S.Array(
+      S.Struct({
+        label: S.String,
+        description: S.optionalWith(S.String, { default: () => '' }),
+      }),
+    ),
+    { default: () => [] },
+  ),
   aiProvider: S.optionalWith(S.String, { default: () => '' }),
   aiModel: S.optionalWith(S.String, { default: () => '' }),
   aiApiKey: S.optionalWith(S.String, { default: () => '' }),
@@ -367,6 +376,7 @@ export function flattenV2ToAppConfig(v2: V2ConfigFile): AppConfig {
     recentRepos: v2.recentRepos,
     bookmarkedRepos: v2.bookmarkedRepos,
     commentTemplates: v2.commentTemplates,
+    reviewChecklist: v2.reviewChecklist,
     aiProvider: v2.ai.provider || '',
     aiModel: v2.ai.model || '',
     aiApiKey: v2.ai.apiKey || '',

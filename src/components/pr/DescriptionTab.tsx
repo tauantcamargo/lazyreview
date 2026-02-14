@@ -5,11 +5,13 @@ import { Divider } from '../common/Divider'
 import { useListNavigation } from '../../hooks/useListNavigation'
 import type { PullRequest } from '../../models/pull-request'
 import type { Review } from '../../models/review'
+import type { ChecklistState } from '../../models/review-checklist'
 import { MarkdownText } from '../common/MarkdownText'
 import { ReviewSummary } from './ReviewSummary'
 import { BotSummarySection } from './BotSummarySection'
 import { AiSummarySection } from './AiSummarySection'
 import { DependencySection } from './DependencySection'
+import { ReviewChecklist } from './ReviewChecklist'
 import {
   findMostRecentBotComment,
   type BotDetectableComment,
@@ -40,6 +42,8 @@ interface DescriptionTabProps {
   readonly onToggleAiSummary?: () => void
   readonly allPRs?: readonly PullRequest[]
   readonly onNavigateToPR?: (prNumber: number) => void
+  readonly reviewChecklistState?: ChecklistState | null
+  readonly onToggleChecklistItem?: (index: number) => void
 }
 
 function PRInfoSection({
@@ -135,6 +139,8 @@ export function DescriptionTab({
   onToggleAiSummary,
   allPRs,
   onNavigateToPR,
+  reviewChecklistState,
+  onToggleChecklistItem,
 }: DescriptionTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
@@ -180,6 +186,16 @@ export function DescriptionTab({
             error={aiSummary.error}
             isConfigured={aiSummary.isConfigured}
             providerName={aiSummary.providerName}
+          />,
+        ]
+      : []),
+    ...(reviewChecklistState && reviewChecklistState.items.length > 0 && onToggleChecklistItem
+      ? [
+          <ReviewChecklist
+            key="review-checklist"
+            state={reviewChecklistState}
+            onToggle={onToggleChecklistItem}
+            isActive={isActive}
           />,
         ]
       : []),

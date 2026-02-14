@@ -60,6 +60,7 @@ export interface V2Defaults {
   }
   readonly hostMappings?: readonly { readonly host: string; readonly provider: string }[]
   readonly botUsernames?: readonly string[]
+  readonly reviewChecklist?: readonly { readonly label: string; readonly description?: string }[]
 }
 
 export interface V2CommentTemplate {
@@ -79,6 +80,7 @@ export interface V2ConfigFile {
   readonly recentRepos: readonly { readonly owner: string; readonly repo: string; readonly lastUsed: string }[]
   readonly bookmarkedRepos: readonly { readonly owner: string; readonly repo: string }[]
   readonly commentTemplates: readonly V2CommentTemplate[]
+  readonly reviewChecklist: readonly { readonly label: string; readonly description?: string }[]
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +161,7 @@ export function migrateV1Config(v1: Record<string, unknown>): V2ConfigFile {
     recentRepos: (v1['recentRepos'] as V2ConfigFile['recentRepos']) ?? [],
     bookmarkedRepos: (v1['bookmarkedRepos'] as V2ConfigFile['bookmarkedRepos']) ?? [],
     commentTemplates: (v1['commentTemplates'] as V2ConfigFile['commentTemplates']) ?? [],
+    reviewChecklist: (v1['reviewChecklist'] as V2ConfigFile['reviewChecklist']) ?? [],
   }
 }
 
@@ -232,11 +235,18 @@ export function mergeRepoConfig(
     ? [...global.commentTemplates, ...repoTemplates]
     : global.commentTemplates
 
+  // reviewChecklist: repo config overrides global checklist entirely
+  const repoChecklist = (repo['reviewChecklist'] ?? []) as readonly { readonly label: string; readonly description?: string }[]
+  const mergedChecklist = repoChecklist.length > 0
+    ? repoChecklist
+    : global.reviewChecklist
+
   return {
     ...global,
     defaults: mergedDefaults,
     providers: mergedProviders,
     ai: mergedAi,
     commentTemplates: mergedTemplates,
+    reviewChecklist: mergedChecklist,
   }
 }
