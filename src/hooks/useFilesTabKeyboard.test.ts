@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getFocusedCommentThread, getFocusedLine, extractAiReviewLines } from './useFilesTabKeyboard'
+import { getFocusedCommentThread, getFocusedLine, extractAiReviewLines, extractSuggestionContext } from './useFilesTabKeyboard'
 import type { DiffDisplayRow } from '../components/pr/DiffView'
 import type { SideBySideRow } from '../components/pr/SideBySideDiffView'
 import type { DiffCommentThread } from '../components/pr/DiffComment'
@@ -412,6 +412,178 @@ describe('extractAiReviewLines', () => {
       )
 
       expect(result?.filename).toBe('src/components/App.tsx')
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// extractSuggestionContext tests
+// ---------------------------------------------------------------------------
+
+describe('extractSuggestionContext', () => {
+  describe('single line (no visual selection)', () => {
+    it('extracts a single add line', () => {
+      const rows: DiffDisplayRow[] = [makeAddLineRow(5, 'const x = 0')]
+
+      const result = extractSuggestionContext('unified', 0, rows, [], 'src/index.ts', null)
+
+      expect(result).toBeDefined()
+      expect(result?.originalCode).toBe('const x = 0')
+      expect(result?.path).toBe('src/index.ts')
+      expect(result?.line).toBe(5)
+      expect(result?.side).toBe('RIGHT')
+      expect(result?.startLine).toBeUndefined()
+    })
+
+    it('extracts a single del line', () => {
+      const rows: DiffDisplayRow[] = [makeDelLineRow(3, 'old code')]
+
+      const result = extractSuggestionContext('unified', 0, rows, [], 'src/old.ts', null)
+
+      expect(result).toBeDefined()
+      expect(result?.originalCode).toBe('old code')
+      expect(result?.side).toBe('LEFT')
+      expect(result?.line).toBe(3)
+    })
+
+    it('extracts a context line', () => {
+      const rows: DiffDisplayRow[] = [makeContextLineRow(7, 'unchanged')]
+
+      const result = extractSuggestionContext('unified', 0, rows, [], 'src/file.ts', null)
+
+      expect(result).toBeDefined()
+      expect(result?.originalCode).toBe('unchanged')
+      expect(result?.side).toBe('RIGHT')
+      expect(result?.line).toBe(7)
+    })
+
+    it('returns undefined for header row', () => {
+      const rows: DiffDisplayRow[] = [makeHeaderRow()]
+
+      const result = extractSuggestionContext('unified', 0, rows, [], 'src/file.ts', null)
+
+      expect(result).toBeUndefined()
+    })
+
+    it('returns undefined for out-of-bounds index', () => {
+      const result = extractSuggestionContext('unified', 10, [], [], 'src/file.ts', null)
+
+      expect(result).toBeUndefined()
+    })
+
+    it('returns undefined for comment row', () => {
+      const thread = makeThread([makeComment(1)])
+      const rows: DiffDisplayRow[] = [makeCommentRow(thread)]
+
+      const result = extractSuggestionContext('unified', 0, rows, [], 'src/file.ts', null)
+
+      expect(result).toBeUndefined()
+    })
+  })
+
+  describe('visual selection (multi-line)', () => {
+    it('extracts multiple add lines', () => {
+      const rows: DiffDisplayRow[] = [
+        makeAddLineRow(1, 'line A'),
+        makeAddLineRow(2, 'line B'),
+        makeAddLineRow(3, 'line C'),
+      ]
+
+      const result = extractSuggestionContext('unified', 2, rows, [], 'src/test.ts', 0)
+
+      expect(result).toBeDefined()
+      expect(result?.originalCode).toBe('line A\nline B\nline C')
+      expect(result?.path).toBe('src/test.ts')
+      expect(result?.line).toBe(3)
+      expect(result?.side).toBe('RIGHT')
+      expect(result?.startLine).toBe(1)
+    })
+
+    it('handles reversed visual selection', () => {
+      const rows: DiffDisplayRow[] = [
+        makeAddLineRow(10, 'first'),
+        makeAddLineRow(11, 'second'),
+      ]
+
+      // visualStart=1, cursor=0 (reversed)
+      const result = extractSuggestionContext('unified', 0, rows, [], 'src/test.ts', 1)
+
+      expect(result).toBeDefined()
+      expect(result?.originalCode).toBe('first\nsecond')
+      expect(result?.startLine).toBe(10)
+      expect(result?.line).toBe(11)
+    })
+
+    it('skips header rows in visual selection', () => {
+      const rows: DiffDisplayRow[] = [
+        makeAddLineRow(1, 'before'),
+        makeHeaderRow(),
+        makeAddLineRow(10, 'after'),
+      ]
+
+      const result = extractSuggestionContext('unified', 2, rows, [], 'src/test.ts', 0)
+
+      expect(result).toBeDefined()
+      expect(result?.originalCode).toBe('before\nafter')
+      expect(result?.startLine).toBe(1)
+      expect(result?.line).toBe(10)
+    })
+
+    it('returns undefined when visual selection contains only headers', () => {
+      const rows: DiffDisplayRow[] = [makeHeaderRow(), makeHeaderRow()]
+
+      const result = extractSuggestionContext('unified', 1, rows, [], 'src/test.ts', 0)
+
+      expect(result).toBeUndefined()
+    })
+
+    it('sets side based on last line type in selection', () => {
+      const rows: DiffDisplayRow[] = [
+        makeAddLineRow(1, 'added'),
+        makeDelLineRow(2, 'deleted'),
+      ]
+
+      const result = extractSuggestionContext('unified', 1, rows, [], 'src/test.ts', 0)
+
+      expect(result).toBeDefined()
+      expect(result?.side).toBe('LEFT') // last line is del
+    })
+
+    it('handles single-line visual selection', () => {
+      const rows: DiffDisplayRow[] = [makeAddLineRow(5, 'only line')]
+
+      const result = extractSuggestionContext('unified', 0, rows, [], 'src/test.ts', 0)
+
+      expect(result).toBeDefined()
+      expect(result?.originalCode).toBe('only line')
+      expect(result?.startLine).toBe(5)
+      expect(result?.line).toBe(5)
+    })
+
+    it('handles mixed add/del/context lines', () => {
+      const rows: DiffDisplayRow[] = [
+        makeContextLineRow(1, 'context'),
+        makeDelLineRow(2, 'removed'),
+        makeAddLineRow(3, 'added'),
+      ]
+
+      const result = extractSuggestionContext('unified', 2, rows, [], 'src/test.ts', 0)
+
+      expect(result).toBeDefined()
+      expect(result?.originalCode).toBe('context\nremoved\nadded')
+      expect(result?.startLine).toBe(1)
+      expect(result?.line).toBe(3)
+      expect(result?.side).toBe('RIGHT')
+    })
+  })
+
+  describe('preserves path', () => {
+    it('uses the provided filename', () => {
+      const rows: DiffDisplayRow[] = [makeAddLineRow(1, 'code')]
+
+      const result = extractSuggestionContext('unified', 0, rows, [], 'src/components/App.tsx', null)
+
+      expect(result?.path).toBe('src/components/App.tsx')
     })
   })
 })

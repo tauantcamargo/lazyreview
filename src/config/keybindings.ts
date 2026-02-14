@@ -68,6 +68,14 @@ export type Action =
   | 'commandPalette'
   | 'insertTemplate'
   | 'aiReview'
+  | 'approveFile'
+  | 'rejectFile'
+  | 'skipFile'
+  | 'nextUnreviewed'
+  | 'prevUnreviewed'
+  | 'aiSummary'
+  | 'aiRegenerate'
+  | 'suggest'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -160,6 +168,8 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     labels: 'L',
     assignees: 'A',
     botSummary: 'B',
+    aiSummary: 'ctrl+a',
+    aiRegenerate: 'ctrl+r',
   },
   conversations: {
     newComment: 'c',
@@ -192,6 +202,12 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     toggleHunkFold: 'z',
     fuzzyFilePicker: 'ctrl+f',
     aiReview: ['I', 'ctrl+a'],
+    suggest: 'S',
+    approveFile: 'a',
+    rejectFile: 'x',
+    skipFile: 's',
+    nextUnreviewed: ']f',
+    prevUnreviewed: '[f',
   },
   checksTab: {
     openInBrowser: 'o',

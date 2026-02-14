@@ -1,4 +1,5 @@
 import { useInput } from 'ink'
+import { useRef } from 'react'
 import type { DiffDisplayRow } from '../components/pr/DiffView'
 import type { SideBySideRow } from '../components/pr/SideBySideDiffView'
 import type { DiffCommentThread } from '../components/pr/DiffComment'
@@ -93,6 +94,19 @@ export function getFocusedLine(
     oldLineNumber: row.oldLineNumber,
     newLineNumber: row.newLineNumber,
   }
+}
+
+export interface SuggestionLineContext {
+  /** The original code to be replaced */
+  readonly originalCode: string
+  /** File path being edited */
+  readonly path: string
+  /** End line number for the suggestion */
+  readonly line: number
+  /** Side of the diff (LEFT for deletions, RIGHT for additions/context) */
+  readonly side: 'LEFT' | 'RIGHT'
+  /** Start line for multi-line suggestions */
+  readonly startLine?: number
 }
 
 export interface AiReviewLineContext {
@@ -220,6 +234,98 @@ function extractSingleLineWithContext(
   }
 }
 
+/**
+ * Extract suggestion context from a visual selection or single focused line.
+ * Returns the original code lines and positioning info needed to open SuggestionModal.
+ */
+export function extractSuggestionContext(
+  effectiveDiffMode: DiffMode,
+  diffSelectedLine: number,
+  allRows: readonly DiffDisplayRow[],
+  sideBySideRows: readonly SideBySideRow[],
+  filename: string,
+  visualStart: number | null,
+): SuggestionLineContext | undefined {
+  if (visualStart != null) {
+    return extractVisualSuggestion(
+      effectiveDiffMode,
+      diffSelectedLine,
+      allRows,
+      sideBySideRows,
+      filename,
+      visualStart,
+    )
+  }
+  return extractSingleLineSuggestion(
+    effectiveDiffMode,
+    diffSelectedLine,
+    allRows,
+    sideBySideRows,
+    filename,
+  )
+}
+
+function extractVisualSuggestion(
+  effectiveDiffMode: DiffMode,
+  diffSelectedLine: number,
+  allRows: readonly DiffDisplayRow[],
+  sideBySideRows: readonly SideBySideRow[],
+  filename: string,
+  visualStart: number,
+): SuggestionLineContext | undefined {
+  const selMin = Math.min(visualStart, diffSelectedLine)
+  const selMax = Math.max(visualStart, diffSelectedLine)
+  const lines: string[] = []
+  let startLine: number | undefined
+  let endLine: number | undefined
+  let endSide: 'LEFT' | 'RIGHT' = 'RIGHT'
+
+  for (let i = selMin; i <= selMax; i++) {
+    const lineInfo = getFocusedLine(effectiveDiffMode, i, allRows, sideBySideRows)
+    if (lineInfo && lineInfo.line.type !== 'header') {
+      lines.push(lineInfo.line.content)
+      const lineNum = lineInfo.newLineNumber ?? lineInfo.oldLineNumber
+      if (lineNum != null) {
+        if (startLine == null) startLine = lineNum
+        endLine = lineNum
+        endSide = lineInfo.line.type === 'del' ? 'LEFT' : 'RIGHT'
+      }
+    }
+  }
+
+  if (lines.length === 0 || endLine == null) return undefined
+
+  return {
+    originalCode: lines.join('\n'),
+    path: filename,
+    line: endLine,
+    side: endSide,
+    startLine,
+  }
+}
+
+function extractSingleLineSuggestion(
+  effectiveDiffMode: DiffMode,
+  diffSelectedLine: number,
+  allRows: readonly DiffDisplayRow[],
+  sideBySideRows: readonly SideBySideRow[],
+  filename: string,
+): SuggestionLineContext | undefined {
+  const lineInfo = getFocusedLine(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+  if (!lineInfo || lineInfo.line.type === 'header') return undefined
+
+  const side = lineInfo.line.type === 'del' ? ('LEFT' as const) : ('RIGHT' as const)
+  const line = side === 'LEFT' ? lineInfo.oldLineNumber : lineInfo.newLineNumber
+  if (line == null) return undefined
+
+  return {
+    originalCode: lineInfo.line.content,
+    path: filename,
+    line,
+    side,
+  }
+}
+
 interface UseFilesTabKeyboardOptions {
   readonly isActive: boolean
   readonly focusPanel: FocusPanel
@@ -291,8 +397,18 @@ interface UseFilesTabKeyboardOptions {
   // File picker
   readonly onOpenFilePicker?: () => void
 
+  // Suggestion
+  readonly onSuggest?: (context: SuggestionLineContext) => void
+
   // AI review
   readonly onAiReview?: (context: AiReviewLineContext) => void
+
+  // File review status
+  readonly onApproveFile?: () => void
+  readonly onRejectFile?: () => void
+  readonly onSkipFile?: () => void
+  readonly onNextUnreviewed?: () => void
+  readonly onPrevUnreviewed?: () => void
 
   // Callbacks
   readonly onReply?: (context: {
@@ -311,8 +427,28 @@ interface UseFilesTabKeyboardOptions {
 }
 
 export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
+  const pendingBracketRef = useRef<']' | '[' | null>(null)
+
   useInput(
     (input, key) => {
+      // Two-key sequence: ]f / [f
+      if (pendingBracketRef.current !== null) {
+        const bracket = pendingBracketRef.current
+        pendingBracketRef.current = null
+        if (input === 'f' && opts.focusPanel === 'tree') {
+          if (bracket === ']' && opts.onNextUnreviewed) {
+            opts.onNextUnreviewed()
+            return
+          }
+          if (bracket === '[' && opts.onPrevUnreviewed) {
+            opts.onPrevUnreviewed()
+            return
+          }
+        }
+        // Not a valid sequence continuation; fall through to normal handling
+        // but the bracket key was already consumed, so just return
+        return
+      }
       // File tree filter input mode
       if (opts.isFiltering) {
         if (key.escape) {
@@ -463,6 +599,17 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
         return
       }
 
+      // S: Suggest change on selected line(s)
+      if (
+        input === 'S' &&
+        opts.focusPanel === 'diff' &&
+        opts.onSuggest &&
+        opts.selectedFile
+      ) {
+        handleSuggest(opts)
+        return
+      }
+
       // I or Ctrl+a: AI review of selected line(s)
       if (
         ((input === 'I') || (input === 'a' && key.ctrl)) &&
@@ -537,6 +684,14 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
         opts.setTreePanelPct((prev: number) => Math.max(15, prev - 5))
       } else if (input === '>' && opts.setTreePanelPct) {
         opts.setTreePanelPct((prev: number) => Math.min(50, prev + 5))
+      } else if (input === 'a' && opts.focusPanel === 'tree' && opts.onApproveFile) {
+        opts.onApproveFile()
+      } else if (input === 'x' && opts.focusPanel === 'tree' && opts.onRejectFile) {
+        opts.onRejectFile()
+      } else if (input === 's' && opts.focusPanel === 'tree' && opts.onSkipFile) {
+        opts.onSkipFile()
+      } else if ((input === ']' || input === '[') && opts.focusPanel === 'tree') {
+        pendingBracketRef.current = input as ']' | '['
       } else if (
         (key.return || input === ' ') &&
         opts.focusPanel === 'tree' &&
@@ -775,6 +930,24 @@ function handleToggleHunkFold(opts: UseFilesTabKeyboardOptions): void {
   opts.setFoldedHunks((prev: ReadonlySet<number>) =>
     toggleHunkFold(prev, hunkIndex),
   )
+}
+
+function handleSuggest(opts: UseFilesTabKeyboardOptions): void {
+  if (!opts.onSuggest || !opts.selectedFile) return
+
+  const context = extractSuggestionContext(
+    opts.effectiveDiffMode,
+    opts.diffSelectedLine,
+    opts.allRows,
+    opts.sideBySideRows,
+    opts.selectedFile.filename,
+    opts.visual.visualStart,
+  )
+
+  if (context) {
+    opts.onSuggest(context)
+    opts.visual.clearVisual()
+  }
 }
 
 function handleAiReview(opts: UseFilesTabKeyboardOptions): void {

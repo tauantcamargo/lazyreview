@@ -565,4 +565,14 @@ describe('filesTab panel resizing and dir collapse keybindings', () => {
     const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
     expect(matchesAction(':', makeKey(), 'goToLine', filesTab)).toBe(true)
   })
+
+  it('has suggest binding in filesTab context', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(filesTab['suggest']).toBe('S')
+  })
+
+  it('matches S for suggest', () => {
+    const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
+    expect(matchesAction('S', makeKey(), 'suggest', filesTab)).toBe(true)
+  })
 })
