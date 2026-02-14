@@ -67,6 +67,11 @@ export class TimelineError extends Data.TaggedError('TimelineError')<{
   readonly status?: number
 }> {}
 
+export class StateError extends Data.TaggedError('StateError')<{
+  readonly message: string
+  readonly cause?: unknown
+}> {}
+
 export type ProviderError =
   | GitHubError
   | GitLabError
@@ -76,4 +81,4 @@ export type ProviderError =
   | StreamError
   | TimelineError
 
-export type AppError = GitHubError | GitLabError | BitbucketError | AzureError | GiteaError | AuthError | ConfigError | NetworkError | StreamError | TimelineError
+export type AppError = GitHubError | GitLabError | BitbucketError | AzureError | GiteaError | AuthError | ConfigError | NetworkError | StreamError | TimelineError | StateError
