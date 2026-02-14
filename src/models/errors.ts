@@ -21,6 +21,14 @@ export class GitLabError extends Data.TaggedError('GitLabError')<{
   readonly retryAfterMs?: number
 }> {}
 
+export class BitbucketError extends Data.TaggedError('BitbucketError')<{
+  readonly message: string
+  readonly detail?: string
+  readonly status?: number
+  readonly url?: string
+  readonly retryAfterMs?: number
+}> {}
+
 export class ConfigError extends Data.TaggedError('ConfigError')<{
   readonly message: string
   readonly path?: string
@@ -31,4 +39,4 @@ export class NetworkError extends Data.TaggedError('NetworkError')<{
   readonly cause?: unknown
 }> {}
 
-export type AppError = GitHubError | GitLabError | AuthError | ConfigError | NetworkError
+export type AppError = GitHubError | GitLabError | BitbucketError | AuthError | ConfigError | NetworkError
