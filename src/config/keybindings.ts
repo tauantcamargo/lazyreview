@@ -64,7 +64,10 @@ export type Action =
   | 'prevHunk'
   | 'goToLine'
   | 'toggleHunkFold'
+  | 'fuzzyFilePicker'
   | 'commandPalette'
+  | 'insertTemplate'
+  | 'aiReview'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -187,6 +190,8 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     prevHunk: '{',
     goToLine: ':',
     toggleHunkFold: 'z',
+    fuzzyFilePicker: 'ctrl+f',
+    aiReview: ['I', 'ctrl+a'],
   },
   checksTab: {
     openInBrowser: 'o',
@@ -202,6 +207,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     newLine: 'return',
     indent: 'tab',
     back: 'escape',
+    insertTemplate: 'ctrl+t',
   },
 } as const
 

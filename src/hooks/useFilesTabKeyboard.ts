@@ -95,6 +95,131 @@ export function getFocusedLine(
   }
 }
 
+export interface AiReviewLineContext {
+  readonly code: string
+  readonly filename: string
+  readonly lineTypes: ReadonlySet<string>
+  readonly startLine?: number
+  readonly endLine?: number
+}
+
+/**
+ * Extract selected lines from the diff for AI review.
+ * For a visual selection, extracts all lines in the range.
+ * For a single focused line, extracts that line plus context lines above/below.
+ */
+export function extractAiReviewLines(
+  effectiveDiffMode: DiffMode,
+  diffSelectedLine: number,
+  allRows: readonly DiffDisplayRow[],
+  sideBySideRows: readonly SideBySideRow[],
+  filename: string,
+  visualStart: number | null,
+  contextLines: number = 5,
+): AiReviewLineContext | undefined {
+  if (visualStart != null) {
+    return extractVisualSelection(
+      effectiveDiffMode,
+      diffSelectedLine,
+      allRows,
+      sideBySideRows,
+      filename,
+      visualStart,
+    )
+  }
+  return extractSingleLineWithContext(
+    effectiveDiffMode,
+    diffSelectedLine,
+    allRows,
+    sideBySideRows,
+    filename,
+    contextLines,
+  )
+}
+
+function extractVisualSelection(
+  effectiveDiffMode: DiffMode,
+  diffSelectedLine: number,
+  allRows: readonly DiffDisplayRow[],
+  sideBySideRows: readonly SideBySideRow[],
+  filename: string,
+  visualStart: number,
+): AiReviewLineContext | undefined {
+  const selMin = Math.min(visualStart, diffSelectedLine)
+  const selMax = Math.max(visualStart, diffSelectedLine)
+  const lines: string[] = []
+  const lineTypes = new Set<string>()
+  let startLine: number | undefined
+  let endLine: number | undefined
+
+  for (let i = selMin; i <= selMax; i++) {
+    const lineInfo = getFocusedLine(effectiveDiffMode, i, allRows, sideBySideRows)
+    if (lineInfo && lineInfo.line.type !== 'header') {
+      lines.push(lineInfo.line.content)
+      lineTypes.add(lineInfo.line.type)
+      const lineNum = lineInfo.newLineNumber ?? lineInfo.oldLineNumber
+      if (lineNum != null) {
+        if (startLine == null) startLine = lineNum
+        endLine = lineNum
+      }
+    }
+  }
+
+  if (lines.length === 0) return undefined
+
+  return {
+    code: lines.join('\n'),
+    filename,
+    lineTypes,
+    startLine,
+    endLine,
+  }
+}
+
+function extractSingleLineWithContext(
+  effectiveDiffMode: DiffMode,
+  diffSelectedLine: number,
+  allRows: readonly DiffDisplayRow[],
+  sideBySideRows: readonly SideBySideRow[],
+  filename: string,
+  contextLines: number,
+): AiReviewLineContext | undefined {
+  const focusedInfo = getFocusedLine(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+  if (!focusedInfo || focusedInfo.line.type === 'header') return undefined
+
+  const rowCount = effectiveDiffMode === 'side-by-side' ? sideBySideRows.length : allRows.length
+  const startIdx = Math.max(0, diffSelectedLine - contextLines)
+  const endIdx = Math.min(rowCount - 1, diffSelectedLine + contextLines)
+
+  const lines: string[] = []
+  const lineTypes = new Set<string>()
+  let startLine: number | undefined
+  let endLine: number | undefined
+
+  for (let i = startIdx; i <= endIdx; i++) {
+    const lineInfo = getFocusedLine(effectiveDiffMode, i, allRows, sideBySideRows)
+    if (lineInfo && lineInfo.line.type !== 'header') {
+      lines.push(lineInfo.line.content)
+      lineTypes.add(lineInfo.line.type)
+      const lineNum = lineInfo.newLineNumber ?? lineInfo.oldLineNumber
+      if (lineNum != null) {
+        if (startLine == null) startLine = lineNum
+        endLine = lineNum
+      }
+    }
+  }
+
+  if (lines.length === 0) return undefined
+
+  return {
+    code: lines.join('\n'),
+    filename,
+    lineTypes,
+    startLine,
+    endLine,
+  }
+}
+
 interface UseFilesTabKeyboardOptions {
   readonly isActive: boolean
   readonly focusPanel: FocusPanel
@@ -162,6 +287,12 @@ interface UseFilesTabKeyboardOptions {
   readonly foldedHunks?: ReadonlySet<number>
   readonly setFoldedHunks?: (fn: ReadonlySet<number> | ((prev: ReadonlySet<number>) => ReadonlySet<number>)) => void
   readonly foldedRows?: readonly FoldableRow[]
+
+  // File picker
+  readonly onOpenFilePicker?: () => void
+
+  // AI review
+  readonly onAiReview?: (context: AiReviewLineContext) => void
 
   // Callbacks
   readonly onReply?: (context: {
@@ -323,6 +454,23 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
       if (input === '/' && opts.focusPanel === 'diff') {
         opts.search.startSearch(opts.search.activeDiffSearch)
         opts.setInputActive(true)
+        return
+      }
+
+      // Ctrl+f: open fuzzy file picker
+      if (input === 'f' && key.ctrl && opts.onOpenFilePicker) {
+        opts.onOpenFilePicker()
+        return
+      }
+
+      // I or Ctrl+a: AI review of selected line(s)
+      if (
+        ((input === 'I') || (input === 'a' && key.ctrl)) &&
+        opts.focusPanel === 'diff' &&
+        opts.onAiReview &&
+        opts.selectedFile
+      ) {
+        handleAiReview(opts)
         return
       }
 
@@ -627,4 +775,22 @@ function handleToggleHunkFold(opts: UseFilesTabKeyboardOptions): void {
   opts.setFoldedHunks((prev: ReadonlySet<number>) =>
     toggleHunkFold(prev, hunkIndex),
   )
+}
+
+function handleAiReview(opts: UseFilesTabKeyboardOptions): void {
+  if (!opts.onAiReview || !opts.selectedFile) return
+
+  const context = extractAiReviewLines(
+    opts.effectiveDiffMode,
+    opts.diffSelectedLine,
+    opts.allRows,
+    opts.sideBySideRows,
+    opts.selectedFile.filename,
+    opts.visual.visualStart,
+  )
+
+  if (context) {
+    opts.onAiReview(context)
+    opts.visual.clearVisual()
+  }
 }

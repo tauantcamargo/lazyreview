@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useMemo, useRef, useState, useCallback } from 'react'
 import { Box, Text, useStdout, measureElement } from 'ink'
 import type { DOMElement } from 'ink'
 import { TextInput, Spinner } from '@inkjs/ui'
@@ -14,6 +14,9 @@ import {
   useFilesTabKeyboard,
   getFocusedCommentThread,
 } from '../../hooks/useFilesTabKeyboard'
+import type { AiReviewLineContext } from '../../hooks/useFilesTabKeyboard'
+import { useAiConfig } from '../../hooks/useAiConfig'
+import { useAiReview } from '../../hooks/useAiReview'
 import { setSelectionContext } from '../../hooks/useSelectionContext'
 import { useFileDiff } from '../../hooks/useGitHub'
 import type { FileChange } from '../../models/file-change'
@@ -39,6 +42,11 @@ import type { InlineCommentContext } from '../../models/inline-comment'
 import { DiffStatsSummary } from './DiffStatsSummary'
 import { findRowByLineNumber, findSbsRowByLineNumber } from './diffNavigationHelpers'
 import { applyHunkFolding } from '../../utils/hunk-folding'
+import { FilePickerModal } from './FilePickerModal'
+import { AiReviewModal } from './AiReviewModal'
+import type { AiReviewContext } from './AiReviewModal'
+import { buildLineReviewPrompt, determineLineContext } from '../../services/ai/prompts'
+import { getLanguageFromFilename } from '../../utils/languages'
 
 export function fuzzyMatch(filename: string, query: string): boolean {
   const lower = filename.toLowerCase()
@@ -135,6 +143,12 @@ export function FilesTab({
   const [collapsedDirs, setCollapsedDirs] = useState<ReadonlySet<string>>(new Set())
   const visual = useVisualSelect()
 
+  // AI review state
+  const { aiConfig } = useAiConfig()
+  const aiReview = useAiReview(aiConfig)
+  const [showAiReview, setShowAiReview] = useState(false)
+  const [aiReviewContext, setAiReviewContext] = useState<AiReviewContext | null>(null)
+
   // Measure actual container width
   const containerRef = useRef<DOMElement>(null)
   const [measuredWidth, setMeasuredWidth] = useState(0)
@@ -162,6 +176,7 @@ export function FilesTab({
   const [isGoToLine, setIsGoToLine] = useState(false)
   const [goToLineQuery, setGoToLineQuery] = useState('')
   const [foldedHunks, setFoldedHunks] = useState<ReadonlySet<number>>(new Set())
+  const [isFilePickerOpen, setIsFilePickerOpen] = useState(false)
 
   const treePanelWidth = Math.max(32, Math.floor(containerWidth * (treePanelPct / 100)))
   const diffContentWidth = Math.max(10, containerWidth - treePanelWidth - 8)
@@ -345,8 +360,65 @@ export function FilesTab({
       isActive: isActive && focusPanel === 'diff' && !search.isDiffSearching && !crossFileSearch.isSearching && !isGoToLine,
     })
 
+  const handleAiReviewRequest = useCallback(
+    (lineContext: AiReviewLineContext) => {
+      const language = getLanguageFromFilename(lineContext.filename) ?? 'text'
+      const context: AiReviewContext = {
+        code: lineContext.code,
+        filename: lineContext.filename,
+        language,
+        startLine: lineContext.startLine,
+        endLine: lineContext.endLine,
+      }
+      setAiReviewContext(context)
+      setShowAiReview(true)
+
+      const lineCtx = determineLineContext(lineContext.lineTypes)
+      const messages = buildLineReviewPrompt({
+        code: lineContext.code,
+        filename: lineContext.filename,
+        language,
+        context: lineCtx,
+      })
+
+      aiReview.reviewCode({
+        code: lineContext.code,
+        filename: lineContext.filename,
+        language,
+        messages,
+      })
+    },
+    [aiReview],
+  )
+
+  const handleAiReviewClose = useCallback(() => {
+    setShowAiReview(false)
+    setAiReviewContext(null)
+    aiReview.reset()
+  }, [aiReview])
+
+  const handleAiReviewRegenerate = useCallback(() => {
+    if (!aiReviewContext) return
+    const language = aiReviewContext.language
+    const lineCtx = 'mixed' as const
+    const messages = buildLineReviewPrompt({
+      code: aiReviewContext.code,
+      filename: aiReviewContext.filename,
+      language,
+      context: lineCtx,
+    })
+
+    aiReview.reset()
+    aiReview.reviewCode({
+      code: aiReviewContext.code,
+      filename: aiReviewContext.filename,
+      language,
+      messages,
+    })
+  }, [aiReviewContext, aiReview])
+
   useFilesTabKeyboard({
-    isActive,
+    isActive: isActive && !showAiReview,
     focusPanel,
     setFocusPanel,
     effectiveDiffMode,
@@ -391,6 +463,8 @@ export function FilesTab({
     foldedHunks,
     setFoldedHunks,
     foldedRows,
+    onOpenFilePicker: () => setIsFilePickerOpen(true),
+    onAiReview: handleAiReviewRequest,
   })
 
   // Publish diff row selection context for status bar hints
@@ -424,6 +498,21 @@ export function FilesTab({
     }
   }, [isActive, focusPanel, diffSelectedLine, effectiveDiffMode, allRows, sideBySideRows, currentUser])
 
+  // Compute recently viewed filenames for file picker ordering
+  const recentlyViewedFilenames = useMemo(() => {
+    if (!prUrl) return [] as string[]
+    return files.filter((f) => isViewed(prUrl, f.filename)).map((f) => f.filename)
+  }, [files, prUrl, isViewed])
+
+  const handleFilePickerSelect = React.useCallback(
+    (fileIndex: number) => {
+      setSelectedFileIndex(fileIndex)
+      setFocusPanel('diff')
+      setIsFilePickerOpen(false)
+    },
+    [setSelectedFileIndex],
+  )
+
   if (files.length === 0) {
     return <EmptyState message="No files changed" />
   }
@@ -432,6 +521,26 @@ export function FilesTab({
 
   return (
     <Box ref={containerRef} flexDirection="row" flexGrow={1}>
+      {isFilePickerOpen && (
+        <FilePickerModal
+          files={files}
+          recentlyViewed={recentlyViewedFilenames}
+          onSelect={handleFilePickerSelect}
+          onClose={() => setIsFilePickerOpen(false)}
+        />
+      )}
+      {showAiReview && aiReviewContext && (
+        <AiReviewModal
+          context={aiReviewContext}
+          response={aiReview.response}
+          isLoading={aiReview.isLoading}
+          error={aiReview.error}
+          providerName={aiReview.providerName}
+          modelName={aiReview.modelName}
+          onClose={handleAiReviewClose}
+          onRegenerate={handleAiReviewRegenerate}
+        />
+      )}
       <Box
         flexDirection="column"
         width={`${treePanelPct}%`}
