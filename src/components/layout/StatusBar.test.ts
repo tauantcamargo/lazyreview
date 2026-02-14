@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getContextHints } from './StatusBar'
+import { getContextHints, buildHints } from './StatusBar'
 
 describe('getContextHints', () => {
   it('returns sidebar hints when panel is sidebar regardless of screen context', () => {
@@ -110,5 +110,57 @@ describe('getContextHints', () => {
     const detailHints = getContextHints('detail')
     expect(detailHints).toContain('Tab:tabs')
     expect(detailHints).toContain('Esc:list')
+  })
+
+  it('reflects keybinding overrides in pr-list hints', () => {
+    const overrides = { prList: { filterPRs: 'f', sortPRs: 'S' } }
+    const hints = getContextHints('list', 'pr-list', overrides)
+    expect(hints).toContain('f:filter')
+    expect(hints).toContain('S:sort')
+    // Default keys should not appear since overridden
+    expect(hints).not.toContain('/:filter')
+    expect(hints).not.toContain('s:sort')
+  })
+
+  it('reflects keybinding overrides in pr-detail hints', () => {
+    const overrides = { prDetail: { submitReview: 'r' } }
+    const hints = getContextHints('detail', 'pr-detail-description', overrides)
+    expect(hints).toContain('r:review')
+    expect(hints).not.toContain('R:review')
+  })
+})
+
+describe('buildHints', () => {
+  it('builds hint string from entries using default keybindings', () => {
+    const entries = [
+      { ctx: 'prList', action: 'filterPRs', label: 'filter' },
+      { ctx: 'prList', action: 'sortPRs', label: 'sort' },
+    ] as const
+    const result = buildHints(entries)
+    expect(result).toBe('/:filter  s:sort')
+  })
+
+  it('uses fixed key when provided', () => {
+    const entries = [
+      { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
+    ] as const
+    const result = buildHints(entries)
+    expect(result).toBe('j/k:nav')
+  })
+
+  it('formats ctrl bindings as ^key', () => {
+    const entries = [
+      { ctx: 'global', action: 'toggleSidebar', label: 'sidebar' },
+    ] as const
+    const result = buildHints(entries)
+    expect(result).toBe('^b:sidebar')
+  })
+
+  it('applies overrides correctly', () => {
+    const entries = [
+      { ctx: 'prList', action: 'filterPRs', label: 'filter' },
+    ] as const
+    const result = buildHints(entries, { prList: { filterPRs: 'f' } })
+    expect(result).toBe('f:filter')
   })
 })

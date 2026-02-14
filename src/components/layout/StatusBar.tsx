@@ -1,9 +1,12 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useStatusMessage } from '../../hooks/useStatusMessage'
 import { useLastUpdated } from '../../hooks/useLastUpdated'
 import { useRateLimit } from '../../hooks/useRateLimit'
+import { useKeybindings } from '../../hooks/useKeybindings'
+import { mergeKeybindings, formatActionBindings } from '../../config/keybindings'
+import type { KeybindingOverrides } from '../../config/keybindings'
 import type { Panel } from '../../hooks/useActivePanel'
 
 export type ScreenContext =
@@ -19,37 +22,172 @@ export type ScreenContext =
   | 'browse-picker'
   | 'browse-list'
 
-const PANEL_HINTS: Record<Panel, string> = {
-  sidebar: 'j/k:nav  Enter:select  Tab:list  ^b:sidebar  ?:help  q:quit',
-  list: 'j/k:nav  Enter:detail  /:filter  s:sort  o:open  R:refresh  q:back',
-  detail: 'j/k:scroll  Tab:tabs  Esc:list  ?:help  R:refresh',
+// ---------------------------------------------------------------------------
+// Each hint entry maps a keybinding action to a display label.
+// The `ctx` field selects which keybinding context to look up the key from.
+// Entries with a fixed `key` bypass the keybinding system (e.g. "1-5:tabs").
+// ---------------------------------------------------------------------------
+
+interface HintEntry {
+  readonly ctx: string
+  readonly action: string
+  readonly label: string
+  readonly key?: string // override — use this literal key instead of looking up
 }
 
-const SCREEN_CONTEXT_HINTS: Record<ScreenContext, string> = {
-  'pr-list': 'j/k:nav  Enter:open  /:filter  s:sort  t:state  u:unread  o:browser  y:copy-url  n/p:page  R:refresh',
-  'pr-detail-description': '1-5:tabs  R:review  m:merge  o:open  ?:help',
-  'pr-detail-files': 'c:comment  v:visual  d:split  /:search  Tab:tree',
-  'pr-detail-files-tree': 'Enter:view  /:filter  v:viewed  Tab:diff',
-  'pr-detail-files-diff': 'c:comment  v:visual  d:split  /:search  Tab:tree',
-  'pr-detail-conversations': 'c:comment  r:reply  e:edit  x:resolve  f:filter',
-  'pr-detail-commits': 'j/k:nav  y:copy-sha  R:review  m:merge  [/]:pr',
-  'pr-detail-checks': 'j/k:nav  o:open  y:copy  [/]:pr',
-  'settings': 'j/k:nav  Enter:edit/toggle  Esc:cancel',
-  'browse-picker': 'Enter:search  j/k:recent  x:remove  Esc:back',
-  'browse-list': 'j/k:nav  Enter:open  Esc:picker  /:filter  s:sort  R:refresh',
+const PANEL_HINT_ENTRIES: Readonly<Record<Panel, readonly HintEntry[]>> = {
+  sidebar: [
+    { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
+    { ctx: 'global', action: 'select', label: 'select' },
+    { ctx: 'filesTab', action: 'switchPanel', label: 'list' },
+    { ctx: 'global', action: 'toggleSidebar', label: 'sidebar' },
+    { ctx: 'global', action: 'toggleHelp', label: 'help' },
+    { ctx: 'global', action: 'back', label: 'quit', key: 'q' },
+  ],
+  list: [
+    { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
+    { ctx: 'global', action: 'select', label: 'detail' },
+    { ctx: 'prList', action: 'filterPRs', label: 'filter' },
+    { ctx: 'prList', action: 'sortPRs', label: 'sort' },
+    { ctx: 'prList', action: 'openInBrowser', label: 'open' },
+    { ctx: 'global', action: 'refresh', label: 'refresh' },
+    { ctx: 'global', action: 'back', label: 'back', key: 'q' },
+  ],
+  detail: [
+    { ctx: 'global', action: 'moveDown', label: 'scroll', key: 'j/k' },
+    { ctx: 'filesTab', action: 'switchPanel', label: 'tabs' },
+    { ctx: 'global', action: 'back', label: 'list', key: 'Esc' },
+    { ctx: 'global', action: 'toggleHelp', label: 'help' },
+    { ctx: 'global', action: 'refresh', label: 'refresh' },
+  ],
+}
+
+const SCREEN_HINT_ENTRIES: Readonly<Record<ScreenContext, readonly HintEntry[]>> = {
+  'pr-list': [
+    { ctx: 'prList', action: 'filterPRs', label: 'filter' },
+    { ctx: 'prList', action: 'sortPRs', label: 'sort' },
+    { ctx: 'prList', action: 'toggleState', label: 'state' },
+    { ctx: 'prList', action: 'toggleUnread', label: 'unread' },
+    { ctx: 'prList', action: 'openInBrowser', label: 'browser' },
+    { ctx: 'prList', action: 'copyUrl', label: 'copy-url' },
+    { ctx: 'prList', action: 'nextPage', label: 'page', key: 'n/p' },
+    { ctx: 'global', action: 'refresh', label: 'refresh' },
+  ],
+  'pr-detail-description': [
+    { ctx: 'global', action: 'select', label: 'tabs', key: '1-5' },
+    { ctx: 'prDetail', action: 'submitReview', label: 'review' },
+    { ctx: 'prDetail', action: 'mergePR', label: 'merge' },
+    { ctx: 'prDetail', action: 'openInBrowser', label: 'open' },
+    { ctx: 'global', action: 'toggleHelp', label: 'help' },
+  ],
+  'pr-detail-files': [
+    { ctx: 'filesTab', action: 'inlineComment', label: 'comment' },
+    { ctx: 'filesTab', action: 'visualSelect', label: 'visual' },
+    { ctx: 'filesTab', action: 'toggleSideBySide', label: 'split' },
+    { ctx: 'filesTab', action: 'filterFiles', label: 'search' },
+    { ctx: 'filesTab', action: 'switchPanel', label: 'tree' },
+  ],
+  'pr-detail-files-tree': [
+    { ctx: 'global', action: 'select', label: 'view' },
+    { ctx: 'filesTab', action: 'filterFiles', label: 'filter' },
+    { ctx: 'filesTab', action: 'visualSelect', label: 'viewed' },
+    { ctx: 'filesTab', action: 'switchPanel', label: 'diff' },
+  ],
+  'pr-detail-files-diff': [
+    { ctx: 'filesTab', action: 'inlineComment', label: 'comment' },
+    { ctx: 'filesTab', action: 'visualSelect', label: 'visual' },
+    { ctx: 'filesTab', action: 'toggleSideBySide', label: 'split' },
+    { ctx: 'filesTab', action: 'filterFiles', label: 'search' },
+    { ctx: 'filesTab', action: 'switchPanel', label: 'tree' },
+  ],
+  'pr-detail-conversations': [
+    { ctx: 'conversations', action: 'newComment', label: 'comment' },
+    { ctx: 'conversations', action: 'reply', label: 'reply' },
+    { ctx: 'conversations', action: 'editComment', label: 'edit' },
+    { ctx: 'conversations', action: 'resolveThread', label: 'resolve' },
+    { ctx: 'conversations', action: 'toggleResolved', label: 'filter' },
+  ],
+  'pr-detail-commits': [
+    { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
+    { ctx: 'commitsTab', action: 'copyCommitSha', label: 'copy-sha' },
+    { ctx: 'prDetail', action: 'submitReview', label: 'review' },
+    { ctx: 'prDetail', action: 'mergePR', label: 'merge' },
+    { ctx: 'prDetail', action: 'nextPR', label: 'pr', key: '[/]' },
+  ],
+  'pr-detail-checks': [
+    { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
+    { ctx: 'checksTab', action: 'openInBrowser', label: 'open' },
+    { ctx: 'checksTab', action: 'copyUrl', label: 'copy' },
+    { ctx: 'prDetail', action: 'nextPR', label: 'pr', key: '[/]' },
+  ],
+  'settings': [
+    { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
+    { ctx: 'global', action: 'select', label: 'edit/toggle' },
+    { ctx: 'global', action: 'back', label: 'cancel', key: 'Esc' },
+  ],
+  'browse-picker': [
+    { ctx: 'global', action: 'select', label: 'search' },
+    { ctx: 'global', action: 'moveDown', label: 'recent', key: 'j/k' },
+    { ctx: 'global', action: 'back', label: 'remove', key: 'x' },
+    { ctx: 'global', action: 'back', label: 'back', key: 'Esc' },
+  ],
+  'browse-list': [
+    { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
+    { ctx: 'global', action: 'select', label: 'open' },
+    { ctx: 'global', action: 'back', label: 'picker', key: 'Esc' },
+    { ctx: 'prList', action: 'filterPRs', label: 'filter' },
+    { ctx: 'prList', action: 'sortPRs', label: 'sort' },
+    { ctx: 'global', action: 'refresh', label: 'refresh' },
+  ],
+}
+
+/**
+ * Format a single key binding for the compact status bar display.
+ * Uses the first binding only (e.g. 'j' instead of 'j / Down Arrow').
+ */
+function formatCompactKey(binding: string | readonly string[]): string {
+  const first = Array.isArray(binding) ? binding[0] : binding
+  if (!first) return ''
+  // Short display: ctrl+b -> ^b, return -> Enter, tab -> Tab
+  if (first.startsWith('ctrl+')) return `^${first.slice(5)}`
+  if (first === 'return') return 'Enter'
+  if (first === 'escape') return 'Esc'
+  if (first === 'tab') return 'Tab'
+  return first
+}
+
+/**
+ * Build a hint string from hint entries using actual keybindings.
+ */
+export function buildHints(
+  entries: readonly HintEntry[],
+  overrides?: KeybindingOverrides,
+): string {
+  return entries
+    .map((entry) => {
+      if (entry.key) {
+        return `${entry.key}:${entry.label}`
+      }
+      const bindings = mergeKeybindings(entry.ctx, overrides)
+      const bound = bindings[entry.action]
+      if (!bound) return `?:${entry.label}`
+      return `${formatCompactKey(bound)}:${entry.label}`
+    })
+    .join('  ')
 }
 
 export function getContextHints(
   activePanel: Panel,
   screenContext?: ScreenContext,
+  overrides?: KeybindingOverrides,
 ): string {
   if (activePanel === 'sidebar') {
-    return PANEL_HINTS.sidebar
+    return buildHints(PANEL_HINT_ENTRIES.sidebar, overrides)
   }
-  if (screenContext && screenContext in SCREEN_CONTEXT_HINTS) {
-    return SCREEN_CONTEXT_HINTS[screenContext]
+  if (screenContext && screenContext in SCREEN_HINT_ENTRIES) {
+    return buildHints(SCREEN_HINT_ENTRIES[screenContext], overrides)
   }
-  return PANEL_HINTS[activePanel]
+  return buildHints(PANEL_HINT_ENTRIES[activePanel], overrides)
 }
 
 const RATE_LIMIT_WARNING_THRESHOLD = 100
@@ -67,7 +205,12 @@ export function StatusBar({
   const { message: statusMessage } = useStatusMessage()
   const { label: lastUpdatedLabel } = useLastUpdated()
   const rateLimit = useRateLimit()
-  const hints = getContextHints(activePanel, screenContext)
+  const { overrides } = useKeybindings('global')
+
+  const hints = useMemo(
+    () => getContextHints(activePanel, screenContext, overrides),
+    [activePanel, screenContext, overrides],
+  )
 
   const showRateLimitWarning = rateLimit.remaining < RATE_LIMIT_WARNING_THRESHOLD
 

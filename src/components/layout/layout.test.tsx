@@ -2,6 +2,7 @@ import React from 'react'
 import { describe, it, expect } from 'vitest'
 import { render } from 'ink-testing-library'
 import { Text } from 'ink'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider, defaultTheme } from '../../theme/index'
 import { TopBar } from './TopBar'
 import { Sidebar, SIDEBAR_ITEMS } from './Sidebar'
@@ -11,6 +12,17 @@ import type { NavigableEntry } from '../../hooks/useSidebarSections'
 
 function themed(el: React.ReactElement) {
   return <ThemeProvider theme={defaultTheme}>{el}</ThemeProvider>
+}
+
+function themedWithQuery(el: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={defaultTheme}>{el}</ThemeProvider>
+    </QueryClientProvider>
+  )
 }
 
 describe('TopBar', () => {
@@ -316,14 +328,14 @@ describe('MainPanel', () => {
 
 describe('StatusBar', () => {
   it('renders with default panel hints', () => {
-    const { lastFrame } = render(themed(<StatusBar />))
+    const { lastFrame } = render(themedWithQuery(<StatusBar />))
     const frame = lastFrame() ?? ''
     // Default panel is sidebar
     expect(frame).toContain('j/k:nav')
   })
 
   it('renders list panel hints', () => {
-    const { lastFrame } = render(themed(<StatusBar activePanel="list" />))
+    const { lastFrame } = render(themedWithQuery(<StatusBar activePanel="list" />))
     const frame = lastFrame() ?? ''
     expect(frame).toContain('Enter:detail')
   })
