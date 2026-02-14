@@ -4,15 +4,18 @@ import SyntaxHighlight from 'ink-syntax-highlight'
 import { useTheme } from '../../theme/index'
 import type { Hunk, DiffLine } from '../../models/diff'
 import { DiffCommentView, type DiffCommentThread } from './DiffComment'
-import { expandTabs } from './DiffView'
+import { expandTabs, sliceWordDiffSegments } from './DiffView'
 import { getLanguageFromFilename } from '../../utils/languages'
 import { stripAnsi } from '../../utils/sanitize'
+import { computeWordDiff, type WordDiffSegment } from '../../utils/word-diff'
 
 export type SideBySideRow =
   | {
       readonly left: DiffLine | null
       readonly right: DiffLine | null
       readonly type: 'paired' | 'header'
+      readonly leftWordDiff?: readonly WordDiffSegment[]
+      readonly rightWordDiff?: readonly WordDiffSegment[]
     }
   | {
       readonly type: 'comment'
@@ -62,9 +65,27 @@ function maybeInsertComment(
 }
 
 /**
+ * Compute word-diff for a paired del/add and return the segment arrays,
+ * or undefined if the lines are too different or identical.
+ */
+function computePairWordDiff(
+  delLine: DiffLine,
+  addLine: DiffLine,
+): { left: readonly WordDiffSegment[]; right: readonly WordDiffSegment[] } | undefined {
+  const diff = computeWordDiff(delLine.content, addLine.content)
+  const hasEqual = diff.oldSegments.some((s) => s.type === 'equal')
+  const hasChanged = diff.oldSegments.some((s) => s.type === 'changed')
+  if (hasEqual && hasChanged) {
+    return { left: diff.oldSegments, right: diff.newSegments }
+  }
+  return undefined
+}
+
+/**
  * Build side-by-side rows from hunks by pairing deletions with additions.
  * Context lines appear on both sides. Unmatched dels/adds get an empty opposite side.
  * When commentsByLine is provided, comment rows are inserted after matching lines.
+ * Paired del/add lines get word-level diff annotations.
  */
 export function buildSideBySideRows(
   hunks: readonly Hunk[],
@@ -81,10 +102,24 @@ export function buildSideBySideRows(
       for (let i = 0; i < maxLen; i++) {
         const leftLine = pendingDels[i] ?? null
         const rightLine = pendingAdds[i] ?? null
+
+        // Compute word-diff for paired del/add lines
+        let leftWordDiff: readonly WordDiffSegment[] | undefined
+        let rightWordDiff: readonly WordDiffSegment[] | undefined
+        if (leftLine && rightLine && leftLine.type === 'del' && rightLine.type === 'add') {
+          const pairDiff = computePairWordDiff(leftLine, rightLine)
+          if (pairDiff) {
+            leftWordDiff = pairDiff.left
+            rightWordDiff = pairDiff.right
+          }
+        }
+
         rows.push({
           left: leftLine,
           right: rightLine,
           type: 'paired',
+          leftWordDiff,
+          rightWordDiff,
         })
         // Insert comments for flushed lines
         if (leftLine) maybeInsertComment(rows, leftLine, commentsByLine)
@@ -144,6 +179,46 @@ export function computeSbsSearchMatches(
   return matches
 }
 
+interface SbsWordDiffContentProps {
+  readonly segments: readonly WordDiffSegment[]
+  readonly lineType: 'add' | 'del'
+  readonly scrollOffsetX: number
+  readonly contentWidth: number
+}
+
+function SbsWordDiffContent({
+  segments,
+  lineType,
+  scrollOffsetX,
+  contentWidth,
+}: SbsWordDiffContentProps): React.ReactElement {
+  const theme = useTheme()
+  const textColor = lineType === 'add' ? theme.colors.diffAdd : theme.colors.diffDel
+  const highlightBg =
+    lineType === 'add' ? theme.colors.diffAddHighlight : theme.colors.diffDelHighlight
+
+  const cleanSegments = segments.map((seg) => ({
+    ...seg,
+    text: expandTabs(stripAnsi(seg.text)),
+  }))
+  const visible = sliceWordDiffSegments(cleanSegments, scrollOffsetX, contentWidth)
+
+  return (
+    <Box flexDirection="row" width={contentWidth} overflow="hidden" flexShrink={0}>
+      {visible.map((seg, i) => (
+        <Text
+          key={i}
+          color={textColor}
+          bold={seg.type === 'changed'}
+          backgroundColor={seg.type === 'changed' ? highlightBg : undefined}
+        >
+          {seg.text}
+        </Text>
+      ))}
+    </Box>
+  )
+}
+
 interface SideBySideLineProps {
   readonly line: DiffLine | null
   readonly isFocus: boolean
@@ -151,6 +226,7 @@ interface SideBySideLineProps {
   readonly language?: string
   readonly contentWidth?: number
   readonly scrollOffsetX?: number
+  readonly wordDiffSegments?: readonly WordDiffSegment[]
 }
 
 function SideBySideLine({
@@ -160,6 +236,7 @@ function SideBySideLine({
   language,
   contentWidth = 40,
   scrollOffsetX = 0,
+  wordDiffSegments,
 }: SideBySideLineProps): React.ReactElement {
   const theme = useTheme()
 
@@ -190,12 +267,19 @@ function SideBySideLine({
   const prefix =
     line.type === 'add' ? '+' : line.type === 'del' ? '-' : ' '
 
+  const hasWordDiff =
+    wordDiffSegments != null &&
+    wordDiffSegments.length > 0 &&
+    (line.type === 'add' || line.type === 'del')
+
   const cleanContent = expandTabs(stripAnsi(line.content))
   const visibleContent = cleanContent.slice(
     scrollOffsetX,
     scrollOffsetX + contentWidth,
   )
+
   const canHighlight =
+    !hasWordDiff &&
     line.type !== 'header' &&
     language !== undefined &&
     visibleContent.trim().length > 0
@@ -207,7 +291,17 @@ function SideBySideLine({
           {lineNum != null ? String(lineNum).padStart(4, ' ') : '    '}
         </Text>
       </Box>
-      {canHighlight ? (
+      {hasWordDiff ? (
+        <Box flexDirection="row" flexShrink={0} overflow="hidden">
+          <Text color={textColor} bold={line.type === 'add'}>{prefix}</Text>
+          <SbsWordDiffContent
+            segments={wordDiffSegments}
+            lineType={line.type as 'add' | 'del'}
+            scrollOffsetX={scrollOffsetX}
+            contentWidth={contentWidth}
+          />
+        </Box>
+      ) : canHighlight ? (
         <Box flexDirection="row" flexShrink={0} overflow="hidden">
           <Text color={textColor} bold={line.type === 'add'}>{prefix}</Text>
           <Box width={contentWidth} overflow="hidden" flexShrink={0}>
@@ -317,6 +411,7 @@ export function SideBySideDiffView({
                 language={language}
                 contentWidth={contentWidth}
                 scrollOffsetX={scrollOffsetX}
+                wordDiffSegments={row.leftWordDiff}
               />
             </Box>
             <Box width={1} flexShrink={0} flexGrow={0}>
@@ -330,6 +425,7 @@ export function SideBySideDiffView({
                 language={language}
                 contentWidth={contentWidth}
                 scrollOffsetX={scrollOffsetX}
+                wordDiffSegments={row.rightWordDiff}
               />
             </Box>
           </Box>

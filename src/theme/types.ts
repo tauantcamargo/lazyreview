@@ -19,6 +19,8 @@ export interface ThemeColors {
 
   readonly diffAdd: string
   readonly diffDel: string
+  readonly diffAddHighlight: string
+  readonly diffDelHighlight: string
 
   readonly selection: string
   readonly listSelectedFg: string

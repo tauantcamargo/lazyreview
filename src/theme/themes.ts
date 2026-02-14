@@ -18,6 +18,8 @@ const tokyoNight: Theme = {
 
     diffAdd: '#9ece6a',
     diffDel: '#f7768e',
+    diffAddHighlight: '#1a3a1a',
+    diffDelHighlight: '#3a1a1a',
 
     selection: '#283457',
     listSelectedFg: '#c0caf5',
@@ -43,6 +45,8 @@ const dracula: Theme = {
 
     diffAdd: '#50fa7b',
     diffDel: '#ff5555',
+    diffAddHighlight: '#1a3a1a',
+    diffDelHighlight: '#3a1a1a',
 
     selection: '#44475a',
     listSelectedFg: '#f8f8f2',
@@ -68,6 +72,8 @@ const catppuccinMocha: Theme = {
 
     diffAdd: '#a6e3a1',
     diffDel: '#f38ba8',
+    diffAddHighlight: '#1a3a1a',
+    diffDelHighlight: '#3a1a1a',
 
     selection: '#313244',
     listSelectedFg: '#cdd6f4',
@@ -93,6 +99,8 @@ const gruvbox: Theme = {
 
     diffAdd: '#98971a',
     diffDel: '#cc241d',
+    diffAddHighlight: '#2a3a1a',
+    diffDelHighlight: '#3a1a1a',
 
     selection: '#3c3836',
     listSelectedFg: '#ebdbb2',
@@ -118,6 +126,8 @@ const highContrast: Theme = {
 
     diffAdd: '#58a6ff',
     diffDel: '#d29922',
+    diffAddHighlight: '#0a3a0a',
+    diffDelHighlight: '#3a0a0a',
 
     selection: '#333333',
     listSelectedFg: '#ffffff',
@@ -143,6 +153,8 @@ const githubLight: Theme = {
 
     diffAdd: '#1a7f37',
     diffDel: '#cf222e',
+    diffAddHighlight: '#ccffd8',
+    diffDelHighlight: '#ffd7d5',
 
     selection: '#ddf4ff',
     listSelectedFg: '#1f2328',

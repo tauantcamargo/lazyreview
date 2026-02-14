@@ -31,7 +31,7 @@ describe('themes', () => {
     const requiredKeys: readonly (keyof ThemeColors)[] = [
       'bg', 'text', 'accent', 'muted', 'border', 'primary', 'secondary',
       'success', 'error', 'warning', 'info',
-      'diffAdd', 'diffDel',
+      'diffAdd', 'diffDel', 'diffAddHighlight', 'diffDelHighlight',
       'selection', 'listSelectedFg', 'listSelectedBg',
     ]
 
