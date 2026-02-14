@@ -709,6 +709,37 @@ describe('flattenV2ToAppConfig', () => {
     const config = flattenV2ToAppConfig(v2)
     expect(config.botUsernames).toEqual(['dependabot'])
   })
+
+  it('flattens AI config into AppConfig fields', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      ai: {
+        provider: 'gemini',
+        model: 'gemini-pro',
+        apiKey: 'test-key-123',
+        endpoint: 'https://custom.api.com',
+        maxTokens: 2048,
+        temperature: 0.8,
+      },
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.aiProvider).toBe('gemini')
+    expect(config.aiModel).toBe('gemini-pro')
+    expect(config.aiApiKey).toBe('test-key-123')
+    expect(config.aiEndpoint).toBe('https://custom.api.com')
+    expect(config.aiMaxTokens).toBe(2048)
+    expect(config.aiTemperature).toBe(0.8)
+  })
+
+  it('uses default AI values when V2 has empty AI config', () => {
+    const config = flattenV2ToAppConfig(minimalV2)
+    expect(config.aiProvider).toBe('')
+    expect(config.aiModel).toBe('')
+    expect(config.aiApiKey).toBe('')
+    expect(config.aiEndpoint).toBe('')
+    expect(config.aiMaxTokens).toBe(4096)
+    expect(config.aiTemperature).toBe(0.3)
+  })
 })
 
 // ===========================================================================
@@ -770,5 +801,75 @@ describe('appConfigToV2', () => {
     const config = S.decodeUnknownSync(AppConfig)({})
     const v2 = appConfigToV2(config)
     expect(v2.plugins).toEqual({})
+  })
+
+  it('preserves AI config through AppConfig to V2 conversion', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      aiProvider: 'anthropic',
+      aiModel: 'claude-sonnet-4-5-20250929',
+      aiApiKey: 'sk-test-key',
+      aiEndpoint: 'https://custom.endpoint.com',
+      aiMaxTokens: 8192,
+      aiTemperature: 0.5,
+    })
+    const v2 = appConfigToV2(config)
+    expect(v2.ai.provider).toBe('anthropic')
+    expect(v2.ai.model).toBe('claude-sonnet-4-5-20250929')
+    expect(v2.ai.apiKey).toBe('sk-test-key')
+    expect(v2.ai.endpoint).toBe('https://custom.endpoint.com')
+    expect(v2.ai.maxTokens).toBe(8192)
+    expect(v2.ai.temperature).toBe(0.5)
+  })
+
+  it('round-trips AI config through V2 and back', () => {
+    const original = S.decodeUnknownSync(AppConfig)({
+      aiProvider: 'openai',
+      aiModel: 'gpt-4o',
+      aiApiKey: 'sk-abc123',
+      aiEndpoint: '',
+      aiMaxTokens: 2048,
+      aiTemperature: 0.7,
+    })
+    const v2 = appConfigToV2(original)
+    const restored = flattenV2ToAppConfig(v2)
+    expect(restored.aiProvider).toBe('openai')
+    expect(restored.aiModel).toBe('gpt-4o')
+    expect(restored.aiApiKey).toBe('sk-abc123')
+    expect(restored.aiEndpoint).toBe('')
+    expect(restored.aiMaxTokens).toBe(2048)
+    expect(restored.aiTemperature).toBe(0.7)
+  })
+})
+
+describe('AppConfig AI fields', () => {
+  it('has default AI config values', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    expect(config.aiProvider).toBe('')
+    expect(config.aiModel).toBe('')
+    expect(config.aiApiKey).toBe('')
+    expect(config.aiEndpoint).toBe('')
+    expect(config.aiMaxTokens).toBe(4096)
+    expect(config.aiTemperature).toBe(0.3)
+  })
+
+  it('accepts valid AI config overrides', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      aiProvider: 'ollama',
+      aiModel: 'llama3',
+      aiEndpoint: 'http://localhost:11434',
+      aiMaxTokens: 1024,
+      aiTemperature: 1.0,
+    })
+    expect(config.aiProvider).toBe('ollama')
+    expect(config.aiModel).toBe('llama3')
+    expect(config.aiEndpoint).toBe('http://localhost:11434')
+    expect(config.aiMaxTokens).toBe(1024)
+    expect(config.aiTemperature).toBe(1.0)
+  })
+
+  it('rejects invalid AI temperature', () => {
+    expect(() =>
+      S.decodeUnknownSync(AppConfig)({ aiTemperature: 3 }),
+    ).toThrow()
   })
 })

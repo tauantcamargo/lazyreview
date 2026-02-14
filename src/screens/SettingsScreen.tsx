@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { TextInput, PasswordInput } from '@inkjs/ui'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTheme, getAllThemeNames, isCustomTheme, getCustomThemeMeta } from '../theme/index'
 import type { ThemeName } from '../theme/index'
 import { useConfig } from '../hooks/useConfig'
@@ -57,13 +58,17 @@ type SettingsItem =
   | 'refresh_interval'
   | 'default_owner'
   | 'default_repo'
+  | 'ai_provider'
+  | 'ai_model'
+  | 'ai_api_key'
+  | 'ai_endpoint'
   | 'notifications'
   | 'notify_new_pr'
   | 'notify_update'
   | 'notify_review_request'
   | 'bookmarked_repos'
 
-type EditingField = 'page_size' | 'refresh_interval' | 'default_owner' | 'default_repo' | 'new_token' | 'bookmark_add' | null
+type EditingField = 'page_size' | 'refresh_interval' | 'default_owner' | 'default_repo' | 'new_token' | 'bookmark_add' | 'ai_model' | 'ai_api_key' | 'ai_endpoint' | null
 
 const SETTINGS_ITEMS: readonly SettingsItem[] = [
   'provider',
@@ -74,12 +79,33 @@ const SETTINGS_ITEMS: readonly SettingsItem[] = [
   'refresh_interval',
   'default_owner',
   'default_repo',
+  'ai_provider',
+  'ai_model',
+  'ai_api_key',
+  'ai_endpoint',
   'notifications',
   'notify_new_pr',
   'notify_update',
   'notify_review_request',
   'bookmarked_repos',
 ]
+
+const AI_PROVIDER_ORDER = ['', 'anthropic', 'openai', 'copilot', 'gemini', 'ollama', 'custom'] as const
+
+const AI_PROVIDER_LABELS: Readonly<Record<string, string>> = {
+  '': '(none)',
+  anthropic: 'Anthropic (Claude)',
+  openai: 'OpenAI (GPT)',
+  copilot: 'GitHub Copilot',
+  gemini: 'Google Gemini',
+  ollama: 'Ollama (Local)',
+  custom: 'Custom (OpenAI-compatible)',
+}
+
+function maskApiKey(key: string): string {
+  if (!key || key.length < 8) return key ? '****' : '(not set)'
+  return `${key.slice(0, 4)}...${key.slice(-4)}`
+}
 
 export function SettingsScreen(): React.ReactElement {
   const theme = useTheme()
@@ -93,6 +119,7 @@ export function SettingsScreen(): React.ReactElement {
     refetch,
   } = useAuth()
 
+  const queryClient = useQueryClient()
   const { setStatusMessage } = useStatusMessage()
   const { setInputActive } = useInputFocus()
   const { bookmarkedRepos, addBookmark, removeBookmark } = useBookmarkedRepos()
@@ -166,6 +193,16 @@ export function SettingsScreen(): React.ReactElement {
     }
   }
 
+  const cycleAiProvider = (): void => {
+    const current = config?.aiProvider ?? ''
+    const currentIndex = AI_PROVIDER_ORDER.indexOf(current as typeof AI_PROVIDER_ORDER[number])
+    const nextIndex = (currentIndex + 1) % AI_PROVIDER_ORDER.length
+    const next = AI_PROVIDER_ORDER[nextIndex] ?? ''
+    updateConfig({ aiProvider: next })
+    queryClient.invalidateQueries({ queryKey: ['aiConfig'] })
+    setStatusMessage(`AI provider set to ${AI_PROVIDER_LABELS[next] ?? next}`)
+  }
+
   const startEditing = (field: EditingField): void => {
     if (field === 'page_size') {
       setEditValue(String(config?.pageSize ?? 30))
@@ -180,6 +217,12 @@ export function SettingsScreen(): React.ReactElement {
     } else if (field === 'bookmark_add') {
       setEditValue('')
       setBookmarkError(null)
+    } else if (field === 'ai_model') {
+      setEditValue(config?.aiModel ?? '')
+    } else if (field === 'ai_api_key') {
+      setEditValue('')
+    } else if (field === 'ai_endpoint') {
+      setEditValue(config?.aiEndpoint ?? '')
     }
     setEditingField(field)
     setInputActive(true)
@@ -225,6 +268,18 @@ export function SettingsScreen(): React.ReactElement {
           cancelEditing()
         })
       return
+    } else if (editingField === 'ai_model') {
+      updateConfig({ aiModel: trimmed })
+      queryClient.invalidateQueries({ queryKey: ['aiConfig'] })
+      setStatusMessage('Saved')
+    } else if (editingField === 'ai_api_key' && trimmed) {
+      updateConfig({ aiApiKey: trimmed })
+      queryClient.invalidateQueries({ queryKey: ['aiConfig'] })
+      setStatusMessage('AI API key saved')
+    } else if (editingField === 'ai_endpoint') {
+      updateConfig({ aiEndpoint: trimmed })
+      queryClient.invalidateQueries({ queryKey: ['aiConfig'] })
+      setStatusMessage('Saved')
     } else if (editingField === 'bookmark_add' && trimmed) {
       const validation = validateBookmarkInput(trimmed)
       if (!validation.valid) {
@@ -301,6 +356,14 @@ export function SettingsScreen(): React.ReactElement {
           const current = config?.notifyOnReviewRequest ?? true
           updateConfig({ notifyOnReviewRequest: !current })
           setStatusMessage('Saved')
+        } else if (selectedItem === 'ai_provider') {
+          cycleAiProvider()
+        } else if (selectedItem === 'ai_model') {
+          startEditing('ai_model')
+        } else if (selectedItem === 'ai_api_key') {
+          startEditing('ai_api_key')
+        } else if (selectedItem === 'ai_endpoint') {
+          startEditing('ai_endpoint')
         }
       } else if (isBookmarkSection && input === 'a') {
         startEditing('bookmark_add')
@@ -347,9 +410,10 @@ export function SettingsScreen(): React.ReactElement {
     placeholder: string,
   ): React.ReactElement => {
     if (editingField === field) {
+      const isPassword = field === 'new_token' || field === 'ai_api_key'
       return (
         <Box borderStyle="single" borderColor={theme.colors.accent} paddingX={1} width={40}>
-          {field === 'new_token' ? (
+          {isPassword ? (
             <PasswordInput
               onChange={setEditValue}
               placeholder={placeholder}
@@ -556,6 +620,58 @@ export function SettingsScreen(): React.ReactElement {
         >
           {editingField === 'default_repo'
             ? renderEditableField('default_repo', 'repo')
+            : undefined}
+        </SettingRow>
+      </Box>
+
+      <Box paddingX={1} marginTop={1}>
+        <Divider title="AI Review" />
+      </Box>
+      {/* AI Configuration Section */}
+      <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
+        <Text color={theme.colors.secondary} bold>
+          AI Review
+        </Text>
+      </Box>
+
+      <Box flexDirection="column" gap={0}>
+        <SettingRow
+          label="AI Provider"
+          value={AI_PROVIDER_LABELS[config?.aiProvider ?? ''] ?? config?.aiProvider ?? '(none)'}
+          isSelected={selectedItem === 'ai_provider'}
+          hint="Enter to cycle"
+        />
+        <SettingRow
+          label="Model"
+          value={config?.aiModel || '(default)'}
+          isSelected={selectedItem === 'ai_model'}
+          isEditing={editingField === 'ai_model'}
+          hint="Enter to edit"
+        >
+          {editingField === 'ai_model'
+            ? renderEditableField('ai_model', 'e.g. claude-sonnet-4-5-20250929')
+            : undefined}
+        </SettingRow>
+        <SettingRow
+          label="API Key"
+          value={maskApiKey(config?.aiApiKey ?? '')}
+          isSelected={selectedItem === 'ai_api_key'}
+          isEditing={editingField === 'ai_api_key'}
+          hint="Enter to set"
+        >
+          {editingField === 'ai_api_key'
+            ? renderEditableField('ai_api_key', 'sk-...')
+            : undefined}
+        </SettingRow>
+        <SettingRow
+          label="Endpoint"
+          value={config?.aiEndpoint || '(default)'}
+          isSelected={selectedItem === 'ai_endpoint'}
+          isEditing={editingField === 'ai_endpoint'}
+          hint="Enter to edit"
+        >
+          {editingField === 'ai_endpoint'
+            ? renderEditableField('ai_endpoint', 'http://localhost:11434')
             : undefined}
         </SettingRow>
       </Box>

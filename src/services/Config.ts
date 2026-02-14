@@ -155,6 +155,16 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
     ),
     { default: () => [] },
   ),
+  aiProvider: S.optionalWith(S.String, { default: () => '' }),
+  aiModel: S.optionalWith(S.String, { default: () => '' }),
+  aiApiKey: S.optionalWith(S.String, { default: () => '' }),
+  aiEndpoint: S.optionalWith(S.String, { default: () => '' }),
+  aiMaxTokens: S.optionalWith(S.Number.pipe(S.int(), S.positive()), {
+    default: () => 4096,
+  }),
+  aiTemperature: S.optionalWith(S.Number.pipe(S.between(0, 2)), {
+    default: () => 0.3,
+  }),
 }) {}
 
 // ---------------------------------------------------------------------------
@@ -357,6 +367,12 @@ export function flattenV2ToAppConfig(v2: V2ConfigFile): AppConfig {
     recentRepos: v2.recentRepos,
     bookmarkedRepos: v2.bookmarkedRepos,
     commentTemplates: v2.commentTemplates,
+    aiProvider: v2.ai.provider || '',
+    aiModel: v2.ai.model || '',
+    aiApiKey: v2.ai.apiKey || '',
+    aiEndpoint: v2.ai.endpoint || '',
+    aiMaxTokens: v2.ai.maxTokens,
+    aiTemperature: v2.ai.temperature,
   }
   return S.decodeUnknownSync(AppConfig)(flat)
 }
@@ -365,7 +381,18 @@ export function flattenV2ToAppConfig(v2: V2ConfigFile): AppConfig {
  * Convert an AppConfig to V2ConfigFile for storage.
  */
 export function appConfigToV2(config: AppConfig): V2ConfigFile {
-  return migrateV1Config(config as unknown as Record<string, unknown>)
+  const base = migrateV1Config(config as unknown as Record<string, unknown>)
+  return {
+    ...base,
+    ai: {
+      provider: config.aiProvider ?? '',
+      model: config.aiModel ?? '',
+      apiKey: config.aiApiKey ?? '',
+      endpoint: config.aiEndpoint ?? '',
+      maxTokens: config.aiMaxTokens ?? 4096,
+      temperature: config.aiTemperature ?? 0.3,
+    },
+  }
 }
 
 // ---------------------------------------------------------------------------
