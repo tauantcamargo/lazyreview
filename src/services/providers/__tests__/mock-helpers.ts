@@ -301,8 +301,8 @@ export function createMockBitbucketProvider(
     supportsReviewThreads: false,
     supportsGraphQL: false,
     supportsReactions: false,
-    supportsCheckRuns: false,
-    supportsMergeStrategies: ['merge', 'squash'],
+    supportsCheckRuns: true,
+    supportsMergeStrategies: ['merge', 'squash', 'rebase'],
   }, overrides)
 }
 
