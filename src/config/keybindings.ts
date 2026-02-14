@@ -81,6 +81,11 @@ export type Action =
   | 'viewConflicts'
   | 'nextConflict'
   | 'prevConflict'
+  | 'prNotes'
+  | 'setBookmark'
+  | 'jumpToBookmark'
+  | 'listBookmarks'
+  | 'toggleAiAnnotations'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -179,6 +184,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     botSummary: 'B',
     aiSummary: 'ctrl+a',
     aiRegenerate: 'ctrl+r',
+    prNotes: 'n',
   },
   conversations: {
     newComment: 'c',
@@ -218,6 +224,10 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     nextUnreviewed: ']f',
     prevUnreviewed: '[f',
     viewConflicts: 'C',
+    setBookmark: 'm',
+    jumpToBookmark: "'",
+    listBookmarks: 'M',
+    toggleAiAnnotations: 'ctrl+i',
   },
   conflictView: {
     nextConflict: ']c',
