@@ -103,6 +103,14 @@ export function testProviderContract(
         expect(typeof provider.getPRFiles).toBe('function')
       })
 
+      it('should implement getPRFilesPage', () => {
+        expect(typeof provider.getPRFilesPage).toBe('function')
+      })
+
+      it('should implement getFileDiff', () => {
+        expect(typeof provider.getFileDiff).toBe('function')
+      })
+
       it('should implement getPRComments', () => {
         expect(typeof provider.getPRComments).toBe('function')
       })
@@ -242,6 +250,10 @@ export function testProviderContract(
       it('should implement updateAssignees', () => {
         expect(typeof provider.updateAssignees).toBe('function')
       })
+
+      it('should implement addReaction', () => {
+        expect(typeof provider.addReaction).toBe('function')
+      })
     })
 
     // -----------------------------------------------------------------------
@@ -316,6 +328,25 @@ export function testProviderContract(
         if (result.length > 0) {
           expect(result[0]).toHaveProperty('filename')
           expect(result[0]).toHaveProperty('status')
+        }
+      })
+
+      it('getPRFilesPage should return a PRFilesPage', async () => {
+        const result = await Effect.runPromise(provider.getPRFilesPage(1, 1))
+        expect(result).toHaveProperty('items')
+        expect(Array.isArray(result.items)).toBe(true)
+        expect(typeof result.hasNextPage).toBe('boolean')
+        if (result.items.length > 0) {
+          expect(result.items[0]).toHaveProperty('filename')
+          expect(result.items[0]).toHaveProperty('status')
+        }
+      })
+
+      it('getFileDiff should return a FileChange or null', async () => {
+        const result = await Effect.runPromise(provider.getFileDiff(1, 'src/index.ts'))
+        if (result !== null) {
+          expect(result).toHaveProperty('filename')
+          expect(result).toHaveProperty('status')
         }
       })
 

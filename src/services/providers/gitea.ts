@@ -212,6 +212,32 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
           mapGiteaChangedFilesToFileChanges(parseChangedFiles(data)),
       ),
 
+    getPRFilesPage: (number, _page) =>
+      Effect.map(
+        giteaFetchAllPages<unknown>(
+          `${repoBase}/pulls/${number}/files`,
+          baseUrl,
+          token,
+        ),
+        (data) => ({
+          items: mapGiteaChangedFilesToFileChanges(parseChangedFiles(data)),
+          hasNextPage: false,
+        }),
+      ),
+
+    getFileDiff: (number, filename) =>
+      Effect.map(
+        giteaFetchAllPages<unknown>(
+          `${repoBase}/pulls/${number}/files`,
+          baseUrl,
+          token,
+        ),
+        (data) =>
+          mapGiteaChangedFilesToFileChanges(parseChangedFiles(data)).find(
+            (f) => f.filename === filename,
+          ) ?? null,
+      ),
+
     getPRComments: (number) =>
       Effect.gen(function* () {
         // Get review comments from all reviews
@@ -525,6 +551,13 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
     updateAssignees: () =>
       Effect.fail(
         new GiteaError({ message: 'Assignee management is not yet supported for Gitea', status: 501 }),
+      ),
+
+    // -- Reaction operations (not yet wired for Gitea) ------------------------
+
+    addReaction: () =>
+      Effect.fail(
+        new GiteaError({ message: 'Reactions are not yet supported for Gitea', status: 501 }),
       ),
 
     // -- User info ----------------------------------------------------------

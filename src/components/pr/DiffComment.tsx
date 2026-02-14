@@ -4,6 +4,7 @@ import { useTheme } from '../../theme/index'
 import { MarkdownText } from '../common/MarkdownText'
 import { timeAgo } from '../../utils/date'
 import type { Comment } from '../../models/comment'
+import { ReactionDisplay } from './ReactionDisplay'
 
 export interface DiffCommentThread {
   readonly comments: readonly Comment[]
@@ -56,11 +57,14 @@ export function DiffCommentView({
                 content={thread.isResolved ? `~~${comment.body}~~` : comment.body}
               />
             </Box>
+            {comment.reactions && comment.reactions.total_count > 0 ? (
+              <ReactionDisplay reactions={comment.reactions} />
+            ) : null}
           </Box>
         ))}
         {isFocus && (
           <Text color={theme.colors.muted} dimColor>
-            r: reply | x: {thread.isResolved ? 'unresolve' : 'resolve'} | e: edit
+            r: reply | x: {thread.isResolved ? 'unresolve' : 'resolve'} | e: edit | +: react
           </Text>
         )}
       </Box>

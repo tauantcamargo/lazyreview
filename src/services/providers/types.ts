@@ -8,6 +8,7 @@ import type { Commit } from '../../models/commit'
 import type { CheckRunsResponse } from '../../models/check'
 import type { RepoLabel } from '../../models/label'
 import type { User } from '../../models/user'
+import type { ReactionType } from '../../models/reaction'
 import type { ApiError, ReviewThread } from '../CodeReviewApiTypes'
 
 // ---------------------------------------------------------------------------
@@ -95,6 +96,12 @@ export interface CreatePRResult {
   readonly html_url: string
 }
 
+export interface PRFilesPage {
+  readonly items: readonly FileChange[]
+  readonly hasNextPage: boolean
+  readonly totalCount?: number
+}
+
 // ---------------------------------------------------------------------------
 // Provider interface
 // ---------------------------------------------------------------------------
@@ -107,6 +114,8 @@ export interface Provider {
   readonly listPRs: (params: ListPRsParams) => Effect.Effect<PRListResult, ApiError>
   readonly getPR: (number: number) => Effect.Effect<PullRequest, ApiError>
   readonly getPRFiles: (number: number) => Effect.Effect<readonly FileChange[], ApiError>
+  readonly getPRFilesPage: (number: number, page: number) => Effect.Effect<PRFilesPage, ApiError>
+  readonly getFileDiff: (number: number, filename: string) => Effect.Effect<FileChange | null, ApiError>
   readonly getPRComments: (number: number) => Effect.Effect<readonly Comment[], ApiError>
   readonly getIssueComments: (issueNumber: number) => Effect.Effect<readonly IssueComment[], ApiError>
   readonly getPRReviews: (number: number) => Effect.Effect<readonly Review[], ApiError>
@@ -172,6 +181,13 @@ export interface Provider {
   // Assignee operations (requires supportsAssignees capability)
   readonly getCollaborators: () => Effect.Effect<readonly User[], ApiError>
   readonly updateAssignees: (prNumber: number, assignees: readonly string[]) => Effect.Effect<void, ApiError>
+
+  // Reaction operations (requires supportsReactions capability)
+  readonly addReaction: (
+    commentId: number,
+    reaction: ReactionType,
+    commentType: 'issue_comment' | 'review_comment',
+  ) => Effect.Effect<void, ApiError>
 
   // PR creation
   readonly createPR: (params: CreatePRParams) => Effect.Effect<CreatePRResult, ApiError>

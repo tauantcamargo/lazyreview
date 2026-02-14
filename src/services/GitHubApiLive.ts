@@ -12,6 +12,7 @@ import { CodeReviewApi } from './CodeReviewApiTypes'
 import {
   fetchGitHub,
   fetchGitHubPaginated,
+  fetchGitHubSinglePage,
   mutateGitHub,
   mutateGitHubJson,
   graphqlGitHub,
@@ -75,6 +76,36 @@ export const GitHubApiLive = Layer.effect(
             token,
             FileChange,
           )
+        }),
+
+      getPRFilesPage: (owner, repo, number, page) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(number)
+          const token = yield* auth.getToken()
+          const perPage = 100
+          const url = `/repos/${owner}/${repo}/pulls/${number}/files?per_page=${perPage}&page=${page}`
+          return yield* fetchGitHubSinglePage(
+            url,
+            token,
+            FileChange,
+          )
+        }),
+
+      getFileDiff: (owner, repo, number, filename) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(number)
+          const token = yield* auth.getToken()
+          // Fetch all files (paginated) and find the matching one
+          const files = yield* fetchGitHubPaginated(
+            `/repos/${owner}/${repo}/pulls/${number}/files`,
+            token,
+            FileChange,
+          )
+          return files.find((f) => f.filename === filename) ?? null
         }),
 
       getPRComments: (owner, repo, number) =>
@@ -636,6 +667,19 @@ export const GitHubApiLive = Layer.effect(
             token,
             { assignees: [...assignees] },
           )
+        }),
+
+      addReaction: (owner, repo, commentId, reaction, commentType) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(commentId)
+          const token = yield* auth.getToken()
+          const endpoint =
+            commentType === 'issue_comment'
+              ? `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`
+              : `/repos/${owner}/${repo}/pulls/comments/${commentId}/reactions`
+          yield* mutateGitHub('POST', endpoint, token, { content: reaction })
         }),
 
       createPR: (owner, repo, title, body, baseBranch, headBranch, draft) =>

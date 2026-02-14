@@ -194,4 +194,60 @@ describe('buildTimeline', () => {
     expect(items).toHaveLength(1)
     expect(items[0]!.type).toBe('comment')
   })
+
+  it('passes reactions from comments to timeline items', () => {
+    const pr = makePR()
+    const reactions = {
+      '+1': 3,
+      '-1': 0,
+      laugh: 0,
+      hooray: 0,
+      confused: 0,
+      heart: 1,
+      rocket: 0,
+      eyes: 0,
+      total_count: 4,
+    }
+    const comments = [{
+      ...makeComment(1, '2025-01-02T00:00:00Z'),
+      reactions,
+    }] as unknown as Comment[]
+    const items = buildTimeline(pr, comments, [])
+    expect(items[0]!.reactions).toEqual(reactions)
+  })
+
+  it('passes reactions from issue comments to timeline items', () => {
+    const pr = makePR()
+    const reactions = {
+      '+1': 0,
+      '-1': 0,
+      laugh: 2,
+      hooray: 0,
+      confused: 0,
+      heart: 0,
+      rocket: 5,
+      eyes: 0,
+      total_count: 7,
+    }
+    const issueComments = [{
+      ...makeIssueComment(50, '2025-01-02T00:00:00Z'),
+      reactions,
+    }] as unknown as IssueComment[]
+    const items = buildTimeline(pr, [], [], undefined, issueComments)
+    expect(items[0]!.reactions).toEqual(reactions)
+  })
+
+  it('timeline items without reactions have undefined reactions', () => {
+    const pr = makePR()
+    const comments = [makeComment(1, '2025-01-02T00:00:00Z')]
+    const items = buildTimeline(pr, comments, [])
+    expect(items[0]!.reactions).toBeUndefined()
+  })
+
+  it('reviews do not have reactions', () => {
+    const pr = makePR()
+    const reviews = [makeReview(1, 'APPROVED', '2025-01-02T00:00:00Z')]
+    const items = buildTimeline(pr, [], reviews)
+    expect(items[0]!.reactions).toBeUndefined()
+  })
 })

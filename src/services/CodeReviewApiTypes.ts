@@ -8,6 +8,8 @@ import type { Commit } from '../models/commit'
 import type { CheckRunsResponse } from '../models/check'
 import type { RepoLabel } from '../models/label'
 import type { User } from '../models/user'
+import type { ReactionType } from '../models/reaction'
+import type { PRFilesPage } from './providers/types'
 import type {
   AuthError,
   AzureError,
@@ -70,6 +72,20 @@ export interface CodeReviewApiService {
     repo: string,
     number: number,
   ) => Effect.Effect<readonly FileChange[], ApiError>
+
+  readonly getPRFilesPage: (
+    owner: string,
+    repo: string,
+    number: number,
+    page: number,
+  ) => Effect.Effect<PRFilesPage, ApiError>
+
+  readonly getFileDiff: (
+    owner: string,
+    repo: string,
+    number: number,
+    filename: string,
+  ) => Effect.Effect<FileChange | null, ApiError>
 
   readonly getPRComments: (
     owner: string,
@@ -316,6 +332,16 @@ export interface CodeReviewApiService {
     repo: string,
     prNumber: number,
     assignees: readonly string[],
+  ) => Effect.Effect<void, ApiError>
+
+  // -- Reaction operations --------------------------------------------------
+
+  readonly addReaction: (
+    owner: string,
+    repo: string,
+    commentId: number,
+    reaction: ReactionType,
+    commentType: 'issue_comment' | 'review_comment',
   ) => Effect.Effect<void, ApiError>
 
   // -- User info ------------------------------------------------------------

@@ -49,4 +49,32 @@ describe('Comment schema', () => {
   it('rejects invalid side value', () => {
     expect(() => decode({ ...validComment, side: 'CENTER' })).toThrow()
   })
+
+  it('decodes a comment with reactions', () => {
+    const commentWithReactions = {
+      ...validComment,
+      reactions: {
+        '+1': 3,
+        '-1': 0,
+        laugh: 1,
+        hooray: 0,
+        confused: 0,
+        heart: 2,
+        rocket: 0,
+        eyes: 0,
+        total_count: 6,
+      },
+    }
+    const result = decode(commentWithReactions)
+    expect(result.reactions).toBeDefined()
+    expect(result.reactions?.['+1']).toBe(3)
+    expect(result.reactions?.heart).toBe(2)
+    expect(result.reactions?.total_count).toBe(6)
+  })
+
+  it('decodes a comment without reactions (optional field)', () => {
+    const result = decode(validComment)
+    // reactions is optional so it should be undefined when not provided
+    expect(result.reactions).toBeUndefined()
+  })
 })

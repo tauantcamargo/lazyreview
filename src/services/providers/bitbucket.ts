@@ -206,6 +206,30 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
         (data) => parseDiffStats(data).map(mapBitbucketDiffStatToFileChange),
       ),
 
+    getPRFilesPage: (number, _page) =>
+      Effect.map(
+        bitbucketFetchAllPages<unknown>(
+          `${repoBase}/pullrequests/${number}/diffstat`,
+          baseUrl,
+          token,
+        ),
+        (data) => ({
+          items: parseDiffStats(data).map(mapBitbucketDiffStatToFileChange),
+          hasNextPage: false,
+        }),
+      ),
+
+    getFileDiff: (number, filename) =>
+      Effect.map(
+        bitbucketFetchAllPages<unknown>(
+          `${repoBase}/pullrequests/${number}/diffstat`,
+          baseUrl,
+          token,
+        ),
+        (data) =>
+          parseDiffStats(data).map(mapBitbucketDiffStatToFileChange).find((f) => f.filename === filename) ?? null,
+      ),
+
     getPRComments: (number) =>
       Effect.gen(function* () {
         const [commentsData, prData] = yield* Effect.all([
@@ -605,6 +629,13 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
     updateAssignees: () =>
       Effect.fail(
         new BitbucketError({ message: 'Assignee management is not yet supported for Bitbucket', status: 501 }),
+      ),
+
+    // -- Reaction operations (not supported for Bitbucket) --------------------
+
+    addReaction: () =>
+      Effect.fail(
+        new BitbucketError({ message: 'Reactions are not supported for Bitbucket', status: 501 }),
       ),
 
     // -- User info ----------------------------------------------------------

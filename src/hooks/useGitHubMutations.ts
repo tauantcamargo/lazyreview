@@ -481,6 +481,24 @@ export const useUpdateAssignees = createGitHubMutation<UpdateAssigneesParams>({
 })
 
 // ---------------------------------------------------------------------------
+// Reaction management
+// ---------------------------------------------------------------------------
+
+interface AddReactionParams extends PRParams {
+  readonly commentId: number
+  readonly reaction: import('../models/reaction').ReactionType
+  readonly commentType: 'issue_comment' | 'review_comment'
+}
+
+export const useAddReaction = createGitHubMutation<AddReactionParams>({
+  effect: (api, p) => api.addReaction(p.owner, p.repo, p.commentId, p.reaction, p.commentType),
+  invalidateKeys: (p) => [
+    ...invalidatePRComments(p.owner, p.repo, p.prNumber),
+    ['issue-comments', p.owner, p.repo, p.prNumber],
+  ],
+})
+
+// ---------------------------------------------------------------------------
 // PR creation
 // ---------------------------------------------------------------------------
 

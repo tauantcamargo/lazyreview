@@ -223,6 +223,8 @@ export function createMockProvider(
       Effect.succeed({ items: [mockPR] } as PRListResult),
     getPR: () => Effect.succeed(mockPR),
     getPRFiles: () => Effect.succeed([mockFileChange]),
+    getPRFilesPage: () => Effect.succeed({ items: [mockFileChange], hasNextPage: false }),
+    getFileDiff: () => Effect.succeed(mockFileChange),
     getPRComments: () => Effect.succeed([mockComment]),
     getIssueComments: () => Effect.succeed([mockIssueComment]),
     getPRReviews: () => Effect.succeed([mockReview]),
@@ -277,6 +279,9 @@ export function createMockProvider(
     // Assignee operations
     getCollaborators: () => Effect.succeed([createMockUser()]),
     updateAssignees: () => Effect.succeed(undefined as void),
+
+    // Reaction operations
+    addReaction: () => Effect.succeed(undefined as void),
 
     // User info
     getCurrentUser: () => Effect.succeed({ login: 'testuser' }),

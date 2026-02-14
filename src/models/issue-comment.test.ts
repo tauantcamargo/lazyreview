@@ -58,4 +58,31 @@ describe('IssueComment schema', () => {
       decode({ ...validIssueComment, user: { name: 'bad' } }),
     ).toThrow()
   })
+
+  it('decodes an issue comment with reactions', () => {
+    const withReactions = {
+      ...validIssueComment,
+      reactions: {
+        '+1': 5,
+        '-1': 0,
+        laugh: 0,
+        hooray: 0,
+        confused: 0,
+        heart: 1,
+        rocket: 0,
+        eyes: 0,
+        total_count: 6,
+      },
+    }
+    const result = decode(withReactions)
+    expect(result.reactions).toBeDefined()
+    expect(result.reactions?.['+1']).toBe(5)
+    expect(result.reactions?.heart).toBe(1)
+    expect(result.reactions?.total_count).toBe(6)
+  })
+
+  it('decodes an issue comment without reactions (optional)', () => {
+    const result = decode(validIssueComment)
+    expect(result.reactions).toBeUndefined()
+  })
 })

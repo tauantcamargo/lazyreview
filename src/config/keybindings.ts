@@ -52,6 +52,8 @@ export type Action =
   | 'labels'
   | 'assignees'
   | 'createPR'
+  | 'botSummary'
+  | 'addReaction'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -139,6 +141,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     toggleDraft: 'W',
     labels: 'L',
     assignees: 'A',
+    botSummary: 'B',
   },
   conversations: {
     newComment: 'c',
@@ -148,6 +151,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     resolveThread: 'x',
     toggleResolved: 'f',
     goToFile: 'g',
+    addReaction: '+',
   },
   filesTab: {
     focusTree: 'h',
@@ -160,6 +164,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     reply: 'r',
     editComment: 'e',
     resolveThread: 'x',
+    addReaction: '+',
   },
   checksTab: {
     openInBrowser: 'o',

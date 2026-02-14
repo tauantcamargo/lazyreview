@@ -3,7 +3,6 @@ import { Box, Text, useInput, useStdout } from 'ink'
 import { Match } from 'effect'
 import {
   usePullRequest,
-  usePRFiles,
   usePRComments,
   usePRReviews,
   usePRCommits,
@@ -11,6 +10,7 @@ import {
   useCurrentUser,
   useIssueComments,
 } from '../hooks/useGitHub'
+import { usePaginatedFiles } from '../hooks/usePaginatedFiles'
 import {
   useConvertToDraft,
   useMarkReadyForReview,
@@ -34,13 +34,16 @@ import { MergeModal } from '../components/pr/MergeModal'
 import { ReReviewModal, buildReviewerList } from '../components/pr/ReReviewModal'
 import { LabelPickerModal } from '../components/pr/LabelPickerModal'
 import { AssigneePickerModal } from '../components/pr/AssigneePickerModal'
+import { ReactionPicker } from '../components/pr/ReactionPicker'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { openInBrowser, copyToClipboard } from '../utils/terminal'
 import { checkoutPR } from '../utils/git'
+import { useConfig } from '../hooks/useConfig'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useReadState } from '../hooks/useReadState'
 import { useManualRefresh } from '../hooks/useManualRefresh'
 import { setScreenContext } from '../hooks/useScreenContext'
+import { useReactionActions } from '../hooks/useReactionActions'
 import { useTheme } from '../theme/index'
 import type { PullRequest } from '../models/pull-request'
 import type { InlineCommentContext } from '../models/inline-comment'
@@ -71,6 +74,7 @@ export function PRDetailScreen({
   prTotal,
 }: PRDetailScreenProps): React.ReactElement {
   const { stdout } = useStdout()
+  const { config } = useConfig()
   const { setStatusMessage } = useStatusMessage()
   const { markAsRead } = useReadState()
   const theme = useTheme()
@@ -120,14 +124,22 @@ export function PRDetailScreen({
   const needsThreads = hasVisited(1) || hasVisited(3)
   const needsCommits = hasVisited(2)
   const needsFiles = hasVisited(3)
-  const needsIssueComments = hasVisited(1)
+  const needsIssueComments = hasVisited(0) || hasVisited(1)
 
   // Fetch full PR data (search API doesn't include head.sha)
   const { data: fullPR } = usePullRequest(owner, repo, pr.number)
   const activePR = fullPR ?? pr
 
-  // Lazy-load PR data based on visited tabs
-  const { data: files = [], isLoading: filesLoading } = usePRFiles(owner, repo, pr.number, { enabled: needsFiles })
+  // Lazy-load PR data based on visited tabs (with pagination for 300+ files)
+  const {
+    files,
+    isLoading: filesLoading,
+    hasMoreFiles,
+    totalFileCount,
+    loadNextPage: loadMoreFiles,
+  } = usePaginatedFiles(owner, repo, pr.number, activePR.changed_files, {
+    enabled: needsFiles,
+  })
   const { data: comments = [], isLoading: commentsLoading } = usePRComments(owner, repo, pr.number, { enabled: needsComments })
   const { data: reviews = [], isLoading: reviewsLoading } = usePRReviews(owner, repo, pr.number)
   const { data: commits = [], isLoading: commitsLoading } = usePRCommits(owner, repo, pr.number, { enabled: needsCommits })
@@ -156,6 +168,13 @@ export function PRDetailScreen({
   })
 
   const pendingReview = usePendingReview({
+    owner,
+    repo,
+    prNumber: pr.number,
+    setStatusMessage,
+  })
+
+  const reactionActions = useReactionActions({
     owner,
     repo,
     prNumber: pr.number,
@@ -217,7 +236,7 @@ export function PRDetailScreen({
     setStatusMessage(`Jumped to ${path}`)
   }, [setStatusMessage])
 
-  const anyModalOpen = modals.hasModal || showLabelPicker || showAssigneePicker
+  const anyModalOpen = modals.hasModal || showLabelPicker || showAssigneePicker || reactionActions.showReactionPicker
 
   useManualRefresh({
     isActive: !anyModalOpen,
@@ -365,6 +384,8 @@ export function PRDetailScreen({
           reviews={reviews}
           isActive={!anyModalOpen}
           onEditDescription={modals.handleOpenEditDescription}
+          issueComments={issueComments}
+          botUsernames={config?.botUsernames}
         />
       )),
       Match.when(1, () => (
@@ -384,6 +405,8 @@ export function PRDetailScreen({
           onEditComment={modals.handleOpenEditComment}
           onEditDescription={modals.handleOpenEditDescription}
           onGoToFile={handleGoToFile}
+          supportsReactions={true}
+          onAddReaction={reactionActions.handleOpenReactionPicker}
         />
       )),
       Match.when(2, () => (
@@ -401,8 +424,15 @@ export function PRDetailScreen({
           onReply={modals.handleOpenReply}
           onToggleResolve={modals.handleToggleResolve}
           onEditComment={modals.handleOpenEditComment}
+          onAddReaction={reactionActions.handleOpenReactionPicker}
           initialFile={initialFile}
           onInitialFileConsumed={() => setInitialFile(undefined)}
+          owner={owner}
+          repo={repo}
+          prNumber={pr.number}
+          totalFileCount={totalFileCount}
+          hasMoreFiles={hasMoreFiles}
+          onLoadMoreFiles={loadMoreFiles}
         />
       )),
       Match.when(4, () => (
@@ -419,6 +449,8 @@ export function PRDetailScreen({
           reviews={reviews}
           isActive={!anyModalOpen}
           onEditDescription={modals.handleOpenEditDescription}
+          issueComments={issueComments}
+          botUsernames={config?.botUsernames}
         />
       ))
     )
@@ -545,6 +577,14 @@ export function PRDetailScreen({
           isSubmitting={setLabelsMutation.isPending}
           isLoading={labelsLoading}
           error={labelError}
+        />
+      )}
+      {reactionActions.showReactionPicker && (
+        <ReactionPicker
+          onSelect={reactionActions.handleReactionSelect}
+          onClose={reactionActions.closeReactionPicker}
+          isSubmitting={reactionActions.reactionPending}
+          error={reactionActions.reactionError}
         />
       )}
       {showAssigneePicker && (

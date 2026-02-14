@@ -284,6 +284,70 @@ export function createAzureProvider(config: ProviderConfig): Provider {
         )
       }),
 
+    getPRFilesPage: (number, _page) =>
+      Effect.gen(function* () {
+        const iterationsData = yield* azureFetchJson<{
+          readonly value: readonly unknown[]
+        }>(
+          `${repoBase}/pullrequests/${number}/iterations`,
+          baseUrl,
+          token,
+        )
+
+        const iterations = parseIterations(iterationsData.value)
+        if (iterations.length === 0) {
+          return { items: [], hasNextPage: false }
+        }
+
+        const latestIterationId = iterations[iterations.length - 1]!.id
+
+        const changesData = yield* azureFetchJson<{
+          readonly changeEntries: readonly unknown[]
+        }>(
+          `${repoBase}/pullrequests/${number}/iterations/${latestIterationId}/changes`,
+          baseUrl,
+          token,
+        )
+
+        return {
+          items: parseIterationChanges(changesData.changeEntries).map(
+            mapAzureChangeToFileChange,
+          ),
+          hasNextPage: false,
+        }
+      }),
+
+    getFileDiff: (number, filename) =>
+      Effect.gen(function* () {
+        const iterationsData = yield* azureFetchJson<{
+          readonly value: readonly unknown[]
+        }>(
+          `${repoBase}/pullrequests/${number}/iterations`,
+          baseUrl,
+          token,
+        )
+
+        const iterations = parseIterations(iterationsData.value)
+        if (iterations.length === 0) {
+          return null
+        }
+
+        const latestIterationId = iterations[iterations.length - 1]!.id
+
+        const changesData = yield* azureFetchJson<{
+          readonly changeEntries: readonly unknown[]
+        }>(
+          `${repoBase}/pullrequests/${number}/iterations/${latestIterationId}/changes`,
+          baseUrl,
+          token,
+        )
+
+        const files = parseIterationChanges(changesData.changeEntries).map(
+          mapAzureChangeToFileChange,
+        )
+        return files.find((f) => f.filename === filename) ?? null
+      }),
+
     getPRComments: (number) =>
       Effect.map(
         azureFetchJson<{ readonly value: readonly unknown[] }>(
@@ -747,6 +811,13 @@ export function createAzureProvider(config: ProviderConfig): Provider {
     updateAssignees: () =>
       Effect.fail(
         new AzureError({ message: 'Assignee management is not yet supported for Azure DevOps', status: 501 }),
+      ),
+
+    // -- Reaction operations (not supported for Azure DevOps) -----------------
+
+    addReaction: () =>
+      Effect.fail(
+        new AzureError({ message: 'Reactions are not supported for Azure DevOps', status: 501 }),
       ),
 
     // -- User info ----------------------------------------------------------

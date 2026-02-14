@@ -272,6 +272,30 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
         (data) => parseDiffs(data).map(mapDiffToFileChange),
       ),
 
+    getPRFilesPage: (number, _page) =>
+      Effect.map(
+        gitlabFetchAllPages<unknown>(
+          `${projectBase}/merge_requests/${number}/diffs`,
+          baseUrl,
+          token,
+        ),
+        (data) => ({
+          items: parseDiffs(data).map(mapDiffToFileChange),
+          hasNextPage: false,
+        }),
+      ),
+
+    getFileDiff: (number, filename) =>
+      Effect.map(
+        gitlabFetchAllPages<unknown>(
+          `${projectBase}/merge_requests/${number}/diffs`,
+          baseUrl,
+          token,
+        ),
+        (data) =>
+          parseDiffs(data).map(mapDiffToFileChange).find((f) => f.filename === filename) ?? null,
+      ),
+
     getPRComments: (number) =>
       Effect.gen(function* () {
         const [notesData, mrData] = yield* Effect.all([
@@ -687,6 +711,13 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
     updateAssignees: () =>
       Effect.fail(
         new GitHubError({ message: 'Assignee management is not yet supported for GitLab', status: 501 }),
+      ),
+
+    // -- Reaction operations (not yet wired for GitLab) -----------------------
+
+    addReaction: () =>
+      Effect.fail(
+        new GitHubError({ message: 'Reactions are not yet supported for GitLab', status: 501 }),
       ),
 
     // -- User info ----------------------------------------------------------

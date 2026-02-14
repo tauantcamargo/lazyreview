@@ -5,6 +5,7 @@ import type { DiffCommentThread } from '../components/pr/DiffComment'
 import type { DiffLine } from '../models/diff'
 import type { FileChange } from '../models/file-change'
 import type { InlineCommentContext } from '../models/inline-comment'
+import type { ReactionContext } from './useReactionActions'
 import type { DiffSearchActions } from './useDiffSearch'
 import type { CrossFileSearchState, CrossFileSearchActions } from './useCrossFileSearch'
 import type { VisualSelectActions, VisualSelectState } from './useVisualSelect'
@@ -140,6 +141,7 @@ interface UseFilesTabKeyboardOptions {
   }) => void
   readonly onEditComment?: (context: EditCommentContext) => void
   readonly onInlineComment?: (context: InlineCommentContext) => void
+  readonly onAddReaction?: (context: ReactionContext) => void
   readonly currentUser?: string
 }
 
@@ -323,6 +325,8 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
         handleEditComment(opts)
       } else if (input === 'c' && opts.focusPanel === 'diff' && opts.onInlineComment && opts.selectedFile) {
         handleInlineComment(opts)
+      } else if (input === '+' && opts.focusPanel === 'diff' && opts.onAddReaction) {
+        handleAddReaction(opts)
       }
     },
     { isActive: opts.isActive },
@@ -459,6 +463,24 @@ function handleSingleLineComment(opts: UseFilesTabKeyboardOptions): void {
         path: opts.selectedFile.filename,
         line,
         side,
+      })
+    }
+  }
+}
+
+function handleAddReaction(opts: UseFilesTabKeyboardOptions): void {
+  const thread = getFocusedCommentThread(
+    opts.effectiveDiffMode,
+    opts.diffSelectedLine,
+    opts.allRows,
+    opts.sideBySideRows,
+  )
+  if (thread && opts.onAddReaction) {
+    const lastComment = thread.comments[thread.comments.length - 1]
+    if (lastComment) {
+      opts.onAddReaction({
+        commentId: lastComment.id,
+        commentType: 'review_comment',
       })
     }
   }

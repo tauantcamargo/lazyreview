@@ -66,6 +66,10 @@ export function createGitHubProvider(
 
     getPRFiles: (number) => service.getPRFiles(owner, repo, number),
 
+    getPRFilesPage: (number, page) => service.getPRFilesPage(owner, repo, number, page),
+
+    getFileDiff: (number, filename) => service.getFileDiff(owner, repo, number, filename),
+
     getPRComments: (number) => service.getPRComments(owner, repo, number),
 
     getIssueComments: (issueNumber) => service.getIssueComments(owner, repo, issueNumber),
@@ -202,6 +206,11 @@ export function createGitHubProvider(
 
     updateAssignees: (prNumber, assignees) => service.updateAssignees(owner, repo, prNumber, assignees),
 
+    // -- Reaction operations ------------------------------------------------
+
+    addReaction: (commentId, reaction, commentType) =>
+      service.addReaction(owner, repo, commentId, reaction, commentType),
+
     // -- User info ----------------------------------------------------------
 
     getCurrentUser: () => service.getCurrentUser(),
@@ -236,6 +245,8 @@ export function createUnsupportedProvider(type: string): Provider {
     listPRs: fail,
     getPR: fail,
     getPRFiles: fail,
+    getPRFilesPage: fail,
+    getFileDiff: fail,
     getPRComments: fail,
     getIssueComments: fail,
     getPRReviews: fail,
@@ -272,6 +283,7 @@ export function createUnsupportedProvider(type: string): Provider {
     setLabels: fail,
     getCollaborators: fail,
     updateAssignees: fail,
+    addReaction: fail,
     getCurrentUser: fail,
   }
 }

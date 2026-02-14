@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { Box, Text, useStdout, measureElement } from 'ink'
 import type { DOMElement } from 'ink'
-import { TextInput } from '@inkjs/ui'
+import { TextInput, Spinner } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
 import { setScreenContext } from '../../hooks/useScreenContext'
@@ -11,6 +11,7 @@ import { useDiffSearch } from '../../hooks/useDiffSearch'
 import { useCrossFileSearch } from '../../hooks/useCrossFileSearch'
 import { useVisualSelect } from '../../hooks/useVisualSelect'
 import { useFilesTabKeyboard } from '../../hooks/useFilesTabKeyboard'
+import { useFileDiff } from '../../hooks/useGitHub'
 import type { FileChange } from '../../models/file-change'
 import { parseDiffPatch } from '../../models/diff'
 import type { Comment } from '../../models/comment'
@@ -67,8 +68,22 @@ interface FilesTabProps {
     readonly isResolved: boolean
   }) => void
   readonly onEditComment?: (context: EditCommentContext) => void
+  readonly onAddReaction?: (context: {
+    readonly commentId: number
+    readonly commentType: 'issue_comment' | 'review_comment'
+  }) => void
   readonly initialFile?: string
   readonly onInitialFileConsumed?: () => void
+  // Lazy diff loading: if provided, diffs are fetched on-demand per file
+  readonly owner?: string
+  readonly repo?: string
+  readonly prNumber?: number
+  // Total file count from PR metadata (for pagination indicator)
+  readonly totalFileCount?: number
+  // Whether more pages of files are available
+  readonly hasMoreFiles?: boolean
+  // Callback to load the next page of files
+  readonly onLoadMoreFiles?: () => void
 }
 
 type FocusPanel = 'tree' | 'diff'
@@ -85,8 +100,15 @@ export function FilesTab({
   onReply,
   onToggleResolve,
   onEditComment,
+  onAddReaction,
   initialFile,
   onInitialFileConsumed,
+  owner,
+  repo,
+  prNumber,
+  totalFileCount,
+  hasMoreFiles,
+  onLoadMoreFiles,
 }: FilesTabProps): React.ReactElement {
   const { stdout } = useStdout()
   const theme = useTheme()
@@ -193,7 +215,19 @@ export function FilesTab({
 
   // Memoize hunks by filename to avoid re-parsing on every render
   const selectedFilename = selectedFile?.filename ?? null
-  const selectedPatch = selectedFile?.patch ?? null
+  const inlinePatch = selectedFile?.patch ?? null
+
+  // Lazy diff loading: fetch on-demand when file has no inline patch
+  const needsLazyDiff = !!selectedFilename && inlinePatch == null && !!owner && !!repo && !!prNumber
+  const { data: lazyDiffFile, isLoading: isDiffLoading } = useFileDiff(
+    owner ?? '',
+    repo ?? '',
+    prNumber ?? 0,
+    needsLazyDiff ? selectedFilename : null,
+    { enabled: needsLazyDiff },
+  )
+
+  const selectedPatch = inlinePatch ?? lazyDiffFile?.patch ?? null
   const hunks = useMemo(
     () => (selectedPatch ? parseDiffPatch(selectedPatch) : []),
     [selectedPatch],
@@ -327,6 +361,7 @@ export function FilesTab({
     onToggleResolve,
     onEditComment,
     onInlineComment,
+    onAddReaction,
     currentUser,
   })
 
@@ -367,6 +402,14 @@ export function FilesTab({
           )}
           {activeFilter && !isFiltering && (
             <Text color={theme.colors.warning}>[/{activeFilter}]</Text>
+          )}
+          {totalFileCount != null && totalFileCount > files.length && (
+            <Text color={theme.colors.info}>
+              [{files.length}/{totalFileCount}]
+            </Text>
+          )}
+          {hasMoreFiles && (
+            <Text color={theme.colors.muted}>[more...]</Text>
           )}
         </Box>
         <DiffStatsSummary files={files} />
@@ -500,7 +543,14 @@ export function FilesTab({
           </Box>
         )}
         <Box flexDirection="column" flexGrow={1} minWidth={0} overflow="hidden">
-          {effectiveDiffMode === 'side-by-side' ? (
+          {isDiffLoading && needsLazyDiff ? (
+            <Box justifyContent="center" alignItems="center" flexGrow={1}>
+              <Box gap={1}>
+                <Spinner />
+                <Text color={theme.colors.accent}>Loading diff...</Text>
+              </Box>
+            </Box>
+          ) : effectiveDiffMode === 'side-by-side' ? (
             <SideBySideDiffView
               rows={sideBySideRows}
               selectedLine={diffSelectedLine}

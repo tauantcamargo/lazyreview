@@ -179,6 +179,7 @@ describe('useKeybindings integration scenarios', () => {
       expect(matchesAction('x', makeKey(), 'resolveThread', bindings)).toBe(true)
       expect(matchesAction('f', makeKey(), 'toggleResolved', bindings)).toBe(true)
       expect(matchesAction('g', makeKey(), 'goToFile', bindings)).toBe(true)
+      expect(matchesAction('+', makeKey(), 'addReaction', bindings)).toBe(true)
     })
 
     it('all default filesTab bindings match expected keys', () => {
@@ -193,6 +194,7 @@ describe('useKeybindings integration scenarios', () => {
       expect(matchesAction('r', makeKey(), 'reply', bindings)).toBe(true)
       expect(matchesAction('e', makeKey(), 'editComment', bindings)).toBe(true)
       expect(matchesAction('x', makeKey(), 'resolveThread', bindings)).toBe(true)
+      expect(matchesAction('+', makeKey(), 'addReaction', bindings)).toBe(true)
     })
 
     it('all default input bindings match expected keys', () => {

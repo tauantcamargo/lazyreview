@@ -4,6 +4,8 @@ import { Match } from 'effect'
 import { useTheme } from '../../theme/index'
 import { MarkdownText } from '../common/MarkdownText'
 import { timeAgo } from '../../utils/date'
+import type { ReactionSummary } from '../../models/reaction'
+import { ReactionDisplay } from './ReactionDisplay'
 
 export interface TimelineItem {
   readonly id: string
@@ -17,6 +19,7 @@ export interface TimelineItem {
   readonly commentId?: number
   readonly threadId?: string
   readonly isResolved?: boolean
+  readonly reactions?: ReactionSummary
 }
 
 export function TimelineItemView({
@@ -95,6 +98,11 @@ export function TimelineItemView({
       {item.body ? (
         <Box paddingLeft={isFocus ? 3 : 2} marginTop={0} width="80%">
           <MarkdownText content={item.isResolved ? `~~${item.body}~~` : item.body} />
+        </Box>
+      ) : null}
+      {item.reactions && item.reactions.total_count > 0 ? (
+        <Box paddingLeft={isFocus ? 3 : 2}>
+          <ReactionDisplay reactions={item.reactions} />
         </Box>
       ) : null}
     </Box>

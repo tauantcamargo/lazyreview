@@ -8,6 +8,7 @@ import type { IssueComment } from '../../models/issue-comment'
 import type { Review } from '../../models/review'
 import type { ReviewThread } from '../../services/GitHubApi'
 import { TimelineItemView, type TimelineItem } from './TimelineItemView'
+import type { ReactionContext } from '../../hooks/useReactionActions'
 
 export interface ReplyContext {
   readonly commentId: number
@@ -40,6 +41,7 @@ interface ConversationsTabProps {
   readonly isActive: boolean
   readonly showResolved?: boolean
   readonly currentUser?: string
+  readonly supportsReactions?: boolean
   readonly onComment?: () => void
   readonly onReply?: (context: ReplyContext) => void
   readonly onToggleResolve?: (context: ResolveContext) => void
@@ -47,6 +49,7 @@ interface ConversationsTabProps {
   readonly onEditComment?: (context: EditCommentContext) => void
   readonly onEditDescription?: (context: EditDescriptionContext) => void
   readonly onGoToFile?: (path: string) => void
+  readonly onAddReaction?: (context: ReactionContext) => void
 }
 
 export function buildTimeline(
@@ -96,6 +99,7 @@ export function buildTimeline(
       commentId: comment.id,
       threadId: thread?.id,
       isResolved: thread?.isResolved,
+      reactions: comment.reactions,
     })
   }
 
@@ -109,6 +113,7 @@ export function buildTimeline(
         body: ic.body,
         date: ic.created_at,
         commentId: ic.id,
+        reactions: ic.reactions,
       })
     }
   }
@@ -131,6 +136,7 @@ export function ConversationsTab({
   isActive,
   showResolved = true,
   currentUser,
+  supportsReactions = false,
   onComment,
   onReply,
   onToggleResolve,
@@ -138,6 +144,7 @@ export function ConversationsTab({
   onEditComment,
   onEditDescription,
   onGoToFile,
+  onAddReaction,
 }: ConversationsTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
@@ -210,6 +217,20 @@ export function ConversationsTab({
       }
       if (input === 'f' && onToggleShowResolved) {
         onToggleShowResolved()
+      }
+      if (input === '+' && onAddReaction && supportsReactions) {
+        const selected = timeline[selectedIndex]
+        if (selected?.type === 'comment' && selected.commentId != null) {
+          onAddReaction({
+            commentId: selected.commentId,
+            commentType: 'review_comment',
+          })
+        } else if (selected?.type === 'issue_comment' && selected.commentId != null) {
+          onAddReaction({
+            commentId: selected.commentId,
+            commentType: 'issue_comment',
+          })
+        }
       }
     },
     { isActive },
