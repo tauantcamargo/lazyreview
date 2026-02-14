@@ -14,6 +14,8 @@ import {
   parseRetryAfter,
   getGitHubRestUrl,
   getGitHubGraphqlUrl,
+  fetchTimeline,
+  mapGitHubTimelineEvent,
 } from './GitHubApiHelpers'
 import { GitHubError, NetworkError } from '../models/errors'
 import type { ListPRsOptions } from './GitHubApiTypes'
@@ -1111,5 +1113,401 @@ describe('fetchGitHubSinglePage', () => {
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
     expect(calledUrl).toContain('https://ghe.acme.com/api/v3/repos/owner/repo/pulls/1/files')
+  })
+})
+
+// ===========================================================================
+// mapGitHubTimelineEvent — pure mapper for raw GitHub timeline events
+// ===========================================================================
+
+describe('mapGitHubTimelineEvent', () => {
+  it('maps a committed event to a commit TimelineEvent', () => {
+    const raw = {
+      event: 'committed',
+      sha: 'abc123def456',
+      message: 'fix: resolve issue',
+      author: { name: 'testuser', email: 'test@example.com', date: '2025-06-01T12:00:00Z' },
+      committer: { name: 'testuser', email: 'test@example.com', date: '2025-06-01T12:00:00Z' },
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    expect(result!.type).toBe('commit')
+    if (result!.type === 'commit') {
+      expect(result!.sha).toBe('abc123def456')
+      expect(result!.message).toBe('fix: resolve issue')
+      expect(result!.author.login).toBe('testuser')
+      expect(result!.timestamp).toBe('2025-06-01T12:00:00Z')
+    }
+  })
+
+  it('maps a reviewed event to a review TimelineEvent', () => {
+    const raw = {
+      event: 'reviewed',
+      id: 12345,
+      state: 'approved',
+      body: 'Looks good!',
+      submitted_at: '2025-06-01T14:00:00Z',
+      user: { login: 'reviewer1', avatar_url: 'https://example.com/avatar.png' },
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    expect(result!.type).toBe('review')
+    if (result!.type === 'review') {
+      expect(result!.state).toBe('APPROVED')
+      expect(result!.body).toBe('Looks good!')
+      expect(result!.author.login).toBe('reviewer1')
+      expect(result!.author.avatarUrl).toBe('https://example.com/avatar.png')
+      expect(result!.timestamp).toBe('2025-06-01T14:00:00Z')
+    }
+  })
+
+  it('maps a commented event to a comment TimelineEvent', () => {
+    const raw = {
+      event: 'commented',
+      id: 67890,
+      created_at: '2025-06-01T15:00:00Z',
+      body: 'Nice work',
+      user: { login: 'commenter', avatar_url: 'https://example.com/av2.png' },
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    expect(result!.type).toBe('comment')
+    if (result!.type === 'comment') {
+      expect(result!.body).toBe('Nice work')
+      expect(result!.author.login).toBe('commenter')
+      expect(result!.timestamp).toBe('2025-06-01T15:00:00Z')
+    }
+  })
+
+  it('maps a line-commented event with path and line info', () => {
+    const raw = {
+      event: 'line-commented',
+      id: 11111,
+      created_at: '2025-06-01T16:00:00Z',
+      body: 'Needs fix here',
+      user: { login: 'reviewer2' },
+      path: 'src/app.ts',
+      line: 42,
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    expect(result!.type).toBe('comment')
+    if (result!.type === 'comment') {
+      expect(result!.path).toBe('src/app.ts')
+      expect(result!.line).toBe(42)
+    }
+  })
+
+  it('maps a labeled event to a label-change TimelineEvent with added action', () => {
+    const raw = {
+      event: 'labeled',
+      id: 22222,
+      created_at: '2025-06-01T17:00:00Z',
+      label: { name: 'bug', color: 'fc2929' },
+      actor: { login: 'labeler', avatar_url: 'https://example.com/av3.png' },
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    expect(result!.type).toBe('label-change')
+    if (result!.type === 'label-change') {
+      expect(result!.action).toBe('added')
+      expect(result!.label.name).toBe('bug')
+      expect(result!.label.color).toBe('fc2929')
+      expect(result!.actor.login).toBe('labeler')
+    }
+  })
+
+  it('maps an unlabeled event to a label-change TimelineEvent with removed action', () => {
+    const raw = {
+      event: 'unlabeled',
+      id: 33333,
+      created_at: '2025-06-01T18:00:00Z',
+      label: { name: 'wontfix', color: 'ffffff' },
+      actor: { login: 'admin' },
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    expect(result!.type).toBe('label-change')
+    if (result!.type === 'label-change') {
+      expect(result!.action).toBe('removed')
+    }
+  })
+
+  it('maps an assigned event to an assignee-change TimelineEvent', () => {
+    const raw = {
+      event: 'assigned',
+      id: 44444,
+      created_at: '2025-06-01T19:00:00Z',
+      assignee: { login: 'dev1', avatar_url: 'https://example.com/av4.png' },
+      actor: { login: 'manager' },
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    expect(result!.type).toBe('assignee-change')
+    if (result!.type === 'assignee-change') {
+      expect(result!.action).toBe('assigned')
+      expect(result!.assignee.login).toBe('dev1')
+      expect(result!.actor.login).toBe('manager')
+    }
+  })
+
+  it('maps an unassigned event to an assignee-change TimelineEvent', () => {
+    const raw = {
+      event: 'unassigned',
+      id: 55555,
+      created_at: '2025-06-01T20:00:00Z',
+      assignee: { login: 'dev1' },
+      actor: { login: 'manager' },
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    expect(result!.type).toBe('assignee-change')
+    if (result!.type === 'assignee-change') {
+      expect(result!.action).toBe('unassigned')
+    }
+  })
+
+  it('maps a head_ref_force_pushed event to a force-push TimelineEvent', () => {
+    const raw = {
+      event: 'head_ref_force_pushed',
+      id: 66666,
+      created_at: '2025-06-01T21:00:00Z',
+      actor: { login: 'forcer', avatar_url: 'https://example.com/av5.png' },
+      before_commit_id: 'aaa111',
+      after_commit_id: 'bbb222',
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    expect(result!.type).toBe('force-push')
+    if (result!.type === 'force-push') {
+      expect(result!.beforeSha).toBe('aaa111')
+      expect(result!.afterSha).toBe('bbb222')
+      expect(result!.actor.login).toBe('forcer')
+    }
+  })
+
+  it('returns null for unsupported event types', () => {
+    expect(mapGitHubTimelineEvent({ event: 'renamed', id: 1 })).toBeNull()
+    expect(mapGitHubTimelineEvent({ event: 'milestoned', id: 2 })).toBeNull()
+    expect(mapGitHubTimelineEvent({ event: 'closed', id: 3 })).toBeNull()
+    expect(mapGitHubTimelineEvent({ event: 'reopened', id: 4 })).toBeNull()
+    expect(mapGitHubTimelineEvent({ event: 'referenced', id: 5 })).toBeNull()
+    expect(mapGitHubTimelineEvent({ event: 'cross-referenced', id: 6 })).toBeNull()
+  })
+
+  it('handles reviewed event with null body', () => {
+    const raw = {
+      event: 'reviewed',
+      id: 77777,
+      state: 'changes_requested',
+      body: null,
+      submitted_at: '2025-06-01T22:00:00Z',
+      user: { login: 'reviewer3' },
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    if (result!.type === 'review') {
+      expect(result!.body).toBe('')
+      expect(result!.state).toBe('CHANGES_REQUESTED')
+    }
+  })
+
+  it('handles committed event with committer date fallback', () => {
+    const raw = {
+      event: 'committed',
+      sha: 'xyz789',
+      message: 'chore: update deps',
+      author: { name: 'author1', email: 'a@b.com' },
+      committer: { name: 'committer1', email: 'c@d.com', date: '2025-06-02T10:00:00Z' },
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    if (result!.type === 'commit') {
+      expect(result!.timestamp).toBe('2025-06-02T10:00:00Z')
+    }
+  })
+
+  it('handles events with missing optional fields gracefully', () => {
+    const raw = {
+      event: 'commented',
+      id: 88888,
+      created_at: '2025-06-02T11:00:00Z',
+      body: null,
+      user: { login: 'ghost' },
+    }
+
+    const result = mapGitHubTimelineEvent(raw)
+    expect(result).not.toBeNull()
+    if (result!.type === 'comment') {
+      expect(result!.body).toBe('')
+      expect(result!.author.avatarUrl).toBeUndefined()
+    }
+  })
+})
+
+// ===========================================================================
+// fetchTimeline — integration test for the full helper
+// ===========================================================================
+
+describe('fetchTimeline', () => {
+  it('calls the correct GitHub Timeline API endpoint', async () => {
+    const timelineEvents = [
+      {
+        event: 'committed',
+        sha: 'abc123',
+        message: 'initial commit',
+        author: { name: 'user1', email: 'u1@test.com', date: '2025-01-01T00:00:00Z' },
+        committer: { name: 'user1', email: 'u1@test.com', date: '2025-01-01T00:00:00Z' },
+      },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(timelineEvents))
+
+    await Effect.runPromise(
+      fetchTimeline('owner', 'repo', 42, TOKEN),
+    )
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://api.github.com/repos/owner/repo/issues/42/timeline?per_page=100',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${TOKEN}`,
+          Accept: 'application/vnd.github+json',
+        }),
+      }),
+    )
+  })
+
+  it('maps and filters timeline events correctly', async () => {
+    const timelineEvents = [
+      {
+        event: 'committed',
+        sha: 'abc123',
+        message: 'feat: add feature',
+        author: { name: 'user1', email: 'u@test.com', date: '2025-01-01T00:00:00Z' },
+        committer: { name: 'user1', email: 'u@test.com', date: '2025-01-01T00:00:00Z' },
+      },
+      {
+        event: 'renamed',
+        id: 999,
+        created_at: '2025-01-01T01:00:00Z',
+      },
+      {
+        event: 'labeled',
+        id: 1000,
+        created_at: '2025-01-01T02:00:00Z',
+        label: { name: 'enhancement', color: '84b6eb' },
+        actor: { login: 'user2' },
+      },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(timelineEvents))
+
+    const result = await Effect.runPromise(
+      fetchTimeline('owner', 'repo', 1, TOKEN),
+    )
+
+    expect(result).toHaveLength(2)
+    expect(result[0].type).toBe('commit')
+    expect(result[1].type).toBe('label-change')
+  })
+
+  it('returns empty array when all events are unsupported', async () => {
+    const timelineEvents = [
+      { event: 'renamed', id: 1 },
+      { event: 'closed', id: 2 },
+      { event: 'reopened', id: 3 },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(timelineEvents))
+
+    const result = await Effect.runPromise(
+      fetchTimeline('owner', 'repo', 1, TOKEN),
+    )
+
+    expect(result).toHaveLength(0)
+  })
+
+  it('returns GitHubError on API failure', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      createMockResponse('Not Found', { status: 404, statusText: 'Not Found' }),
+    )
+
+    const result = await Effect.runPromiseExit(
+      fetchTimeline('owner', 'repo', 999, TOKEN),
+    )
+
+    expect(result._tag).toBe('Failure')
+  })
+
+  it('returns NetworkError when fetch throws', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Connection refused'))
+
+    const result = await Effect.runPromiseExit(
+      fetchTimeline('owner', 'repo', 1, TOKEN),
+    )
+
+    expect(result._tag).toBe('Failure')
+    if (result._tag === 'Failure') {
+      const error = (result.cause as { _tag: string; error: NetworkError })
+      expect(error.error).toBeInstanceOf(NetworkError)
+    }
+  })
+
+  it('uses custom baseUrl when provided', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([]))
+
+    await Effect.runPromise(
+      fetchTimeline('owner', 'repo', 1, TOKEN, 'https://ghe.acme.com/api/v3'),
+    )
+
+    const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
+    expect(calledUrl).toContain('https://ghe.acme.com/api/v3/repos/owner/repo/issues/1/timeline')
+  })
+
+  it('follows pagination via Link header', async () => {
+    const page1 = [
+      {
+        event: 'committed',
+        sha: 'aaa',
+        message: 'commit 1',
+        author: { name: 'u1', email: 'u@t.com', date: '2025-01-01T00:00:00Z' },
+        committer: { name: 'u1', email: 'u@t.com', date: '2025-01-01T00:00:00Z' },
+      },
+    ]
+    const page2 = [
+      {
+        event: 'committed',
+        sha: 'bbb',
+        message: 'commit 2',
+        author: { name: 'u1', email: 'u@t.com', date: '2025-01-02T00:00:00Z' },
+        committer: { name: 'u1', email: 'u@t.com', date: '2025-01-02T00:00:00Z' },
+      },
+    ]
+
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce(
+        createMockResponse(page1, {
+          headers: {
+            Link: '<https://api.github.com/repos/owner/repo/issues/1/timeline?page=2&per_page=100>; rel="next"',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(createMockResponse(page2))
+
+    const result = await Effect.runPromise(
+      fetchTimeline('owner', 'repo', 1, TOKEN),
+    )
+
+    expect(result).toHaveLength(2)
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2)
   })
 })

@@ -238,6 +238,11 @@ export function createGitHubProvider(
         ? service.getCompareFiles(owner, repo, base, head)
         : Effect.succeed([]),
 
+    getTimeline: (prNumber: number) =>
+      service.getTimeline
+        ? service.getTimeline(owner, repo, prNumber)
+        : Effect.succeed([]),
+
     submitSuggestion: (params: SuggestionParams): Effect.Effect<Comment, ApiError> =>
       Effect.flatMap(
         service.addDiffComment(

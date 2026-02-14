@@ -6,6 +6,7 @@ import { touchLastUpdated } from '../hooks/useLastUpdated'
 import { sanitizeApiError } from '../utils/sanitize'
 import { notifyTokenExpired } from '../hooks/useTokenExpired'
 import type { ListPRsOptions } from './GitHubApiTypes'
+import type { TimelineEvent, TimelineReviewEvent } from '../models/timeline-event'
 
 const MAX_PAGES = 20
 
@@ -517,4 +518,200 @@ export function buildQueryString(options: ListPRsOptions): string {
   if (options.page) params.set('page', String(options.page))
   const qs = params.toString()
   return qs ? `?${qs}` : ''
+}
+
+// ---------------------------------------------------------------------------
+// Timeline Events — GitHub Issues Timeline API
+// ---------------------------------------------------------------------------
+
+/**
+ * GitHub review state values mapped to TimelineEvent review states.
+ */
+const REVIEW_STATE_MAP: Readonly<Record<string, TimelineReviewEvent['state']>> = {
+  approved: 'APPROVED',
+  changes_requested: 'CHANGES_REQUESTED',
+  commented: 'COMMENTED',
+  dismissed: 'DISMISSED',
+  pending: 'PENDING',
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * Map a single raw GitHub timeline event object to a TimelineEvent.
+ * Returns null for unsupported event types (silently filtered).
+ */
+export function mapGitHubTimelineEvent(raw: any): TimelineEvent | null {
+  const eventType: string | undefined = raw?.event
+
+  switch (eventType) {
+    case 'committed': {
+      const authorDate: string | undefined = raw.author?.date
+      const committerDate: string | undefined = raw.committer?.date
+      return {
+        type: 'commit',
+        id: String(raw.sha ?? ''),
+        timestamp: authorDate ?? committerDate ?? '',
+        sha: String(raw.sha ?? ''),
+        message: String(raw.message ?? ''),
+        author: {
+          login: String(raw.author?.name ?? ''),
+          avatarUrl: raw.author?.avatar_url ?? undefined,
+        },
+      }
+    }
+
+    case 'reviewed': {
+      const stateKey = String(raw.state ?? '').toLowerCase()
+      const mappedState = REVIEW_STATE_MAP[stateKey]
+      if (!mappedState) return null
+      return {
+        type: 'review',
+        id: String(raw.id ?? ''),
+        timestamp: String(raw.submitted_at ?? ''),
+        state: mappedState,
+        body: String(raw.body ?? ''),
+        author: {
+          login: String(raw.user?.login ?? ''),
+          avatarUrl: raw.user?.avatar_url ?? undefined,
+        },
+      }
+    }
+
+    case 'commented':
+    case 'line-commented': {
+      return {
+        type: 'comment',
+        id: String(raw.id ?? ''),
+        timestamp: String(raw.created_at ?? ''),
+        body: String(raw.body ?? ''),
+        author: {
+          login: String(raw.user?.login ?? ''),
+          avatarUrl: raw.user?.avatar_url ?? undefined,
+        },
+        path: raw.path ?? undefined,
+        line: typeof raw.line === 'number' ? raw.line : undefined,
+      }
+    }
+
+    case 'labeled':
+    case 'unlabeled': {
+      if (!raw.label) return null
+      return {
+        type: 'label-change',
+        id: String(raw.id ?? ''),
+        timestamp: String(raw.created_at ?? ''),
+        action: eventType === 'labeled' ? 'added' : 'removed',
+        label: {
+          name: String(raw.label.name ?? ''),
+          color: String(raw.label.color ?? ''),
+        },
+        actor: {
+          login: String(raw.actor?.login ?? ''),
+          avatarUrl: raw.actor?.avatar_url ?? undefined,
+        },
+      }
+    }
+
+    case 'assigned':
+    case 'unassigned': {
+      if (!raw.assignee) return null
+      return {
+        type: 'assignee-change',
+        id: String(raw.id ?? ''),
+        timestamp: String(raw.created_at ?? ''),
+        action: eventType === 'assigned' ? 'assigned' : 'unassigned',
+        assignee: {
+          login: String(raw.assignee.login ?? ''),
+          avatarUrl: raw.assignee.avatar_url ?? undefined,
+        },
+        actor: {
+          login: String(raw.actor?.login ?? ''),
+          avatarUrl: raw.actor?.avatar_url ?? undefined,
+        },
+      }
+    }
+
+    case 'head_ref_force_pushed': {
+      return {
+        type: 'force-push',
+        id: String(raw.id ?? ''),
+        timestamp: String(raw.created_at ?? ''),
+        beforeSha: String(raw.before_commit_id ?? ''),
+        afterSha: String(raw.after_commit_id ?? ''),
+        actor: {
+          login: String(raw.actor?.login ?? ''),
+          avatarUrl: raw.actor?.avatar_url ?? undefined,
+        },
+      }
+    }
+
+    default:
+      return null
+  }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * Fetch timeline events for a pull request from the GitHub Issues Timeline API.
+ *
+ * Calls `GET /repos/{owner}/{repo}/issues/{issue_number}/timeline` with pagination.
+ * Maps raw events to the TimelineEvent discriminated union and silently filters
+ * unsupported event types.
+ */
+export function fetchTimeline(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+  baseUrl?: string,
+): Effect.Effect<readonly TimelineEvent[], GitHubError | NetworkError> {
+  return Effect.tryPromise({
+    try: async () => {
+      const allEvents: TimelineEvent[] = []
+      let url: string | null =
+        `${getGitHubRestUrl(baseUrl)}/repos/${owner}/${repo}/issues/${prNumber}/timeline?per_page=100`
+      let pageCount = 0
+
+      while (url && pageCount < MAX_PAGES) {
+        pageCount++
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+        })
+
+        updateRateLimit(response.headers)
+
+        if (!response.ok) {
+          const body = await response.text().catch(() => '')
+          throw buildGitHubError(response, body, url)
+        }
+
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          for (const raw of data) {
+            const mapped = mapGitHubTimelineEvent(raw)
+            if (mapped !== null) {
+              allEvents.push(mapped)
+            }
+          }
+        }
+
+        const linkHeader = response.headers.get('Link')
+        url = parseLinkHeader(linkHeader)
+      }
+
+      touchLastUpdated()
+      return allEvents
+    },
+    catch: (error) => {
+      if (error instanceof GitHubError) return error
+      return new NetworkError({
+        message: `Network request failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        cause: error,
+      })
+    },
+  })
 }

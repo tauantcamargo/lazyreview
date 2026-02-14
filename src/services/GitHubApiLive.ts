@@ -18,6 +18,7 @@ import {
   graphqlGitHub,
   fetchGitHubSearchPaginated,
   buildQueryString,
+  fetchTimeline,
 } from './GitHubApiHelpers'
 import { validateOwner, validateRepo, validateNumber, validateRef } from '../utils/sanitize'
 
@@ -728,6 +729,15 @@ export const GitHubApiLive = Layer.effect(
             CompareSchema,
           )
           return result.files
+        }),
+
+      getTimeline: (owner, repo, prNumber) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateNumber(prNumber)
+          const token = yield* auth.getToken()
+          return yield* fetchTimeline(owner, repo, prNumber, token)
         }),
     })
   }),

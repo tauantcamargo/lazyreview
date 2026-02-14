@@ -21,6 +21,8 @@ export {
   fetchGitHubSearchPaginated,
   parseLinkHeader,
   buildQueryString,
+  fetchTimeline,
+  mapGitHubTimelineEvent,
 } from './GitHubApiHelpers'
 
 export { GitHubApiLive } from './GitHubApiLive'
