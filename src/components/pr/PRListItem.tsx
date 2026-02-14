@@ -6,8 +6,18 @@ import { timeAgo } from '../../utils/date'
 import { CheckStatusIcon } from './CheckStatusIcon'
 import { ReviewStatusIcon } from './ReviewStatusIcon'
 import { useReadState } from '../../hooks/useReadState'
+import { usePRNotes } from '../../hooks/usePRNotes'
 import { contrastForeground, normalizeHexColor } from '../../utils/color'
 import { parseGitHubPRUrl, extractRepoFromPRUrl } from '../../utils/git'
+
+/** Build a notes key from a PR's owner/repo and number. */
+function buildNotesKey(item: PullRequest): string {
+  const parsed = parseGitHubPRUrl(item.html_url)
+  if (parsed) {
+    return `${parsed.owner}/${parsed.repo}#${item.number}`
+  }
+  return `unknown#${item.number}`
+}
 
 interface PRListItemProps {
   readonly item: PullRequest
@@ -22,6 +32,8 @@ function CompactPRListItem({
   const theme = useTheme()
   const { isUnread } = useReadState()
   const unread = isUnread(item.html_url, item.updated_at)
+  const notesKey = buildNotesKey(item)
+  const { hasNote: hasNotes } = usePRNotes(notesKey)
 
   const stateColor = item.draft
     ? theme.colors.muted
@@ -55,6 +67,9 @@ function CompactPRListItem({
       {unread && (
         <Text color={theme.colors.accent} bold>*</Text>
       )}
+      {hasNotes && (
+        <Text color={theme.colors.warning}>N</Text>
+      )}
       <Text color={textColor} bold={isFocus || unread} inverse={isFocus}>
         #{item.number}
       </Text>
@@ -82,6 +97,8 @@ function FullPRListItem({
   const theme = useTheme()
   const { isUnread } = useReadState()
   const unread = isUnread(item.html_url, item.updated_at)
+  const notesKey = buildNotesKey(item)
+  const { hasNote: hasNotes } = usePRNotes(notesKey)
 
   const stateColor = item.draft
     ? theme.colors.muted
@@ -116,6 +133,9 @@ function FullPRListItem({
         )}
         {unread && (
           <Text color={theme.colors.accent} bold>*</Text>
+        )}
+        {hasNotes && (
+          <Text color={theme.colors.warning}>N</Text>
         )}
         <Text
           color={isFocus ? theme.colors.listSelectedFg : unread ? theme.colors.accent : theme.colors.text}

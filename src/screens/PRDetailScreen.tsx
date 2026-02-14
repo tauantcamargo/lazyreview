@@ -51,6 +51,8 @@ import { useReactionActions } from '../hooks/useReactionActions'
 import { useTheme } from '../theme/index'
 import { useAiSummary } from '../hooks/useAiSummary'
 import { useAiConfig } from '../hooks/useAiConfig'
+import { usePRNotes } from '../hooks/usePRNotes'
+import { NotesModal } from '../components/pr/NotesModal'
 import type { PullRequest } from '../models/pull-request'
 import type { InlineCommentContext } from '../models/inline-comment'
 
@@ -98,7 +100,12 @@ export function PRDetailScreen({
   const [initialFile, setInitialFile] = useState<string | undefined>(undefined)
   const [commitRange, setCommitRange] = useState<CommitRange | null>(null)
   const [aiSummaryExpanded, setAiSummaryExpanded] = useState(false)
+  const [showNotesModal, setShowNotesModal] = useState(false)
   const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
+
+  // PR notes
+  const prNotesKey = `${owner}/${repo}#${pr.number}`
+  const { note: prNote, saveNote: savePRNote, deleteNote: deletePRNote, hasNote: hasPRNote } = usePRNotes(prNotesKey)
 
   // Mark PR as read when entering detail view
   React.useEffect(() => {
@@ -306,7 +313,7 @@ export function PRDetailScreen({
     setStatusMessage(`Jumped to ${path}`)
   }, [setStatusMessage])
 
-  const anyModalOpen = modals.hasModal || showLabelPicker || showAssigneePicker || reactionActions.showReactionPicker
+  const anyModalOpen = modals.hasModal || showLabelPicker || showAssigneePicker || reactionActions.showReactionPicker || showNotesModal
 
   useManualRefresh({
     isActive: !anyModalOpen,
@@ -433,6 +440,8 @@ export function PRDetailScreen({
             5000,
           )
         })
+      } else if (input === 'n') {
+        setShowNotesModal(true)
       } else if (input === 'r' && key.ctrl && currentTab === 0 && aiSummaryExpanded) {
         aiSummaryHook.regenerateSummary()
       } else if (input === 'q' || key.escape) {
@@ -574,7 +583,7 @@ export function PRDetailScreen({
   return (
     <Box flexDirection="column" flexGrow={1} minHeight={0}>
       <Box flexShrink={0} flexDirection="column">
-        <PRHeader pr={activePR} prIndex={prIndex} prTotal={prTotal} />
+        <PRHeader pr={activePR} prIndex={prIndex} prTotal={prTotal} hasNotes={hasPRNote} />
         <PRTabs activeIndex={currentTab} onChange={setCurrentTab} />
       </Box>
       <Box
@@ -728,6 +737,23 @@ export function PRDetailScreen({
           isSubmitting={updateAssigneesMutation.isPending}
           isLoading={collaboratorsLoading}
           error={assigneeError}
+        />
+      )}
+      {showNotesModal && (
+        <NotesModal
+          isOpen={showNotesModal}
+          initialContent={prNote}
+          onSave={(content) => {
+            savePRNote(content)
+            setShowNotesModal(false)
+            setStatusMessage('Note saved')
+          }}
+          onDelete={() => {
+            deletePRNote()
+            setShowNotesModal(false)
+            setStatusMessage('Note deleted')
+          }}
+          onClose={() => setShowNotesModal(false)}
         />
       )}
     </Box>

@@ -10,9 +10,10 @@ interface PRHeaderProps {
   readonly pr: PullRequest
   readonly prIndex?: number
   readonly prTotal?: number
+  readonly hasNotes?: boolean
 }
 
-export function PRHeader({ pr, prIndex, prTotal }: PRHeaderProps): React.ReactElement {
+export function PRHeader({ pr, prIndex, prTotal, hasNotes }: PRHeaderProps): React.ReactElement {
   const theme = useTheme()
   const totalComments = pr.comments + pr.review_comments
   const conflictState = detectConflictState(pr)
@@ -43,6 +44,11 @@ export function PRHeader({ pr, prIndex, prTotal }: PRHeaderProps): React.ReactEl
         <Text color={theme.colors.text} bold>
           {pr.title}
         </Text>
+        {hasNotes && (
+          <Text color={theme.colors.warning} bold>
+            [Notes]
+          </Text>
+        )}
         {conflictState.hasConflicts && (
           <Text color={theme.colors.error} bold>
             [CONFLICTS]
