@@ -72,6 +72,7 @@ const GITLAB_CAPABILITIES: ProviderCapabilities = {
   supportsReactions: true,
   supportsCheckRuns: true,
   supportsLabels: false,
+  supportsAssignees: false,
   supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
 }
 
@@ -657,6 +658,13 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
       return markReadyForReview(baseUrl, token, owner, repo, iid, title)
     },
 
+    // -- PR creation (not yet supported for GitLab) --------------------------
+
+    createPR: () =>
+      Effect.fail(
+        new GitHubError({ message: 'PR creation is not yet supported for GitLab', status: 501 }),
+      ),
+
     // -- Label operations (not supported for GitLab) -------------------------
 
     getLabels: () =>
@@ -667,6 +675,18 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
     setLabels: () =>
       Effect.fail(
         new GitHubError({ message: 'Labels are not yet supported for GitLab', status: 501 }),
+      ),
+
+    // -- Assignee operations (not supported for GitLab) -----------------------
+
+    getCollaborators: () =>
+      Effect.fail(
+        new GitHubError({ message: 'Assignee management is not yet supported for GitLab', status: 501 }),
+      ),
+
+    updateAssignees: () =>
+      Effect.fail(
+        new GitHubError({ message: 'Assignee management is not yet supported for GitLab', status: 501 }),
       ),
 
     // -- User info ----------------------------------------------------------

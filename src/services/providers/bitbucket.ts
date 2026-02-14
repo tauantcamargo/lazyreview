@@ -63,6 +63,7 @@ const BITBUCKET_CAPABILITIES: ProviderCapabilities = {
   supportsReactions: false,
   supportsCheckRuns: true,
   supportsLabels: false,
+  supportsAssignees: false,
   supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
 }
 
@@ -575,6 +576,13 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
         }),
       ),
 
+    // -- PR creation (not yet supported for Bitbucket) -----------------------
+
+    createPR: () =>
+      Effect.fail(
+        new BitbucketError({ message: 'PR creation is not yet supported for Bitbucket', status: 501 }),
+      ),
+
     // -- Label operations (not supported for Bitbucket) ----------------------
 
     getLabels: () =>
@@ -585,6 +593,18 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
     setLabels: () =>
       Effect.fail(
         new BitbucketError({ message: 'Labels are not yet supported for Bitbucket', status: 501 }),
+      ),
+
+    // -- Assignee operations (not supported for Bitbucket) --------------------
+
+    getCollaborators: () =>
+      Effect.fail(
+        new BitbucketError({ message: 'Assignee management is not yet supported for Bitbucket', status: 501 }),
+      ),
+
+    updateAssignees: () =>
+      Effect.fail(
+        new BitbucketError({ message: 'Assignee management is not yet supported for Bitbucket', status: 501 }),
       ),
 
     // -- User info ----------------------------------------------------------

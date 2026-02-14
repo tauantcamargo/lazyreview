@@ -50,6 +50,8 @@ export type Action =
   | 'editTitle'
   | 'toggleDraft'
   | 'labels'
+  | 'assignees'
+  | 'createPR'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -120,6 +122,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     copyUrl: 'y',
     toggleUnread: 'u',
     toggleState: 't',
+    createPR: 'N',
   },
   prDetail: {
     submitReview: 'R',
@@ -135,6 +138,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     editTitle: 'T',
     toggleDraft: 'W',
     labels: 'L',
+    assignees: 'A',
   },
   conversations: {
     newComment: 'c',

@@ -64,6 +64,7 @@ const GITEA_CAPABILITIES: ProviderCapabilities = {
   supportsReactions: true,
   supportsCheckRuns: false,
   supportsLabels: false,
+  supportsAssignees: false,
   supportsMergeStrategies: ['merge', 'squash', 'rebase'] as const,
 }
 
@@ -495,6 +496,13 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
         }),
       ),
 
+    // -- PR creation (not yet supported for Gitea) ---------------------------
+
+    createPR: () =>
+      Effect.fail(
+        new GiteaError({ message: 'PR creation is not yet supported for Gitea', status: 501 }),
+      ),
+
     // -- Label operations (not supported for Gitea) --------------------------
 
     getLabels: () =>
@@ -505,6 +513,18 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
     setLabels: () =>
       Effect.fail(
         new GiteaError({ message: 'Labels are not yet supported for Gitea', status: 501 }),
+      ),
+
+    // -- Assignee operations (not supported for Gitea) ------------------------
+
+    getCollaborators: () =>
+      Effect.fail(
+        new GiteaError({ message: 'Assignee management is not yet supported for Gitea', status: 501 }),
+      ),
+
+    updateAssignees: () =>
+      Effect.fail(
+        new GiteaError({ message: 'Assignee management is not yet supported for Gitea', status: 501 }),
       ),
 
     // -- User info ----------------------------------------------------------

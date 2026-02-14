@@ -7,6 +7,8 @@ export type {
   PRListResult,
   AddDiffCommentParams,
   AddPendingReviewCommentParams,
+  CreatePRParams,
+  CreatePRResult,
 } from './types'
 
 export { getDefaultBaseUrl } from './types'

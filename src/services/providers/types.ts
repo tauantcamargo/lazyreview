@@ -7,6 +7,7 @@ import type { FileChange } from '../../models/file-change'
 import type { Commit } from '../../models/commit'
 import type { CheckRunsResponse } from '../../models/check'
 import type { RepoLabel } from '../../models/label'
+import type { User } from '../../models/user'
 import type { ApiError, ReviewThread } from '../CodeReviewApiTypes'
 
 // ---------------------------------------------------------------------------
@@ -38,6 +39,7 @@ export interface ProviderCapabilities {
   readonly supportsReactions: boolean
   readonly supportsCheckRuns: boolean
   readonly supportsLabels: boolean
+  readonly supportsAssignees: boolean
   readonly supportsMergeStrategies: readonly string[]
 }
 
@@ -78,6 +80,19 @@ export interface AddPendingReviewCommentParams {
   readonly side: 'LEFT' | 'RIGHT'
   readonly startLine?: number
   readonly startSide?: 'LEFT' | 'RIGHT'
+}
+
+export interface CreatePRParams {
+  readonly title: string
+  readonly body: string
+  readonly baseBranch: string
+  readonly headBranch: string
+  readonly draft?: boolean
+}
+
+export interface CreatePRResult {
+  readonly number: number
+  readonly html_url: string
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +168,13 @@ export interface Provider {
   // Label operations (requires supportsLabels capability)
   readonly getLabels: () => Effect.Effect<readonly RepoLabel[], ApiError>
   readonly setLabels: (prNumber: number, labels: readonly string[]) => Effect.Effect<void, ApiError>
+
+  // Assignee operations (requires supportsAssignees capability)
+  readonly getCollaborators: () => Effect.Effect<readonly User[], ApiError>
+  readonly updateAssignees: (prNumber: number, assignees: readonly string[]) => Effect.Effect<void, ApiError>
+
+  // PR creation
+  readonly createPR: (params: CreatePRParams) => Effect.Effect<CreatePRResult, ApiError>
 
   // User info
   readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>

@@ -629,6 +629,76 @@ export async function hasUncommittedChanges(): Promise<boolean> {
  * Checkout a PR branch by fetching the PR ref and creating a local branch.
  * Runs: git fetch origin pull/{n}/head:pr-{n} && git checkout pr-{n}
  */
+/**
+ * Get the current git branch name.
+ * Returns null if not in a git repo or on a detached HEAD.
+ */
+export async function getCurrentBranch(): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('git', [
+      'rev-parse',
+      '--abbrev-ref',
+      'HEAD',
+    ])
+    const branch = stdout.trim()
+    return branch === 'HEAD' ? null : branch
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Get the default branch of the repository (e.g., "main" or "master").
+ * Attempts to read from the remote HEAD ref, falls back to common names.
+ */
+export async function getDefaultBranch(): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('git', [
+      'symbolic-ref',
+      'refs/remotes/origin/HEAD',
+      '--short',
+    ])
+    // Output is like "origin/main", strip the "origin/" prefix
+    const ref = stdout.trim()
+    const slashIndex = ref.indexOf('/')
+    return slashIndex >= 0 ? ref.slice(slashIndex + 1) : ref
+  } catch {
+    // Fallback: check if "main" or "master" exists
+    try {
+      await execFileAsync('git', ['rev-parse', '--verify', 'origin/main'])
+      return 'main'
+    } catch {
+      try {
+        await execFileAsync('git', ['rev-parse', '--verify', 'origin/master'])
+        return 'master'
+      } catch {
+        return 'main'
+      }
+    }
+  }
+}
+
+/**
+ * Check if the current branch has a remote tracking branch.
+ */
+export async function hasRemoteTracking(): Promise<boolean> {
+  try {
+    await execFileAsync('git', [
+      'rev-parse',
+      '--abbrev-ref',
+      '--symbolic-full-name',
+      '@{upstream}',
+    ])
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Checkout a PR branch by fetching the PR ref and creating a local branch.
+ * Runs: git fetch origin pull/{n}/head:pr-{n} && git checkout pr-{n}
+ */
 export async function checkoutPR(prNumber: number): Promise<CheckoutResult> {
   const branchName = `pr-${prNumber}`
 

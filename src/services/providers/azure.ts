@@ -66,6 +66,7 @@ const AZURE_CAPABILITIES: ProviderCapabilities = {
   supportsReactions: false,
   supportsCheckRuns: true,
   supportsLabels: false,
+  supportsAssignees: false,
   supportsMergeStrategies: ['noFastForward', 'squash', 'rebase', 'rebaseMerge'] as const,
 }
 
@@ -717,6 +718,13 @@ export function createAzureProvider(config: ProviderConfig): Provider {
       return setDraftStatus(baseUrl, token, owner, repo, prId, false)
     },
 
+    // -- PR creation (not yet supported for Azure DevOps) --------------------
+
+    createPR: () =>
+      Effect.fail(
+        new AzureError({ message: 'PR creation is not yet supported for Azure DevOps', status: 501 }),
+      ),
+
     // -- Label operations (not supported for Azure DevOps) -------------------
 
     getLabels: () =>
@@ -727,6 +735,18 @@ export function createAzureProvider(config: ProviderConfig): Provider {
     setLabels: () =>
       Effect.fail(
         new AzureError({ message: 'Labels are not yet supported for Azure DevOps', status: 501 }),
+      ),
+
+    // -- Assignee operations (not supported for Azure DevOps) -----------------
+
+    getCollaborators: () =>
+      Effect.fail(
+        new AzureError({ message: 'Assignee management is not yet supported for Azure DevOps', status: 501 }),
+      ),
+
+    updateAssignees: () =>
+      Effect.fail(
+        new AzureError({ message: 'Assignee management is not yet supported for Azure DevOps', status: 501 }),
       ),
 
     // -- User info ----------------------------------------------------------
