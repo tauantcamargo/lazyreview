@@ -270,6 +270,25 @@ function AppContent({
     [currentScreen],
   )
 
+  const handleNavigateToPR = useCallback(
+    (prNumber: number) => {
+      if (currentScreen.type !== 'detail') return
+      const { prList } = currentScreen
+      const targetIndex = prList.findIndex((p) => p.number === prNumber)
+      if (targetIndex === -1) return
+      const targetPR = prList[targetIndex]
+      if (targetPR) {
+        setCurrentScreen({
+          type: 'detail',
+          pr: targetPR,
+          prList,
+          prIndex: targetIndex,
+        })
+      }
+    },
+    [currentScreen],
+  )
+
   function renderScreen(): React.ReactElement {
     // Show loading/error for direct PR fetch before navigating to detail
     if (directPR && !directPRNavigated) {
@@ -309,8 +328,10 @@ function AppContent({
           repo={prRepo}
           onBack={handleBackToList}
           onNavigate={handleNavigatePR}
+          onNavigateToPR={handleNavigateToPR}
           prIndex={currentScreen.prIndex}
           prTotal={currentScreen.prList.length}
+          allPRs={currentScreen.prList}
         />
       )
     }

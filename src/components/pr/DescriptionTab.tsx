@@ -9,10 +9,12 @@ import { MarkdownText } from '../common/MarkdownText'
 import { ReviewSummary } from './ReviewSummary'
 import { BotSummarySection } from './BotSummarySection'
 import { AiSummarySection } from './AiSummarySection'
+import { DependencySection } from './DependencySection'
 import {
   findMostRecentBotComment,
   type BotDetectableComment,
 } from '../../utils/bot-detection'
+import { buildDependencyChain } from '../../utils/pr-dependencies'
 
 const PR_DETAIL_CONTENT_HEIGHT_RESERVED = 18
 const DESCRIPTION_HEADER_LINES = 2
@@ -36,6 +38,8 @@ interface DescriptionTabProps {
   readonly aiSummary?: AiSummaryState
   readonly aiSummaryExpanded?: boolean
   readonly onToggleAiSummary?: () => void
+  readonly allPRs?: readonly PullRequest[]
+  readonly onNavigateToPR?: (prNumber: number) => void
 }
 
 function PRInfoSection({
@@ -129,6 +133,8 @@ export function DescriptionTab({
   aiSummary,
   aiSummaryExpanded,
   onToggleAiSummary,
+  allPRs,
+  onNavigateToPR,
 }: DescriptionTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
@@ -147,8 +153,23 @@ export function DescriptionTab({
     [issueComments, botUsernames],
   )
 
+  const dependencies = useMemo(
+    () => buildDependencyChain(pr, allPRs ?? []),
+    [pr, allPRs],
+  )
+
   const sections = [
     <PRInfoSection key="info" pr={pr} />,
+    ...(dependencies.length > 0
+      ? [
+          <DependencySection
+            key="dependencies"
+            dependencies={dependencies}
+            isActive={isActive}
+            onNavigate={onNavigateToPR}
+          />,
+        ]
+      : []),
     ...(aiSummary
       ? [
           <AiSummarySection

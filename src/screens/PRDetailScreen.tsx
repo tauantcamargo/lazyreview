@@ -63,8 +63,10 @@ interface PRDetailScreenProps {
   readonly repo: string
   readonly onBack: () => void
   readonly onNavigate?: (direction: 'next' | 'prev') => void
+  readonly onNavigateToPR?: (prNumber: number) => void
   readonly prIndex?: number
   readonly prTotal?: number
+  readonly allPRs?: readonly PullRequest[]
 }
 
 const PR_DETAIL_RESERVED_LINES = 12
@@ -75,8 +77,10 @@ export function PRDetailScreen({
   repo,
   onBack,
   onNavigate,
+  onNavigateToPR,
   prIndex,
   prTotal,
+  allPRs,
 }: PRDetailScreenProps): React.ReactElement {
   const { stdout } = useStdout()
   const { config } = useConfig()
@@ -462,6 +466,8 @@ export function PRDetailScreen({
           }}
           aiSummaryExpanded={aiSummaryExpanded}
           onToggleAiSummary={handleToggleAiSummary}
+          allPRs={allPRs}
+          onNavigateToPR={onNavigateToPR}
         />
       )),
       Match.when(1, () => (
@@ -516,6 +522,8 @@ export function PRDetailScreen({
           totalFileCount={totalFileCount}
           hasMoreFiles={hasMoreFiles}
           onLoadMoreFiles={loadMoreFiles}
+          mergeable={activePR.mergeable}
+          mergeableState={activePR.mergeable_state}
         />
       )),
       Match.when(4, () => (
@@ -544,6 +552,8 @@ export function PRDetailScreen({
           }}
           aiSummaryExpanded={aiSummaryExpanded}
           onToggleAiSummary={handleToggleAiSummary}
+          allPRs={allPRs}
+          onNavigateToPR={onNavigateToPR}
         />
       ))
     )
