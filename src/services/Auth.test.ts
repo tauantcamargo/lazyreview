@@ -10,6 +10,9 @@ import {
   getProviderTokenFilePath,
   setAuthBaseUrl,
   getAuthBaseUrl,
+  setAuthHost,
+  getAuthHost,
+  getDefaultHost,
   Auth,
   AuthLive,
   type TokenInfo,
@@ -1541,5 +1544,183 @@ describe('getAvailableSources per-provider', () => {
     process.env['GITHUB_TOKEN'] = 'ghp_secondary_source_12345'
     const sources = await runAuth((auth) => auth.getAvailableSources())
     expect(sources).toContain('env')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Multi-instance provider support tests
+// ---------------------------------------------------------------------------
+
+describe('multi-instance token resolution', () => {
+  const originalEnv = { ...process.env }
+
+  beforeEach(() => {
+    resetAuthState()
+    cliResults = {}
+    cliErrors = {}
+    savedFiles = {}
+    fileStats = {}
+    fileContents = {}
+    deletedFiles = []
+    delete process.env['LAZYREVIEW_GITHUB_TOKEN']
+    delete process.env['GITHUB_TOKEN']
+    delete process.env['LAZYREVIEW_GITLAB_TOKEN']
+    delete process.env['GITLAB_TOKEN']
+  })
+
+  afterEach(() => {
+    process.env = { ...originalEnv }
+  })
+
+  describe('getProviderTokenFilePath with host', () => {
+    it('returns default path for default github host', () => {
+      const path = getProviderTokenFilePath('github')
+      expect(path).toContain('tokens/github.token')
+      expect(path).not.toContain('-')
+    })
+
+    it('returns default path when host is github.com (default)', () => {
+      const path = getProviderTokenFilePath('github', 'github.com')
+      expect(path).toContain('tokens/github.token')
+      expect(path).not.toContain('github-github.com')
+    })
+
+    it('returns host-specific path for custom github host', () => {
+      const path = getProviderTokenFilePath('github', 'github.mycompany.com')
+      expect(path).toContain('tokens/github-github.mycompany.com.token')
+    })
+
+    it('returns default path for default gitlab host', () => {
+      const path = getProviderTokenFilePath('gitlab')
+      expect(path).toContain('tokens/gitlab.token')
+    })
+
+    it('returns default path when host is gitlab.com (default)', () => {
+      const path = getProviderTokenFilePath('gitlab', 'gitlab.com')
+      expect(path).toContain('tokens/gitlab.token')
+    })
+
+    it('returns host-specific path for custom gitlab host', () => {
+      const path = getProviderTokenFilePath('gitlab', 'gitlab.internal.io')
+      expect(path).toContain('tokens/gitlab-gitlab.internal.io.token')
+    })
+
+    it('returns default path for bitbucket without host', () => {
+      const path = getProviderTokenFilePath('bitbucket')
+      expect(path).toContain('tokens/bitbucket.token')
+    })
+
+    it('returns default path for bitbucket with default host', () => {
+      const path = getProviderTokenFilePath('bitbucket', 'bitbucket.org')
+      expect(path).toContain('tokens/bitbucket.token')
+    })
+
+    it('returns default path for azure without host', () => {
+      const path = getProviderTokenFilePath('azure')
+      expect(path).toContain('tokens/azure.token')
+    })
+
+    it('returns default path for azure with default host', () => {
+      const path = getProviderTokenFilePath('azure', 'dev.azure.com')
+      expect(path).toContain('tokens/azure.token')
+    })
+
+    it('returns default path for gitea without host', () => {
+      const path = getProviderTokenFilePath('gitea')
+      expect(path).toContain('tokens/gitea.token')
+    })
+
+    it('returns host-specific path for gitea with custom host', () => {
+      const path = getProviderTokenFilePath('gitea', 'gitea.mycompany.com')
+      expect(path).toContain('tokens/gitea-gitea.mycompany.com.token')
+    })
+  })
+
+  describe('setAuthHost / getAuthHost', () => {
+    it('defaults to null', () => {
+      expect(getAuthHost()).toBeNull()
+    })
+
+    it('can be set to a host', () => {
+      setAuthHost('github.mycompany.com')
+      expect(getAuthHost()).toBe('github.mycompany.com')
+    })
+
+    it('can be cleared to null', () => {
+      setAuthHost('github.mycompany.com')
+      setAuthHost(null)
+      expect(getAuthHost()).toBeNull()
+    })
+  })
+
+  describe('host-specific token save and load', () => {
+    it('saves token to host-specific file when host is set', async () => {
+      setAuthHost('github.mycompany.com')
+      await runAuth((auth) => auth.setToken('ghp_custom_host_token_12345'))
+      const hostPath = getProviderTokenFilePath('github', 'github.mycompany.com')
+      expect(savedFiles[hostPath]).toBe('ghp_custom_host_token_12345')
+    })
+
+    it('saves token to default file when no host is set', async () => {
+      await runAuth((auth) => auth.setToken('ghp_default_host_token_12345'))
+      const defaultPath = getProviderTokenFilePath('github')
+      expect(savedFiles[defaultPath]).toBe('ghp_default_host_token_12345')
+    })
+
+    it('loads token from host-specific file', async () => {
+      setAuthHost('github.mycompany.com')
+      const hostPath = getProviderTokenFilePath('github', 'github.mycompany.com')
+      fileStats[hostPath] = { mode: 0o100600 }
+      fileContents[hostPath] = 'ghp_host_saved_token_12345678'
+
+      const token = await runAuth((auth) => auth.getToken())
+      expect(token).toBe('ghp_host_saved_token_12345678')
+    })
+
+    it('isolates tokens between different hosts of same provider', async () => {
+      // Save token for custom host
+      setAuthHost('github.mycompany.com')
+      await runAuth((auth) => auth.setToken('ghp_custom_host_token_12345'))
+
+      // Verify it was saved to host-specific path
+      const hostPath = getProviderTokenFilePath('github', 'github.mycompany.com')
+      expect(savedFiles[hostPath]).toBe('ghp_custom_host_token_12345')
+
+      // Default path should not have been affected (for non-github it should not write legacy)
+      const defaultPath = getProviderTokenFilePath('github')
+      // The token is saved to the host-specific file, not the default
+      expect(savedFiles[defaultPath]).toBeUndefined()
+    })
+
+    it('deletes host-specific token file on clear', async () => {
+      setAuthHost('github.mycompany.com')
+      await runAuth((auth) => auth.setToken('ghp_to_clear_host_token_12'))
+      deletedFiles = []
+      await runAuth((auth) => auth.clearManualToken())
+      const hostPath = getProviderTokenFilePath('github', 'github.mycompany.com')
+      expect(deletedFiles).toContain(hostPath)
+    })
+  })
+})
+
+describe('getDefaultHost', () => {
+  it('returns github.com for github', () => {
+    expect(getDefaultHost('github')).toBe('github.com')
+  })
+
+  it('returns gitlab.com for gitlab', () => {
+    expect(getDefaultHost('gitlab')).toBe('gitlab.com')
+  })
+
+  it('returns bitbucket.org for bitbucket', () => {
+    expect(getDefaultHost('bitbucket')).toBe('bitbucket.org')
+  })
+
+  it('returns dev.azure.com for azure', () => {
+    expect(getDefaultHost('azure')).toBe('dev.azure.com')
+  })
+
+  it('returns gitea.com for gitea', () => {
+    expect(getDefaultHost('gitea')).toBe('gitea.com')
   })
 })

@@ -12,7 +12,27 @@ import { PRListScreen } from './PRListScreen'
 import { Divider } from '../components/common/Divider'
 import { validateOwner, validateRepo } from '../utils/sanitize'
 import { parseGitRemote } from '../utils/git'
+import type { ConfiguredHosts, ProviderType } from '../utils/git'
+import {
+  setAuthProvider,
+  setAuthBaseUrl,
+  setAuthHost,
+  getAuthProvider,
+  getAuthHost,
+  getAuthBaseUrl,
+} from '../services/Auth'
+import type { Provider } from '../services/Config'
+import { toConfiguredHosts } from '../services/Config'
+import { useConfig } from '../hooks/useConfig'
 import type { PullRequest } from '../models/pull-request'
+
+interface ParsedRepoUrl {
+  readonly owner: string
+  readonly repo: string
+  readonly host?: string
+  readonly provider?: ProviderType
+  readonly baseUrl?: string
+}
 
 /**
  * Parse a URL or owner/repo string entered in the browse input.
@@ -22,15 +42,27 @@ import type { PullRequest } from '../models/pull-request'
  *   - https://github.com/owner/repo
  *   - https://gitlab.com/group/subgroup/project
  *   - git@gitlab.com:group/project.git
+ *
+ * When parsing URLs, returns host, provider, and baseUrl from the detected remote.
+ * Pass configuredHosts to resolve self-hosted instances.
  */
-function parseRepoUrl(input: string): { readonly owner: string; readonly repo: string } | null {
+function parseRepoUrl(
+  input: string,
+  configuredHosts?: ConfiguredHosts,
+): ParsedRepoUrl | null {
   const trimmed = input.trim()
 
   // Try parsing as a git remote URL first
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('git@')) {
-    const parsed = parseGitRemote(trimmed)
+    const parsed = parseGitRemote(trimmed, configuredHosts)
     if (parsed) {
-      return { owner: parsed.owner, repo: parsed.repo }
+      return {
+        owner: parsed.owner,
+        repo: parsed.repo,
+        host: parsed.host,
+        provider: parsed.provider,
+        baseUrl: parsed.baseUrl,
+      }
     }
 
     // Also try parsing HTTPS URLs that might not have .git suffix
@@ -42,7 +74,7 @@ function parseRepoUrl(input: string): { readonly owner: string; readonly repo: s
         const repo = pathParts[pathParts.length - 1] ?? ''
         const owner = pathParts.slice(0, -1).join('/')
         if (owner && repo) {
-          return { owner, repo }
+          return { owner, repo, host: url.hostname }
         }
       }
     } catch {
@@ -55,13 +87,32 @@ function parseRepoUrl(input: string): { readonly owner: string; readonly repo: s
   return null
 }
 
-function validateRepoInput(input: string): { readonly valid: boolean; readonly owner: string; readonly repo: string; readonly error: string | null } {
+function validateRepoInput(
+  input: string,
+  configuredHosts?: ConfiguredHosts,
+): {
+  readonly valid: boolean
+  readonly owner: string
+  readonly repo: string
+  readonly error: string | null
+  readonly host?: string
+  readonly provider?: ProviderType
+  readonly baseUrl?: string
+} {
   const trimmed = input.trim()
 
   // Try URL parsing first
-  const urlParsed = parseRepoUrl(trimmed)
+  const urlParsed = parseRepoUrl(trimmed, configuredHosts)
   if (urlParsed) {
-    return { valid: true, owner: urlParsed.owner, repo: urlParsed.repo, error: null }
+    return {
+      valid: true,
+      owner: urlParsed.owner,
+      repo: urlParsed.repo,
+      error: null,
+      host: urlParsed.host,
+      provider: urlParsed.provider,
+      baseUrl: urlParsed.baseUrl,
+    }
   }
 
   if (!trimmed.includes('/')) {
@@ -121,12 +172,21 @@ interface BrowseRepoScreenProps {
   readonly isActive?: boolean
 }
 
-interface BrowsePickerProps {
-  readonly onSelectRepo: (owner: string, repo: string) => void
-  readonly isActive: boolean
+interface BrowseRepoInfo {
+  readonly owner: string
+  readonly repo: string
+  readonly host?: string
+  readonly provider?: ProviderType
+  readonly baseUrl?: string
 }
 
-function BrowsePicker({ onSelectRepo, isActive }: BrowsePickerProps): React.ReactElement {
+interface BrowsePickerProps {
+  readonly onSelectRepo: (info: BrowseRepoInfo) => void
+  readonly isActive: boolean
+  readonly configuredHosts?: ConfiguredHosts
+}
+
+function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerProps): React.ReactElement {
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
   const { recentRepos, removeRecentRepo } = useRecentRepos()
@@ -160,14 +220,20 @@ function BrowsePicker({ onSelectRepo, isActive }: BrowsePickerProps): React.Reac
   }, [])
 
   const handleSubmitInput = useCallback(() => {
-    const result = validateRepoInput(inputValue)
+    const result = validateRepoInput(inputValue, configuredHosts)
     if (!result.valid) {
       setInputError(result.error)
       return
     }
     setInputError(null)
-    onSelectRepo(result.owner, result.repo)
-  }, [inputValue, onSelectRepo])
+    onSelectRepo({
+      owner: result.owner,
+      repo: result.repo,
+      host: result.host,
+      provider: result.provider,
+      baseUrl: result.baseUrl,
+    })
+  }, [inputValue, onSelectRepo, configuredHosts])
 
   const handleSelectFromList = useCallback(() => {
     if (totalListItems === 0) return
@@ -175,13 +241,13 @@ function BrowsePicker({ onSelectRepo, isActive }: BrowsePickerProps): React.Reac
     if (selectedIndex < bookmarkedRepos.length) {
       const bookmark = bookmarkedRepos[selectedIndex]
       if (bookmark) {
-        onSelectRepo(bookmark.owner, bookmark.repo)
+        onSelectRepo({ owner: bookmark.owner, repo: bookmark.repo })
       }
     } else {
       const recentIdx = selectedIndex - bookmarkedRepos.length
       const recent = filteredRecent[recentIdx]
       if (recent) {
-        onSelectRepo(recent.owner, recent.repo)
+        onSelectRepo({ owner: recent.owner, repo: recent.repo })
       }
     }
   }, [selectedIndex, bookmarkedRepos, filteredRecent, totalListItems, onSelectRepo])
@@ -372,24 +438,71 @@ function BrowseList({ owner, repo, onBack, onSelect }: BrowseListProps): React.R
   )
 }
 
+/**
+ * Convert a ProviderType (from git.ts, includes 'unknown') to Provider (from Config.ts).
+ * Returns undefined for unknown providers.
+ */
+function toProvider(providerType: ProviderType | undefined): Provider | undefined {
+  if (!providerType || providerType === 'unknown') return undefined
+  return providerType
+}
+
 export function BrowseRepoScreen({ onSelect, isActive = true }: BrowseRepoScreenProps): React.ReactElement {
   const { setBrowseRepo, clearBrowseRepo } = useRepoContext()
   const { addRecentRepo } = useRecentRepos()
-  const [selectedRepo, setSelectedRepo] = useState<{ readonly owner: string; readonly repo: string } | null>(null)
+  const { config } = useConfig()
+  const [selectedRepo, setSelectedRepo] = useState<BrowseRepoInfo | null>(null)
+
+  // Track the previous auth state so we can restore it when navigating back
+  const [previousAuth, setPreviousAuth] = useState<{
+    readonly provider: Provider
+    readonly host: string | null
+    readonly baseUrl: string | null
+  } | null>(null)
+
+  // Build configured hosts from config for URL parsing
+  const configuredHosts = React.useMemo(
+    () => (config ? toConfiguredHosts(config) : undefined),
+    [config],
+  )
 
   const handleSelectRepo = useCallback(
-    (owner: string, repo: string) => {
-      setSelectedRepo({ owner, repo })
-      setBrowseRepo(owner, repo)
-      addRecentRepo(owner, repo)
+    (info: BrowseRepoInfo) => {
+      setSelectedRepo(info)
+      setBrowseRepo(info.owner, info.repo)
+      addRecentRepo(info.owner, info.repo)
+
+      // If URL provided host/provider info, set auth context for this instance
+      const provider = toProvider(info.provider)
+      if (provider && info.host) {
+        // Save current auth state for restoration on back navigation
+        setPreviousAuth({
+          provider: getAuthProvider(),
+          host: getAuthHost(),
+          baseUrl: getAuthBaseUrl(),
+        })
+
+        setAuthProvider(provider)
+        setAuthHost(info.host)
+        if (info.baseUrl) {
+          setAuthBaseUrl(info.baseUrl)
+        }
+      }
     },
     [setBrowseRepo, addRecentRepo],
   )
 
   const handleBack = useCallback(() => {
+    // Restore previous auth state if we changed it
+    if (previousAuth) {
+      setAuthProvider(previousAuth.provider)
+      setAuthHost(previousAuth.host)
+      setAuthBaseUrl(previousAuth.baseUrl)
+      setPreviousAuth(null)
+    }
     setSelectedRepo(null)
     clearBrowseRepo()
-  }, [clearBrowseRepo])
+  }, [clearBrowseRepo, previousAuth])
 
   if (selectedRepo) {
     return (
@@ -402,7 +515,13 @@ export function BrowseRepoScreen({ onSelect, isActive = true }: BrowseRepoScreen
     )
   }
 
-  return <BrowsePicker onSelectRepo={handleSelectRepo} isActive={isActive} />
+  return (
+    <BrowsePicker
+      onSelectRepo={handleSelectRepo}
+      isActive={isActive}
+      configuredHosts={configuredHosts}
+    />
+  )
 }
 
 export { validateRepoInput, parseRepoUrl }

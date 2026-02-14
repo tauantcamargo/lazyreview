@@ -34,6 +34,7 @@ interface AuthState {
   readonly preferredSource: TokenSource | null
   readonly provider: Provider
   readonly baseUrl: string | null
+  readonly host: string | null
   readonly initialized: boolean
 }
 
@@ -43,6 +44,7 @@ const initialState: AuthState = {
   preferredSource: null,
   provider: 'github',
   baseUrl: null,
+  host: null,
   initialized: false,
 }
 
@@ -119,27 +121,55 @@ export function getProviderMeta(provider: Provider): ProviderMeta {
 }
 
 // ---------------------------------------------------------------------------
+// Default hosts per provider
+// ---------------------------------------------------------------------------
+
+const DEFAULT_HOSTS: Readonly<Record<Provider, string>> = {
+  github: 'github.com',
+  gitlab: 'gitlab.com',
+  bitbucket: 'bitbucket.org',
+  azure: 'dev.azure.com',
+  gitea: 'gitea.com',
+}
+
+export function getDefaultHost(provider: Provider): string {
+  return DEFAULT_HOSTS[provider]
+}
+
+/**
+ * Check if a host is the default for a provider.
+ */
+function isDefaultHost(provider: Provider, host: string | null | undefined): boolean {
+  if (!host) return true
+  return host.toLowerCase() === DEFAULT_HOSTS[provider].toLowerCase()
+}
+
+// ---------------------------------------------------------------------------
 // File I/O helpers (per-provider token storage)
 // ---------------------------------------------------------------------------
 
-function getProviderTokenFile(provider: Provider): string {
+function getProviderTokenFile(provider: Provider, host?: string | null): string {
+  if (host && !isDefaultHost(provider, host)) {
+    return join(TOKENS_DIR, `${provider}-${host.toLowerCase()}.token`)
+  }
   return join(TOKENS_DIR, `${provider}.token`)
 }
 
 async function loadSavedToken(): Promise<string | null> {
-  const provider = getState().provider
+  const { provider, host } = getState()
 
-  // Try provider-specific token file first
-  const providerFile = getProviderTokenFile(provider)
+  // Try provider-specific (and host-specific) token file first
+  const providerFile = getProviderTokenFile(provider, host)
   const providerToken = await readTokenFile(providerFile)
   if (providerToken) return providerToken
 
   // Fall back to legacy token file for GitHub (backward compatibility)
-  if (provider === 'github') {
+  // Only for default host (no custom host set)
+  if (provider === 'github' && isDefaultHost(provider, host)) {
     const legacyToken = await readTokenFile(TOKEN_FILE)
     if (legacyToken) {
       // Migrate to new location
-      await saveTokenToProviderFile(provider, legacyToken)
+      await saveTokenToProviderFile(provider, legacyToken, host)
       return legacyToken
     }
   }
@@ -161,36 +191,40 @@ async function readTokenFile(filePath: string): Promise<string | null> {
   }
 }
 
-async function saveTokenToProviderFile(provider: Provider, token: string): Promise<void> {
+async function saveTokenToProviderFile(
+  provider: Provider,
+  token: string,
+  host?: string | null,
+): Promise<void> {
   await mkdir(TOKENS_DIR, { recursive: true, mode: 0o700 })
-  await writeFile(getProviderTokenFile(provider), token, { mode: 0o600 })
+  await writeFile(getProviderTokenFile(provider, host), token, { mode: 0o600 })
 }
 
 async function saveTokenToFile(token: string): Promise<void> {
-  const provider = getState().provider
+  const { provider, host } = getState()
 
-  // Save to provider-specific file
-  await saveTokenToProviderFile(provider, token)
+  // Save to provider-specific (and host-specific) file
+  await saveTokenToProviderFile(provider, token, host)
 
-  // Also save to legacy location for GitHub backward compatibility
-  if (provider === 'github') {
+  // Also save to legacy location for GitHub backward compatibility (default host only)
+  if (provider === 'github' && isDefaultHost(provider, host)) {
     await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
     await writeFile(TOKEN_FILE, token, { mode: 0o600 })
   }
 }
 
 async function deleteSavedToken(): Promise<void> {
-  const provider = getState().provider
+  const { provider, host } = getState()
 
-  // Delete provider-specific token file
+  // Delete provider-specific (and host-specific) token file
   try {
-    await unlink(getProviderTokenFile(provider))
+    await unlink(getProviderTokenFile(provider, host))
   } catch {
     // File might not exist
   }
 
-  // Also delete legacy file for GitHub
-  if (provider === 'github') {
+  // Also delete legacy file for GitHub (default host only)
+  if (provider === 'github' && isDefaultHost(provider, host)) {
     try {
       await unlink(TOKEN_FILE)
     } catch {
@@ -248,8 +282,42 @@ export function getEnvVarName(provider: Provider): string {
   return meta.envVars[0] ?? `LAZYREVIEW_${provider.toUpperCase()}_TOKEN`
 }
 
-export function getProviderTokenFilePath(provider: Provider): string {
-  return getProviderTokenFile(provider)
+export function getProviderTokenFilePath(provider: Provider, host?: string | null): string {
+  return getProviderTokenFile(provider, host)
+}
+
+/**
+ * Check if a saved token file exists for a specific provider+host combination.
+ * Also checks env vars. Returns a summary of auth status.
+ */
+export async function getInstanceAuthStatus(
+  provider: Provider,
+  host?: string | null,
+): Promise<{ readonly hasToken: boolean; readonly source: TokenSource }> {
+  const meta = PROVIDER_META[provider]
+
+  // Check env vars (env vars apply to all hosts of a provider)
+  const envToken = findEnvToken(meta.envVars)
+  if (envToken) {
+    return { hasToken: true, source: 'env' }
+  }
+
+  // Check saved token file for this specific host
+  const tokenFile = getProviderTokenFile(provider, host)
+  const savedToken = await readTokenFile(tokenFile)
+  if (savedToken) {
+    return { hasToken: true, source: 'manual' }
+  }
+
+  // Check CLI (CLI applies to all hosts of a provider)
+  if (meta.cliCommand) {
+    const cliToken = await tryGetCliTokenForProvider(provider)
+    if (cliToken) {
+      return { hasToken: true, source: 'gh_cli' }
+    }
+  }
+
+  return { hasToken: false, source: 'none' }
 }
 
 export function setAuthProvider(provider: Provider): void {
@@ -266,6 +334,14 @@ export function setAuthBaseUrl(baseUrl: string | null): void {
 
 export function getAuthBaseUrl(): string | null {
   return getState().baseUrl
+}
+
+export function setAuthHost(host: string | null): void {
+  setState({ host, initialized: false })
+}
+
+export function getAuthHost(): string | null {
+  return getState().host
 }
 
 // ---------------------------------------------------------------------------

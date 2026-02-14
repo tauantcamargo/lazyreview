@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateRepoInput } from './BrowseRepoScreen'
+import { validateRepoInput, parseRepoUrl } from './BrowseRepoScreen'
 
 describe('validateRepoInput', () => {
   describe('basic owner/repo format', () => {
@@ -163,6 +163,76 @@ describe('validateRepoInput', () => {
       expect(result.valid).toBe(true)
       expect(result.owner).toBe('my_workspace')
       expect(result.repo).toBe('my_repo')
+    })
+  })
+})
+
+describe('parseRepoUrl', () => {
+  describe('host and provider detection', () => {
+    it('returns host and provider for GitHub HTTPS URL', () => {
+      const result = parseRepoUrl('https://github.com/facebook/react')
+      expect(result).not.toBeNull()
+      expect(result!.owner).toBe('facebook')
+      expect(result!.repo).toBe('react')
+      expect(result!.host).toBe('github.com')
+      expect(result!.provider).toBe('github')
+      expect(result!.baseUrl).toBe('https://api.github.com')
+    })
+
+    it('returns host and provider for GitLab HTTPS URL', () => {
+      const result = parseRepoUrl('https://gitlab.com/mygroup/myproject')
+      expect(result).not.toBeNull()
+      expect(result!.host).toBe('gitlab.com')
+      expect(result!.provider).toBe('gitlab')
+    })
+
+    it('returns host and provider for GitHub SSH URL', () => {
+      const result = parseRepoUrl('git@github.com:facebook/react.git')
+      expect(result).not.toBeNull()
+      expect(result!.host).toBe('github.com')
+      expect(result!.provider).toBe('github')
+    })
+
+    it('returns host and provider for Bitbucket URL', () => {
+      const result = parseRepoUrl('https://bitbucket.org/workspace/repo')
+      expect(result).not.toBeNull()
+      expect(result!.host).toBe('bitbucket.org')
+      expect(result!.provider).toBe('bitbucket')
+    })
+
+    it('returns host for self-hosted GHE URL', () => {
+      const result = parseRepoUrl(
+        'https://github.mycompany.com/org/repo',
+        { 'github.mycompany.com': 'github' },
+      )
+      expect(result).not.toBeNull()
+      expect(result!.host).toBe('github.mycompany.com')
+      expect(result!.provider).toBe('github')
+      expect(result!.baseUrl).toBe('https://github.mycompany.com/api/v3')
+    })
+
+    it('returns host for self-hosted GitLab URL', () => {
+      const result = parseRepoUrl(
+        'https://gitlab.internal.io/team/project',
+        { 'gitlab.internal.io': 'gitlab' },
+      )
+      expect(result).not.toBeNull()
+      expect(result!.host).toBe('gitlab.internal.io')
+      expect(result!.provider).toBe('gitlab')
+    })
+
+    it('returns null for non-URL input', () => {
+      const result = parseRepoUrl('facebook/react')
+      expect(result).toBeNull()
+    })
+
+    it('returns null host/provider when URL host is not recognized', () => {
+      const result = parseRepoUrl('https://random-site.com/owner/repo')
+      expect(result).not.toBeNull()
+      expect(result!.owner).toBe('owner')
+      expect(result!.repo).toBe('repo')
+      expect(result!.host).toBe('random-site.com')
+      expect(result!.provider).toBe('unknown')
     })
   })
 })

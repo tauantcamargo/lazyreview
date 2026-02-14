@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { TextInput, PasswordInput } from '@inkjs/ui'
 import { useTheme } from '../theme/index'
@@ -11,9 +11,10 @@ import { useBookmarkedRepos, validateBookmarkInput } from '../hooks/useBookmarke
 import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { SettingRow, TokenSourceLabel } from '../components/settings/SettingRow'
-import { getAuthProvider, setAuthProvider, getProviderTokenFilePath, getProviderMeta } from '../services/Auth'
+import { getAuthProvider, setAuthProvider, getProviderTokenFilePath, getProviderMeta, getInstanceAuthStatus } from '../services/Auth'
 import type { TokenSource } from '../services/Auth'
-import type { Provider } from '../services/Config'
+import { getConfiguredInstances } from '../services/Config'
+import type { Provider, ConfiguredInstance } from '../services/Config'
 
 const THEME_ORDER: readonly ThemeName[] = ['tokyo-night', 'dracula', 'catppuccin-mocha', 'gruvbox', 'high-contrast']
 
@@ -83,6 +84,37 @@ export function SettingsScreen(): React.ReactElement {
   const [tokenMessage, setTokenMessage] = useState<string | null>(null)
   const [bookmarkSelectedIndex, setBookmarkSelectedIndex] = useState(0)
   const [bookmarkError, setBookmarkError] = useState<string | null>(null)
+  const [instanceStatuses, setInstanceStatuses] = useState<
+    ReadonlyMap<string, { readonly hasToken: boolean; readonly source: TokenSource }>
+  >(new Map())
+
+  // Compute configured instances from config
+  const configuredInstances: readonly ConfiguredInstance[] = config
+    ? getConfiguredInstances(config)
+    : []
+
+  // Load auth status for each configured instance
+  useEffect(() => {
+    if (!config) return
+    const instances = getConfiguredInstances(config)
+    // Only check non-default instances (default ones are covered by the main auth display)
+    const nonDefaultInstances = instances.filter((i) => !i.isDefault)
+    if (nonDefaultInstances.length === 0) return
+
+    let cancelled = false
+    const loadStatuses = async (): Promise<void> => {
+      const entries: Array<[string, { hasToken: boolean; source: TokenSource }]> = []
+      for (const inst of nonDefaultInstances) {
+        const status = await getInstanceAuthStatus(inst.provider, inst.host)
+        entries.push([`${inst.provider}:${inst.host}`, status])
+      }
+      if (!cancelled) {
+        setInstanceStatuses(new Map(entries))
+      }
+    }
+    loadStatuses()
+    return () => { cancelled = true }
+  }, [config])
 
   const isEditing = editingField !== null
   const isBookmarkSection = selectedItem === 'bookmarked_repos'
@@ -399,6 +431,43 @@ export function SettingsScreen(): React.ReactElement {
           </Box>
         )}
       </Box>
+
+      {/* Provider Instances Section */}
+      {configuredInstances.filter((i) => !i.isDefault).length > 0 && (
+        <>
+          <Box paddingX={1} marginTop={1}>
+            <Divider title="Provider Instances" />
+          </Box>
+          <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
+            <Text color={theme.colors.secondary} bold>
+              Configured Instances
+            </Text>
+          </Box>
+          <Box flexDirection="column" gap={0}>
+            {configuredInstances
+              .filter((inst) => !inst.isDefault)
+              .map((inst) => {
+                const key = `${inst.provider}:${inst.host}`
+                const status = instanceStatuses.get(key)
+                const statusText = status?.hasToken
+                  ? status.source === 'env' ? 'env' : status.source === 'gh_cli' ? 'cli' : 'token'
+                  : 'no token'
+                const statusColor = status?.hasToken ? theme.colors.success : theme.colors.error
+                return (
+                  <Box key={key} gap={2} paddingX={2}>
+                    <Box width={20}>
+                      <Text color={theme.colors.muted}>
+                        {'  '}{PROVIDER_LABELS[inst.provider] ?? inst.provider}
+                      </Text>
+                    </Box>
+                    <Text color={theme.colors.text}>{inst.host}</Text>
+                    <Text color={statusColor}>[{statusText}]</Text>
+                  </Box>
+                )
+              })}
+          </Box>
+        </>
+      )}
 
       <Box paddingX={1} marginTop={1}>
         <Divider title="Configuration" />
