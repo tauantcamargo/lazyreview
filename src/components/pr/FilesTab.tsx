@@ -40,6 +40,8 @@ import {
   FileItem,
 } from './FileTree'
 import type { InlineCommentContext } from '../../models/inline-comment'
+import { ConflictBanner } from './ConflictBanner'
+import { detectConflictState } from '../../utils/conflict-detection'
 import { DiffStatsSummary } from './DiffStatsSummary'
 import { findRowByLineNumber, findSbsRowByLineNumber } from './diffNavigationHelpers'
 import { applyHunkFolding } from '../../utils/hunk-folding'
@@ -101,6 +103,9 @@ interface FilesTabProps {
   readonly onLoadMoreFiles?: () => void
   // When viewing a commit range, shows the range label in the header
   readonly commitRangeLabel?: string
+  // Merge conflict detection
+  readonly mergeable?: boolean | null
+  readonly mergeableState?: string | null
 }
 
 type FocusPanel = 'tree' | 'diff'
@@ -127,9 +132,22 @@ export function FilesTab({
   hasMoreFiles,
   onLoadMoreFiles,
   commitRangeLabel,
+  mergeable,
+  mergeableState,
 }: FilesTabProps): React.ReactElement {
   const { stdout } = useStdout()
   const theme = useTheme()
+
+  const conflictState = useMemo(
+    () =>
+      mergeable !== undefined
+        ? detectConflictState({
+            mergeable: mergeable ?? null,
+            mergeable_state: mergeableState ?? null,
+          })
+        : null,
+    [mergeable, mergeableState],
+  )
   const { setInputActive } = useInputFocus()
   const { markViewed, toggleViewed, isViewed, getViewedCount } =
     useViewedFiles()
@@ -587,7 +605,11 @@ export function FilesTab({
   const isPanelFocused = focusPanel === 'tree' && isActive
 
   return (
-    <Box ref={containerRef} flexDirection="row" flexGrow={1}>
+    <Box flexDirection="column" flexGrow={1}>
+      {conflictState && (
+        <ConflictBanner state={conflictState} />
+      )}
+      <Box ref={containerRef} flexDirection="row" flexGrow={1}>
       {isFilePickerOpen && (
         <FilePickerModal
           files={files}
@@ -843,6 +865,7 @@ export function FilesTab({
             />
           )}
         </Box>
+      </Box>
       </Box>
     </Box>
   )

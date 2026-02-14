@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
@@ -6,6 +6,7 @@ import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
 import type { MergeMethod } from '../../hooks/useGitHub'
 import type { PullRequest } from '../../models/pull-request'
+import { detectConflictState } from '../../utils/conflict-detection'
 
 interface MergeModalProps {
   readonly pr: PullRequest
@@ -37,8 +38,9 @@ function getMergeabilityMessage(pr: PullRequest): string | null {
   if (pr.merged) {
     return 'This PR is already merged'
   }
-  if (pr.mergeable === false) {
-    return 'This PR has merge conflicts that must be resolved first'
+  const conflictState = detectConflictState(pr)
+  if (conflictState.hasConflicts) {
+    return conflictState.conflictMessage
   }
   if (pr.mergeable_state === 'blocked') {
     return 'This PR is blocked (failing checks or missing required reviews)'
@@ -61,6 +63,7 @@ export function MergeModal({
 
   const mergeBlockReason = getMergeabilityMessage(pr)
   const canMerge = mergeBlockReason === null
+  const conflictState = useMemo(() => detectConflictState(pr), [pr])
 
   useEffect(() => {
     if (step === 'edit_title') {
@@ -217,14 +220,19 @@ export function MergeModal({
         </Text>
 
         {!canMerge && (
-          <Box borderStyle="single" borderColor={theme.colors.error} paddingX={1}>
+          <Box flexDirection="column" borderStyle="single" borderColor={theme.colors.error} paddingX={1}>
             <Text color={theme.colors.error}>{mergeBlockReason}</Text>
+            {conflictState.hasConflicts && (
+              <Text color={theme.colors.muted} dimColor>
+                Tip: Pull the base branch and resolve conflicts locally, then push
+              </Text>
+            )}
           </Box>
         )}
 
         {pr.mergeable === null && (
-          <Text color={theme.colors.warning}>
-            Mergeability is being checked...
+          <Text color={theme.colors.muted}>
+            Mergeability unknown - still being computed
           </Text>
         )}
 

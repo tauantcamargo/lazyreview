@@ -4,6 +4,7 @@ import { useTheme } from '../../theme/index'
 import type { PullRequest } from '../../models/pull-request'
 import { timeAgo } from '../../utils/date'
 import { contrastForeground, normalizeHexColor } from '../../utils/color'
+import { detectConflictState } from '../../utils/conflict-detection'
 
 interface PRHeaderProps {
   readonly pr: PullRequest
@@ -14,6 +15,7 @@ interface PRHeaderProps {
 export function PRHeader({ pr, prIndex, prTotal }: PRHeaderProps): React.ReactElement {
   const theme = useTheme()
   const totalComments = pr.comments + pr.review_comments
+  const conflictState = detectConflictState(pr)
 
   const stateColor = pr.draft
     ? theme.colors.muted
@@ -41,6 +43,16 @@ export function PRHeader({ pr, prIndex, prTotal }: PRHeaderProps): React.ReactEl
         <Text color={theme.colors.text} bold>
           {pr.title}
         </Text>
+        {conflictState.hasConflicts && (
+          <Text color={theme.colors.error} bold>
+            [CONFLICTS]
+          </Text>
+        )}
+        {pr.mergeable === null && (
+          <Text color={theme.colors.muted}>
+            [Mergeability unknown]
+          </Text>
+        )}
         {prTotal !== undefined && prIndex !== undefined && prTotal > 1 && (
           <Text color={theme.colors.muted}>
             ({prIndex + 1}/{prTotal})
