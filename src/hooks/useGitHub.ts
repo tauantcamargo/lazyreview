@@ -1,8 +1,14 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { Effect } from 'effect'
 import { CodeReviewApi, type ListPRsOptions } from '../services/GitHubApi'
 import { runEffect } from '../utils/effect'
 import { useRefreshInterval } from './useRefreshInterval'
+import {
+  useSharedPRCache,
+  crossPopulateFromInvolved,
+  crossPopulateToInvolved,
+} from './useSharedPRCache'
 
 // Re-export mutations for backwards compatibility
 export {
@@ -187,8 +193,10 @@ export type PRStateFilter = 'open' | 'closed' | 'all'
 
 export function useMyPRs(stateFilter: PRStateFilter = 'open') {
   const refetchInterval = useRefreshInterval()
+  const queryClient = useQueryClient()
+  const { myPRsPlaceholder } = useSharedPRCache(stateFilter)
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['my-prs', stateFilter],
     queryFn: () =>
       runEffect(
@@ -197,14 +205,26 @@ export function useMyPRs(stateFilter: PRStateFilter = 'open') {
           return yield* api.getMyPRs(stateFilter)
         }),
       ),
+    placeholderData: myPRsPlaceholder,
     refetchInterval,
   })
+
+  // Cross-populate: after my-prs data arrives, try to populate involved cache
+  useEffect(() => {
+    if (query.data && query.isFetched) {
+      crossPopulateToInvolved(queryClient, stateFilter)
+    }
+  }, [query.data, query.isFetched, queryClient, stateFilter])
+
+  return query
 }
 
 export function useReviewRequests(stateFilter: PRStateFilter = 'open') {
   const refetchInterval = useRefreshInterval()
+  const queryClient = useQueryClient()
+  const { reviewRequestsPlaceholder } = useSharedPRCache(stateFilter)
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['review-requests', stateFilter],
     queryFn: () =>
       runEffect(
@@ -213,14 +233,26 @@ export function useReviewRequests(stateFilter: PRStateFilter = 'open') {
           return yield* api.getReviewRequests(stateFilter)
         }),
       ),
+    placeholderData: reviewRequestsPlaceholder,
     refetchInterval,
   })
+
+  // Cross-populate: after review-requests data arrives, try to populate involved cache
+  useEffect(() => {
+    if (query.data && query.isFetched) {
+      crossPopulateToInvolved(queryClient, stateFilter)
+    }
+  }, [query.data, query.isFetched, queryClient, stateFilter])
+
+  return query
 }
 
 export function useInvolvedPRs(stateFilter: PRStateFilter = 'open') {
   const refetchInterval = useRefreshInterval()
+  const queryClient = useQueryClient()
+  const { involvedPlaceholder, currentUserLogin } = useSharedPRCache(stateFilter)
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['involved-prs', stateFilter],
     queryFn: () =>
       runEffect(
@@ -229,8 +261,18 @@ export function useInvolvedPRs(stateFilter: PRStateFilter = 'open') {
           return yield* api.getInvolvedPRs(stateFilter)
         }),
       ),
+    placeholderData: involvedPlaceholder,
     refetchInterval,
   })
+
+  // Cross-populate: after involved data arrives, populate my-prs and review-requests caches
+  useEffect(() => {
+    if (query.data && query.isFetched && currentUserLogin) {
+      crossPopulateFromInvolved(queryClient, stateFilter, query.data, currentUserLogin)
+    }
+  }, [query.data, query.isFetched, queryClient, stateFilter, currentUserLogin])
+
+  return query
 }
 
 export function useReviewThreads(
@@ -353,5 +395,59 @@ export function useCollaborators(
       ),
     enabled: enabledFlag && !!owner && !!repo,
     staleTime: 5 * 60 * 1000, // 5 minutes - collaborators don't change often
+  })
+}
+
+/**
+ * Fetch a single page of PR files (metadata + patches).
+ * Used for paginated loading when a PR has 300+ files.
+ */
+export function usePRFilesPage(
+  owner: string,
+  repo: string,
+  number: number,
+  page: number,
+  options?: { readonly enabled?: boolean },
+) {
+  const enabledFlag = options?.enabled ?? true
+
+  return useQuery({
+    queryKey: ['pr-files-page', owner, repo, number, page],
+    queryFn: () =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* CodeReviewApi
+          return yield* api.getPRFilesPage(owner, repo, number, page)
+        }),
+      ),
+    enabled: enabledFlag && !!owner && !!repo && !!number && page >= 1,
+    staleTime: 30 * 1000,
+  })
+}
+
+/**
+ * Fetch a single file's diff/patch on-demand.
+ * Cached per file so revisiting a file doesn't re-fetch.
+ */
+export function useFileDiff(
+  owner: string,
+  repo: string,
+  number: number,
+  filename: string | null,
+  options?: { readonly enabled?: boolean },
+) {
+  const enabledFlag = options?.enabled ?? true
+
+  return useQuery({
+    queryKey: ['file-diff', owner, repo, number, filename],
+    queryFn: () =>
+      runEffect(
+        Effect.gen(function* () {
+          const api = yield* CodeReviewApi
+          return yield* api.getFileDiff(owner, repo, number, filename!)
+        }),
+      ),
+    enabled: enabledFlag && !!owner && !!repo && !!number && !!filename,
+    staleTime: 60 * 1000, // 1 minute - file diffs don't change often during review
   })
 }
