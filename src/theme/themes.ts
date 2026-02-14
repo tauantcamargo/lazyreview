@@ -1,4 +1,4 @@
-import type { Theme, ThemeName } from './types'
+import type { Theme, BuiltInThemeName } from './types'
 
 const tokyoNight: Theme = {
   name: 'tokyo-night',
@@ -162,7 +162,7 @@ const githubLight: Theme = {
   },
 }
 
-export const themes: Record<ThemeName, Theme> = {
+export const themes: Record<BuiltInThemeName, Theme> = {
   'tokyo-night': tokyoNight,
   dracula,
   'catppuccin-mocha': catppuccinMocha,

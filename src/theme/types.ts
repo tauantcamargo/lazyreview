@@ -27,4 +27,25 @@ export interface ThemeColors {
   readonly listSelectedBg: string
 }
 
-export type ThemeName = 'tokyo-night' | 'dracula' | 'catppuccin-mocha' | 'gruvbox' | 'high-contrast' | 'github-light'
+/**
+ * Built-in theme names as a string literal union for type safety.
+ */
+export type BuiltInThemeName = 'tokyo-night' | 'dracula' | 'catppuccin-mocha' | 'gruvbox' | 'high-contrast' | 'github-light'
+
+/**
+ * All built-in theme names as a readonly array for iteration.
+ */
+export const BUILT_IN_THEME_NAMES: readonly BuiltInThemeName[] = [
+  'tokyo-night',
+  'dracula',
+  'catppuccin-mocha',
+  'gruvbox',
+  'high-contrast',
+  'github-light',
+] as const
+
+/**
+ * Theme name type -- accepts both built-in and custom theme names.
+ * Use BuiltInThemeName when you need to narrow to built-in themes only.
+ */
+export type ThemeName = string

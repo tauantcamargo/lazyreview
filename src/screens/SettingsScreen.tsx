@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { TextInput, PasswordInput } from '@inkjs/ui'
-import { useTheme } from '../theme/index'
+import { useTheme, getAllThemeNames, isCustomTheme, getCustomThemeMeta } from '../theme/index'
 import type { ThemeName } from '../theme/index'
 import { useConfig } from '../hooks/useConfig'
 import { useAuth } from '../hooks/useAuth'
@@ -16,7 +16,25 @@ import type { TokenSource } from '../services/Auth'
 import { getConfiguredInstances } from '../services/Config'
 import type { Provider, ConfiguredInstance } from '../services/Config'
 
-const THEME_ORDER: readonly ThemeName[] = ['tokyo-night', 'dracula', 'catppuccin-mocha', 'gruvbox', 'high-contrast', 'github-light']
+/**
+ * Build the full theme cycle order: built-in themes first, then custom themes.
+ * Recalculated on each render so newly loaded custom themes are picked up.
+ */
+function getThemeOrder(): readonly string[] {
+  return getAllThemeNames()
+}
+
+/**
+ * Format a theme name for display, appending (custom) label and extends info.
+ */
+function formatThemeLabel(name: string): string {
+  if (!isCustomTheme(name)) {
+    return name
+  }
+  const meta = getCustomThemeMeta(name)
+  const extendsLabel = meta?.extends ? ` extends ${meta.extends}` : ''
+  return `${name} (custom${extendsLabel})`
+}
 
 const PROVIDER_ORDER: readonly Provider[] = ['github', 'gitlab', 'bitbucket', 'azure', 'gitea']
 
@@ -137,11 +155,15 @@ export function SettingsScreen(): React.ReactElement {
   }
 
   const cycleTheme = (): void => {
-    const currentTheme = (config?.theme ?? 'tokyo-night') as ThemeName
-    const currentIndex = THEME_ORDER.indexOf(currentTheme)
-    const nextIndex = (currentIndex + 1) % THEME_ORDER.length
-    updateConfig({ theme: THEME_ORDER[nextIndex] })
-    setStatusMessage('Saved')
+    const themeOrder = getThemeOrder()
+    const currentTheme = config?.theme ?? 'tokyo-night'
+    const currentIndex = themeOrder.indexOf(currentTheme)
+    const nextIndex = (currentIndex + 1) % themeOrder.length
+    const nextTheme = themeOrder[nextIndex]
+    if (nextTheme) {
+      updateConfig({ theme: nextTheme })
+      setStatusMessage('Saved')
+    }
   }
 
   const startEditing = (field: EditingField): void => {
@@ -488,7 +510,7 @@ export function SettingsScreen(): React.ReactElement {
         />
         <SettingRow
           label="Theme"
-          value={config?.theme ?? 'tokyo-night'}
+          value={formatThemeLabel(config?.theme ?? 'tokyo-night')}
           isSelected={selectedItem === 'theme'}
           hint="Enter to cycle"
         />
@@ -642,6 +664,9 @@ export function SettingsScreen(): React.ReactElement {
         </Text>
         <Text color={theme.colors.muted} dimColor>
           Token: {getProviderTokenFilePath(getAuthProvider()).replace(process.env['HOME'] ?? '', '~')}
+        </Text>
+        <Text color={theme.colors.muted} dimColor>
+          Themes: ~/.config/lazyreview/themes/*.yaml
         </Text>
         <Text color={theme.colors.muted} dimColor>
           Keybindings: add keybindingOverrides to config.yaml (see ? help for defaults)

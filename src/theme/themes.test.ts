@@ -1,16 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { themes, defaultTheme } from './themes'
-import type { ThemeName, ThemeColors } from './types'
+import type { BuiltInThemeName, ThemeColors } from './types'
+import { BUILT_IN_THEME_NAMES } from './types'
 
 describe('themes', () => {
-  const allThemeNames: readonly ThemeName[] = [
-    'tokyo-night',
-    'dracula',
-    'catppuccin-mocha',
-    'gruvbox',
-    'high-contrast',
-    'github-light',
-  ]
+  const allThemeNames: readonly BuiltInThemeName[] = BUILT_IN_THEME_NAMES
 
   it('exports all expected themes', () => {
     for (const name of allThemeNames) {

@@ -4,6 +4,7 @@ import { App } from './app'
 import { detectGitRepo, buildConfiguredHosts } from './utils/git'
 import type { ProviderType, ConfiguredHosts } from './utils/git'
 import { parseCliArgs } from './utils/cli-args'
+import { loadCustomThemes, setCustomThemes } from './theme/index'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -143,6 +144,11 @@ async function main(): Promise<void> {
 
   // Load configured hosts from config for self-hosted provider detection
   const configuredHosts = await loadConfiguredHosts()
+
+  // Load custom themes from ~/.config/lazyreview/themes/
+  const themesDir = join(homedir(), '.config', 'lazyreview', 'themes')
+  const customThemesResult = await loadCustomThemes(themesDir)
+  setCustomThemes(customThemesResult.themes)
 
   // Resolve repo info: CLI args take priority, then git detection
   let repoOwner: string | null = parsed.owner
