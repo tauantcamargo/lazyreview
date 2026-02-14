@@ -1,7 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import { Schema as S } from 'effect'
-import { AppConfig, buildHostMappings, toConfiguredHosts, getConfiguredInstances } from './Config'
+import {
+  AppConfig,
+  buildHostMappings,
+  toConfiguredHosts,
+  getConfiguredInstances,
+  flattenV2ToAppConfig,
+  appConfigToV2,
+} from './Config'
 import type { ConfiguredInstance } from './Config'
+import type { V2ConfigFile } from './config-migration'
 
 describe('AppConfig schema', () => {
   it('creates default config from empty object', () => {
@@ -554,5 +562,213 @@ describe('getConfiguredInstances', () => {
     expect(custom?.provider).toBe('github')
     expect(custom?.host).toBe('ghe.corp.com')
     expect(custom?.isDefault).toBe(false)
+  })
+})
+
+// ===========================================================================
+// flattenV2ToAppConfig
+// ===========================================================================
+
+describe('flattenV2ToAppConfig', () => {
+  const minimalV2: V2ConfigFile = {
+    version: 2,
+    defaults: {
+      provider: 'github',
+      theme: 'tokyo-night',
+      pageSize: 30,
+      refreshInterval: 60,
+      owner: '',
+      repo: '',
+      compactList: false,
+    },
+    providers: {
+      github: { hosts: [] },
+      gitlab: { hosts: [] },
+      bitbucket: { hosts: [] },
+      azure: { hosts: [] },
+      gitea: { hosts: [] },
+    },
+    ai: {
+      provider: '',
+      model: '',
+      apiKey: '',
+      endpoint: '',
+      maxTokens: 4096,
+      temperature: 0.3,
+    },
+    plugins: {},
+    keybindingOverrides: {},
+    recentRepos: [],
+    bookmarkedRepos: [],
+  }
+
+  it('flattens v2 defaults to AppConfig fields', () => {
+    const config = flattenV2ToAppConfig(minimalV2)
+    expect(config.provider).toBe('github')
+    expect(config.theme).toBe('tokyo-night')
+    expect(config.pageSize).toBe(30)
+    expect(config.refreshInterval).toBe(60)
+    expect(config.compactList).toBe(false)
+  })
+
+  it('maps v2 defaults.owner to defaultOwner', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      defaults: { ...minimalV2.defaults, owner: 'acme', repo: 'web' },
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.defaultOwner).toBe('acme')
+    expect(config.defaultRepo).toBe('web')
+  })
+
+  it('preserves providers.github.hosts and providers.gitlab.hosts', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      providers: {
+        ...minimalV2.providers,
+        github: { hosts: ['ghe.corp.com'] },
+        gitlab: { hosts: ['gl.internal.io'] },
+      },
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.providers?.github?.hosts).toEqual(['ghe.corp.com'])
+    expect(config.providers?.gitlab?.hosts).toEqual(['gl.internal.io'])
+  })
+
+  it('preserves recentRepos and bookmarkedRepos', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      recentRepos: [{ owner: 'foo', repo: 'bar', lastUsed: '2026-01-01' }],
+      bookmarkedRepos: [{ owner: 'baz', repo: 'qux' }],
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.recentRepos).toEqual([
+      { owner: 'foo', repo: 'bar', lastUsed: '2026-01-01' },
+    ])
+    expect(config.bookmarkedRepos).toEqual([{ owner: 'baz', repo: 'qux' }])
+  })
+
+  it('preserves keybindingOverrides when non-empty', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      keybindingOverrides: { global: { toggleHelp: 'h' } },
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.keybindingOverrides?.['global']?.['toggleHelp']).toBe('h')
+  })
+
+  it('omits keybindingOverrides when empty', () => {
+    const config = flattenV2ToAppConfig(minimalV2)
+    expect(config.keybindingOverrides).toBeUndefined()
+  })
+
+  it('preserves notification settings from defaults', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      defaults: {
+        ...minimalV2.defaults,
+        notifications: false,
+        notifyOnNewPR: false,
+        notifyOnUpdate: true,
+        notifyOnReviewRequest: false,
+      },
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.notifications).toBe(false)
+    expect(config.notifyOnNewPR).toBe(false)
+    expect(config.notifyOnUpdate).toBe(true)
+    expect(config.notifyOnReviewRequest).toBe(false)
+  })
+
+  it('preserves hasOnboarded from defaults', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      defaults: { ...minimalV2.defaults, hasOnboarded: true },
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.hasOnboarded).toBe(true)
+  })
+
+  it('preserves hostMappings from defaults', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      defaults: {
+        ...minimalV2.defaults,
+        hostMappings: [{ host: 'gt.corp.com', provider: 'gitea' }],
+      },
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.hostMappings).toEqual([{ host: 'gt.corp.com', provider: 'gitea' }])
+  })
+
+  it('preserves botUsernames from defaults', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      defaults: { ...minimalV2.defaults, botUsernames: ['dependabot'] },
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.botUsernames).toEqual(['dependabot'])
+  })
+})
+
+// ===========================================================================
+// appConfigToV2
+// ===========================================================================
+
+describe('appConfigToV2', () => {
+  it('converts AppConfig to V2ConfigFile', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      provider: 'gitlab',
+      theme: 'dracula',
+      pageSize: 25,
+      defaultOwner: 'acme',
+      defaultRepo: 'web',
+    })
+    const v2 = appConfigToV2(config)
+    expect(v2.version).toBe(2)
+    expect(v2.defaults.provider).toBe('gitlab')
+    expect(v2.defaults.theme).toBe('dracula')
+    expect(v2.defaults.pageSize).toBe(25)
+    expect(v2.defaults.owner).toBe('acme')
+    expect(v2.defaults.repo).toBe('web')
+  })
+
+  it('round-trips AppConfig through V2 and back', () => {
+    const original = S.decodeUnknownSync(AppConfig)({
+      provider: 'github',
+      theme: 'tokyo-night',
+      pageSize: 30,
+      refreshInterval: 60,
+      compactList: true,
+      providers: {
+        github: { hosts: ['ghe.corp.com'] },
+        gitlab: { hosts: ['gl.internal.io'] },
+      },
+    })
+    const v2 = appConfigToV2(original)
+    const restored = flattenV2ToAppConfig(v2)
+    expect(restored.provider).toBe(original.provider)
+    expect(restored.theme).toBe(original.theme)
+    expect(restored.pageSize).toBe(original.pageSize)
+    expect(restored.refreshInterval).toBe(original.refreshInterval)
+    expect(restored.compactList).toBe(original.compactList)
+    expect(restored.providers?.github?.hosts).toEqual(original.providers?.github?.hosts)
+    expect(restored.providers?.gitlab?.hosts).toEqual(original.providers?.gitlab?.hosts)
+  })
+
+  it('initializes empty ai config section', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    const v2 = appConfigToV2(config)
+    expect(v2.ai.provider).toBe('')
+    expect(v2.ai.model).toBe('')
+    expect(v2.ai.apiKey).toBe('')
+    expect(v2.ai.maxTokens).toBe(4096)
+    expect(v2.ai.temperature).toBe(0.3)
+  })
+
+  it('initializes empty plugins section', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    const v2 = appConfigToV2(config)
+    expect(v2.plugins).toEqual({})
   })
 })

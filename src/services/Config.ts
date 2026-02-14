@@ -4,6 +4,16 @@ import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { parse, stringify } from 'yaml'
 import { ConfigError } from '../models/errors'
+import {
+  isV1Config,
+  isV2Config,
+  migrateV1Config,
+  resolveEnvVars,
+  mergeRepoConfig,
+  type V2ConfigFile,
+  type AiConfig,
+  type PluginConfig,
+} from './config-migration'
 
 const KeybindingsSchema = S.Struct({
   toggleSidebar: S.optionalWith(S.String, { default: () => 'b' }),
@@ -129,6 +139,30 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
     default: () => false,
   }),
 }) {}
+
+// ---------------------------------------------------------------------------
+// V2 Effect Schema definitions
+// ---------------------------------------------------------------------------
+
+const AiConfigSchema = S.Struct({
+  provider: S.optionalWith(S.String, { default: () => '' }),
+  model: S.optionalWith(S.String, { default: () => '' }),
+  apiKey: S.optionalWith(S.String, { default: () => '' }),
+  endpoint: S.optionalWith(S.String, { default: () => '' }),
+  maxTokens: S.optionalWith(S.Number.pipe(S.int(), S.positive()), {
+    default: () => 4096,
+  }),
+  temperature: S.optionalWith(S.Number.pipe(S.between(0, 2)), {
+    default: () => 0.3,
+  }),
+})
+
+const PluginConfigSchema = S.Record({
+  key: S.String,
+  value: S.Unknown,
+})
+
+export { type AiConfig, type PluginConfig }
 
 const defaultConfig = S.decodeUnknownSync(AppConfig)({})
 
@@ -265,6 +299,116 @@ function getConfigPath(): string {
   return join(homedir(), '.config', 'lazyreview', 'config.yaml')
 }
 
+// ---------------------------------------------------------------------------
+// V2 <-> AppConfig flattening
+// ---------------------------------------------------------------------------
+
+/**
+ * Flatten a V2ConfigFile into the runtime AppConfig type.
+ * This ensures backward compatibility -- hooks and components
+ * continue reading the same fields they always have.
+ */
+export function flattenV2ToAppConfig(v2: V2ConfigFile): AppConfig {
+  const d = v2.defaults
+  const flat: Record<string, unknown> = {
+    provider: d.provider,
+    theme: d.theme,
+    pageSize: d.pageSize,
+    refreshInterval: d.refreshInterval,
+    defaultOwner: d.owner || undefined,
+    defaultRepo: d.repo || undefined,
+    compactList: d.compactList,
+    hasOnboarded: d.hasOnboarded,
+    notifications: d.notifications,
+    notifyOnNewPR: d.notifyOnNewPR,
+    notifyOnUpdate: d.notifyOnUpdate,
+    notifyOnReviewRequest: d.notifyOnReviewRequest,
+    baseUrl: d.baseUrl,
+    gitlab: d.gitlab,
+    keybindings: d.keybindings,
+    hostMappings: d.hostMappings,
+    botUsernames: d.botUsernames,
+    providers: {
+      github: { hosts: v2.providers.github.hosts },
+      gitlab: { hosts: v2.providers.gitlab.hosts },
+    },
+    keybindingOverrides: Object.keys(v2.keybindingOverrides).length > 0
+      ? v2.keybindingOverrides
+      : undefined,
+    recentRepos: v2.recentRepos,
+    bookmarkedRepos: v2.bookmarkedRepos,
+  }
+  return S.decodeUnknownSync(AppConfig)(flat)
+}
+
+/**
+ * Convert an AppConfig to V2ConfigFile for storage.
+ */
+export function appConfigToV2(config: AppConfig): V2ConfigFile {
+  return migrateV1Config(config as unknown as Record<string, unknown>)
+}
+
+// ---------------------------------------------------------------------------
+// Repo config loading
+// ---------------------------------------------------------------------------
+
+/**
+ * Load a `.lazyreview.yaml` file from a repository root directory.
+ * Returns the parsed YAML as a record, or empty object if not found.
+ */
+export async function loadRepoConfig(repoRoot: string): Promise<Record<string, unknown>> {
+  const repoConfigPath = join(repoRoot, '.lazyreview.yaml')
+  try {
+    const content = await readFile(repoConfigPath, 'utf-8')
+    const parsed = parse(content, { maxAliasCount: 10 })
+    return (parsed as Record<string, unknown>) ?? {}
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Load global config, then merge with repo-level config if present.
+ * Env vars in ai.apiKey and ai.endpoint are resolved.
+ */
+export async function loadConfigWithRepoOverrides(
+  repoRoot: string,
+  configPath?: string,
+): Promise<AppConfig> {
+  const cfgPath = configPath ?? getConfigPath()
+  let globalV2: V2ConfigFile
+
+  try {
+    const content = await readFile(cfgPath, 'utf-8')
+    const parsed = parse(content, { maxAliasCount: 10 })
+
+    if (isV2Config(parsed)) {
+      globalV2 = parsed as V2ConfigFile
+    } else {
+      globalV2 = migrateV1Config((parsed ?? {}) as Record<string, unknown>)
+    }
+  } catch {
+    globalV2 = migrateV1Config({})
+  }
+
+  const repoConfig = await loadRepoConfig(repoRoot)
+  const merged = mergeRepoConfig(globalV2, repoConfig)
+
+  // Resolve env vars in AI config
+  const resolvedAi: AiConfig = {
+    ...merged.ai,
+    apiKey: resolveEnvVars(merged.ai.apiKey),
+    endpoint: resolveEnvVars(merged.ai.endpoint),
+  }
+
+  const withResolvedAi: V2ConfigFile = { ...merged, ai: resolvedAi }
+  return flattenV2ToAppConfig(withResolvedAi)
+}
+
+// ---------------------------------------------------------------------------
+// ConfigLive layer
+// ---------------------------------------------------------------------------
+
 export const ConfigLive = Layer.succeed(
   Config,
   Config.of({
@@ -277,6 +421,35 @@ export const ConfigLive = Layer.succeed(
           try {
             const content = await readFile(configPath, 'utf-8')
             const parsed = parse(content, { maxAliasCount: 10 })
+
+            // V2 config -- flatten to AppConfig
+            if (isV2Config(parsed)) {
+              return flattenV2ToAppConfig(parsed as V2ConfigFile)
+            }
+
+            // V1 config -- migrate, backup, and save as V2
+            if (isV1Config(parsed)) {
+              const v2 = migrateV1Config((parsed ?? {}) as Record<string, unknown>)
+
+              // Save backup (best-effort, don't fail if it errors)
+              try {
+                const backupPath = configPath + '.v1.backup'
+                await writeFile(backupPath, content, { encoding: 'utf-8', mode: 0o600 })
+              } catch {
+                // backup is best-effort
+              }
+
+              // Save migrated V2 config
+              try {
+                await writeFile(configPath, stringify(v2), { encoding: 'utf-8', mode: 0o600 })
+              } catch {
+                // save is best-effort during migration
+              }
+
+              return flattenV2ToAppConfig(v2)
+            }
+
+            // Unknown format -- try decoding as AppConfig directly
             return S.decodeUnknownSync(AppConfig)(parsed)
           } catch {
             return defaultConfig
@@ -294,7 +467,9 @@ export const ConfigLive = Layer.succeed(
         try: async () => {
           const configPath = getConfigPath()
           await mkdir(dirname(configPath), { recursive: true, mode: 0o700 })
-          await writeFile(configPath, stringify(config), { encoding: 'utf-8', mode: 0o600 })
+          // Save in V2 format
+          const v2 = appConfigToV2(config)
+          await writeFile(configPath, stringify(v2), { encoding: 'utf-8', mode: 0o600 })
         },
         catch: (error) =>
           new ConfigError({
