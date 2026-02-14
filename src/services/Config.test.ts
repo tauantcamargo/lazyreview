@@ -108,6 +108,23 @@ describe('AppConfig schema', () => {
     expect(config.defaultRepo).toBeUndefined()
   })
 
+  it('defaults compactList to false', () => {
+    const config = S.decodeUnknownSync(AppConfig)({})
+    expect(config.compactList).toBe(false)
+  })
+
+  it('accepts compactList as true', () => {
+    const config = S.decodeUnknownSync(AppConfig)({ compactList: true })
+    expect(config.compactList).toBe(true)
+  })
+
+  it('compactList round-trips through encode/decode', () => {
+    const config = S.decodeUnknownSync(AppConfig)({ compactList: true })
+    const encoded = S.encodeSync(AppConfig)(config)
+    const decoded = S.decodeUnknownSync(AppConfig)(encoded)
+    expect(decoded.compactList).toBe(true)
+  })
+
   it('defaults hasOnboarded to false', () => {
     const config = S.decodeUnknownSync(AppConfig)({})
     expect(config.hasOnboarded).toBe(false)

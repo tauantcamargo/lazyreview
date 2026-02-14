@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Box, Text, useInput } from 'ink'
+import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../theme/index'
 import { useListNavigation } from '../hooks/useListNavigation'
 import { usePagination } from '../hooks/usePagination'
@@ -19,6 +19,12 @@ import { useReadState } from '../hooks/useReadState'
 import { useNotifications } from '../hooks/useNotifications'
 import { useConfig } from '../hooks/useConfig'
 import { useCurrentUser } from '../hooks/useGitHub'
+import { findNextUnread } from '../utils/listHelpers'
+import {
+  PRPreviewPanel,
+  PREVIEW_PANEL_MIN_TERMINAL_WIDTH,
+  PREVIEW_PANEL_WIDTH_FRACTION,
+} from '../components/pr/PRPreviewPanel'
 import type { PullRequest } from '../models/pull-request'
 import type { PRStateFilter } from '../hooks/useGitHub'
 
@@ -77,6 +83,15 @@ export function PRListScreen({
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
   const [showUnreadOnly, setShowUnreadOnly] = useState(false)
+  const [compactMode, setCompactMode] = useState(config?.compactList ?? false)
+  const [showPreview, setShowPreview] = useState(false)
+  const { stdout } = useStdout()
+  const terminalWidth = stdout?.columns ?? 80
+  const isWideTerminal = terminalWidth >= PREVIEW_PANEL_MIN_TERMINAL_WIDTH
+  const previewVisible = showPreview && isWideTerminal
+  const previewWidth = previewVisible
+    ? Math.floor(terminalWidth * PREVIEW_PANEL_WIDTH_FRACTION)
+    : 0
   const { refresh } = useManualRefresh({
     isActive: !showFilter && !showSort,
     queryKeys,
@@ -121,7 +136,7 @@ export function PRListScreen({
     endIndex,
   } = usePagination(displayItems, { pageSize: 18 })
 
-  const { selectedIndex } = useListNavigation({
+  const { selectedIndex, setSelectedIndex } = useListNavigation({
     itemCount: pageItems.length,
     viewportHeight: pageItems.length,
     isActive: !showFilter && !showSort,
@@ -160,6 +175,24 @@ export function PRListScreen({
         const currentIdx = STATE_CYCLE.indexOf(stateFilter)
         const nextIdx = (currentIdx + 1) % STATE_CYCLE.length
         onStateChange(STATE_CYCLE[nextIdx]!)
+      } else if (matchesAction(input, key, 'toggleCompactList')) {
+        setCompactMode((prev) => !prev)
+        setStatusMessage(compactMode ? 'Expanded view' : 'Compact view')
+      } else if (matchesAction(input, key, 'togglePreview')) {
+        if (!isWideTerminal) {
+          setStatusMessage('Preview requires terminal width >= 140 columns')
+        } else {
+          setShowPreview((prev) => !prev)
+          setStatusMessage(showPreview ? 'Preview hidden' : 'Preview shown')
+        }
+      } else if (matchesAction(input, key, 'jumpToUnread')) {
+        const nextUnreadIndex = findNextUnread(pageItems, selectedIndex, isUnread)
+        if (nextUnreadIndex >= 0) {
+          setSelectedIndex(nextUnreadIndex)
+          setStatusMessage(`Jumped to unread PR #${pageItems[nextUnreadIndex]!.number}`)
+        } else {
+          setStatusMessage('No unread PRs in current list')
+        }
       }
     },
     { isActive: !showFilter && !showSort },
@@ -177,6 +210,8 @@ export function PRListScreen({
     return <EmptyState message={emptyMessage} />
   }
 
+  const selectedPR = pageItems[selectedIndex]
+
   return (
     <Box flexDirection="column" flexGrow={1}>
       <Box paddingX={1} justifyContent="space-between">
@@ -191,6 +226,9 @@ export function PRListScreen({
           )}
           {showUnreadOnly && (
             <Text color={theme.colors.accent}>[Unread]</Text>
+          )}
+          {compactMode && (
+            <Text color={theme.colors.info}>[Compact]</Text>
           )}
           {hasActiveFilters && (
             <Text color={theme.colors.warning}>(filtered)</Text>
@@ -209,21 +247,27 @@ export function PRListScreen({
           hasPrevPage={hasPrevPage}
         />
       </Box>
-      <Box flexDirection="column">
-        {pageItems.length === 0 ? (
-          <Box padding={1}>
-            <Text color={theme.colors.muted}>
-              No PRs match the current filters
-            </Text>
-          </Box>
-        ) : (
-          pageItems.map((pr, index) => (
-            <PRListItem
-              key={pr.id}
-              item={pr}
-              isFocus={index === selectedIndex}
-            />
-          ))
+      <Box flexDirection="row" flexGrow={1}>
+        <Box flexDirection="column" flexGrow={1}>
+          {pageItems.length === 0 ? (
+            <Box padding={1}>
+              <Text color={theme.colors.muted}>
+                No PRs match the current filters
+              </Text>
+            </Box>
+          ) : (
+            pageItems.map((pr, index) => (
+              <PRListItem
+                key={pr.id}
+                item={pr}
+                isFocus={index === selectedIndex}
+                compact={compactMode}
+              />
+            ))
+          )}
+        </Box>
+        {previewVisible && (
+          <PRPreviewPanel pr={selectedPR} width={previewWidth} />
         )}
       </Box>
       {showFilter && (

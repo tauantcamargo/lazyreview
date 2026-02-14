@@ -12,12 +12,73 @@ import { parseGitHubPRUrl, extractRepoFromPRUrl } from '../../utils/git'
 interface PRListItemProps {
   readonly item: PullRequest
   readonly isFocus: boolean
+  readonly compact?: boolean
 }
 
-export function PRListItem({
+function CompactPRListItem({
   item,
   isFocus,
-}: PRListItemProps): React.ReactElement {
+}: Omit<PRListItemProps, 'compact'>): React.ReactElement {
+  const theme = useTheme()
+  const { isUnread } = useReadState()
+  const unread = isUnread(item.html_url, item.updated_at)
+
+  const stateColor = item.draft
+    ? theme.colors.muted
+    : item.merged
+      ? theme.colors.secondary
+      : item.state === 'open'
+        ? theme.colors.success
+        : theme.colors.error
+
+  const stateIcon = item.draft
+    ? 'D'
+    : item.merged
+      ? 'M'
+      : item.state === 'open'
+        ? 'O'
+        : 'C'
+
+  const textColor = isFocus
+    ? theme.colors.listSelectedFg
+    : unread
+      ? theme.colors.accent
+      : theme.colors.text
+
+  const commentText = item.comments > 0 ? `${item.comments} comments` : null
+
+  return (
+    <Box paddingX={1} gap={1}>
+      <Text color={stateColor} bold>
+        {stateIcon}
+      </Text>
+      {unread && (
+        <Text color={theme.colors.accent} bold>*</Text>
+      )}
+      <Text color={textColor} bold={isFocus || unread} inverse={isFocus}>
+        #{item.number}
+      </Text>
+      <Text color={textColor} bold={isFocus || unread} inverse={isFocus}>
+        {item.title}
+      </Text>
+      <Text color={theme.colors.muted}>|</Text>
+      <Text color={theme.colors.muted}>{item.user.login}</Text>
+      <Text color={theme.colors.muted}>|</Text>
+      <Text color={theme.colors.muted}>{timeAgo(item.created_at)}</Text>
+      {commentText && (
+        <>
+          <Text color={theme.colors.muted}>|</Text>
+          <Text color={theme.colors.muted}>{commentText}</Text>
+        </>
+      )}
+    </Box>
+  )
+}
+
+function FullPRListItem({
+  item,
+  isFocus,
+}: Omit<PRListItemProps, 'compact'>): React.ReactElement {
   const theme = useTheme()
   const { isUnread } = useReadState()
   const unread = isUnread(item.html_url, item.updated_at)
@@ -126,4 +187,15 @@ export function PRListItem({
       </Box>
     </Box>
   )
+}
+
+export function PRListItem({
+  item,
+  isFocus,
+  compact = false,
+}: PRListItemProps): React.ReactElement {
+  if (compact) {
+    return <CompactPRListItem item={item} isFocus={isFocus} />
+  }
+  return <FullPRListItem item={item} isFocus={isFocus} />
 }

@@ -125,6 +125,9 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
   botUsernames: S.optionalWith(S.Array(S.String), {
     default: () => [] as readonly string[],
   }),
+  compactList: S.optionalWith(S.Boolean, {
+    default: () => false,
+  }),
 }) {}
 
 const defaultConfig = S.decodeUnknownSync(AppConfig)({})
