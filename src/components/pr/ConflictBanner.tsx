@@ -33,9 +33,14 @@ export function ConflictBanner({ state }: ConflictBannerProps): React.ReactEleme
           </Text>
           <Text color={theme.colors.error}>{state.conflictMessage}</Text>
         </Box>
-        <Text color={theme.colors.muted} dimColor>
-          Tip: Pull the base branch and resolve conflicts locally, then push
-        </Text>
+        <Box gap={2}>
+          <Text color={theme.colors.muted} dimColor>
+            Tip: Pull the base branch and resolve conflicts locally, then push
+          </Text>
+          <Text color={theme.colors.info} dimColor>
+            View Conflicts (C)
+          </Text>
+        </Box>
       </Box>
     )
   }

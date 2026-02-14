@@ -78,6 +78,9 @@ export type Action =
   | 'suggest'
   | 'recordMacro'
   | 'replayMacro'
+  | 'viewConflicts'
+  | 'nextConflict'
+  | 'prevConflict'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -92,6 +95,7 @@ export type KeybindingContext =
   | 'checksTab'
   | 'commitsTab'
   | 'timelineTab'
+  | 'conflictView'
   | 'input'
 
 /**
@@ -213,6 +217,12 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     skipFile: 's',
     nextUnreviewed: ']f',
     prevUnreviewed: '[f',
+    viewConflicts: 'C',
+  },
+  conflictView: {
+    nextConflict: ']c',
+    prevConflict: '[c',
+    back: 'escape',
   },
   checksTab: {
     openInBrowser: 'o',

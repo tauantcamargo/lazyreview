@@ -86,4 +86,27 @@ describe('ConflictBanner', () => {
     const frame = lastFrame() ?? ''
     expect(frame).toContain('resolve')
   })
+
+  it('shows View Conflicts action hint when there are conflicts', () => {
+    const state: ConflictState = {
+      hasConflicts: true,
+      mergeableState: 'dirty',
+      conflictMessage: 'This PR has merge conflicts that must be resolved locally',
+    }
+    const { lastFrame } = render(themed(<ConflictBanner state={state} />))
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('View Conflicts')
+    expect(frame).toContain('(C)')
+  })
+
+  it('does not show View Conflicts hint for non-conflict warnings', () => {
+    const state: ConflictState = {
+      hasConflicts: false,
+      mergeableState: 'unstable',
+      conflictMessage: 'CI checks are failing or pending',
+    }
+    const { lastFrame } = render(themed(<ConflictBanner state={state} />))
+    const frame = lastFrame() ?? ''
+    expect(frame).not.toContain('View Conflicts')
+  })
 })
