@@ -560,12 +560,90 @@ function getBitbucketUser(token: string): Effect.Effect<User, AuthError> {
   })
 }
 
+function getGiteaUser(token: string): Effect.Effect<User, AuthError> {
+  return Effect.tryPromise({
+    try: async () => {
+      const baseUrl = getState().baseUrl ?? 'https://gitea.com'
+      const apiUrl = baseUrl.includes('/api/v1') ? baseUrl : `${baseUrl}/api/v1`
+      const response = await fetch(`${apiUrl}/user`, {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Gitea API returned ${response.status}`)
+      }
+
+      const data = await response.json() as { login: string; avatar_url?: string; id: number }
+      return S.decodeUnknownSync(User)({
+        login: data.login,
+        avatar_url: data.avatar_url ?? '',
+        id: data.id,
+      })
+    },
+    catch: (error) =>
+      new AuthError({
+        message: `Failed to get user: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'invalid_token',
+      }),
+  })
+}
+
+function getAzureUser(token: string): Effect.Effect<User, AuthError> {
+  return Effect.tryPromise({
+    try: async () => {
+      const baseUrl = getState().baseUrl ?? 'https://dev.azure.com'
+      // Use the connection data endpoint to get the authenticated user
+      // This works without knowing the org: we extract the org from baseUrl context
+      const encoded = Buffer.from(`:${token}`).toString('base64')
+
+      // Try VSSPS profile endpoint first
+      const response = await fetch(
+        'https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=7.0',
+        {
+          headers: {
+            Authorization: `Basic ${encoded}`,
+            Accept: 'application/json',
+          },
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error(`Azure DevOps API returned ${response.status}`)
+      }
+
+      const data = await response.json() as {
+        displayName: string
+        emailAddress?: string
+        id: string
+      }
+
+      return S.decodeUnknownSync(User)({
+        login: data.emailAddress ?? data.displayName,
+        avatar_url: '',
+        id: 0,
+      })
+    },
+    catch: (error) =>
+      new AuthError({
+        message: `Failed to get user: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'invalid_token',
+      }),
+  })
+}
+
 function getProviderUser(provider: Provider, token: string): Effect.Effect<User, AuthError> {
   if (provider === 'github') return getGitHubUser(token)
   if (provider === 'gitlab') return getGitLabUser(token)
   if (provider === 'bitbucket') return getBitbucketUser(token)
+  if (provider === 'azure') return getAzureUser(token)
+  if (provider === 'gitea') return getGiteaUser(token)
+  // Exhaustive check: all known providers handled above
+  const _exhaustive: never = provider
   return Effect.fail(
-    new AuthError({ message: `${PROVIDER_META[provider].label} not yet supported`, reason: 'no_token' }),
+    new AuthError({ message: `Provider not yet supported`, reason: 'no_token' }),
   )
 }
 

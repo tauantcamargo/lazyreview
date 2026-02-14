@@ -23,11 +23,11 @@ const PROVIDER_LABELS: Readonly<Record<Provider, string>> = {
   github: 'GitHub',
   gitlab: 'GitLab',
   bitbucket: 'Bitbucket',
-  azure: 'Azure DevOps (coming soon)',
-  gitea: 'Gitea (coming soon)',
+  azure: 'Azure DevOps',
+  gitea: 'Gitea / Forgejo',
 }
 
-const SUPPORTED_PROVIDERS: ReadonlySet<Provider> = new Set(['github', 'gitlab', 'bitbucket'])
+const SUPPORTED_PROVIDERS: ReadonlySet<Provider> = new Set(['github', 'gitlab', 'bitbucket', 'azure', 'gitea'])
 
 type SettingsItem =
   | 'provider'

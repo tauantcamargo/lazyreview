@@ -6,7 +6,7 @@ import type { Review } from '../models/review'
 import type { FileChange } from '../models/file-change'
 import type { Commit } from '../models/commit'
 import type { CheckRunsResponse } from '../models/check'
-import type { AuthError, BitbucketError, GitHubError, GitLabError, NetworkError } from '../models/errors'
+import type { AuthError, AzureError, BitbucketError, GiteaError, GitHubError, GitLabError, NetworkError } from '../models/errors'
 
 export interface ListPRsOptions {
   readonly state?: 'open' | 'closed' | 'all'
@@ -16,7 +16,7 @@ export interface ListPRsOptions {
   readonly page?: number
 }
 
-export type ApiError = GitHubError | GitLabError | BitbucketError | NetworkError | AuthError
+export type ApiError = GitHubError | GitLabError | BitbucketError | AzureError | GiteaError | NetworkError | AuthError
 
 export interface ReviewThread {
   readonly id: string

@@ -29,6 +29,22 @@ export class BitbucketError extends Data.TaggedError('BitbucketError')<{
   readonly retryAfterMs?: number
 }> {}
 
+export class AzureError extends Data.TaggedError('AzureError')<{
+  readonly message: string
+  readonly detail?: string
+  readonly status?: number
+  readonly url?: string
+  readonly retryAfterMs?: number
+}> {}
+
+export class GiteaError extends Data.TaggedError('GiteaError')<{
+  readonly message: string
+  readonly detail?: string
+  readonly status?: number
+  readonly url?: string
+  readonly retryAfterMs?: number
+}> {}
+
 export class ConfigError extends Data.TaggedError('ConfigError')<{
   readonly message: string
   readonly path?: string
@@ -39,4 +55,4 @@ export class NetworkError extends Data.TaggedError('NetworkError')<{
   readonly cause?: unknown
 }> {}
 
-export type AppError = GitHubError | GitLabError | BitbucketError | AuthError | ConfigError | NetworkError
+export type AppError = GitHubError | GitLabError | BitbucketError | AzureError | GiteaError | AuthError | ConfigError | NetworkError
