@@ -21,6 +21,7 @@ describe('ensureV2Capabilities', () => {
       supportsWebhooks: false,
       supportsSuggestions: false,
       supportsTimeline: false,
+      supportsBlame: false,
     } satisfies ProviderCapabilities
 
     const result = ensureV2Capabilities(v1Caps)
@@ -30,6 +31,7 @@ describe('ensureV2Capabilities', () => {
     expect(result.supportsWebhooks).toBe(false)
     expect(result.supportsSuggestions).toBe(false)
     expect(result.supportsTimeline).toBe(false)
+    expect(result.supportsBlame).toBe(false)
   })
 
   it('preserves existing V2 flags if present', () => {
@@ -47,6 +49,7 @@ describe('ensureV2Capabilities', () => {
       supportsWebhooks: false,
       supportsSuggestions: true,
       supportsTimeline: false,
+      supportsBlame: false,
     }
 
     const result = ensureV2Capabilities(caps)
@@ -56,6 +59,7 @@ describe('ensureV2Capabilities', () => {
     expect(result.supportsWebhooks).toBe(false)
     expect(result.supportsSuggestions).toBe(true)
     expect(result.supportsTimeline).toBe(false)
+    expect(result.supportsBlame).toBe(false)
   })
 
   it('does not mutate the original capabilities', () => {
@@ -73,6 +77,7 @@ describe('ensureV2Capabilities', () => {
       supportsWebhooks: false,
       supportsSuggestions: false,
       supportsTimeline: false,
+      supportsBlame: false,
     }
 
     const result = ensureV2Capabilities(caps)
@@ -93,6 +98,7 @@ describe('adaptProvider', () => {
       expect(typeof adapted.getTimeline).toBe('function')
       expect(typeof adapted.submitSuggestion).toBe('function')
       expect(typeof adapted.acceptSuggestion).toBe('function')
+      expect(typeof adapted.getFileBlame).toBe('function')
     })
 
     it('preserves all V1 methods', () => {
@@ -271,6 +277,16 @@ describe('adaptProvider', () => {
       expect(typeof adapted.capabilities.supportsWebhooks).toBe('boolean')
       expect(typeof adapted.capabilities.supportsSuggestions).toBe('boolean')
       expect(typeof adapted.capabilities.supportsTimeline).toBe('boolean')
+      expect(typeof adapted.capabilities.supportsBlame).toBe('boolean')
+    })
+  })
+
+  describe('default getFileBlame', () => {
+    it('returns empty array by default', async () => {
+      const adapted = adaptProvider(createMockProvider())
+      const result = await Effect.runPromise(adapted.getFileBlame!('owner', 'repo', 'file.ts', 'main'))
+
+      expect(result).toEqual([])
     })
   })
 })

@@ -73,6 +73,7 @@ const AZURE_CAPABILITIES: ProviderCapabilities = {
   supportsWebhooks: false,
   supportsSuggestions: false,
   supportsTimeline: false,
+  supportsBlame: false,
 }
 
 // ---------------------------------------------------------------------------

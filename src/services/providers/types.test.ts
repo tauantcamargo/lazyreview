@@ -56,6 +56,7 @@ describe('ProviderCapabilities', () => {
       supportsWebhooks: true,
       supportsSuggestions: true,
       supportsTimeline: true,
+      supportsBlame: true,
     }
     expect(caps.supportsDraftPR).toBe(true)
     expect(caps.supportsReviewThreads).toBe(true)
@@ -67,6 +68,7 @@ describe('ProviderCapabilities', () => {
     expect(caps.supportsWebhooks).toBe(true)
     expect(caps.supportsSuggestions).toBe(true)
     expect(caps.supportsTimeline).toBe(true)
+    expect(caps.supportsBlame).toBe(true)
     expect(caps.supportsMergeStrategies).toEqual(['merge', 'squash', 'rebase'])
   })
 
@@ -85,8 +87,10 @@ describe('ProviderCapabilities', () => {
       supportsWebhooks: false,
       supportsSuggestions: false,
       supportsTimeline: false,
+      supportsBlame: false,
     }
     expect(caps.supportsDraftPR).toBe(false)
+    expect(caps.supportsBlame).toBe(false)
     expect(caps.supportsMergeStrategies).toHaveLength(0)
   })
 })
@@ -132,6 +136,7 @@ describe('Provider interface', () => {
         supportsWebhooks: true,
         supportsSuggestions: true,
         supportsTimeline: true,
+        supportsBlame: true,
       },
     }
     expect(partialCheck.type).toBe('github')

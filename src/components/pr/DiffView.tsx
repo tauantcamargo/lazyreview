@@ -3,6 +3,8 @@ import { Box, Text } from 'ink'
 import SyntaxHighlight from 'ink-syntax-highlight'
 import { useTheme } from '../../theme/index'
 import type { Hunk, DiffLine } from '../../models/diff'
+import type { BlameInfo } from '../../models/blame'
+import { abbreviateAuthor, formatBlameDate } from '../../models/blame'
 import { DiffCommentView, type DiffCommentThread } from './DiffComment'
 import { stripAnsi } from '../../utils/sanitize'
 import { getLanguageFromFilename } from '../../utils/languages'
@@ -161,6 +163,37 @@ function WordDiffContent({
   )
 }
 
+/** Width of the blame gutter in characters (8 author + 1 space + 3 date + 1 separator) */
+const BLAME_GUTTER_WIDTH = 14
+
+interface BlameGutterProps {
+  readonly blameInfo?: BlameInfo
+}
+
+function BlameGutter({ blameInfo }: BlameGutterProps): React.ReactElement {
+  const theme = useTheme()
+
+  if (!blameInfo) {
+    return (
+      <Box width={BLAME_GUTTER_WIDTH} flexShrink={0}>
+        <Text color={theme.colors.muted}>{' '.repeat(BLAME_GUTTER_WIDTH)}</Text>
+      </Box>
+    )
+  }
+
+  const author = abbreviateAuthor(blameInfo.author).padEnd(8)
+  const date = formatBlameDate(blameInfo.date).padStart(3)
+
+  return (
+    <Box width={BLAME_GUTTER_WIDTH} flexShrink={0}>
+      <Text color={theme.colors.muted} dimColor>
+        {`${author} ${date}`}
+      </Text>
+      <Text color={theme.colors.muted}>{' '}</Text>
+    </Box>
+  )
+}
+
 interface DiffLineViewProps {
   readonly line: DiffLine
   readonly lineNumber?: number
@@ -171,6 +204,7 @@ interface DiffLineViewProps {
   readonly contentWidth?: number
   readonly scrollOffsetX?: number
   readonly wordDiffSegments?: readonly WordDiffSegment[]
+  readonly blameInfo?: BlameInfo
 }
 
 function DiffLineView({
@@ -183,6 +217,7 @@ function DiffLineView({
   contentWidth = 80,
   scrollOffsetX = 0,
   wordDiffSegments,
+  blameInfo,
 }: DiffLineViewProps): React.ReactElement {
   const theme = useTheme()
 
@@ -231,6 +266,7 @@ function DiffLineView({
 
   return (
     <Box flexDirection="row" backgroundColor={bgColor} overflow="hidden">
+      {blameInfo !== undefined && <BlameGutter blameInfo={blameInfo} />}
       <Box width={5} flexShrink={0}>
         <Text color={theme.colors.muted}>
           {lineNumber != null ? String(lineNumber).padStart(4, ' ') : ''}
@@ -423,6 +459,21 @@ function FoldedHunkPlaceholderView({
   )
 }
 
+/**
+ * Look up blame info for a diff row using its line numbers.
+ * For add/context lines, uses newLineNumber; for del lines, uses oldLineNumber.
+ * Returns undefined for header lines or when no blame data is available.
+ */
+function getBlameForRow(
+  row: FoldableRow,
+  blameData: ReadonlyMap<number, BlameInfo>,
+): BlameInfo | undefined {
+  if (row.type !== 'line') return undefined
+  const lineNum = row.line.type === 'del' ? row.oldLineNumber : row.newLineNumber
+  if (lineNum == null) return undefined
+  return blameData.get(lineNum)
+}
+
 interface DiffViewProps {
   readonly allRows: readonly FoldableRow[]
   readonly selectedLine: number
@@ -434,6 +485,7 @@ interface DiffViewProps {
   readonly contentWidth?: number
   readonly scrollOffsetX?: number
   readonly searchMatchIndices?: ReadonlySet<number>
+  readonly blameData?: ReadonlyMap<number, BlameInfo>
 }
 
 export function DiffView({
@@ -447,6 +499,7 @@ export function DiffView({
   contentWidth = 80,
   scrollOffsetX = 0,
   searchMatchIndices,
+  blameData,
 }: DiffViewProps): React.ReactElement {
   const language = filename ? getLanguageFromFilename(filename) : undefined
   const theme = useTheme()
@@ -502,6 +555,9 @@ export function DiffView({
         }
         const isInSelection =
           visualStart != null && absIndex >= selMin && absIndex <= selMax
+        const lineBlameInfo = blameData
+          ? getBlameForRow(row, blameData)
+          : undefined
         return (
           <DiffLineView
             key={`${row.hunkIndex}-${absIndex}`}
@@ -511,9 +567,10 @@ export function DiffView({
             isInSelection={isInSelection}
             isSearchMatch={searchMatchIndices?.has(absIndex) ?? false}
             language={language}
-            contentWidth={contentWidth}
+            contentWidth={blameData ? contentWidth - BLAME_GUTTER_WIDTH : contentWidth}
             scrollOffsetX={scrollOffsetX}
             wordDiffSegments={row.wordDiffSegments}
+            blameInfo={lineBlameInfo}
           />
         )
       })}

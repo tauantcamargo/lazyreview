@@ -11,6 +11,7 @@ import type { User } from '../../models/user'
 import type { ReactionType } from '../../models/reaction'
 import type { TimelineEvent } from '../../models/timeline-event'
 import type { SuggestionParams, AcceptSuggestionParams } from '../../models/suggestion'
+import type { BlameInfo } from '../../models/blame'
 import type { ApiError, ReviewThread } from '../CodeReviewApiTypes'
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,7 @@ export interface ProviderCapabilities {
   readonly supportsWebhooks: boolean
   readonly supportsSuggestions: boolean
   readonly supportsTimeline: boolean
+  readonly supportsBlame: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -237,6 +239,14 @@ export interface Provider {
     base: string,
     head: string,
   ) => Effect.Effect<readonly FileChange[], ApiError>
+
+  /** Fetch blame/annotation info for a file at a given ref */
+  readonly getFileBlame?: (
+    owner: string,
+    repo: string,
+    path: string,
+    ref: string,
+  ) => Effect.Effect<readonly BlameInfo[], ApiError>
 }
 
 // ---------------------------------------------------------------------------

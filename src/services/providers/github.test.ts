@@ -84,6 +84,7 @@ describe('createGitHubProvider', () => {
     expect(provider.capabilities.supportsReactions).toBe(true)
     expect(provider.capabilities.supportsCheckRuns).toBe(true)
     expect(provider.capabilities.supportsMergeStrategies).toEqual(['merge', 'squash', 'rebase'])
+    expect(provider.capabilities.supportsBlame).toBe(true)
   })
 
   describe('PR reads', () => {
@@ -420,6 +421,7 @@ describe('createUnsupportedProvider', () => {
     expect(provider.capabilities.supportsReactions).toBe(false)
     expect(provider.capabilities.supportsCheckRuns).toBe(false)
     expect(provider.capabilities.supportsMergeStrategies).toEqual([])
+    expect(provider.capabilities.supportsBlame).toBe(false)
   })
 
   it('fails all operations with descriptive error', async () => {

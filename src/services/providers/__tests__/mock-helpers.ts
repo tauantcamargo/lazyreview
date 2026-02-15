@@ -207,6 +207,7 @@ export function createMockProvider(
     supportsWebhooks: false,
     supportsSuggestions: false,
     supportsTimeline: false,
+    supportsBlame: false,
     ...capabilities,
   }
 
@@ -315,6 +316,7 @@ export function createMockGitHubProvider(
     supportsWebhooks: true,
     supportsSuggestions: true,
     supportsTimeline: true,
+    supportsBlame: true,
   }, overrides)
 }
 
@@ -338,6 +340,7 @@ export function createMockGitLabProvider(
     supportsWebhooks: false,
     supportsSuggestions: false,
     supportsTimeline: false,
+    supportsBlame: false,
   }, overrides)
 }
 
@@ -361,6 +364,7 @@ export function createMockBitbucketProvider(
     supportsWebhooks: false,
     supportsSuggestions: false,
     supportsTimeline: false,
+    supportsBlame: false,
   }, overrides)
 }
 
@@ -386,5 +390,6 @@ export function createMinimalMockProvider(
     supportsWebhooks: false,
     supportsSuggestions: false,
     supportsTimeline: false,
+    supportsBlame: false,
   }, overrides)
 }

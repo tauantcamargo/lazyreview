@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 import { GitHubError } from '../../models/errors'
 import { formatSuggestionBody } from '../../models/suggestion'
+import type { BlameInfo } from '../../models/blame'
 import type { Comment } from '../../models/comment'
 import type { PullRequest } from '../../models/pull-request'
 import type { TimelineEvent } from '../../models/timeline-event'
@@ -26,6 +27,7 @@ export function ensureV2Capabilities(
     supportsWebhooks: caps.supportsWebhooks ?? false,
     supportsSuggestions: caps.supportsSuggestions ?? false,
     supportsTimeline: caps.supportsTimeline ?? false,
+    supportsBlame: caps.supportsBlame ?? false,
   }
 }
 
@@ -72,6 +74,10 @@ export function adaptProvider(provider: Provider): Provider {
     acceptSuggestion:
       provider.acceptSuggestion ??
       defaultAcceptSuggestion(),
+
+    getFileBlame:
+      provider.getFileBlame ??
+      defaultGetFileBlame(),
   }
 }
 
@@ -171,4 +177,17 @@ function defaultAcceptSuggestion(): (
         status: 501,
       }),
     )
+}
+
+/**
+ * Returns an empty blame array by default for providers that don't
+ * support blame.
+ */
+function defaultGetFileBlame(): (
+  owner: string,
+  repo: string,
+  path: string,
+  ref: string,
+) => Effect.Effect<readonly BlameInfo[], ApiError> {
+  return (_owner, _repo, _path, _ref) => Effect.succeed([])
 }

@@ -105,6 +105,10 @@ export function testProviderContract(
       it('should declare supportsTimeline as boolean', () => {
         expect(typeof provider.capabilities.supportsTimeline).toBe('boolean')
       })
+
+      it('should declare supportsBlame as boolean', () => {
+        expect(typeof provider.capabilities.supportsBlame).toBe('boolean')
+      })
     })
 
     // -----------------------------------------------------------------------

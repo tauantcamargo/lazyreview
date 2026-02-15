@@ -21,6 +21,103 @@ import {
   fetchTimeline,
 } from './GitHubApiHelpers'
 import { validateOwner, validateRepo, validateNumber, validateRef } from '../utils/sanitize'
+import type { BlameInfo } from '../models/blame'
+import type { GitHubError, NetworkError } from '../models/errors'
+
+// ---------------------------------------------------------------------------
+// GitHub Blame via GraphQL
+// ---------------------------------------------------------------------------
+
+interface GraphQLBlameRange {
+  readonly startingLine: number
+  readonly endingLine: number
+  readonly commit: {
+    readonly abbreviatedOid: string
+    readonly oid: string
+    readonly message: string
+    readonly authoredDate: string
+    readonly author: {
+      readonly user: { readonly login: string } | null
+      readonly name: string | null
+    }
+  }
+}
+
+interface GraphQLBlameResponse {
+  readonly repository: {
+    readonly object: {
+      readonly blame: {
+        readonly ranges: readonly GraphQLBlameRange[]
+      }
+    } | null
+  }
+}
+
+const BLAME_QUERY = `
+  query BlameQuery($owner: String!, $repo: String!, $ref: String!, $path: String!) {
+    repository(owner: $owner, name: $repo) {
+      object(expression: $ref) {
+        ... on Commit {
+          blame(path: $path) {
+            ranges {
+              startingLine
+              endingLine
+              commit {
+                abbreviatedOid
+                oid
+                message
+                authoredDate
+                author {
+                  user { login }
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`
+
+function fetchGitHubBlameData(
+  owner: string,
+  repo: string,
+  path: string,
+  ref: string,
+  token: string,
+): Effect.Effect<readonly BlameInfo[], GitHubError | NetworkError> {
+  return Effect.map(
+    graphqlGitHub<GraphQLBlameResponse>(
+      token,
+      BLAME_QUERY,
+      { owner, repo, ref, path },
+    ),
+    (data) => {
+      const obj = data.repository.object
+      if (!obj) return []
+
+      const result: BlameInfo[] = []
+      for (const range of obj.blame.ranges) {
+        const author =
+          range.commit.author.user?.login ??
+          range.commit.author.name ??
+          'unknown'
+
+        for (let line = range.startingLine; line <= range.endingLine; line++) {
+          result.push({
+            line,
+            author,
+            date: range.commit.authoredDate,
+            commitSha: range.commit.oid,
+            commitMessage: range.commit.message.split('\n')[0] ?? '',
+          })
+        }
+      }
+      return result
+    },
+  )
+}
 
 function buildStateQualifier(stateFilter: 'open' | 'closed' | 'all' = 'open'): string {
   switch (stateFilter) {
@@ -738,6 +835,15 @@ export const GitHubApiLive = Layer.effect(
           validateNumber(prNumber)
           const token = yield* auth.getToken()
           return yield* fetchTimeline(owner, repo, prNumber, token)
+        }),
+
+      getFileBlame: (owner, repo, path, ref) =>
+        Effect.gen(function* () {
+          validateOwner(owner)
+          validateRepo(repo)
+          validateRef(ref)
+          const token = yield* auth.getToken()
+          return yield* fetchGitHubBlameData(owner, repo, path, ref, token)
         }),
     })
   }),

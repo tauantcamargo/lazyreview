@@ -35,6 +35,7 @@ const GITHUB_CAPABILITIES: ProviderCapabilities = {
   supportsWebhooks: true,
   supportsSuggestions: true,
   supportsTimeline: true,
+  supportsBlame: true,
 }
 
 // ---------------------------------------------------------------------------
@@ -300,6 +301,7 @@ export function createUnsupportedProvider(type: string): Provider {
       supportsWebhooks: false,
       supportsSuggestions: false,
       supportsTimeline: false,
+      supportsBlame: false,
     },
     listPRs: fail,
     getPR: fail,
