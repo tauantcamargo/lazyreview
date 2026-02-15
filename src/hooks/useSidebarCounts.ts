@@ -9,6 +9,7 @@ export interface SidebarCounts {
   readonly forReviewUnread: number | null
   readonly thisRepo: number | null
   readonly browse: number | null
+  readonly team: number | null
 }
 
 const EMPTY_COUNTS: SidebarCounts = {
@@ -18,6 +19,7 @@ const EMPTY_COUNTS: SidebarCounts = {
   forReviewUnread: null,
   thisRepo: null,
   browse: null,
+  team: null,
 }
 
 /** @internal Exported for testing */
@@ -94,7 +96,10 @@ export function useSidebarCounts(
     // Browse count comes from browse-prs query key
     const browse = extractCount(queryClient, 'browse-prs')
 
-    return { involved, myPrs, forReview, forReviewUnread, thisRepo, browse }
+    // Team count comes from team-prs query key (if team dashboard has been loaded)
+    const team = extractCount(queryClient, 'team-prs')
+
+    return { involved, myPrs, forReview, forReviewUnread, thisRepo, browse, team }
   }, [queryClient, isUnread])
 
   // Subscribe to query cache changes
@@ -110,7 +115,8 @@ export function useSidebarCounts(
           next.forReview !== prev.forReview ||
           next.forReviewUnread !== prev.forReviewUnread ||
           next.thisRepo !== prev.thisRepo ||
-          next.browse !== prev.browse
+          next.browse !== prev.browse ||
+          next.team !== prev.team
         ) {
           countsRef.current = next
           onStoreChange()

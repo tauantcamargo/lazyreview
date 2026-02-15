@@ -86,6 +86,7 @@ export type Action =
   | 'jumpToBookmark'
   | 'listBookmarks'
   | 'toggleAiAnnotations'
+  | 'teamDashboard'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -101,6 +102,7 @@ export type KeybindingContext =
   | 'commitsTab'
   | 'timelineTab'
   | 'conflictView'
+  | 'team'
   | 'input'
 
 /**
@@ -151,6 +153,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     commandPalette: 'ctrl+p',
     recordMacro: 'q',
     replayMacro: '@',
+    teamDashboard: 'ctrl+t',
   },
   prList: {
     filterPRs: '/',

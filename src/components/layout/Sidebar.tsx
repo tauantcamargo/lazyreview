@@ -11,6 +11,7 @@ export const SIDEBAR_ITEMS = [
   'For Review',
   'This Repo',
   'Browse',
+  'Team',
   'Settings',
 ] as const
 
@@ -49,6 +50,7 @@ const sidebarIcons: Record<SidebarItem, string> = {
   'For Review': '◎',
   'This Repo': '◈',
   Browse: '◇',
+  Team: '◉',
   Settings: '⚙',
 }
 
@@ -68,6 +70,8 @@ function getCountForItem(
       return counts.thisRepo
     case 'Browse':
       return counts.browse
+    case 'Team':
+      return counts.team
     case 'Settings':
       return null
   }

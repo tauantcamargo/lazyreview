@@ -70,6 +70,15 @@ export interface V2CommentTemplate {
   readonly description?: string
 }
 
+export interface V2TeamMember {
+  readonly username: string
+  readonly provider?: string
+}
+
+export interface V2TeamConfig {
+  readonly members: readonly V2TeamMember[]
+}
+
 export interface V2ConfigFile {
   readonly version: 2
   readonly defaults: V2Defaults
@@ -81,6 +90,7 @@ export interface V2ConfigFile {
   readonly bookmarkedRepos: readonly { readonly owner: string; readonly repo: string }[]
   readonly commentTemplates: readonly V2CommentTemplate[]
   readonly reviewChecklist: readonly { readonly label: string; readonly description?: string }[]
+  readonly team: V2TeamConfig
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +172,7 @@ export function migrateV1Config(v1: Record<string, unknown>): V2ConfigFile {
     bookmarkedRepos: (v1['bookmarkedRepos'] as V2ConfigFile['bookmarkedRepos']) ?? [],
     commentTemplates: (v1['commentTemplates'] as V2ConfigFile['commentTemplates']) ?? [],
     reviewChecklist: (v1['reviewChecklist'] as V2ConfigFile['reviewChecklist']) ?? [],
+    team: (v1['team'] as V2TeamConfig) ?? { members: [] },
   }
 }
 
@@ -241,6 +252,10 @@ export function mergeRepoConfig(
     ? repoChecklist
     : global.reviewChecklist
 
+  // team: repo config can override team entirely
+  const repoTeam = (repo['team'] ?? null) as V2TeamConfig | null
+  const mergedTeam = repoTeam ?? global.team
+
   return {
     ...global,
     defaults: mergedDefaults,
@@ -248,5 +263,6 @@ export function mergeRepoConfig(
     ai: mergedAi,
     commentTemplates: mergedTemplates,
     reviewChecklist: mergedChecklist,
+    team: mergedTeam,
   }
 }

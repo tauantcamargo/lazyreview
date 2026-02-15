@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, type ReactElement } from 'react'
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { Box, Text, useApp, useInput, useStdout } from 'ink'
 import { ThemeProvider, getThemeByName } from './theme/index'
@@ -23,6 +23,7 @@ import { SettingsScreen } from './screens/SettingsScreen'
 import { InvolvedScreen } from './screens/InvolvedScreen'
 import { ThisRepoScreen } from './screens/ThisRepoScreen'
 import { BrowseRepoScreen } from './screens/BrowseRepoScreen'
+import { TeamDashboardScreen } from './screens/TeamDashboardScreen'
 import { Match } from 'effect'
 import { parseGitHubPRUrl } from './utils/git'
 import type { ProviderType } from './utils/git'
@@ -73,6 +74,14 @@ function AppContent({
   const { stdout } = useStdout()
   const { user, isAuthenticated, loading, saveToken, error } = useAuth()
   const { config, updateConfig } = useConfig()
+  const teamMembers = useMemo(
+    () =>
+      (config?.team?.members ?? []).map((m) => ({
+        username: m.username,
+        ...(m.provider ? { provider: m.provider as 'github' | 'gitlab' | 'bitbucket' | 'azure' | 'gitea' } : {}),
+      })),
+    [config?.team?.members],
+  )
   const queryClient = useQueryClient()
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('full')
   const [currentScreen, setCurrentScreen] = useState<AppScreen>({
@@ -342,7 +351,8 @@ function AppContent({
     // 2 - For Review (PRs requesting user's review)
     // 3 - This Repo (PRs from current git directory)
     // 4 - Browse (browse arbitrary repos)
-    // 5 - Settings
+    // 5 - Team (team dashboard)
+    // 6 - Settings
     return Match.value(sidebarIndex).pipe(
       Match.when(0, () => <InvolvedScreen onSelect={handleSelectPR} />),
       Match.when(1, () => <MyPRsScreen onSelect={handleSelectPR} />),
@@ -357,7 +367,16 @@ function AppContent({
       Match.when(4, () => (
         <BrowseRepoScreen onSelect={handleSelectPR} isActive={activePanel !== 'sidebar'} />
       )),
-      Match.when(5, () => <SettingsScreen />),
+      Match.when(5, () => (
+        <TeamDashboardScreen
+          isActive={activePanel !== 'sidebar'}
+          members={teamMembers}
+          prs={[]}
+          onBack={() => setActivePanel('sidebar')}
+          onSelectMember={() => {}}
+        />
+      )),
+      Match.when(6, () => <SettingsScreen />),
       Match.orElse(() => <InvolvedScreen onSelect={handleSelectPR} />),
     )
   }
@@ -378,10 +397,12 @@ function AppContent({
   // PRDetailScreen sets its own context based on active tab
   React.useEffect(() => {
     if (currentScreen.type !== 'detail') {
-      if (sidebarIndex === 5) {
+      if (sidebarIndex === 6) {
         setScreenContext('settings')
       } else if (sidebarIndex === 4) {
         setScreenContext('browse-picker')
+      } else if (sidebarIndex === 5) {
+        setScreenContext('pr-list')
       } else {
         setScreenContext('pr-list')
       }
@@ -435,6 +456,7 @@ function AppContent({
     'For Review',
     'This Repo',
     'Browse',
+    'Team',
     'Settings',
   ]
   const currentScreenName =

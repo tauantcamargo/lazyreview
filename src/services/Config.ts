@@ -164,6 +164,17 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
     ),
     { default: () => [] },
   ),
+  team: S.optionalWith(
+    S.Struct({
+      members: S.Array(
+        S.Struct({
+          username: S.String,
+          provider: S.optionalWith(S.String, { default: () => '' }),
+        }),
+      ),
+    }),
+    { default: () => ({ members: [] as readonly { readonly username: string; readonly provider: string }[] }) },
+  ),
   aiProvider: S.optionalWith(S.String, { default: () => '' }),
   aiModel: S.optionalWith(S.String, { default: () => '' }),
   aiApiKey: S.optionalWith(S.String, { default: () => '' }),
@@ -377,6 +388,7 @@ export function flattenV2ToAppConfig(v2: V2ConfigFile): AppConfig {
     bookmarkedRepos: v2.bookmarkedRepos,
     commentTemplates: v2.commentTemplates,
     reviewChecklist: v2.reviewChecklist,
+    team: v2.team,
     aiProvider: v2.ai.provider || '',
     aiModel: v2.ai.model || '',
     aiApiKey: v2.ai.apiKey || '',
