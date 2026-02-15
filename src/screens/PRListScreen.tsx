@@ -18,6 +18,7 @@ import { openInBrowser, copyToClipboard } from '../utils/terminal'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useManualRefresh } from '../hooks/useManualRefresh'
 import { useReadState } from '../hooks/useReadState'
+import { useBatchSelect } from '../hooks/useBatchSelect'
 import { useNotifications } from '../hooks/useNotifications'
 import { useConfig } from '../hooks/useConfig'
 import { useCurrentUser } from '../hooks/useGitHub'
@@ -49,7 +50,11 @@ interface PRListScreenProps {
   readonly queryKeys: readonly string[][]
   readonly stateFilter?: PRStateFilter
   readonly onStateChange?: (state: PRStateFilter) => void
-  readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
+  readonly onSelect: (
+    pr: PullRequest,
+    list?: readonly PullRequest[],
+    index?: number,
+  ) => void
   /** Owner for prefetch context. If not provided, extracted from selected PR's html_url. */
   readonly owner?: string
   /** Repo for prefetch context. If not provided, extracted from selected PR's html_url. */
@@ -72,7 +77,7 @@ export function PRListScreen({
 }: PRListScreenProps): React.ReactElement {
   const theme = useTheme()
   const { setStatusMessage } = useStatusMessage()
-  const { isUnread } = useReadState()
+  const { isUnread, markAsRead } = useReadState()
   const { config } = useConfig()
   const { data: currentUser } = useCurrentUser()
 
@@ -177,33 +182,121 @@ export function PRListScreen({
 
   const { matchesAction } = useKeybindings('prList')
 
+  const {
+    isMultiSelect,
+    selectedIndices,
+    enterMultiSelect,
+    exitMultiSelect,
+    toggle: toggleBatchIndex,
+    clearAll: clearBatchAll,
+  } = useBatchSelect()
+
   useInput(
     (input, key) => {
+      // Multi-select mode: Escape exits
+      if (isMultiSelect && key.escape) {
+        exitMultiSelect()
+        setStatusMessage('Exited multi-select')
+        return
+      }
+
+      // V enters multi-select mode
+      if (matchesAction(input, key, 'batchSelect') && !isMultiSelect) {
+        enterMultiSelect()
+        setStatusMessage('MULTI-SELECT mode (Space: toggle, Esc: exit)')
+        return
+      }
+
+      // Space toggles selection on current item in multi-select mode
+      if (isMultiSelect && matchesAction(input, key, 'toggleSelection')) {
+        toggleBatchIndex(selectedIndex)
+        return
+      }
+
+      // Batch operations when in multi-select mode
+      if (isMultiSelect && selectedIndices.length > 0) {
+        if (matchesAction(input, key, 'batchOpenInBrowser')) {
+          const selected = selectedIndices
+            .map((i) => pageItems[i])
+            .filter((pr): pr is PullRequest => pr !== undefined)
+          selected.forEach((pr) => openInBrowser(pr.html_url))
+          setStatusMessage(`Opened ${selected.length} PRs in browser`)
+          exitMultiSelect()
+          return
+        }
+
+        if (matchesAction(input, key, 'batchMarkRead')) {
+          const selected = selectedIndices
+            .map((i) => pageItems[i])
+            .filter((pr): pr is PullRequest => pr !== undefined)
+          selected.forEach((pr) => markAsRead(pr.html_url, pr.updated_at))
+          setStatusMessage(`Marked ${selected.length} PRs as read`)
+          exitMultiSelect()
+          return
+        }
+
+        if (matchesAction(input, key, 'batchCopyUrls')) {
+          const selected = selectedIndices
+            .map((i) => pageItems[i])
+            .filter((pr): pr is PullRequest => pr !== undefined)
+          const urls = selected.map((pr) => pr.html_url).join('\n')
+          if (copyToClipboard(urls)) {
+            setStatusMessage(`Copied ${selected.length} PR URLs to clipboard`)
+          } else {
+            setStatusMessage('Failed to copy to clipboard')
+          }
+          exitMultiSelect()
+          return
+        }
+      }
+
       if (key.return && pageItems[selectedIndex]) {
         // Pass the full display list and absolute index for next/prev navigation
+        if (isMultiSelect) {
+          exitMultiSelect()
+        }
         const absoluteIndex = startIndex + selectedIndex
         onSelect(pageItems[selectedIndex], displayItems, absoluteIndex)
       } else if (matchesAction(input, key, 'nextPage') && hasNextPage) {
+        if (isMultiSelect) {
+          clearBatchAll()
+        }
         nextPage()
       } else if (matchesAction(input, key, 'prevPage') && hasPrevPage) {
+        if (isMultiSelect) {
+          clearBatchAll()
+        }
         prevPage()
       } else if (matchesAction(input, key, 'filterPRs')) {
         setShowFilter(true)
       } else if (matchesAction(input, key, 'sortPRs')) {
         setShowSort(true)
-      } else if (matchesAction(input, key, 'openInBrowser') && pageItems[selectedIndex]) {
+      } else if (
+        !isMultiSelect &&
+        matchesAction(input, key, 'openInBrowser') &&
+        pageItems[selectedIndex]
+      ) {
         openInBrowser(pageItems[selectedIndex].html_url)
         setStatusMessage('Opened in browser')
-      } else if (matchesAction(input, key, 'copyUrl') && pageItems[selectedIndex]) {
+      } else if (
+        !isMultiSelect &&
+        matchesAction(input, key, 'copyUrl') &&
+        pageItems[selectedIndex]
+      ) {
         const url = pageItems[selectedIndex].html_url
         if (copyToClipboard(url)) {
           setStatusMessage('Copied PR URL to clipboard')
         } else {
           setStatusMessage('Failed to copy to clipboard')
         }
-      } else if (matchesAction(input, key, 'toggleUnread')) {
+      } else if (
+        !isMultiSelect &&
+        matchesAction(input, key, 'toggleUnread')
+      ) {
         setShowUnreadOnly((prev) => !prev)
-        setStatusMessage(showUnreadOnly ? 'Showing all PRs' : 'Showing unread PRs only')
+        setStatusMessage(
+          showUnreadOnly ? 'Showing all PRs' : 'Showing unread PRs only',
+        )
       } else if (matchesAction(input, key, 'toggleState') && onStateChange) {
         const currentIdx = STATE_CYCLE.indexOf(stateFilter)
         const nextIdx = (currentIdx + 1) % STATE_CYCLE.length
@@ -219,10 +312,16 @@ export function PRListScreen({
           setStatusMessage(showPreview ? 'Preview hidden' : 'Preview shown')
         }
       } else if (matchesAction(input, key, 'jumpToUnread')) {
-        const nextUnreadIndex = findNextUnread(pageItems, selectedIndex, isUnread)
+        const nextUnreadIndex = findNextUnread(
+          pageItems,
+          selectedIndex,
+          isUnread,
+        )
         if (nextUnreadIndex >= 0) {
           setSelectedIndex(nextUnreadIndex)
-          setStatusMessage(`Jumped to unread PR #${pageItems[nextUnreadIndex]!.number}`)
+          setStatusMessage(
+            `Jumped to unread PR #${pageItems[nextUnreadIndex]!.number}`,
+          )
         } else {
           setStatusMessage('No unread PRs in current list')
         }
@@ -264,8 +363,21 @@ export function PRListScreen({
           <Text color={theme.colors.accent} bold>
             {title}
           </Text>
+          {isMultiSelect && (
+            <Text color={theme.colors.warning} bold>
+              MULTI-SELECT: {selectedIndices.length} selected
+            </Text>
+          )}
           {onStateChange && (
-            <Text color={stateFilter === 'open' ? theme.colors.success : stateFilter === 'closed' ? theme.colors.error : theme.colors.info}>
+            <Text
+              color={
+                stateFilter === 'open'
+                  ? theme.colors.success
+                  : stateFilter === 'closed'
+                    ? theme.colors.error
+                    : theme.colors.info
+              }
+            >
               [{STATE_LABELS[stateFilter]}]
             </Text>
           )}
@@ -279,7 +391,9 @@ export function PRListScreen({
             <Text color={theme.colors.warning}>(filtered)</Text>
           )}
           <Text color={theme.colors.muted}>
-            / filter  s sort{onStateChange ? '  t state' : ''}
+            {isMultiSelect
+              ? 'Space:toggle  o:open  u:read  y:copy  Esc:exit'
+              : `/ filter  s sort${onStateChange ? '  t state' : ''}  V:multi-select`}
           </Text>
         </Box>
         <PaginationBar
@@ -307,6 +421,8 @@ export function PRListScreen({
                 item={pr}
                 isFocus={index === selectedIndex}
                 compact={compactMode}
+                isMultiSelect={isMultiSelect}
+                isSelected={selectedIndices.includes(index)}
               />
             ))
           )}

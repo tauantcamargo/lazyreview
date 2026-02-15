@@ -23,11 +23,15 @@ interface PRListItemProps {
   readonly item: PullRequest
   readonly isFocus: boolean
   readonly compact?: boolean
+  readonly isMultiSelect?: boolean
+  readonly isSelected?: boolean
 }
 
 function CompactPRListItem({
   item,
   isFocus,
+  isMultiSelect = false,
+  isSelected = false,
 }: Omit<PRListItemProps, 'compact'>): React.ReactElement {
   const theme = useTheme()
   const { isUnread } = useReadState()
@@ -61,6 +65,11 @@ function CompactPRListItem({
 
   return (
     <Box paddingX={1} gap={1}>
+      {isMultiSelect && (
+        <Text color={isSelected ? theme.colors.success : theme.colors.muted} bold={isSelected}>
+          {isSelected ? '[x]' : '[ ]'}
+        </Text>
+      )}
       <Text color={stateColor} bold>
         {stateIcon}
       </Text>
@@ -93,6 +102,8 @@ function CompactPRListItem({
 function FullPRListItem({
   item,
   isFocus,
+  isMultiSelect = false,
+  isSelected = false,
 }: Omit<PRListItemProps, 'compact'>): React.ReactElement {
   const theme = useTheme()
   const { isUnread } = useReadState()
@@ -122,6 +133,11 @@ function FullPRListItem({
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box gap={1}>
+        {isMultiSelect && (
+          <Text color={isSelected ? theme.colors.success : theme.colors.muted} bold={isSelected}>
+            {isSelected ? '[x]' : '[ ]'}
+          </Text>
+        )}
         <Text color={stateColor} bold>
           {stateIcon}
         </Text>
@@ -172,7 +188,7 @@ function FullPRListItem({
           </Box>
         )}
       </Box>
-      <Box gap={1} paddingLeft={3}>
+      <Box gap={1} paddingLeft={isMultiSelect ? 7 : 3}>
         {repoName && (
           <>
             <Text color={theme.colors.secondary}>{repoName}</Text>
@@ -213,9 +229,25 @@ export function PRListItem({
   item,
   isFocus,
   compact = false,
+  isMultiSelect = false,
+  isSelected = false,
 }: PRListItemProps): React.ReactElement {
   if (compact) {
-    return <CompactPRListItem item={item} isFocus={isFocus} />
+    return (
+      <CompactPRListItem
+        item={item}
+        isFocus={isFocus}
+        isMultiSelect={isMultiSelect}
+        isSelected={isSelected}
+      />
+    )
   }
-  return <FullPRListItem item={item} isFocus={isFocus} />
+  return (
+    <FullPRListItem
+      item={item}
+      isFocus={isFocus}
+      isMultiSelect={isMultiSelect}
+      isSelected={isSelected}
+    />
+  )
 }
