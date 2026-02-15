@@ -1,5 +1,6 @@
 export { createStateStore, createInMemoryStore } from './StateStore'
 export { runMigrations, getCurrentVersion, getAppliedVersions, migrations } from './migrations'
+export { StateProvider, useStateStore } from './StateProvider'
 export {
   StateError,
   buildPRKey,

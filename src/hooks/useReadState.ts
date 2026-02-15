@@ -1,13 +1,10 @@
 import { useCallback, useSyncExternalStore } from 'react'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { homedir } from 'node:os'
-import { createDebouncedWriter } from '../utils/debouncedWriter'
+import { useStateStore } from '../services/state/StateProvider'
+import type { StateStore } from '../services/state/types'
 
-const CONFIG_DIR = join(homedir(), '.config', 'lazyreview')
-const READ_STATE_FILE = join(CONFIG_DIR, 'read-state.json')
-
-const PRUNE_AGE_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+// ---------------------------------------------------------------------------
+// Public types (preserved for backward compatibility)
+// ---------------------------------------------------------------------------
 
 export interface ReadEntry {
   readonly lastSeenAt: string
@@ -18,37 +15,20 @@ export type ReadStateData = Readonly<Record<string, ReadEntry>>
 
 type Listener = () => void
 
-interface ReadStateStore {
+export interface ReadStateStore {
   readonly subscribe: (listener: Listener) => () => void
   readonly getSnapshot: () => ReadStateData
   readonly markAsRead: (htmlUrl: string, prUpdatedAt: string) => void
   readonly isUnread: (htmlUrl: string, prUpdatedAt: string) => boolean
 }
 
-function isReadEntry(value: unknown): value is ReadEntry {
-  if (value == null || typeof value !== 'object') return false
-  const obj = value as Record<string, unknown>
-  return typeof obj['lastSeenAt'] === 'string' && typeof obj['prUpdatedAt'] === 'string'
-}
+// ---------------------------------------------------------------------------
+// Prune helper (kept for backward compat / testing)
+// ---------------------------------------------------------------------------
 
-function loadFromDisk(): ReadStateData {
-  try {
-    const raw = readFileSync(READ_STATE_FILE, 'utf-8')
-    const parsed = JSON.parse(raw)
-    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
-    const result: Record<string, ReadEntry> = {}
-    for (const [key, value] of Object.entries(parsed)) {
-      if (isReadEntry(value)) {
-        result[key] = value
-      }
-    }
-    return result
-  } catch {
-    return {}
-  }
-}
+const PRUNE_AGE_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 
-function pruneOldEntries(data: ReadStateData): ReadStateData {
+export function pruneOldEntries(data: ReadStateData): ReadStateData {
   const now = Date.now()
   const result: Record<string, ReadEntry> = {}
 
@@ -62,13 +42,67 @@ function pruneOldEntries(data: ReadStateData): ReadStateData {
   return result
 }
 
-function createReadStateStore(): ReadStateStore {
-  const writer = createDebouncedWriter<ReadStateData>(READ_STATE_FILE)
-  let data: ReadStateData = pruneOldEntries(loadFromDisk())
-  let listeners: readonly Listener[] = []
+// ---------------------------------------------------------------------------
+// Store backed by StateStore (SQLite)
+// ---------------------------------------------------------------------------
 
-  // Save pruned data if entries were removed
-  writer.schedule(data)
+function createSqliteReadStateStore(stateStore: StateStore): ReadStateStore {
+  let listeners: readonly Listener[] = []
+  let snapshot: ReadStateData = {}
+
+  const notify = (): void => {
+    listeners.forEach((l) => l())
+  }
+
+  function refreshKey(htmlUrl: string): void {
+    const state = stateStore.getReadState(htmlUrl)
+    if (state) {
+      snapshot = {
+        ...snapshot,
+        [htmlUrl]: {
+          lastSeenAt: state.lastSeenAt,
+          prUpdatedAt: state.prUpdatedAt,
+        },
+      }
+    }
+  }
+
+  return {
+    subscribe(listener: Listener) {
+      listeners = [...listeners, listener]
+      return () => {
+        listeners = listeners.filter((l) => l !== listener)
+      }
+    },
+
+    getSnapshot() {
+      return snapshot
+    },
+
+    markAsRead(htmlUrl: string, prUpdatedAt: string) {
+      stateStore.setReadState(htmlUrl, prUpdatedAt)
+      refreshKey(htmlUrl)
+      notify()
+    },
+
+    isUnread(htmlUrl: string, prUpdatedAt: string): boolean {
+      const persisted = stateStore.getReadState(htmlUrl)
+      if (!persisted) return true
+      return (
+        new Date(prUpdatedAt).getTime() >
+        new Date(persisted.prUpdatedAt).getTime()
+      )
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// In-memory fallback store (no persistence)
+// ---------------------------------------------------------------------------
+
+export function createReadStateStore(): ReadStateStore {
+  let data: ReadStateData = {}
+  let listeners: readonly Listener[] = []
 
   const notify = (): void => {
     listeners.forEach((l) => l())
@@ -92,37 +126,61 @@ function createReadStateStore(): ReadStateStore {
         ...data,
         [htmlUrl]: { lastSeenAt: now, prUpdatedAt },
       }
-      writer.schedule(data)
       notify()
     },
 
     isUnread(htmlUrl: string, prUpdatedAt: string): boolean {
       const entry = data[htmlUrl]
-      if (!entry) return true // Never seen
-      // Unread if PR was updated after we last saw it
-      return new Date(prUpdatedAt).getTime() > new Date(entry.prUpdatedAt).getTime()
+      if (!entry) return true
+      return (
+        new Date(prUpdatedAt).getTime() >
+        new Date(entry.prUpdatedAt).getTime()
+      )
     },
   }
 }
 
-const store = createReadStateStore()
+// ---------------------------------------------------------------------------
+// Singleton management
+// ---------------------------------------------------------------------------
+
+let singletonStore: ReadStateStore | null = null
+let singletonStateStore: StateStore | null = null
+
+function getOrCreateStore(stateStore: StateStore | null): ReadStateStore {
+  if (stateStore && stateStore !== singletonStateStore) {
+    singletonStateStore = stateStore
+    singletonStore = createSqliteReadStateStore(stateStore)
+    return singletonStore
+  }
+  if (singletonStore) return singletonStore
+  singletonStore = createReadStateStore()
+  return singletonStore
+}
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
 
 export function useReadState(): {
   readonly readState: ReadStateData
   readonly markAsRead: (htmlUrl: string, prUpdatedAt: string) => void
   readonly isUnread: (htmlUrl: string, prUpdatedAt: string) => boolean
 } {
+  const stateStore = useStateStore()
+  const store = getOrCreateStore(stateStore)
+
   const readState = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
-    () => ({} as ReadStateData),
+    () => ({}) as ReadStateData,
   )
 
   const markAsRead = useCallback(
     (htmlUrl: string, prUpdatedAt: string) => {
       store.markAsRead(htmlUrl, prUpdatedAt)
     },
-    [],
+    [store],
   )
 
   const isUnread = useCallback(
@@ -130,12 +188,8 @@ export function useReadState(): {
       return store.isUnread(htmlUrl, prUpdatedAt)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [readState], // Re-evaluate when readState changes
+    [readState, store],
   )
 
   return { readState, markAsRead, isUnread } as const
 }
-
-// Export for testing
-export { pruneOldEntries, createReadStateStore }
-export type { ReadStateStore }

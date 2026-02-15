@@ -5,19 +5,8 @@ import {
   type ReadStateData,
   type ReadEntry,
 } from './useReadState'
-
-vi.mock('node:fs', () => ({
-  readFileSync: vi.fn(() => {
-    throw new Error('ENOENT')
-  }),
-  writeFileSync: vi.fn(),
-  mkdirSync: vi.fn(),
-}))
-
-vi.mock('node:fs/promises', () => ({
-  writeFile: vi.fn(() => Promise.resolve()),
-  mkdir: vi.fn(() => Promise.resolve()),
-}))
+import { createInMemoryStore } from '../services/state/StateStore'
+import type { StateStore } from '../services/state/types'
 
 describe('pruneOldEntries', () => {
   beforeEach(() => {
@@ -99,7 +88,7 @@ describe('pruneOldEntries', () => {
   })
 })
 
-describe('ReadStateStore', () => {
+describe('ReadStateStore (in-memory)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-02-10T12:00:00Z'))
@@ -149,7 +138,10 @@ describe('ReadStateStore', () => {
     const store = createReadStateStore()
     const listener = vi.fn()
     store.subscribe(listener)
-    store.markAsRead('https://github.com/owner/repo/pull/1', '2026-02-10T00:00:00Z')
+    store.markAsRead(
+      'https://github.com/owner/repo/pull/1',
+      '2026-02-10T00:00:00Z',
+    )
     expect(listener).toHaveBeenCalledOnce()
   })
 
@@ -158,7 +150,10 @@ describe('ReadStateStore', () => {
     const listener = vi.fn()
     const unsub = store.subscribe(listener)
     unsub()
-    store.markAsRead('https://github.com/owner/repo/pull/1', '2026-02-10T00:00:00Z')
+    store.markAsRead(
+      'https://github.com/owner/repo/pull/1',
+      '2026-02-10T00:00:00Z',
+    )
     expect(listener).not.toHaveBeenCalled()
   })
 
@@ -168,7 +163,10 @@ describe('ReadStateStore', () => {
     const l2 = vi.fn()
     store.subscribe(l1)
     store.subscribe(l2)
-    store.markAsRead('https://github.com/owner/repo/pull/1', '2026-02-10T00:00:00Z')
+    store.markAsRead(
+      'https://github.com/owner/repo/pull/1',
+      '2026-02-10T00:00:00Z',
+    )
     expect(l1).toHaveBeenCalledOnce()
     expect(l2).toHaveBeenCalledOnce()
   })
@@ -222,5 +220,72 @@ describe('ReadState isUnread logic', () => {
     const isUnread =
       new Date(prUpdatedAt).getTime() > new Date(entry.prUpdatedAt).getTime()
     expect(isUnread).toBe(false)
+  })
+})
+
+describe('ReadStateStore (SQLite-backed)', () => {
+  let stateStore: StateStore
+
+  beforeEach(async () => {
+    stateStore = createInMemoryStore()
+    await stateStore.open()
+  })
+
+  afterEach(() => {
+    stateStore.close()
+  })
+
+  it('marks a PR as read and persists to SQLite', () => {
+    // We test via the StateStore API directly since createSqliteReadStateStore is not exported
+    const key = 'https://github.com/owner/repo/pull/1'
+    stateStore.setReadState(key, '2026-02-10T00:00:00Z')
+    const state = stateStore.getReadState(key)
+    expect(state).toBeDefined()
+    expect(state!.prUpdatedAt).toBe('2026-02-10T00:00:00Z')
+  })
+
+  it('detects unread when no read state exists', () => {
+    const key = 'https://github.com/owner/repo/pull/99'
+    const state = stateStore.getReadState(key)
+    expect(state).toBeUndefined()
+  })
+
+  it('detects read when prUpdatedAt matches', () => {
+    const key = 'https://github.com/owner/repo/pull/1'
+    stateStore.setReadState(key, '2026-02-10T00:00:00Z')
+    const state = stateStore.getReadState(key)
+    expect(state).toBeDefined()
+    const isUnread =
+      new Date('2026-02-10T00:00:00Z').getTime() >
+      new Date(state!.prUpdatedAt).getTime()
+    expect(isUnread).toBe(false)
+  })
+
+  it('detects unread when PR was updated after stored state', () => {
+    const key = 'https://github.com/owner/repo/pull/1'
+    stateStore.setReadState(key, '2026-02-09T00:00:00Z')
+    const state = stateStore.getReadState(key)
+    expect(state).toBeDefined()
+    const isUnread =
+      new Date('2026-02-10T00:00:00Z').getTime() >
+      new Date(state!.prUpdatedAt).getTime()
+    expect(isUnread).toBe(true)
+  })
+
+  it('overwrites read state on re-read', () => {
+    const key = 'https://github.com/owner/repo/pull/1'
+    stateStore.setReadState(key, '2026-02-09T00:00:00Z')
+    stateStore.setReadState(key, '2026-02-10T00:00:00Z')
+    const state = stateStore.getReadState(key)
+    expect(state!.prUpdatedAt).toBe('2026-02-10T00:00:00Z')
+  })
+
+  it('scopes read state per PR key', () => {
+    stateStore.setReadState('pr-1', '2026-02-09T00:00:00Z')
+    stateStore.setReadState('pr-2', '2026-02-10T00:00:00Z')
+    const state1 = stateStore.getReadState('pr-1')
+    const state2 = stateStore.getReadState('pr-2')
+    expect(state1!.prUpdatedAt).toBe('2026-02-09T00:00:00Z')
+    expect(state2!.prUpdatedAt).toBe('2026-02-10T00:00:00Z')
   })
 })

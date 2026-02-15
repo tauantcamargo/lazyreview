@@ -1,6 +1,11 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 import { useConfig } from './useConfig'
+import { useStateStore } from '../services/state/StateProvider'
 import type { BookmarkedRepo } from '../services/Config'
+
+// ---------------------------------------------------------------------------
+// Public types
+// ---------------------------------------------------------------------------
 
 export interface UseBookmarkedReposReturn {
   readonly bookmarkedRepos: readonly BookmarkedRepo[]
@@ -8,7 +13,14 @@ export interface UseBookmarkedReposReturn {
   readonly removeBookmark: (owner: string, repo: string) => void
 }
 
-export function validateBookmarkInput(input: string): { readonly valid: boolean; readonly error: string | null } {
+// ---------------------------------------------------------------------------
+// Pure helpers (kept exported for testing)
+// ---------------------------------------------------------------------------
+
+export function validateBookmarkInput(input: string): {
+  readonly valid: boolean
+  readonly error: string | null
+} {
   const trimmed = input.trim()
   if (!trimmed.includes('/')) {
     return { valid: false, error: 'Format: owner/repo' }
@@ -40,32 +52,74 @@ export function removeBookmarkFromList(
   return repos.filter((r) => !(r.owner === owner && r.repo === repo))
 }
 
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+
 export function useBookmarkedRepos(): UseBookmarkedReposReturn {
   const { config, updateConfig } = useConfig()
+  const stateStore = useStateStore()
+  const [revision, setRevision] = useState(0)
 
-  const bookmarkedRepos = useMemo(
-    () => config?.bookmarkedRepos ?? [],
-    [config?.bookmarkedRepos],
-  )
+  // Migrate config bookmarks to StateStore on first load
+  useEffect(() => {
+    if (!stateStore) return
+    const configBookmarks = config?.bookmarkedRepos ?? []
+    if (configBookmarks.length > 0) {
+      const existing = stateStore.getBookmarkedRepos()
+      for (const bm of configBookmarks) {
+        const alreadyExists = existing.some(
+          (e) => e.owner === bm.owner && e.repo === bm.repo,
+        )
+        if (!alreadyExists) {
+          stateStore.addBookmarkedRepo(bm.owner, bm.repo)
+        }
+      }
+      updateConfig({ bookmarkedRepos: [] })
+      setRevision((r) => r + 1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateStore])
+
+  const bookmarkedRepos = useMemo(() => {
+    if (stateStore) {
+      return stateStore.getBookmarkedRepos().map((r) => ({
+        owner: r.owner,
+        repo: r.repo,
+      }))
+    }
+    return config?.bookmarkedRepos ?? []
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateStore, config?.bookmarkedRepos, revision])
 
   const addBookmark = useCallback(
     (owner: string, repo: string) => {
-      const current = config?.bookmarkedRepos ?? []
-      const updated = addBookmarkToList(current, owner, repo)
-      if (updated !== current) {
-        updateConfig({ bookmarkedRepos: updated as BookmarkedRepo[] })
+      if (stateStore) {
+        stateStore.addBookmarkedRepo(owner, repo)
+        setRevision((r) => r + 1)
+      } else {
+        const current = config?.bookmarkedRepos ?? []
+        const updated = addBookmarkToList(current, owner, repo)
+        if (updated !== current) {
+          updateConfig({ bookmarkedRepos: updated as BookmarkedRepo[] })
+        }
       }
     },
-    [config?.bookmarkedRepos, updateConfig],
+    [stateStore, config?.bookmarkedRepos, updateConfig],
   )
 
   const removeBookmark = useCallback(
     (owner: string, repo: string) => {
-      const current = config?.bookmarkedRepos ?? []
-      const updated = removeBookmarkFromList(current, owner, repo)
-      updateConfig({ bookmarkedRepos: updated as BookmarkedRepo[] })
+      if (stateStore) {
+        stateStore.removeBookmarkedRepo(owner, repo)
+        setRevision((r) => r + 1)
+      } else {
+        const current = config?.bookmarkedRepos ?? []
+        const updated = removeBookmarkFromList(current, owner, repo)
+        updateConfig({ bookmarkedRepos: updated as BookmarkedRepo[] })
+      }
     },
-    [config?.bookmarkedRepos, updateConfig],
+    [stateStore, config?.bookmarkedRepos, updateConfig],
   )
 
   return { bookmarkedRepos, addBookmark, removeBookmark }

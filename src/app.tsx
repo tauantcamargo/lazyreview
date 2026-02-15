@@ -36,6 +36,7 @@ import { useActivePanel } from './hooks/useActivePanel'
 import { useKeybindings } from './hooks/useKeybindings'
 import { InputFocusProvider, useInputFocus } from './hooks/useInputFocus'
 import { RepoContextProvider, useRepoContext } from './hooks/useRepoContext'
+import { StateProvider } from './services/state/StateProvider'
 import { useSidebarCounts } from './hooks/useSidebarCounts'
 import { useReadState } from './hooks/useReadState'
 import { useRateLimit } from './hooks/useRateLimit'
@@ -610,15 +611,17 @@ export function App({
 }: AppProps): React.ReactElement {
   return (
     <QueryClientProvider client={queryClient}>
-      <InputFocusProvider>
-        <AppWithTheme
-          repoOwner={repoOwner}
-          repoName={repoName}
-          detectedProvider={detectedProvider}
-          detectedBaseUrl={detectedBaseUrl}
-          directPR={directPR}
-        />
-      </InputFocusProvider>
+      <StateProvider>
+        <InputFocusProvider>
+          <AppWithTheme
+            repoOwner={repoOwner}
+            repoName={repoName}
+            detectedProvider={detectedProvider}
+            detectedBaseUrl={detectedBaseUrl}
+            directPR={directPR}
+          />
+        </InputFocusProvider>
+      </StateProvider>
     </QueryClientProvider>
   )
 }

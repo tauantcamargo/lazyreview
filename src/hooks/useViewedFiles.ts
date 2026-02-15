@@ -1,13 +1,10 @@
 import { useCallback, useSyncExternalStore } from 'react'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { homedir } from 'node:os'
-import { createDebouncedWriter } from '../utils/debouncedWriter'
+import { useStateStore } from '../services/state/StateProvider'
+import type { StateStore } from '../services/state/types'
 
-const CONFIG_DIR = join(homedir(), '.config', 'lazyreview')
-const VIEWED_FILES_PATH = join(CONFIG_DIR, 'viewed-files.json')
-
-const PRUNE_AGE_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+// ---------------------------------------------------------------------------
+// Public types (preserved for backward compatibility)
+// ---------------------------------------------------------------------------
 
 export interface ViewedEntry {
   readonly viewedFiles: readonly string[]
@@ -28,32 +25,11 @@ export interface ViewedFilesStore {
   readonly getViewedCount: (prUrl: string) => number
 }
 
-function isViewedEntry(value: unknown): value is ViewedEntry {
-  if (value == null || typeof value !== 'object') return false
-  const obj = value as Record<string, unknown>
-  return (
-    Array.isArray(obj['viewedFiles']) &&
-    obj['viewedFiles'].every((f: unknown) => typeof f === 'string') &&
-    typeof obj['lastUpdated'] === 'string'
-  )
-}
+// ---------------------------------------------------------------------------
+// Prune helper (kept for backward compat / testing)
+// ---------------------------------------------------------------------------
 
-function loadFromDisk(): ViewedFilesData {
-  try {
-    const raw = readFileSync(VIEWED_FILES_PATH, 'utf-8')
-    const parsed = JSON.parse(raw)
-    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
-    const result: Record<string, ViewedEntry> = {}
-    for (const [key, value] of Object.entries(parsed)) {
-      if (isViewedEntry(value)) {
-        result[key] = value
-      }
-    }
-    return result
-  } catch {
-    return {}
-  }
-}
+const PRUNE_AGE_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 
 export function pruneOldEntries(data: ViewedFilesData): ViewedFilesData {
   const now = Date.now()
@@ -69,13 +45,100 @@ export function pruneOldEntries(data: ViewedFilesData): ViewedFilesData {
   return result
 }
 
-export function createViewedFilesStore(): ViewedFilesStore {
-  const writer = createDebouncedWriter<ViewedFilesData>(VIEWED_FILES_PATH)
-  let data: ViewedFilesData = pruneOldEntries(loadFromDisk())
-  let listeners: readonly Listener[] = []
+// ---------------------------------------------------------------------------
+// Store backed by StateStore (SQLite)
+// ---------------------------------------------------------------------------
 
-  // Save pruned data if entries were removed
-  writer.schedule(data)
+export function createSqliteViewedFilesStore(
+  stateStore: StateStore,
+): ViewedFilesStore {
+  let listeners: readonly Listener[] = []
+  let snapshot: ViewedFilesData = {}
+
+  function rebuildSnapshotForKey(prUrl: string): void {
+    const files = stateStore.getViewedFiles(prUrl)
+    if (files.length === 0) {
+      const { [prUrl]: _, ...rest } = snapshot
+      snapshot = rest
+    } else {
+      snapshot = {
+        ...snapshot,
+        [prUrl]: {
+          viewedFiles: files.map((f) => f.filePath),
+          lastUpdated:
+            files[files.length - 1]?.viewedAt ?? new Date().toISOString(),
+        },
+      }
+    }
+  }
+
+  const notify = (): void => {
+    listeners.forEach((l) => l())
+  }
+
+  return {
+    subscribe(listener: Listener) {
+      listeners = [...listeners, listener]
+      return () => {
+        listeners = listeners.filter((l) => l !== listener)
+      }
+    },
+
+    getSnapshot() {
+      return snapshot
+    },
+
+    markViewed(prUrl: string, filePath: string) {
+      const existing = snapshot[prUrl]
+      if (existing?.viewedFiles.includes(filePath)) return
+
+      stateStore.setViewedFile(prUrl, filePath)
+      rebuildSnapshotForKey(prUrl)
+      notify()
+    },
+
+    markUnviewed(prUrl: string, filePath: string) {
+      const existing = snapshot[prUrl]
+      if (!existing) return
+
+      stateStore.removeViewedFile(prUrl, filePath)
+      rebuildSnapshotForKey(prUrl)
+      notify()
+    },
+
+    toggleViewed(prUrl: string, filePath: string) {
+      const existing = snapshot[prUrl]
+      const viewedFiles = existing?.viewedFiles ?? []
+      if (viewedFiles.includes(filePath)) {
+        stateStore.removeViewedFile(prUrl, filePath)
+      } else {
+        stateStore.setViewedFile(prUrl, filePath)
+      }
+      rebuildSnapshotForKey(prUrl)
+      notify()
+    },
+
+    isViewed(prUrl: string, filePath: string): boolean {
+      const entry = snapshot[prUrl]
+      if (!entry) return false
+      return entry.viewedFiles.includes(filePath)
+    },
+
+    getViewedCount(prUrl: string): number {
+      const entry = snapshot[prUrl]
+      if (!entry) return 0
+      return entry.viewedFiles.length
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// In-memory fallback store (no persistence)
+// ---------------------------------------------------------------------------
+
+export function createViewedFilesStore(): ViewedFilesStore {
+  let data: ViewedFilesData = {}
+  let listeners: readonly Listener[] = []
 
   const notify = (): void => {
     listeners.forEach((l) => l())
@@ -96,7 +159,7 @@ export function createViewedFilesStore(): ViewedFilesStore {
     markViewed(prUrl: string, filePath: string) {
       const existing = data[prUrl]
       const viewedFiles = existing?.viewedFiles ?? []
-      if (viewedFiles.includes(filePath)) return // Already viewed
+      if (viewedFiles.includes(filePath)) return
 
       data = {
         ...data,
@@ -105,7 +168,6 @@ export function createViewedFilesStore(): ViewedFilesStore {
           lastUpdated: new Date().toISOString(),
         },
       }
-      writer.schedule(data)
       notify()
     },
 
@@ -121,7 +183,6 @@ export function createViewedFilesStore(): ViewedFilesStore {
           lastUpdated: new Date().toISOString(),
         },
       }
-      writer.schedule(data)
       notify()
     },
 
@@ -149,7 +210,27 @@ export function createViewedFilesStore(): ViewedFilesStore {
   }
 }
 
-const store = createViewedFilesStore()
+// ---------------------------------------------------------------------------
+// Singleton management
+// ---------------------------------------------------------------------------
+
+let singletonStore: ViewedFilesStore | null = null
+let singletonStateStore: StateStore | null = null
+
+function getOrCreateStore(stateStore: StateStore | null): ViewedFilesStore {
+  if (stateStore && stateStore !== singletonStateStore) {
+    singletonStateStore = stateStore
+    singletonStore = createSqliteViewedFilesStore(stateStore)
+    return singletonStore
+  }
+  if (singletonStore) return singletonStore
+  singletonStore = createViewedFilesStore()
+  return singletonStore
+}
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
 
 export function useViewedFiles(): {
   readonly viewedFilesData: ViewedFilesData
@@ -159,31 +240,34 @@ export function useViewedFiles(): {
   readonly isViewed: (prUrl: string, filePath: string) => boolean
   readonly getViewedCount: (prUrl: string) => number
 } {
+  const stateStore = useStateStore()
+  const store = getOrCreateStore(stateStore)
+
   const viewedFilesData = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
-    () => ({} as ViewedFilesData),
+    () => ({}) as ViewedFilesData,
   )
 
   const markViewed = useCallback(
     (prUrl: string, filePath: string) => {
       store.markViewed(prUrl, filePath)
     },
-    [],
+    [store],
   )
 
   const markUnviewed = useCallback(
     (prUrl: string, filePath: string) => {
       store.markUnviewed(prUrl, filePath)
     },
-    [],
+    [store],
   )
 
   const toggleViewed = useCallback(
     (prUrl: string, filePath: string) => {
       store.toggleViewed(prUrl, filePath)
     },
-    [],
+    [store],
   )
 
   const isViewed = useCallback(
@@ -191,7 +275,7 @@ export function useViewedFiles(): {
       return store.isViewed(prUrl, filePath)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [viewedFilesData], // Re-evaluate when data changes
+    [viewedFilesData, store],
   )
 
   const getViewedCount = useCallback(
@@ -199,7 +283,7 @@ export function useViewedFiles(): {
       return store.getViewedCount(prUrl)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [viewedFilesData], // Re-evaluate when data changes
+    [viewedFilesData, store],
   )
 
   return {
