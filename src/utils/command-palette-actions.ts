@@ -34,6 +34,7 @@ const EXCLUDED_ACTIONS: ReadonlySet<string> = new Set([
   'indent',
   'toggleDirCollapse',
   'commandPalette',
+  'quickActions',
 ])
 
 /**
