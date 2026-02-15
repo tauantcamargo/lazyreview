@@ -1,6 +1,6 @@
 {
   "name": "lazyreview",
-  "version": "1.0.79",
+  "version": "1.0.80",
   "description": "A keyboard-driven TUI for reviewing pull requests from GitHub, GitLab, Bitbucket, Azure DevOps, and Gitea — right from your terminal",
   "type": "module",
   "author": "Tauan Camargo",
