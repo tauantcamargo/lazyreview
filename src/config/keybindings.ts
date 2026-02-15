@@ -87,6 +87,15 @@ export type Action =
   | 'listBookmarks'
   | 'toggleAiAnnotations'
   | 'teamDashboard'
+  | 'batchSelect'
+  | 'toggleSelection'
+  | 'batchOpenInBrowser'
+  | 'batchMarkRead'
+  | 'batchCopyUrls'
+  | 'quickActions'
+  | 'prevDep'
+  | 'nextDep'
+  | 'toggleBlame'
 
 /**
  * Keybinding context names. Each context groups related actions
@@ -168,6 +177,12 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     jumpToUnread: 'U',
     toggleCompactList: 'ctrl+l',
     togglePreview: 'P',
+    batchSelect: 'V',
+    toggleSelection: ' ',
+    batchOpenInBrowser: 'o',
+    batchMarkRead: 'u',
+    batchCopyUrls: 'y',
+    quickActions: '.',
   },
   prDetail: {
     submitReview: 'R',
@@ -188,6 +203,9 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     aiSummary: 'ctrl+a',
     aiRegenerate: 'ctrl+r',
     prNotes: 'n',
+    quickActions: '.',
+    prevDep: '[d',
+    nextDep: ']d',
   },
   conversations: {
     newComment: 'c',
@@ -231,6 +249,8 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     jumpToBookmark: "'",
     listBookmarks: 'M',
     toggleAiAnnotations: 'ctrl+i',
+    toggleBlame: 'b',
+    quickActions: '.',
   },
   conflictView: {
     nextConflict: ']c',

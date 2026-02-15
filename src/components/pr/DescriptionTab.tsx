@@ -17,6 +17,8 @@ import {
   type BotDetectableComment,
 } from '../../utils/bot-detection'
 import { buildDependencyChain } from '../../utils/pr-dependencies'
+import { detectPRChain, computeChainStatus } from '../../utils/pr-chain'
+import { PRChainView } from './PRChainView'
 
 const PR_DETAIL_CONTENT_HEIGHT_RESERVED = 18
 const DESCRIPTION_HEADER_LINES = 2
@@ -164,7 +166,28 @@ export function DescriptionTab({
     [pr, allPRs],
   )
 
+  const prChain = useMemo(
+    () => detectPRChain(pr, allPRs ?? []),
+    [pr, allPRs],
+  )
+
+  const chainStatus = useMemo(
+    () => computeChainStatus(prChain),
+    [prChain],
+  )
+
   const sections = [
+    ...(prChain.length > 1
+      ? [
+          <PRChainView
+            key="pr-chain"
+            chain={prChain}
+            chainStatus={chainStatus}
+            isActive={isActive}
+            onNavigateToPR={onNavigateToPR}
+          />,
+        ]
+      : []),
     <PRInfoSection key="info" pr={pr} />,
     ...(dependencies.length > 0
       ? [
