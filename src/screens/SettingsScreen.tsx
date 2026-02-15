@@ -12,6 +12,8 @@ import { useBookmarkedRepos, validateBookmarkInput } from '../hooks/useBookmarke
 import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { SettingRow, TokenSourceLabel } from '../components/settings/SettingRow'
+import { useReviewSessions } from '../hooks/useReviewSession'
+import { aggregateStats, filterByRange, formatDuration, type DateRange } from '../utils/review-stats'
 import { getAuthProvider, setAuthProvider, getProviderTokenFilePath, getProviderMeta, getInstanceAuthStatus } from '../services/Auth'
 import type { TokenSource } from '../services/Auth'
 import { getConfiguredInstances } from '../services/Config'
@@ -106,6 +108,56 @@ function maskApiKey(key: string): string {
   if (!key || key.length < 8) return key ? '****' : '(not set)'
   return `${key.slice(0, 4)}...${key.slice(-4)}`
 }
+
+// ---------------------------------------------------------------------------
+// Review Stats sub-component
+// ---------------------------------------------------------------------------
+
+const STATS_RANGES: readonly { readonly label: string; readonly range: DateRange }[] = [
+  { label: 'Today', range: 'today' },
+  { label: 'This Week', range: 'week' },
+  { label: 'All Time', range: 'all' },
+]
+
+function ReviewStatsSection(): React.ReactElement {
+  const theme = useTheme()
+  const sessions = useReviewSessions()
+
+  return (
+    <>
+      <Box paddingX={1} marginTop={1}>
+        <Divider title="Review Stats" />
+      </Box>
+      <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
+        <Text color={theme.colors.secondary} bold>
+          Review Stats
+        </Text>
+      </Box>
+      <Box flexDirection="column" gap={0}>
+        {STATS_RANGES.map(({ label, range }) => {
+          const filtered = filterByRange(sessions, range)
+          const stats = aggregateStats(filtered)
+          return (
+            <Box key={range} gap={2} paddingX={2}>
+              <Box width={20}>
+                <Text color={theme.colors.muted}>  {label}</Text>
+              </Box>
+              <Text color={theme.colors.text}>
+                {stats.count === 0
+                  ? 'No sessions'
+                  : `${stats.count} review${stats.count !== 1 ? 's' : ''} | ${formatDuration(stats.totalMs)} total | ${formatDuration(stats.avgMs)} avg | ${stats.filesReviewed} file${stats.filesReviewed !== 1 ? 's' : ''}`}
+              </Text>
+            </Box>
+          )
+        })}
+      </Box>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
 export function SettingsScreen(): React.ReactElement {
   const theme = useTheme()
@@ -773,6 +825,8 @@ export function SettingsScreen(): React.ReactElement {
           })
         )}
       </Box>
+
+      <ReviewStatsSection />
 
       <Box paddingX={1} paddingTop={2} flexDirection="column">
         <Text color={theme.colors.muted} dimColor>

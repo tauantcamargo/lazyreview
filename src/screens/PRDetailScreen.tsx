@@ -52,6 +52,8 @@ import { useTheme } from '../theme/index'
 import { useAiSummary } from '../hooks/useAiSummary'
 import { useAiConfig } from '../hooks/useAiConfig'
 import { usePRNotes } from '../hooks/usePRNotes'
+import { useReviewSession } from '../hooks/useReviewSession'
+import { reviewTimerStore } from '../hooks/useReviewTimer'
 import { NotesModal } from '../components/pr/NotesModal'
 import type { PullRequest } from '../models/pull-request'
 import type { InlineCommentContext } from '../models/inline-comment'
@@ -106,6 +108,18 @@ export function PRDetailScreen({
   // PR notes
   const prNotesKey = `${owner}/${repo}#${pr.number}`
   const { note: prNote, saveNote: savePRNote, deleteNote: deletePRNote, hasNote: hasPRNote } = usePRNotes(prNotesKey)
+
+  // Review session timer (auto-starts on mount, persists on unmount)
+  const reviewSessionKey = `${owner}/${repo}#${pr.number}`
+  const { elapsedSeconds } = useReviewSession(reviewSessionKey)
+
+  // Publish timer to the global store so StatusBar can display it
+  React.useEffect(() => {
+    reviewTimerStore.setTimer(elapsedSeconds)
+    return () => {
+      reviewTimerStore.clearTimer()
+    }
+  }, [elapsedSeconds])
 
   // Mark PR as read when entering detail view
   React.useEffect(() => {

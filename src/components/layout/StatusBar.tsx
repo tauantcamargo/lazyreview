@@ -9,6 +9,8 @@ import { useKeybindings } from '../../hooks/useKeybindings'
 import { useSelectionContext } from '../../hooks/useSelectionContext'
 import { getContextualHints } from '../../hooks/useContextualHints'
 import { macroStore } from '../../hooks/useMacros'
+import { useReviewTimer } from '../../hooks/useReviewTimer'
+import { formatTimer } from '../../utils/review-stats'
 import { mergeKeybindings, formatActionBindings } from '../../config/keybindings'
 import type { KeybindingOverrides } from '../../config/keybindings'
 import type { Panel } from '../../hooks/useActivePanel'
@@ -222,6 +224,8 @@ export function StatusBar({
     () => macroStore.getSnapshot(),
   )
 
+  const reviewTimer = useReviewTimer()
+
   const hints = useMemo(
     () => getContextualHints(activePanel, screenContext, selectionContext, overrides),
     [activePanel, screenContext, selectionContext, overrides],
@@ -261,6 +265,11 @@ export function StatusBar({
         {macroState.isRecording && macroState.activeRegister && (
           <Text color={theme.colors.error} bold>
             Recording @{macroState.activeRegister}...
+          </Text>
+        )}
+        {reviewTimer.isActive && (
+          <Text color={theme.colors.muted}>
+            {formatTimer(reviewTimer.elapsedSeconds)}
           </Text>
         )}
         {renderStatus()}
