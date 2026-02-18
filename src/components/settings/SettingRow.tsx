@@ -9,6 +9,7 @@ export function SettingRow({
   isSelected,
   isEditing,
   hint,
+  description,
   children,
 }: {
   readonly label: string
@@ -16,33 +17,43 @@ export function SettingRow({
   readonly isSelected?: boolean
   readonly isEditing?: boolean
   readonly hint?: string
+  readonly description?: string
   readonly children?: React.ReactNode
 }): React.ReactElement {
   const theme = useTheme()
 
   return (
-    <Box gap={2} paddingX={2}>
-      <Box width={20}>
-        <Text
-          color={isSelected ? theme.colors.accent : theme.colors.muted}
-          bold={isSelected}
-        >
-          {isSelected ? '> ' : '  '}
-          {label}
-        </Text>
+    <Box flexDirection="column" paddingX={2}>
+      <Box gap={2}>
+        <Box width={20}>
+          <Text
+            color={isSelected ? theme.colors.accent : theme.colors.muted}
+            bold={isSelected}
+          >
+            {isSelected ? '▶ ' : '  '}
+            {label}
+          </Text>
+        </Box>
+        {children ?? (
+          <Text
+            color={isEditing ? theme.colors.accent : theme.colors.text}
+            inverse={isEditing}
+          >
+            {value}
+          </Text>
+        )}
+        {hint && isSelected && !isEditing && (
+          <Text color={theme.colors.muted} dimColor>
+            ({hint})
+          </Text>
+        )}
       </Box>
-      {children ?? (
-        <Text
-          color={isEditing ? theme.colors.accent : theme.colors.text}
-          inverse={isEditing}
-        >
-          {value}
-        </Text>
-      )}
-      {hint && isSelected && !isEditing && (
-        <Text color={theme.colors.muted} dimColor>
-          ({hint})
-        </Text>
+      {description && isSelected && (
+        <Box paddingLeft={2}>
+          <Text color={theme.colors.muted} dimColor>
+            {description}
+          </Text>
+        </Box>
       )}
     </Box>
   )

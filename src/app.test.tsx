@@ -212,7 +212,7 @@ describe('App integration', () => {
   it('renders connected status by default', () => {
     const { lastFrame } = render(<TestAppShell authenticated={true} />)
     const frame = lastFrame() ?? ''
-    expect(frame).toContain('connected')
+    expect(frame).toContain('●')
   })
 
   it('provider chain does not throw with null localRepo', () => {

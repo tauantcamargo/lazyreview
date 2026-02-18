@@ -128,11 +128,6 @@ function ReviewStatsSection(): React.ReactElement {
       <Box paddingX={1} marginTop={1}>
         <Divider title="Review Stats" />
       </Box>
-      <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
-        <Text color={theme.colors.secondary} bold>
-          Review Stats
-        </Text>
-      </Box>
       <Box flexDirection="column" gap={0}>
         {STATS_RANGES.map(({ label, range }) => {
           const filtered = filterByRange(sessions, range)
@@ -485,20 +480,16 @@ export function SettingsScreen(): React.ReactElement {
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <Box paddingX={1} paddingY={1}>
+      <Box paddingX={1} paddingY={1} justifyContent="space-between">
         <Text color={theme.colors.accent} bold>
           Settings
         </Text>
+        <Text color={theme.colors.muted} dimColor>
+          {SETTINGS_ITEMS.length} items
+        </Text>
       </Box>
       <Box paddingX={1}>
-        <Divider />
-      </Box>
-
-      {/* Token Section */}
-      <Box flexDirection="column" paddingX={1} marginBottom={1}>
-        <Text color={theme.colors.secondary} bold>
-          Authentication
-        </Text>
+        <Divider title="Authentication" />
       </Box>
 
       <Box flexDirection="column" gap={0}>
@@ -576,11 +567,6 @@ export function SettingsScreen(): React.ReactElement {
           <Box paddingX={1} marginTop={1}>
             <Divider title="Provider Instances" />
           </Box>
-          <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
-            <Text color={theme.colors.secondary} bold>
-              Configured Instances
-            </Text>
-          </Box>
           <Box flexDirection="column" gap={0}>
             {configuredInstances
               .filter((inst) => !inst.isDefault)
@@ -609,12 +595,6 @@ export function SettingsScreen(): React.ReactElement {
 
       <Box paddingX={1} marginTop={1}>
         <Divider title="Configuration" />
-      </Box>
-      {/* Config Section */}
-      <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
-        <Text color={theme.colors.secondary} bold>
-          Configuration
-        </Text>
       </Box>
 
       <Box flexDirection="column" gap={0}>
@@ -679,12 +659,6 @@ export function SettingsScreen(): React.ReactElement {
       <Box paddingX={1} marginTop={1}>
         <Divider title="AI Review" />
       </Box>
-      {/* AI Configuration Section */}
-      <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
-        <Text color={theme.colors.secondary} bold>
-          AI Review
-        </Text>
-      </Box>
 
       <Box flexDirection="column" gap={0}>
         <SettingRow
@@ -731,12 +705,6 @@ export function SettingsScreen(): React.ReactElement {
       <Box paddingX={1} marginTop={1}>
         <Divider title="Notifications" />
       </Box>
-      {/* Notifications Section */}
-      <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
-        <Text color={theme.colors.secondary} bold>
-          Notifications
-        </Text>
-      </Box>
 
       <Box flexDirection="column" gap={0}>
         <SettingRow
@@ -768,23 +736,13 @@ export function SettingsScreen(): React.ReactElement {
       <Box paddingX={1} marginTop={1}>
         <Divider title="Bookmarked Repos" />
       </Box>
-      {/* Bookmarked Repos Section */}
-      <Box flexDirection="column" paddingX={1} marginTop={0} marginBottom={1}>
-        <Box gap={2}>
-          <Text
-            color={isBookmarkSection ? theme.colors.accent : theme.colors.secondary}
-            bold
-          >
-            {isBookmarkSection ? '> ' : '  '}
-            Bookmarked Repos
+      {isBookmarkSection && (
+        <Box paddingX={2}>
+          <Text color={theme.colors.muted} dimColor>
+            a:add  x:remove  J/K:select
           </Text>
-          {isBookmarkSection && (
-            <Text color={theme.colors.muted} dimColor>
-              a:add  x:remove  J/K:select
-            </Text>
-          )}
         </Box>
-      </Box>
+      )}
 
       {editingField === 'bookmark_add' && (
         <Box paddingX={2} flexDirection="column">

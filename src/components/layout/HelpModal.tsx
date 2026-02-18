@@ -173,6 +173,31 @@ export function buildShortcutGroups(
   })
 }
 
+// Groups to show in left column: Global, PR List, PR Detail
+const LEFT_COLUMN_TITLES = new Set(['Global', 'PR List', 'PR Detail'])
+
+function ShortcutGroupView({
+  group,
+  theme,
+}: {
+  readonly group: ShortcutGroup
+  readonly theme: ReturnType<typeof useTheme>
+}): React.ReactElement {
+  return (
+    <Box key={group.title} flexDirection="column" gap={0}>
+      <Divider title={group.title} style="single" />
+      {group.items.map((s) => (
+        <Box key={`${group.title}-${s.key}-${s.description}`} gap={1}>
+          <Box width={16}>
+            <Text color={theme.colors.warning} bold>{s.key}</Text>
+          </Box>
+          <Text color={theme.colors.text}>{s.description}</Text>
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
 export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
   const theme = useTheme()
   const { overrides } = useKeybindings('global')
@@ -181,6 +206,9 @@ export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
     () => buildShortcutGroups(overrides),
     [overrides],
   )
+
+  const leftGroups = shortcutGroups.filter((g) => LEFT_COLUMN_TITLES.has(g.title))
+  const rightGroups = shortcutGroups.filter((g) => !LEFT_COLUMN_TITLES.has(g.title))
 
   return (
     <Modal>
@@ -193,30 +221,31 @@ export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
         paddingY={1}
         gap={1}
       >
-        <Text color={theme.colors.accent} bold>
-          Keyboard Shortcuts
-        </Text>
-        <Divider />
-        <Box flexDirection="column" gap={1}>
-          {shortcutGroups.map((group) => (
-            <Box key={group.title} flexDirection="column">
-              <Text color={theme.colors.secondary} bold>
-                {group.title}
-              </Text>
-              {group.items.map((s) => (
-                <Box key={`${group.title}-${s.key}-${s.description}`} gap={2}>
-                  <Box width={16}>
-                    <Text color={theme.colors.warning}>{s.key}</Text>
-                  </Box>
-                  <Text color={theme.colors.text}>{s.description}</Text>
-                </Box>
-              ))}
-            </Box>
-          ))}
+        <Box justifyContent="space-between">
+          <Text color={theme.colors.accent} bold>
+            Keyboard Shortcuts
+          </Text>
+          <Text color={theme.colors.muted}>
+            {shortcutGroups.length} sections
+          </Text>
+        </Box>
+        <Box gap={2} alignItems="flex-start">
+          {/* Left column */}
+          <Box flexDirection="column" flexGrow={1} gap={1}>
+            {leftGroups.map((g) => (
+              <ShortcutGroupView key={g.title} group={g} theme={theme} />
+            ))}
+          </Box>
+          {/* Right column */}
+          <Box flexDirection="column" flexGrow={1} gap={1}>
+            {rightGroups.map((g) => (
+              <ShortcutGroupView key={g.title} group={g} theme={theme} />
+            ))}
+          </Box>
         </Box>
         <Divider />
         <Text color={theme.colors.muted} dimColor>
-          Press ? to close  |  Case matters: R/r, S/s, E/e, X/x
+          ?:close │ j/k:scroll │ Case matters: R/r, S/s, E/e, X/x
         </Text>
       </Box>
     </Modal>

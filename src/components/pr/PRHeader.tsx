@@ -34,9 +34,10 @@ export function PRHeader({ pr, prIndex, prTotal, hasNotes }: PRHeaderProps): Rea
 
   return (
     <Box flexDirection="column" paddingX={1} paddingY={1}>
+      {/* Line 1: [STATE] #number  title  [Notes] [CONFLICTS] (idx/total) */}
       <Box gap={1}>
-        <Text color={stateColor} bold>
-          [{stateLabel}]
+        <Text color={stateColor} bold inverse>
+          {stateLabel}
         </Text>
         <Text color={theme.colors.accent} bold>
           #{pr.number}
@@ -56,7 +57,7 @@ export function PRHeader({ pr, prIndex, prTotal, hasNotes }: PRHeaderProps): Rea
         )}
         {pr.mergeable === null && (
           <Text color={theme.colors.muted}>
-            [Mergeability unknown]
+            [?merge]
           </Text>
         )}
         {prTotal !== undefined && prIndex !== undefined && prTotal > 1 && (
@@ -65,28 +66,30 @@ export function PRHeader({ pr, prIndex, prTotal, hasNotes }: PRHeaderProps): Rea
           </Text>
         )}
       </Box>
+      {/* Line 2: user → head → base · opened N ago · +adds -dels · N files · N comments */}
       <Box gap={1} paddingLeft={2}>
         <Text color={theme.colors.secondary}>{pr.user.login}</Text>
-        <Text color={theme.colors.muted}>wants to merge</Text>
+        <Text color={theme.colors.muted}>→</Text>
         <Text color={theme.colors.info}>{pr.head.ref}</Text>
-        <Text color={theme.colors.muted}>into</Text>
+        <Text color={theme.colors.muted}>→</Text>
         <Text color={theme.colors.info}>{pr.base.ref}</Text>
-      </Box>
-      <Box gap={2} paddingLeft={2}>
-        <Text color={theme.colors.muted}>
-          opened {timeAgo(pr.created_at)}
-        </Text>
+        <Text color={theme.colors.muted}>·</Text>
+        <Text color={theme.colors.muted}>opened {timeAgo(pr.created_at)}</Text>
+        <Text color={theme.colors.muted}>·</Text>
         <Text color={theme.colors.diffAdd}>+{pr.additions}</Text>
         <Text color={theme.colors.diffDel}>-{pr.deletions}</Text>
-        <Text color={theme.colors.muted}>
-          {pr.changed_files} files changed
-        </Text>
+        <Text color={theme.colors.muted}>·</Text>
+        <Text color={theme.colors.muted}>{pr.changed_files} files</Text>
         {totalComments > 0 && (
-          <Text color={theme.colors.info}>
-            {totalComments} comment{totalComments !== 1 ? 's' : ''}
-          </Text>
+          <>
+            <Text color={theme.colors.muted}>·</Text>
+            <Text color={theme.colors.info}>
+              {totalComments} 💬
+            </Text>
+          </>
         )}
       </Box>
+      {/* Line 3: labels (only when present) */}
       {pr.labels.length > 0 && (
         <Box gap={1} paddingLeft={2}>
           {pr.labels.map((label) => {

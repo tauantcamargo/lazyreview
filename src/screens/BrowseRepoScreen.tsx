@@ -26,6 +26,21 @@ import { toConfiguredHosts } from '../services/Config'
 import { useConfig } from '../hooks/useConfig'
 import type { PullRequest } from '../models/pull-request'
 
+/**
+ * Return a short provider badge like [GH], [GL], [BB], [AZ], [GT].
+ * Returns empty string when provider is unknown or undefined.
+ */
+export function providerBadge(provider: string | undefined): string {
+  const badges: Readonly<Record<string, string>> = {
+    github: '[GH]',
+    gitlab: '[GL]',
+    bitbucket: '[BB]',
+    azure: '[AZ]',
+    gitea: '[GT]',
+  }
+  return provider ? (badges[provider] ?? '') : ''
+}
+
 interface ParsedRepoUrl {
   readonly owner: string
   readonly repo: string
@@ -327,10 +342,7 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
 
       {bookmarkedRepos.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
-          <Text color={theme.colors.secondary} bold>
-            Bookmarks
-          </Text>
-          <Divider />
+          <Divider title="Bookmarks" />
           {bookmarkedRepos.map((bookmark, index) => {
             const isSelected = !isInputFocused && selectedIndex === index
             return (
@@ -340,7 +352,7 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
                   bold={isSelected}
                   backgroundColor={isSelected ? theme.colors.selection : undefined}
                 >
-                  {isSelected ? '> ' : '  '}
+                  {isSelected ? '▶ ' : '  '}
                   {bookmark.owner}/{bookmark.repo}
                 </Text>
               </Box>
@@ -351,10 +363,7 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
 
       {filteredRecent.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
-          <Text color={theme.colors.secondary} bold>
-            Recent
-          </Text>
-          <Divider />
+          <Divider title="Recent" />
           {filteredRecent.map((repo, index) => {
             const listIdx = bookmarkedRepos.length + index
             const isSelected = !isInputFocused && selectedIndex === listIdx
@@ -365,7 +374,7 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
                   bold={isSelected}
                   backgroundColor={isSelected ? theme.colors.selection : undefined}
                 >
-                  {isSelected ? '> ' : '  '}
+                  {isSelected ? '▶ ' : '  '}
                   {repo.owner}/{repo.repo}
                 </Text>
                 <Text color={theme.colors.muted} dimColor>

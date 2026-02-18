@@ -184,7 +184,7 @@ export function buildHints(
       if (!bound) return `?:${entry.label}`
       return `${formatCompactKey(bound)}:${entry.label}`
     })
-    .join('  ')
+    .join(' │ ')
 }
 
 export function getContextHints(

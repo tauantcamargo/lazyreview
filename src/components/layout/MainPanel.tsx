@@ -17,7 +17,7 @@ export function MainPanel({
     <Box
       flexDirection="column"
       flexGrow={1}
-      borderStyle="single"
+      borderStyle={isActive ? 'double' : 'single'}
       borderColor={isActive ? theme.colors.accent : theme.colors.border}
     >
       {children}

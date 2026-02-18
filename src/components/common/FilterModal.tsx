@@ -55,7 +55,7 @@ function FacetSection({
     <Box flexDirection="column">
       <Box gap={1}>
         <Text color={isFocused ? accentColor : mutedColor} bold={isFocused}>
-          {isFocused ? '> ' : '  '}{title}
+          {isFocused ? '▶ ' : '  '}{title}
         </Text>
         {selectedValue && (
           <Text color={warningColor}>[{selectedValue}]</Text>
@@ -75,7 +75,7 @@ function FacetSection({
                   backgroundColor={isHighlighted ? selectionColor : undefined}
                   bold={isSelected || isHighlighted}
                 >
-                  {isHighlighted ? '>' : ' '} {isSelected ? '[x]' : '[ ]'} {opt.value}
+                  {isHighlighted ? '▶' : ' '} {isSelected ? '✓' : '○'} {opt.value}
                 </Text>
                 <Text color={mutedColor}>({opt.count})</Text>
               </Box>
@@ -232,7 +232,7 @@ export function FilterModal({
               color={isSearchField ? theme.colors.accent : theme.colors.muted}
               bold={isSearchField}
             >
-              {isSearchField ? '> ' : '  '}Search
+              {isSearchField ? '▶ ' : '  '}Search
             </Text>
           </Box>
           <Box paddingLeft={1}>

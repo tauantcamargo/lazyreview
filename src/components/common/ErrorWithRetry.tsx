@@ -144,19 +144,33 @@ export function ErrorWithRetry({
   )
 
   return (
-    <Box flexDirection="column" padding={1} gap={1}>
-      <Text color={theme.colors.error}>Error: {message}</Text>
+    <Box
+      flexDirection="column"
+      padding={1}
+      gap={1}
+      borderStyle="single"
+      borderColor={theme.colors.error}
+    >
+      <Box gap={1}>
+        <Text color={theme.colors.error} bold>✗</Text>
+        <Text color={theme.colors.error}>{message}</Text>
+      </Box>
       {hint && (
-        <Box flexDirection="column">
+        <Box flexDirection="column" paddingLeft={2} gap={0}>
           <Text color={theme.colors.warning}>{hint.suggestion}</Text>
           {hint.detail && (
-            <Text color={theme.colors.muted}>{hint.detail}</Text>
+            <Text color={theme.colors.muted} dimColor>{hint.detail}</Text>
           )}
         </Box>
       )}
-      <Text color={theme.colors.muted}>
-        Press <Text color={theme.colors.accent} bold>r</Text> to retry
-      </Text>
+      <Box paddingLeft={2} gap={1}>
+        <Text color={theme.colors.muted}>Press</Text>
+        <Text color={theme.colors.accent} bold>r</Text>
+        <Text color={theme.colors.muted}>to retry</Text>
+        <Text color={theme.colors.muted}>·</Text>
+        <Text color={theme.colors.accent} bold>?</Text>
+        <Text color={theme.colors.muted}>for help</Text>
+      </Box>
     </Box>
   )
 }

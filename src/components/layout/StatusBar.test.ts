@@ -137,7 +137,7 @@ describe('buildHints', () => {
       { ctx: 'prList', action: 'sortPRs', label: 'sort' },
     ] as const
     const result = buildHints(entries)
-    expect(result).toBe('/:filter  s:sort')
+    expect(result).toBe('/:filter │ s:sort')
   })
 
   it('uses fixed key when provided', () => {

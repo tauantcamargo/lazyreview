@@ -5,6 +5,19 @@ import { useTheme } from '../../theme/index'
 import { Modal } from './Modal'
 import type { SortField, SortDirection } from '../../hooks/useFilter'
 
+/**
+ * Format a sort option label with direction arrow when it's the active sort.
+ */
+export function formatSortLabel(
+  key: SortField,
+  label: string,
+  currentSort: SortField,
+  direction: SortDirection,
+): string {
+  if (key !== currentSort) return label
+  return `${label} ${direction === 'desc' ? '↓' : '↑'}`
+}
+
 const SORT_OPTIONS: readonly { key: SortField; label: string }[] = [
   { key: 'updated', label: 'Last Updated' },
   { key: 'created', label: 'Created Date' },
@@ -39,7 +52,7 @@ export function SortModal({
   const items = useMemo(
     () =>
       SORT_OPTIONS.map((option) => ({
-        label: `${option.label}${option.key === currentSort ? (sortDirection === 'desc' ? ' ↓' : ' ↑') : ''}`,
+        label: formatSortLabel(option.key, option.label, currentSort, sortDirection),
         value: option.key,
       })),
     [currentSort, sortDirection],

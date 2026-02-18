@@ -10,6 +10,38 @@ import { usePRNotes } from '../../hooks/usePRNotes'
 import { contrastForeground, normalizeHexColor } from '../../utils/color'
 import { parseGitHubPRUrl, extractRepoFromPRUrl } from '../../utils/git'
 
+/**
+ * Returns a short state badge for a PR: OPEN, DRFT, MRGD, or CLSD.
+ */
+export function getStateBadge(item: Pick<PullRequest, 'state' | 'draft' | 'merged'>): string {
+  if (item.draft) return 'DRFT'
+  if (item.merged) return 'MRGD'
+  if (item.state === 'open') return 'OPEN'
+  return 'CLSD'
+}
+
+/**
+ * Returns the theme color key for a PR state.
+ */
+export function getStateColor(
+  item: Pick<PullRequest, 'state' | 'draft' | 'merged'>,
+  theme: { colors: { muted: string; secondary: string; success: string; error: string } },
+): string {
+  if (item.draft) return theme.colors.muted
+  if (item.merged) return theme.colors.secondary
+  if (item.state === 'open') return theme.colors.success
+  return theme.colors.error
+}
+
+/**
+ * Formats additions and deletions as a short diff stat string.
+ * Returns empty string when both are zero.
+ */
+export function formatDiffStats(additions: number, deletions: number): string {
+  if (additions === 0 && deletions === 0) return ''
+  return `+${additions} -${deletions}`
+}
+
 /** Build a notes key from a PR's owner/repo and number. */
 function buildNotesKey(item: PullRequest): string {
   const parsed = parseGitHubPRUrl(item.html_url)
@@ -39,29 +71,12 @@ function CompactPRListItem({
   const notesKey = buildNotesKey(item)
   const { hasNote: hasNotes } = usePRNotes(notesKey)
 
-  const stateColor = item.draft
-    ? theme.colors.muted
-    : item.merged
-      ? theme.colors.secondary
-      : item.state === 'open'
-        ? theme.colors.success
-        : theme.colors.error
-
-  const stateIcon = item.draft
-    ? 'D'
-    : item.merged
-      ? 'M'
-      : item.state === 'open'
-        ? 'O'
-        : 'C'
-
+  const stateColor = getStateColor(item, theme)
   const textColor = isFocus
     ? theme.colors.listSelectedFg
     : unread
       ? theme.colors.accent
       : theme.colors.text
-
-  const commentText = item.comments > 0 ? `${item.comments} comments` : null
 
   return (
     <Box paddingX={1} gap={1}>
@@ -70,11 +85,11 @@ function CompactPRListItem({
           {isSelected ? '[x]' : '[ ]'}
         </Text>
       )}
-      <Text color={stateColor} bold>
-        {stateIcon}
+      <Text color={stateColor} bold inverse>
+        {getStateBadge(item)}
       </Text>
       {unread && (
-        <Text color={theme.colors.accent} bold>*</Text>
+        <Text color={theme.colors.accent} bold>●</Text>
       )}
       {hasNotes && (
         <Text color={theme.colors.warning}>N</Text>
@@ -85,14 +100,14 @@ function CompactPRListItem({
       <Text color={textColor} bold={isFocus || unread} inverse={isFocus}>
         {item.title}
       </Text>
-      <Text color={theme.colors.muted}>|</Text>
+      <Text color={theme.colors.muted}>·</Text>
       <Text color={theme.colors.muted}>{item.user.login}</Text>
-      <Text color={theme.colors.muted}>|</Text>
+      <Text color={theme.colors.muted}>·</Text>
       <Text color={theme.colors.muted}>{timeAgo(item.created_at)}</Text>
-      {commentText && (
+      {item.comments > 0 && (
         <>
-          <Text color={theme.colors.muted}>|</Text>
-          <Text color={theme.colors.muted}>{commentText}</Text>
+          <Text color={theme.colors.muted}>·</Text>
+          <Text color={theme.colors.muted}>{item.comments} 💬</Text>
         </>
       )}
     </Box>
@@ -111,35 +126,23 @@ function FullPRListItem({
   const notesKey = buildNotesKey(item)
   const { hasNote: hasNotes } = usePRNotes(notesKey)
 
-  const stateColor = item.draft
-    ? theme.colors.muted
-    : item.merged
-      ? theme.colors.secondary
-      : item.state === 'open'
-        ? theme.colors.success
-        : theme.colors.error
-
-  const stateIcon = item.draft
-    ? 'D'
-    : item.merged
-      ? 'M'
-      : item.state === 'open'
-        ? 'O'
-        : 'C'
+  const stateColor = getStateColor(item, theme)
   const repoName = extractRepoFromPRUrl(item.html_url)
   const ownerRepo = parseGitHubPRUrl(item.html_url)
   const headSha = item.head.sha
+  const diffStats = formatDiffStats(item.additions ?? 0, item.deletions ?? 0)
 
   return (
     <Box flexDirection="column" paddingX={1}>
+      {/* Line 1: badge · number · title · labels · status icons */}
       <Box gap={1}>
         {isMultiSelect && (
           <Text color={isSelected ? theme.colors.success : theme.colors.muted} bold={isSelected}>
             {isSelected ? '[x]' : '[ ]'}
           </Text>
         )}
-        <Text color={stateColor} bold>
-          {stateIcon}
+        <Text color={stateColor} bold inverse>
+          {getStateBadge(item)}
         </Text>
         {ownerRepo && headSha && (
           <CheckStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} sha={headSha} enabled={isFocus} />
@@ -148,7 +151,7 @@ function FullPRListItem({
           <ReviewStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} prNumber={item.number} enabled={isFocus} />
         )}
         {unread && (
-          <Text color={theme.colors.accent} bold>*</Text>
+          <Text color={theme.colors.accent} bold>●</Text>
         )}
         {hasNotes && (
           <Text color={theme.colors.warning}>N</Text>
@@ -188,36 +191,44 @@ function FullPRListItem({
           </Box>
         )}
       </Box>
+      {/* Line 2: repo · author · assignees · time · reviewers · diff stats · comments */}
       <Box gap={1} paddingLeft={isMultiSelect ? 7 : 3}>
         {repoName && (
           <>
             <Text color={theme.colors.secondary}>{repoName}</Text>
-            <Text color={theme.colors.muted}>|</Text>
+            <Text color={theme.colors.muted}>·</Text>
           </>
         )}
         <Text color={theme.colors.muted}>{item.user.login}</Text>
         {item.assignees && item.assignees.length > 0 && (
           <>
-            <Text color={theme.colors.muted}>|</Text>
+            <Text color={theme.colors.muted}>·</Text>
             <Text color={theme.colors.warning}>
               @{item.assignees.map((a) => a.login).join(' @')}
             </Text>
           </>
         )}
-        <Text color={theme.colors.muted}>|</Text>
+        <Text color={theme.colors.muted}>·</Text>
         <Text color={theme.colors.muted}>{timeAgo(item.created_at)}</Text>
         {item.requested_reviewers.length > 0 && (
           <>
-            <Text color={theme.colors.muted}>|</Text>
+            <Text color={theme.colors.muted}>·</Text>
             <Text color={theme.colors.info}>
               {item.requested_reviewers.map((r) => r.login).join(', ')}
             </Text>
           </>
         )}
+        {diffStats && (
+          <>
+            <Text color={theme.colors.muted}>·</Text>
+            <Text color={theme.colors.diffAdd}>+{item.additions ?? 0}</Text>
+            <Text color={theme.colors.diffDel}>-{item.deletions ?? 0}</Text>
+          </>
+        )}
         {item.comments > 0 && (
           <>
-            <Text color={theme.colors.muted}>|</Text>
-            <Text color={theme.colors.muted}>{item.comments} comments</Text>
+            <Text color={theme.colors.muted}>·</Text>
+            <Text color={theme.colors.muted}>{item.comments} 💬</Text>
           </>
         )}
       </Box>

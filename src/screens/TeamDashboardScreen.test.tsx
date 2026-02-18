@@ -144,7 +144,7 @@ describe('TeamDashboardScreen', () => {
     expect(frame).toContain('Escape: back')
   })
 
-  it('shows selection indicator for first member', () => {
+  it('shows ▶ selection indicator for first member', () => {
     const members: readonly TeamMember[] = [
       { username: 'alice' },
       { username: 'bob' },
@@ -161,8 +161,42 @@ describe('TeamDashboardScreen', () => {
       ),
     )
     const frame = lastFrame() ?? ''
-    // First item should have ">" indicator
-    expect(frame).toContain('> ')
+    expect(frame).toContain('▶')
+  })
+
+  it('uses ─ box-drawing separator instead of dashes', () => {
+    const members: readonly TeamMember[] = [{ username: 'alice' }]
+    const { lastFrame } = render(
+      themed(
+        <TeamDashboardScreen
+          isActive={true}
+          members={members}
+          prs={[]}
+          onBack={vi.fn()}
+          onSelectMember={vi.fn()}
+        />,
+      ),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('─')
+  })
+
+  it('uses · as separator in summary bar', () => {
+    const members: readonly TeamMember[] = [{ username: 'alice' }]
+    const prs = [makePR({ user: makeUser('alice') })]
+    const { lastFrame } = render(
+      themed(
+        <TeamDashboardScreen
+          isActive={true}
+          members={members}
+          prs={prs}
+          onBack={vi.fn()}
+          onSelectMember={vi.fn()}
+        />,
+      ),
+    )
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('·')
   })
 
   it('calls onBack when Escape is pressed', () => {

@@ -50,7 +50,7 @@ describe('TopBar', () => {
     )
     const frame = lastFrame() ?? ''
     expect(frame).toContain('LazyReview')
-    expect(frame).toContain('>')
+    expect(frame).toContain('›')
     expect(frame).toContain('For Review')
   })
 
@@ -69,7 +69,7 @@ describe('TopBar', () => {
     const frame = lastFrame() ?? ''
     expect(frame).toContain('LazyReview')
     expect(frame).toContain('For Review')
-    expect(frame).toContain('PR #42: Fix auth bug')
+    expect(frame).toContain('#42: Fix auth bug')
   })
 
   it('truncates long PR titles', () => {
@@ -95,7 +95,7 @@ describe('TopBar', () => {
       themed(<TopBar username="alice" provider="github" />),
     )
     const frame = lastFrame() ?? ''
-    expect(frame).toContain('connected')
+    expect(frame).toContain('●')
   })
 
   it('shows rate-limited connection status', () => {
@@ -203,10 +203,10 @@ describe('Sidebar', () => {
       themed(<Sidebar selectedIndex={0} visible={true} isActive={true} counts={counts} />),
     )
     const frame = lastFrame() ?? ''
-    expect(frame).toContain('(5)')
-    expect(frame).toContain('(3)')
-    expect(frame).toContain('(2)')
-    expect(frame).toContain('(10)')
+    expect(frame).toContain('·· 5')
+    expect(frame).toContain('·· 3')
+    expect(frame).toContain('·· 2')
+    expect(frame).toContain('·· 10')
   })
 
   it('renders unread badge for For Review', () => {
@@ -222,7 +222,7 @@ describe('Sidebar', () => {
       themed(<Sidebar selectedIndex={0} visible={true} isActive={true} counts={counts} />),
     )
     const frame = lastFrame() ?? ''
-    expect(frame).toContain('*2 new*')
+    expect(frame).toContain('2 new')
   })
 
   it('does not show counts when null (loading)', () => {

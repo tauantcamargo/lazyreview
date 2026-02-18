@@ -13,7 +13,7 @@ describe('ErrorWithRetry', () => {
     const { lastFrame } = renderWithTheme(
       <ErrorWithRetry message="Something went wrong" onRetry={() => {}} />,
     )
-    expect(lastFrame()).toContain('Error: Something went wrong')
+    expect(lastFrame()).toContain('Something went wrong')
   })
 
   it('renders retry hint', () => {

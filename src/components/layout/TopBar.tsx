@@ -26,10 +26,10 @@ function connectionColor(status: ConnectionStatus): string {
   }
 }
 
-function connectionLabel(status: ConnectionStatus): string {
+function connectionLabel(status: ConnectionStatus): string | null {
   switch (status) {
     case 'connected':
-      return 'connected'
+      return null // dot-only when connected
     case 'rate-limited':
       return 'rate limited'
     case 'error':
@@ -94,15 +94,18 @@ export function TopBar({
 }: TopBarProps): React.ReactElement {
   const theme = useTheme()
 
-  // Build breadcrumb segments
+  // Build breadcrumb segments — provider badge leads the trail
+  const badge = providerBadge(provider)
   const breadcrumbs: readonly string[] = [
-    'LazyReview',
+    `${badge} LazyReview`,
     ...(screenName ? [screenName] : repoPath ? [repoPath] : []),
     ...(browseRepoPath ? [browseRepoPath] : []),
     ...(prNumber !== undefined && prTitle
-      ? [`PR #${prNumber}: ${truncate(prTitle, 40)}`]
+      ? [`#${prNumber}: ${truncate(prTitle, 30)}`]
       : []),
   ]
+
+  const label = connectionLabel(connectionStatus)
 
   return (
     <Box
@@ -115,7 +118,7 @@ export function TopBar({
         {breadcrumbs.map((segment, i) => (
           <React.Fragment key={i}>
             {i > 0 && (
-              <Text color={theme.colors.muted}> {'>'} </Text>
+              <Text color={theme.colors.border}> {'›'} </Text>
             )}
             <Text
               color={i === 0 ? theme.colors.accent : theme.colors.text}
@@ -127,12 +130,8 @@ export function TopBar({
         ))}
       </Box>
       <Box gap={1}>
-        <Text color={connectionColor(connectionStatus)}>
-          {'●'}
-        </Text>
-        <Text color={theme.colors.muted}>{connectionLabel(connectionStatus)}</Text>
-        <Text color={theme.colors.muted}>│</Text>
-        <Text color={providerColor(provider)} bold>{providerBadge(provider)}</Text>
+        <Text color={connectionColor(connectionStatus)}>{'●'}</Text>
+        {label && <Text color={theme.colors.muted}>{label}</Text>}
         <Text color={theme.colors.muted}>│</Text>
         <Text color={theme.colors.secondary}>{username}</Text>
       </Box>

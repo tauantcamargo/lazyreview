@@ -3,6 +3,18 @@ import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../../theme/index'
 import { Modal } from '../common/Modal'
 
+const PROGRESS_WIDTH = 16
+
+/**
+ * Build a progress bar string for the onboarding stepper.
+ * e.g. formatStepProgress(1, 4) → "Step 1 of 4  ━━━━○○○○○○○○"
+ */
+export function formatStepProgress(current: number, total: number, width = PROGRESS_WIDTH): string {
+  const filled = Math.round((current / total) * width)
+  const bar = '━'.repeat(filled) + '○'.repeat(width - filled)
+  return `Step ${current} of ${total}  ${bar}`
+}
+
 interface OnboardingStep {
   readonly title: string
   readonly lines: readonly string[]
@@ -121,6 +133,8 @@ export function OnboardingScreen({
     return <></>
   }
 
+  const progressBar = formatStepProgress(stepIndex + 1, totalSteps)
+
   return (
     <Modal>
       <Box
@@ -133,11 +147,24 @@ export function OnboardingScreen({
         gap={1}
         width={64}
       >
-        <Text color={theme.colors.accent} bold>
-          {currentStep.title}
-        </Text>
+        {/* Header: title + step progress bar */}
+        <Box justifyContent="space-between" alignItems="center">
+          <Text color={theme.colors.accent} bold>
+            {currentStep.title}
+          </Text>
+          <Text color={theme.colors.muted} dimColor>
+            {progressBar}
+          </Text>
+        </Box>
 
-        <Box flexDirection="column">
+        {/* Content */}
+        <Box
+          flexDirection="column"
+          borderStyle="single"
+          borderColor={theme.colors.border}
+          paddingX={1}
+          paddingY={0}
+        >
           {currentStep.lines.map((line, i) => (
             <Text key={i} color={line === '' ? undefined : theme.colors.text}>
               {line === '' ? ' ' : line}
@@ -145,34 +172,21 @@ export function OnboardingScreen({
           ))}
         </Box>
 
-        <Box justifyContent="space-between" marginTop={1}>
-          <Text color={theme.colors.muted}>
-            Step {stepIndex + 1} of {totalSteps}
-          </Text>
+        {/* Footer nav hints */}
+        <Box justifyContent="space-between">
           <Box gap={2}>
             <Text color={theme.colors.muted} dimColor>
               Esc: skip
             </Text>
             {stepIndex > 0 && (
               <Text color={theme.colors.muted} dimColor>
-                Left: back
+                ←: back
               </Text>
             )}
-            <Text color={theme.colors.info}>
-              {isLastStep ? 'Enter: finish' : 'Enter: next'}
-            </Text>
           </Box>
-        </Box>
-
-        <Box>
-          {ONBOARDING_STEPS.map((_, i) => (
-            <Text
-              key={i}
-              color={i === stepIndex ? theme.colors.accent : theme.colors.border}
-            >
-              {i === stepIndex ? ' ● ' : ' ○ '}
-            </Text>
-          ))}
+          <Text color={theme.colors.info}>
+            {isLastStep ? 'Enter: finish →' : 'Enter: next →'}
+          </Text>
         </Box>
       </Box>
     </Modal>

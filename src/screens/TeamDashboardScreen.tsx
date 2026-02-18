@@ -85,13 +85,18 @@ export function TeamDashboardScreen({
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Box marginBottom={1}>
+      <Box marginBottom={1} gap={1}>
         <Text color={theme.colors.accent} bold>
           Team Dashboard
         </Text>
         <Text color={theme.colors.muted}>
-          {' '}
-          ({totalOpen} open, {totalPending} pending reviews)
+          {members.length} member{members.length !== 1 ? 's' : ''}
+        </Text>
+        <Text color={theme.colors.muted}>·</Text>
+        <Text color={theme.colors.text}>{totalOpen} open</Text>
+        <Text color={theme.colors.muted}>·</Text>
+        <Text color={totalPending > 0 ? theme.colors.warning : theme.colors.muted}>
+          {totalPending} pending reviews
         </Text>
       </Box>
 
@@ -105,7 +110,7 @@ export function TeamDashboardScreen({
 
       <Box marginBottom={1}>
         <Text color={theme.colors.border}>
-          {'-'.repeat(COL_USERNAME + COL_AUTHORED + COL_REVIEWS)}
+          {'─'.repeat(COL_USERNAME + COL_AUTHORED + COL_REVIEWS)}
         </Text>
       </Box>
 
@@ -120,7 +125,7 @@ export function TeamDashboardScreen({
               }
               bold={isSelected}
             >
-              {isSelected ? '> ' : '  '}
+              {isSelected ? '▶ ' : '  '}
               {padTo(stat.member.username, COL_USERNAME)}
               {rightAlign(String(stat.authoredCount), COL_AUTHORED)}
               {rightAlign(String(stat.reviewCount), COL_REVIEWS)}

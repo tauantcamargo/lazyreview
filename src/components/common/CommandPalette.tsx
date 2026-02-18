@@ -4,6 +4,7 @@ import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from './Modal'
+import { Divider } from './Divider'
 import { fuzzyFilter } from '../../utils/fuzzy-search'
 import type { CommandPaletteAction } from '../../utils/command-palette-actions'
 
@@ -48,11 +49,11 @@ function ActionRow({
       backgroundColor={isSelected ? selectionBg : undefined}
     >
       <Text color={isSelected ? selectionFg : accentColor}>
-        {isSelected ? '>' : ' '}
+        {isSelected ? '▶' : ' '}
       </Text>
       <Box flexGrow={1}>
         <Text color={fgColor} bold={isSelected}>
-          {renderHighlightedText(action.description, matchIndices, fgColor, warningColor)}
+          {renderHighlightedText(action.description, matchIndices, fgColor, accentColor)}
         </Text>
       </Box>
       <Box width={12} justifyContent="flex-end">
@@ -222,6 +223,8 @@ export function CommandPalette({
             placeholder="Type to search actions..."
           />
         </Box>
+
+        <Divider style="single" />
 
         {/* Action list */}
         <Box flexDirection="column">

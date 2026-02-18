@@ -212,11 +212,20 @@ function renderSections(
 ): React.ReactElement[] {
   const elements: React.ReactElement[] = []
 
-  for (const section of SIDEBAR_SECTIONS) {
+  SIDEBAR_SECTIONS.forEach((section, sectionIdx) => {
     const isCollapsed = collapsedSections.has(section.name)
     const isSectionSelected =
       currentNavEntry?.type === 'section' &&
       currentNavEntry.sectionName === section.name
+
+    // Horizontal rule separator between sections
+    if (sectionIdx > 0) {
+      elements.push(
+        <Box key={`sep-${section.name}`} paddingX={1}>
+          <Text color={theme.colors.border}>{'─'.repeat(20)}</Text>
+        </Box>,
+      )
+    }
 
     // Section header
     elements.push(
@@ -230,7 +239,7 @@ function renderSections(
             isSectionSelected ? theme.colors.selection : undefined
           }
         >
-          {isSectionSelected ? '▸ ' : '  '}
+          {isSectionSelected ? '▶ ' : '  '}
           {isCollapsed ? '▸' : '▾'} {section.name}
         </Text>
       </Box>,
@@ -255,20 +264,20 @@ function renderSections(
               bold={isSelected}
               dimColor={!isActive && !isSelected}
             >
-              {isSelected ? '▸ ' : '  '}
+              {isSelected ? '▶ ' : '  '}
               {icon} {label}
             </Text>
             {count !== null && (
-              <Text color={theme.colors.muted}> ({count})</Text>
+              <Text color={theme.colors.muted}> ·· {count}</Text>
             )}
-            {unread !== null && (
-              <Text color={theme.colors.accent}> *{unread} new*</Text>
+            {unread !== null && unread > 0 && (
+              <Text color={theme.colors.accent}> ● {unread} new</Text>
             )}
           </Box>,
         )
       }
     }
-  }
+  })
 
   return elements
 }
@@ -292,12 +301,12 @@ function renderFlatItems(
           bold={isSelected}
           dimColor={!isActive && !isSelected}
         >
-          {isSelected ? '▸ ' : '  '}
+          {isSelected ? '▶ ' : '  '}
           {icon} {label}
         </Text>
-        {count !== null && <Text color={theme.colors.muted}> ({count})</Text>}
-        {unread !== null && (
-          <Text color={theme.colors.accent}> *{unread} new*</Text>
+        {count !== null && <Text color={theme.colors.muted}> ·· {count}</Text>}
+        {unread !== null && unread > 0 && (
+          <Text color={theme.colors.accent}> ● {unread} new</Text>
         )}
       </Box>
     )

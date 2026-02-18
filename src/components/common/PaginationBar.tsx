@@ -12,6 +12,8 @@ interface PaginationBarProps {
   readonly hasPrevPage: boolean
 }
 
+const DOT_THRESHOLD = 5
+
 export function PaginationBar({
   currentPage,
   totalPages,
@@ -34,23 +36,37 @@ export function PaginationBar({
   }
 
   return (
-    <Box paddingX={1} gap={2}>
+    <Box paddingX={1} gap={1} alignItems="center">
+      {/* prev arrow */}
+      <Text color={hasPrevPage ? theme.colors.accent : theme.colors.muted} bold={hasPrevPage}>
+        {'‹'}
+      </Text>
+
+      {/* range display */}
       <Text color={theme.colors.muted}>
         {startIndex + 1}-{endIndex} of {totalItems}
       </Text>
-      <Box gap={1}>
-        <Text color={hasPrevPage ? theme.colors.accent : theme.colors.muted}>
-          {hasPrevPage ? '← [p]rev' : '← prev'}
-        </Text>
-        <Text color={theme.colors.muted}>│</Text>
-        <Text color={theme.colors.text}>
-          Page {currentPage}/{totalPages}
-        </Text>
-        <Text color={theme.colors.muted}>│</Text>
-        <Text color={hasNextPage ? theme.colors.accent : theme.colors.muted}>
-          {hasNextPage ? '[n]ext →' : 'next →'}
-        </Text>
-      </Box>
+
+      {/* page indicator: dots for ≤5 pages, numeric otherwise */}
+      {totalPages <= DOT_THRESHOLD ? (
+        <Box gap={0}>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <Text
+              key={i}
+              color={i + 1 === currentPage ? theme.colors.accent : theme.colors.muted}
+            >
+              {i + 1 === currentPage ? '●' : '○'}
+            </Text>
+          ))}
+        </Box>
+      ) : (
+        <Text color={theme.colors.muted}>{currentPage}/{totalPages}</Text>
+      )}
+
+      {/* next arrow */}
+      <Text color={hasNextPage ? theme.colors.accent : theme.colors.muted} bold={hasNextPage}>
+        {'›'}
+      </Text>
     </Box>
   )
 }
