@@ -4,7 +4,8 @@ import { render } from 'ink-testing-library'
 import { Text } from 'ink'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider, defaultTheme } from '../../theme/index'
-import { TopBar, providerBadge, providerColor } from './TopBar'
+import { TopBar, providerColor } from './TopBar'
+import { providerBadge } from '../../utils/provider-helpers'
 import { Sidebar, SIDEBAR_ITEMS, cycleSidebarMode } from './Sidebar'
 import type { SidebarMode } from './Sidebar'
 import { MainPanel } from './MainPanel'
@@ -149,7 +150,8 @@ describe('providerBadge', () => {
   it('returns [BB] for bitbucket', () => expect(providerBadge('bitbucket')).toBe('[BB]'))
   it('returns [AZ] for azure', () => expect(providerBadge('azure')).toBe('[AZ]'))
   it('returns [GT] for gitea', () => expect(providerBadge('gitea')).toBe('[GT]'))
-  it('returns uppercase abbreviation for unknown', () => expect(providerBadge('custom')).toBe('[CU]'))
+  it('returns empty string for unknown provider', () => expect(providerBadge('custom')).toBe(''))
+  it('returns empty string for undefined', () => expect(providerBadge(undefined)).toBe(''))
 })
 
 describe('providerColor', () => {

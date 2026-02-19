@@ -4,7 +4,7 @@ import { TextInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from './Modal'
-import type { FilterState, SortField, FacetOption } from '../../hooks/useFilter'
+import type { FilterState, FacetOption } from '../../hooks/useFilter'
 
 type FilterField = 'search' | 'repo' | 'author' | 'label'
 
@@ -12,9 +12,6 @@ const FILTER_FIELDS: readonly FilterField[] = ['search', 'repo', 'author', 'labe
 
 interface FilterModalProps {
   readonly filter: FilterState
-  readonly availableRepos: readonly string[]
-  readonly availableAuthors: readonly string[]
-  readonly availableLabels: readonly string[]
   readonly repoFacets: readonly FacetOption[]
   readonly authorFacets: readonly FacetOption[]
   readonly labelFacets: readonly FacetOption[]
@@ -22,8 +19,6 @@ interface FilterModalProps {
   readonly onRepoChange: (repo: string | null) => void
   readonly onAuthorChange: (author: string | null) => void
   readonly onLabelChange: (label: string | null) => void
-  readonly onSortChange: (sortBy: SortField) => void
-  readonly onSortDirectionToggle: () => void
   readonly onClear: () => void
   readonly onClose: () => void
 }

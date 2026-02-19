@@ -1,6 +1,7 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
+import { providerBadge } from '../../utils/provider-helpers'
 
 export type ConnectionStatus = 'connected' | 'rate-limited' | 'error'
 
@@ -40,26 +41,6 @@ function connectionLabel(status: ConnectionStatus): string | null {
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text
   return `${text.slice(0, maxLen - 1)}~`
-}
-
-/**
- * Short provider badge label for the status area.
- */
-export function providerBadge(provider: string): string {
-  switch (provider) {
-    case 'github':
-      return '[GH]'
-    case 'gitlab':
-      return '[GL]'
-    case 'bitbucket':
-      return '[BB]'
-    case 'azure':
-      return '[AZ]'
-    case 'gitea':
-      return '[GT]'
-    default:
-      return `[${provider.slice(0, 2).toUpperCase()}]`
-  }
 }
 
 /**

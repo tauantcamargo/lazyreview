@@ -20,7 +20,7 @@ import { formatStepProgress } from '../layout/OnboardingScreen'
 import { formatTabName } from '../pr/PRTabs'
 import { MainPanel } from '../layout/MainPanel'
 import { SettingRow } from '../settings/SettingRow'
-import { providerBadge } from '../../screens/BrowseRepoScreen'
+import { providerBadge } from '../../utils/provider-helpers'
 import { formatSortLabel } from '../common/SortModal'
 
 function themed(el: React.ReactElement) {

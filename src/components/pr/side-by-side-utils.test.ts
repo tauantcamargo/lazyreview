@@ -2,9 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   buildSideBySideRows,
   computeSbsSearchMatches,
-  SIDE_BY_SIDE_MIN_WIDTH,
-  type SideBySideRow,
-} from './SideBySideDiffView'
+} from './side-by-side-utils'
 import type { Hunk, DiffLine } from '../../models/diff'
 import type { DiffCommentThread } from './DiffComment'
 
@@ -173,12 +171,6 @@ describe('buildSideBySideRows', () => {
     const rows = buildSideBySideRows([hunk])
     expect(rows).toHaveLength(1)
     expect(rows[0]!.type).toBe('paired')
-  })
-})
-
-describe('SIDE_BY_SIDE_MIN_WIDTH', () => {
-  it('is 100 columns', () => {
-    expect(SIDE_BY_SIDE_MIN_WIDTH).toBe(100)
   })
 })
 

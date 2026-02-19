@@ -10,3 +10,5 @@ CLAUDE.md
 *.token
 *.pem
 *.key
+.worktrees/
+docs/plans/

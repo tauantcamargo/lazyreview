@@ -26,21 +26,6 @@ import { toConfiguredHosts } from '../services/Config'
 import { useConfig } from '../hooks/useConfig'
 import type { PullRequest } from '../models/pull-request'
 
-/**
- * Return a short provider badge like [GH], [GL], [BB], [AZ], [GT].
- * Returns empty string when provider is unknown or undefined.
- */
-export function providerBadge(provider: string | undefined): string {
-  const badges: Readonly<Record<string, string>> = {
-    github: '[GH]',
-    gitlab: '[GL]',
-    bitbucket: '[BB]',
-    azure: '[AZ]',
-    gitea: '[GT]',
-  }
-  return provider ? (badges[provider] ?? '') : ''
-}
-
 interface ParsedRepoUrl {
   readonly owner: string
   readonly repo: string

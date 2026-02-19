@@ -81,7 +81,6 @@ export function PRListScreen({
   const { config } = useConfig()
   const { data: currentUser } = useCurrentUser()
 
-  // Desktop notifications for PR activity
   const notificationsEnabled = config?.notifications ?? true
   useNotifications(
     prs.length > 0 ? prs : undefined,
@@ -122,9 +121,6 @@ export function PRListScreen({
     toggleSortDirection,
     clearFilters,
     hasActiveFilters,
-    availableRepos,
-    availableAuthors,
-    availableLabels,
     repoFacets,
     authorFacets,
     labelFacets,
@@ -156,7 +152,6 @@ export function PRListScreen({
     isActive: !showFilter && !showSort,
   })
 
-  // Derive owner/repo for prefetch from props or selected PR's html_url
   const selectedPRForPrefetch = pageItems[selectedIndex]
   const parsedUrl = useMemo(
     () =>
@@ -170,7 +165,6 @@ export function PRListScreen({
   const prefetchEnabled = config?.prefetchEnabled ?? true
   const prefetchDelayMs = config?.prefetchDelayMs ?? 500
 
-  // Background prefetch of PR detail data for the highlighted item
   usePrefetch({
     items: pageItems,
     selectedIndex,
@@ -193,27 +187,23 @@ export function PRListScreen({
 
   useInput(
     (input, key) => {
-      // Multi-select mode: Escape exits
       if (isMultiSelect && key.escape) {
         exitMultiSelect()
         setStatusMessage('Exited multi-select')
         return
       }
 
-      // V enters multi-select mode
       if (matchesAction(input, key, 'batchSelect') && !isMultiSelect) {
         enterMultiSelect()
         setStatusMessage('MULTI-SELECT mode (Space: toggle, Esc: exit)')
         return
       }
 
-      // Space toggles selection on current item in multi-select mode
       if (isMultiSelect && matchesAction(input, key, 'toggleSelection')) {
         toggleBatchIndex(selectedIndex)
         return
       }
 
-      // Batch operations when in multi-select mode
       if (isMultiSelect && selectedIndices.length > 0) {
         if (matchesAction(input, key, 'batchOpenInBrowser')) {
           const selected = selectedIndices
@@ -251,7 +241,6 @@ export function PRListScreen({
       }
 
       if (key.return && pageItems[selectedIndex]) {
-        // Pass the full display list and absolute index for next/prev navigation
         if (isMultiSelect) {
           exitMultiSelect()
         }
@@ -289,10 +278,7 @@ export function PRListScreen({
         } else {
           setStatusMessage('Failed to copy to clipboard')
         }
-      } else if (
-        !isMultiSelect &&
-        matchesAction(input, key, 'toggleUnread')
-      ) {
+      } else if (!isMultiSelect && matchesAction(input, key, 'toggleUnread')) {
         setShowUnreadOnly((prev) => !prev)
         setStatusMessage(
           showUnreadOnly ? 'Showing all PRs' : 'Showing unread PRs only',
@@ -330,6 +316,19 @@ export function PRListScreen({
     { isActive: !showFilter && !showSort },
   )
 
+  const selectedPR = pageItems[selectedIndex]
+
+  useEffect(() => {
+    if (selectedPR) {
+      setSelectionContext({
+        type: 'pr-list-item',
+        prState: selectedPR.state,
+        prMerged: selectedPR.merged,
+        prDraft: selectedPR.draft,
+      })
+    }
+  }, [selectedPR?.id, selectedPR?.state, selectedPR?.merged, selectedPR?.draft])
+
   if (isLoading && prs.length === 0) {
     return <LoadingIndicator message={loadingMessage} />
   }
@@ -341,20 +340,6 @@ export function PRListScreen({
   if (prs.length === 0) {
     return <EmptyState message={emptyMessage} />
   }
-
-  const selectedPR = pageItems[selectedIndex]
-
-  // Publish selection context for status bar hints
-  useEffect(() => {
-    if (selectedPR) {
-      setSelectionContext({
-        type: 'pr-list-item',
-        prState: selectedPR.state,
-        prMerged: selectedPR.merged,
-        prDraft: selectedPR.draft,
-      })
-    }
-  }, [selectedPR?.id, selectedPR?.state, selectedPR?.merged, selectedPR?.draft])
 
   return (
     <Box flexDirection="column" flexGrow={1}>
@@ -381,12 +366,8 @@ export function PRListScreen({
               [{STATE_LABELS[stateFilter]}]
             </Text>
           )}
-          {showUnreadOnly && (
-            <Text color={theme.colors.accent}>[Unread]</Text>
-          )}
-          {compactMode && (
-            <Text color={theme.colors.info}>[Compact]</Text>
-          )}
+          {showUnreadOnly && <Text color={theme.colors.accent}>[Unread]</Text>}
+          {compactMode && <Text color={theme.colors.info}>[Compact]</Text>}
           {hasActiveFilters && (
             <Text color={theme.colors.warning}>(filtered)</Text>
           )}
@@ -434,9 +415,6 @@ export function PRListScreen({
       {showFilter && (
         <FilterModal
           filter={filter}
-          availableRepos={availableRepos}
-          availableAuthors={availableAuthors}
-          availableLabels={availableLabels}
           repoFacets={repoFacets}
           authorFacets={authorFacets}
           labelFacets={labelFacets}
@@ -444,8 +422,6 @@ export function PRListScreen({
           onRepoChange={setRepo}
           onAuthorChange={setAuthor}
           onLabelChange={setLabel}
-          onSortChange={setSortBy}
-          onSortDirectionToggle={toggleSortDirection}
           onClear={clearFilters}
           onClose={() => setShowFilter(false)}
         />
