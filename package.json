@@ -52,7 +52,7 @@
     "release:major": "./scripts/release.sh major"
   },
   "devDependencies": {
-    "@effect/platform": "^0.77.0",
+    "@effect/platform": "^0.94.5",
     "@inkjs/ui": "^2.0.0",
     "@tanstack/react-query": "^5.66.0",
     "@types/node": "^22.13.0",
