@@ -53,7 +53,7 @@ importers:
         version: 0.4.1(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       ink-scroll-view:
         specifier: ^0.3.5
-        version: 0.3.5(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+        version: 0.3.6(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       ink-select-input:
         specifier: ^6.2.0
         version: 6.2.0(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
@@ -908,11 +908,11 @@ packages:
       ink: '>=6'
       react: '>=19'
 
-  ink-scroll-view@0.3.5:
-    resolution: {integrity: sha512-NDCKQz0DDvcLQEboXf25oGQ4g2VpoO3NojMC/eG+eaqEz9PDiGJyg7Y+HTa4QaCjogvME6A+IwGyV+yTLCGdaw==}
+  ink-scroll-view@0.3.6:
+    resolution: {integrity: sha512-XqLkmFFCA5Ow2lVyvv7q0aVHzB78XojIM8gZMQ3//lvy8ZDpJsXWtTRwsCEsdQHnwvMCDCnKCzgF4xkkzoN8mQ==}
     peerDependencies:
-      ink: '>=6'
-      react: '>=19'
+      ink: ^5 || ^6
+      react: ^18 || ^19
 
   ink-select-input@6.2.0:
     resolution: {integrity: sha512-304fZXxkpYxJ9si5lxRCaX01GNlmPBgOZumXXRnPYbHW/iI31cgQynqk2tRypGLOF1cMIwPUzL2LSm6q4I5rQQ==}
@@ -2337,10 +2337,10 @@ snapshots:
   ink-scroll-list@0.4.1(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
     dependencies:
       ink: 6.7.0(@types/react@19.2.14)(react@19.2.4)
-      ink-scroll-view: 0.3.5(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+      ink-scroll-view: 0.3.6(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       react: 19.2.4
 
-  ink-scroll-view@0.3.5(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
+  ink-scroll-view@0.3.6(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
     dependencies:
       ink: 6.7.0(@types/react@19.2.14)(react@19.2.4)
       react: 19.2.4
