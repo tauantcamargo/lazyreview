@@ -1,6 +1,5 @@
 import React from 'react'
 import { Box, Text } from 'ink'
-import SyntaxHighlight from 'ink-syntax-highlight'
 import { useTheme } from '../../theme/index'
 import type { DiffLine } from '../../models/diff'
 import { stripAnsi } from '../../utils/sanitize'
@@ -65,12 +64,6 @@ export function SideBySideLine({
     scrollOffsetX + contentWidth,
   )
 
-  const canHighlight =
-    !hasWordDiff &&
-    line.type !== 'header' &&
-    language !== undefined &&
-    visibleContent.trim().length > 0
-
   const lineNumStr = lineNum != null ? String(lineNum).padStart(4, ' ') : '    '
 
   if (hasWordDiff) {
@@ -117,13 +110,9 @@ export function SideBySideLine({
         <Text color={textColor} bold={line.type === 'add'}>
           {prefix}
         </Text>
-        {canHighlight ? (
-          <SyntaxHighlight code={visibleContent} language={language} />
-        ) : (
-          <Text color={textColor} bold={line.type === 'add'}>
-            {visibleContent}
-          </Text>
-        )}
+        <Text color={textColor} bold={line.type === 'add'}>
+          {visibleContent}
+        </Text>
       </Text>
     </Box>
   )

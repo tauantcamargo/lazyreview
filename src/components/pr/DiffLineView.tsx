@@ -1,6 +1,5 @@
 import React from 'react'
 import { Box, Text } from 'ink'
-import SyntaxHighlight from 'ink-syntax-highlight'
 import { useTheme } from '../../theme/index'
 import type { DiffLine } from '../../models/diff'
 import type { BlameInfo } from '../../models/blame'
@@ -125,15 +124,9 @@ export function DiffLineView({
     )
   }
 
-  const canHighlight =
-    !hasWordDiff &&
-    (line.type === 'context' || line.type === 'add' || line.type === 'del') &&
-    language !== undefined &&
-    visibleContent.trim().length > 0
-
   return (
     <Box height={1} width="100%" backgroundColor={bgColor} overflow="hidden">
-      <Text wrap="truncate-end" inverse={isFocus}>
+      <Text wrap="truncate-end">
         <Text color={theme.colors.muted} dimColor={blameInfo !== undefined}>
           {blameStr}
           {lineNumStr}{' '}
@@ -141,13 +134,9 @@ export function DiffLineView({
         <Text color={textColor} bold={isFocus || line.type === 'add'}>
           {prefix}
         </Text>
-        {canHighlight ? (
-          <SyntaxHighlight code={visibleContent} language={language} />
-        ) : (
-          <Text color={textColor} bold={isFocus || line.type === 'add'}>
-            {visibleContent}
-          </Text>
-        )}
+        <Text color={textColor} bold={isFocus || line.type === 'add'}>
+          {visibleContent}
+        </Text>
       </Text>
     </Box>
   )
