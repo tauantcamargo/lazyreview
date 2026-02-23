@@ -199,7 +199,7 @@ describe('TeamDashboardScreen', () => {
     expect(frame).toContain('·')
   })
 
-  it('calls onBack when Escape is pressed', () => {
+  it('calls onBack when Escape is pressed', async () => {
     const onBack = vi.fn()
     const members: readonly TeamMember[] = [{ username: 'alice' }]
     const { stdin } = render(
@@ -213,6 +213,7 @@ describe('TeamDashboardScreen', () => {
         />,
       ),
     )
+    await new Promise((resolve) => setTimeout(resolve, 10))
     stdin.write('\x1B')
     expect(onBack).toHaveBeenCalledTimes(1)
   })

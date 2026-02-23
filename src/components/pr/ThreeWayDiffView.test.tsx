@@ -207,7 +207,7 @@ describe('ThreeWayDiffView', () => {
     expect(frame).toContain('Esc')
   })
 
-  it('calls onBack when Escape is pressed', () => {
+  it('calls onBack when Escape is pressed', async () => {
     const onBack = vi.fn()
     const { stdin } = render(
       themed(
@@ -219,6 +219,7 @@ describe('ThreeWayDiffView', () => {
         />,
       ),
     )
+    await new Promise((resolve) => setTimeout(resolve, 10))
     stdin.write('\u001B')
     expect(onBack).toHaveBeenCalledOnce()
   })
