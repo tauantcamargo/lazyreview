@@ -20,7 +20,7 @@ importers:
         version: 0.94.5(effect@3.19.17)
       '@inkjs/ui':
         specifier: ^2.0.0
-        version: 2.0.0(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))
+        version: 2.0.0(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))
       '@tanstack/react-query':
         specifier: ^5.66.0
         version: 5.90.21(react@19.2.4)
@@ -41,28 +41,28 @@ importers:
         version: 3.19.17
       ink:
         specifier: ^6.7.0
-        version: 6.7.0(@types/react@19.2.14)(react@19.2.4)
+        version: 6.8.0(@types/react@19.2.14)(react@19.2.4)
       ink-confirm-input:
         specifier: ^2.0.0
-        version: 2.0.0(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+        version: 2.0.0(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       ink-divider:
         specifier: ^4.1.1
         version: 4.1.1(@types/react@19.2.14)(react@19.2.4)
       ink-scroll-list:
         specifier: ^0.4.1
-        version: 0.4.1(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+        version: 0.4.1(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       ink-scroll-view:
         specifier: ^0.3.5
-        version: 0.3.6(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+        version: 0.3.6(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       ink-select-input:
         specifier: ^6.2.0
-        version: 6.2.0(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+        version: 6.2.0(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       ink-syntax-highlight:
         specifier: ^2.0.2
-        version: 2.0.2(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+        version: 2.0.2(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       ink-tab:
         specifier: ^5.2.0
-        version: 5.2.0(@types/react@19.2.14)(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+        version: 5.2.0(@types/react@19.2.14)(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       ink-testing-library:
         specifier: ^4.0.0
         version: 4.0.0(@types/react@19.2.14)
@@ -97,8 +97,8 @@ packages:
     resolution: {integrity: sha512-3yWxPTq3UQ/FY9p1ErPxIyfT64elWaMvM9lIHnaqpyft63tkxodF5aUElYHrdisWve5cETkh1+KBw1yJuW0aRw==}
     engines: {node: '>=14.13.1'}
 
-  '@alcalzone/ansi-tokenize@0.2.4':
-    resolution: {integrity: sha512-HTgrrTgZ9Jgeo6Z3oqbQ7lifOVvRR14vaDuBGPPUxk9Thm+vObaO4QfYYYWw4Zo5CWQDBEfsinFA6Gre+AqwNQ==}
+  '@alcalzone/ansi-tokenize@0.2.5':
+    resolution: {integrity: sha512-3NX/MpTdroi0aKz134A6RC2Gb2iXVECN4QaAXnvCIxxIm3C3AVB1mkUe8NaaiyvOpDfsrqWhYtj+Q6a62RrTsw==}
     engines: {node: '>=18'}
 
   '@ampproject/remapping@2.3.0':
@@ -857,8 +857,8 @@ packages:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
     engines: {node: 6.* || 8.* || >= 10.*}
 
-  get-east-asian-width@1.4.0:
-    resolution: {integrity: sha512-QZjmEOC+IT1uk6Rx0sX22V6uHWVwbdbxf1faPqJ1QhLdGgsRGCZoyaQBm/piRdJy/D2um6hM1UP7ZEeQ4EkP+Q==}
+  get-east-asian-width@1.5.0:
+    resolution: {integrity: sha512-CQ+bEO+Tva/qlmw24dCejulK5pMzVnUOFOijVogd3KQs07HnRIgp8TGipvCCRT06xeYEbpbgwaCxglFyiuIcmA==}
     engines: {node: '>=18'}
 
   glob@10.5.0:
@@ -968,13 +968,13 @@ packages:
       react-devtools-core:
         optional: true
 
-  ink@6.7.0:
-    resolution: {integrity: sha512-dhB16KfdTO8yYwF2K0E4wPXpL88tdrjjB6w44AZ0ljSktYoUQQcxccq9KL1vpRhk8JIa0A7B7zvjajHqI42teA==}
+  ink@6.8.0:
+    resolution: {integrity: sha512-sbl1RdLOgkO9isK42WCZlJCFN9hb++sX9dsklOvfd1YQ3bQ2AiFu12Q6tFlr0HvEUvzraJntQCCpfEoUe9DSzA==}
     engines: {node: '>=20'}
     peerDependencies:
       '@types/react': '>=19.0.0'
       react: '>=19.0.0'
-      react-devtools-core: ^6.1.2
+      react-devtools-core: '>=6.1.2'
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -1310,6 +1310,10 @@ packages:
     resolution: {integrity: sha512-iOBWFgUX7caIZiuutICxVgX1SdxwAVFFKwt1EvMYYec/NWO5meOJ6K5uQxhrYBdQJne4KxiqZc+KptFOWFSI9w==}
     engines: {node: '>=18'}
 
+  slice-ansi@8.0.0:
+    resolution: {integrity: sha512-stxByr12oeeOyY2BlviTNQlYV5xOj47GirPr4yA1hE9JCtxfQN0+tVbkxwCtYDQWhEKWFHsEK48ORg5jrouCAg==}
+    engines: {node: '>=20'}
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
@@ -1343,8 +1347,8 @@ packages:
     resolution: {integrity: sha512-tsaTIkKW9b4N+AEj+SVA+WhJzV7/zMhcSu78mLKWSk7cXMOSHsBKFWUs0fWwq8QyK3MgJBQRX6Gbi4kYbdvGkQ==}
     engines: {node: '>=18'}
 
-  string-width@8.1.1:
-    resolution: {integrity: sha512-KpqHIdDL9KwYk22wEOg/VIqYbrnLeSApsKT/bSj6Ez7pn3CftUiLAv2Lccpq1ALcpLV9UX1Ppn92npZWu2w/aw==}
+  string-width@8.2.0:
+    resolution: {integrity: sha512-6hJPQ8N0V0P3SNmP6h2J99RLuzrWz2gvT7VnK5tKvrNqJoyS9W4/Fb8mo31UiPvy00z7DQXkP2hnKBVav76thw==}
     engines: {node: '>=20'}
 
   strip-ansi@6.0.1:
@@ -1653,7 +1657,7 @@ snapshots:
       ansi-styles: 6.2.3
       is-fullwidth-code-point: 4.0.0
 
-  '@alcalzone/ansi-tokenize@0.2.4':
+  '@alcalzone/ansi-tokenize@0.2.5':
     dependencies:
       ansi-styles: 6.2.3
       is-fullwidth-code-point: 5.1.0
@@ -1805,13 +1809,13 @@ snapshots:
 
   '@exodus/bytes@1.13.0': {}
 
-  '@inkjs/ui@2.0.0(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))':
+  '@inkjs/ui@2.0.0(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))':
     dependencies:
       chalk: 5.6.2
       cli-spinners: 3.4.0
       deepmerge: 4.3.1
       figures: 6.1.0
-      ink: 6.7.0(@types/react@19.2.14)(react@19.2.4)
+      ink: 6.8.0(@types/react@19.2.14)(react@19.2.4)
 
   '@isaacs/cliui@8.0.2':
     dependencies:
@@ -2119,7 +2123,7 @@ snapshots:
   cli-truncate@5.1.1:
     dependencies:
       slice-ansi: 7.1.2
-      string-width: 8.1.1
+      string-width: 8.2.0
 
   cliui@7.0.4:
     dependencies:
@@ -2277,7 +2281,7 @@ snapshots:
 
   get-caller-file@2.0.5: {}
 
-  get-east-asian-width@1.4.0: {}
+  get-east-asian-width@1.5.0: {}
 
   glob@10.5.0:
     dependencies:
@@ -2316,10 +2320,10 @@ snapshots:
 
   indent-string@5.0.0: {}
 
-  ink-confirm-input@2.0.0(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
+  ink-confirm-input@2.0.0(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
     dependencies:
-      ink: 6.7.0(@types/react@19.2.14)(react@19.2.4)
-      ink-text-input: 3.3.0(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+      ink: 6.8.0(@types/react@19.2.14)(react@19.2.4)
+      ink-text-input: 3.3.0(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       prop-types: 15.8.1
       react: 19.2.4
       yn: 3.1.1
@@ -2334,33 +2338,33 @@ snapshots:
       - react-devtools-core
       - utf-8-validate
 
-  ink-scroll-list@0.4.1(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
+  ink-scroll-list@0.4.1(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
     dependencies:
-      ink: 6.7.0(@types/react@19.2.14)(react@19.2.4)
-      ink-scroll-view: 0.3.6(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
+      ink: 6.8.0(@types/react@19.2.14)(react@19.2.4)
+      ink-scroll-view: 0.3.6(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4)
       react: 19.2.4
 
-  ink-scroll-view@0.3.6(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
+  ink-scroll-view@0.3.6(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
     dependencies:
-      ink: 6.7.0(@types/react@19.2.14)(react@19.2.4)
+      ink: 6.8.0(@types/react@19.2.14)(react@19.2.4)
       react: 19.2.4
 
-  ink-select-input@6.2.0(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
+  ink-select-input@6.2.0(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
     dependencies:
       figures: 6.1.0
-      ink: 6.7.0(@types/react@19.2.14)(react@19.2.4)
+      ink: 6.8.0(@types/react@19.2.14)(react@19.2.4)
       react: 19.2.4
       to-rotated: 1.0.0
 
-  ink-syntax-highlight@2.0.2(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
+  ink-syntax-highlight@2.0.2(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
     dependencies:
       cli-highlight: 2.1.11
-      ink: 6.7.0(@types/react@19.2.14)(react@19.2.4)
+      ink: 6.8.0(@types/react@19.2.14)(react@19.2.4)
       react: 19.2.4
 
-  ink-tab@5.2.0(@types/react@19.2.14)(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
+  ink-tab@5.2.0(@types/react@19.2.14)(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
     dependencies:
-      ink: 6.7.0(@types/react@19.2.14)(react@19.2.4)
+      ink: 6.8.0(@types/react@19.2.14)(react@19.2.4)
       react: 19.2.4
     optionalDependencies:
       '@types/react': 19.2.14
@@ -2369,10 +2373,10 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.14
 
-  ink-text-input@3.3.0(ink@6.7.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
+  ink-text-input@3.3.0(ink@6.8.0(@types/react@19.2.14)(react@19.2.4))(react@19.2.4):
     dependencies:
       chalk: 3.0.0
-      ink: 6.7.0(@types/react@19.2.14)(react@19.2.4)
+      ink: 6.8.0(@types/react@19.2.14)(react@19.2.4)
       prop-types: 15.8.1
       react: 19.2.4
 
@@ -2409,9 +2413,9 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  ink@6.7.0(@types/react@19.2.14)(react@19.2.4):
+  ink@6.8.0(@types/react@19.2.14)(react@19.2.4):
     dependencies:
-      '@alcalzone/ansi-tokenize': 0.2.4
+      '@alcalzone/ansi-tokenize': 0.2.5
       ansi-escapes: 7.3.0
       ansi-styles: 6.2.3
       auto-bind: 5.0.1
@@ -2428,9 +2432,9 @@ snapshots:
       react-reconciler: 0.33.0(react@19.2.4)
       scheduler: 0.27.0
       signal-exit: 3.0.7
-      slice-ansi: 7.1.2
+      slice-ansi: 8.0.0
       stack-utils: 2.0.6
-      string-width: 8.1.1
+      string-width: 8.2.0
       terminal-size: 4.0.1
       type-fest: 5.4.4
       widest-line: 6.0.0
@@ -2449,7 +2453,7 @@ snapshots:
 
   is-fullwidth-code-point@5.1.0:
     dependencies:
-      get-east-asian-width: 1.4.0
+      get-east-asian-width: 1.5.0
 
   is-in-ci@1.0.0: {}
 
@@ -2765,6 +2769,11 @@ snapshots:
       ansi-styles: 6.2.3
       is-fullwidth-code-point: 5.1.0
 
+  slice-ansi@8.0.0:
+    dependencies:
+      ansi-styles: 6.2.3
+      is-fullwidth-code-point: 5.1.0
+
   source-map-js@1.2.1: {}
 
   source-map@0.7.6: {}
@@ -2794,12 +2803,12 @@ snapshots:
   string-width@7.2.0:
     dependencies:
       emoji-regex: 10.6.0
-      get-east-asian-width: 1.4.0
+      get-east-asian-width: 1.5.0
       strip-ansi: 7.1.2
 
-  string-width@8.1.1:
+  string-width@8.2.0:
     dependencies:
-      get-east-asian-width: 1.4.0
+      get-east-asian-width: 1.5.0
       strip-ansi: 7.1.2
 
   strip-ansi@6.0.1:
@@ -3032,7 +3041,7 @@ snapshots:
 
   widest-line@6.0.0:
     dependencies:
-      string-width: 8.1.1
+      string-width: 8.2.0
 
   wrap-ansi@7.0.0:
     dependencies:
