@@ -19,6 +19,7 @@ import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useManualRefresh } from '../hooks/useManualRefresh'
 import { useReadState } from '../hooks/useReadState'
 import { useBatchSelect } from '../hooks/useBatchSelect'
+import { useClosePullRequest } from '../hooks/useGitHubMutations'
 import { useNotifications } from '../hooks/useNotifications'
 import { useConfig } from '../hooks/useConfig'
 import { useCurrentUser } from '../hooks/useGitHub'
@@ -185,6 +186,8 @@ export function PRListScreen({
     clearAll: clearBatchAll,
   } = useBatchSelect()
 
+  const closePR = useClosePullRequest()
+
   useInput(
     (input, key) => {
       if (isMultiSelect && key.escape) {
@@ -235,6 +238,22 @@ export function PRListScreen({
           } else {
             setStatusMessage('Failed to copy to clipboard')
           }
+          exitMultiSelect()
+          return
+        }
+
+        if (matchesAction(input, key, 'batchClose')) {
+          const selected = selectedIndices
+            .map((i) => pageItems[i])
+            .filter((pr): pr is PullRequest => pr !== undefined)
+          const openPRs = selected.filter((pr) => pr.state === 'open' && !pr.merged)
+          for (const pr of openPRs) {
+            const parsed = parseGitHubPRUrl(pr.html_url)
+            if (parsed) {
+              closePR.mutate({ owner: parsed.owner, repo: parsed.repo, prNumber: pr.number })
+            }
+          }
+          setStatusMessage(`Closing ${openPRs.length} PR(s)...`)
           exitMultiSelect()
           return
         }
@@ -373,7 +392,7 @@ export function PRListScreen({
           )}
           <Text color={theme.colors.muted}>
             {isMultiSelect
-              ? 'Space:toggle  o:open  u:read  y:copy  Esc:exit'
+              ? 'Space:toggle  o:open  u:read  y:copy  X:close  Esc:exit'
               : `/ filter  s sort${onStateChange ? '  t state' : ''}  V:multi-select`}
           </Text>
         </Box>

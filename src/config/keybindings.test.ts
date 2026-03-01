@@ -69,6 +69,7 @@ describe('DEFAULT_KEYBINDINGS', () => {
     expect(prList['jumpToUnread']).toBe('U')
     expect(prList['toggleCompactList']).toBe('ctrl+l')
     expect(prList['togglePreview']).toBe('P')
+    expect(prList['batchClose']).toBe('X')
   })
 
   it('prDetail context has expected actions', () => {
