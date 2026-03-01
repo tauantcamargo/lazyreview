@@ -92,6 +92,7 @@ export type Action =
   | 'batchOpenInBrowser'
   | 'batchMarkRead'
   | 'batchCopyUrls'
+  | 'batchClose'
   | 'quickActions'
   | 'prevDep'
   | 'nextDep'
@@ -182,6 +183,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<
     batchOpenInBrowser: 'o',
     batchMarkRead: 'u',
     batchCopyUrls: 'y',
+    batchClose: 'X',
     quickActions: '.',
   },
   prDetail: {
