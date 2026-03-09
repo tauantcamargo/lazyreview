@@ -7,7 +7,9 @@ import {
 } from './useNotifications'
 import type { PullRequest } from '../models/pull-request'
 
-function makePR(overrides: Partial<PullRequest> & { number: number }): PullRequest {
+function makePR(
+  overrides: Partial<PullRequest> & { number: number },
+): PullRequest {
   return {
     id: overrides.number,
     node_id: '',
@@ -68,7 +70,13 @@ describe('buildSnapshotMap', () => {
       makePR({
         number: 1,
         requested_reviewers: [
-          { login: 'reviewer1', id: 2, avatar_url: '', html_url: '', type: 'User' },
+          {
+            login: 'reviewer1',
+            id: 2,
+            avatar_url: '',
+            html_url: '',
+            type: 'User',
+          },
         ] as PullRequest['requested_reviewers'],
       }),
     ]
@@ -222,7 +230,13 @@ describe('detectNewReviewRequests', () => {
     const pr1After = makePR({
       number: 1,
       requested_reviewers: [
-        { login: 'other-user', id: 3, avatar_url: '', html_url: '', type: 'User' },
+        {
+          login: 'other-user',
+          id: 3,
+          avatar_url: '',
+          html_url: '',
+          type: 'User',
+        },
       ] as PullRequest['requested_reviewers'],
     })
     const prevMap = buildSnapshotMap([pr1Before])

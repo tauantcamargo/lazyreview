@@ -89,7 +89,8 @@ export function mapGiteaReviewCommentToComment(
 ): Comment {
   // Determine side: if old_line_num is set but new_line_num is 0, it's LEFT
   const isOldSide =
-    (rc.old_line_num != null && rc.old_line_num > 0) &&
+    rc.old_line_num != null &&
+    rc.old_line_num > 0 &&
     (rc.new_line_num == null || rc.new_line_num === 0)
   const side = isOldSide ? ('LEFT' as const) : ('RIGHT' as const)
   const line = isOldSide
@@ -189,9 +190,7 @@ export function mapGiteaReviewsToReviews(
 // Changed file -> FileChange
 // ---------------------------------------------------------------------------
 
-function mapGiteaFileStatus(
-  status: string,
-): FileChange['status'] {
+function mapGiteaFileStatus(status: string): FileChange['status'] {
   switch (status) {
     case 'added':
       return 'added'

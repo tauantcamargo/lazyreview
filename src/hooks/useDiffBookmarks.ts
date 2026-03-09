@@ -38,7 +38,12 @@ export interface BookmarkStoreState {
 interface BookmarkStore {
   readonly subscribe: (listener: Listener) => () => void
   readonly getSnapshot: () => BookmarkStoreState
-  readonly setBookmark: (register: string, file: string, line: number, prKey: string) => void
+  readonly setBookmark: (
+    register: string,
+    file: string,
+    line: number,
+    prKey: string,
+  ) => void
   readonly getBookmark: (register: string) => DiffBookmark | null
   readonly removeBookmark: (register: string) => void
   readonly startRegisterCapture: (mode: CaptureMode) => void
@@ -140,7 +145,12 @@ export function useDiffBookmarks(): {
   readonly bookmarks: readonly DiffBookmark[]
   readonly isCapturingRegister: boolean
   readonly captureMode: CaptureMode | null
-  readonly setBookmark: (register: string, file: string, line: number, prKey: string) => void
+  readonly setBookmark: (
+    register: string,
+    file: string,
+    line: number,
+    prKey: string,
+  ) => void
   readonly getBookmark: (register: string) => DiffBookmark | null
   readonly removeBookmark: (register: string) => void
   readonly startRegisterCapture: (mode: CaptureMode) => void

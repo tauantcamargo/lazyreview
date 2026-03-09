@@ -11,7 +11,10 @@ import { getContextualHints } from '../../hooks/useContextualHints'
 import { macroStore } from '../../hooks/useMacros'
 import { useReviewTimer } from '../../hooks/useReviewTimer'
 import { formatTimer } from '../../utils/review-stats'
-import { mergeKeybindings, formatActionBindings } from '../../config/keybindings'
+import {
+  mergeKeybindings,
+  formatActionBindings,
+} from '../../config/keybindings'
 import type { KeybindingOverrides } from '../../config/keybindings'
 import type { Panel } from '../../hooks/useActivePanel'
 
@@ -42,34 +45,37 @@ export interface HintEntry {
   readonly key?: string // override — use this literal key instead of looking up
 }
 
-export const PANEL_HINT_ENTRIES: Readonly<Record<Panel, readonly HintEntry[]>> = {
-  sidebar: [
-    { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
-    { ctx: 'global', action: 'select', label: 'select' },
-    { ctx: 'filesTab', action: 'switchPanel', label: 'list' },
-    { ctx: 'global', action: 'toggleSidebar', label: 'sidebar' },
-    { ctx: 'global', action: 'toggleHelp', label: 'help' },
-    { ctx: 'global', action: 'back', label: 'quit', key: 'q' },
-  ],
-  list: [
-    { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
-    { ctx: 'global', action: 'select', label: 'detail' },
-    { ctx: 'prList', action: 'filterPRs', label: 'filter' },
-    { ctx: 'prList', action: 'sortPRs', label: 'sort' },
-    { ctx: 'prList', action: 'openInBrowser', label: 'open' },
-    { ctx: 'global', action: 'refresh', label: 'refresh' },
-    { ctx: 'global', action: 'back', label: 'back', key: 'q' },
-  ],
-  detail: [
-    { ctx: 'global', action: 'moveDown', label: 'scroll', key: 'j/k' },
-    { ctx: 'filesTab', action: 'switchPanel', label: 'tabs' },
-    { ctx: 'global', action: 'back', label: 'list', key: 'Esc' },
-    { ctx: 'global', action: 'toggleHelp', label: 'help' },
-    { ctx: 'global', action: 'refresh', label: 'refresh' },
-  ],
-}
+export const PANEL_HINT_ENTRIES: Readonly<Record<Panel, readonly HintEntry[]>> =
+  {
+    sidebar: [
+      { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
+      { ctx: 'global', action: 'select', label: 'select' },
+      { ctx: 'filesTab', action: 'switchPanel', label: 'list' },
+      { ctx: 'global', action: 'toggleSidebar', label: 'sidebar' },
+      { ctx: 'global', action: 'toggleHelp', label: 'help' },
+      { ctx: 'global', action: 'back', label: 'quit', key: 'q' },
+    ],
+    list: [
+      { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
+      { ctx: 'global', action: 'select', label: 'detail' },
+      { ctx: 'prList', action: 'filterPRs', label: 'filter' },
+      { ctx: 'prList', action: 'sortPRs', label: 'sort' },
+      { ctx: 'prList', action: 'openInBrowser', label: 'open' },
+      { ctx: 'global', action: 'refresh', label: 'refresh' },
+      { ctx: 'global', action: 'back', label: 'back', key: 'q' },
+    ],
+    detail: [
+      { ctx: 'global', action: 'moveDown', label: 'scroll', key: 'j/k' },
+      { ctx: 'filesTab', action: 'switchPanel', label: 'tabs' },
+      { ctx: 'global', action: 'back', label: 'list', key: 'Esc' },
+      { ctx: 'global', action: 'toggleHelp', label: 'help' },
+      { ctx: 'global', action: 'refresh', label: 'refresh' },
+    ],
+  }
 
-export const SCREEN_HINT_ENTRIES: Readonly<Record<ScreenContext, readonly HintEntry[]>> = {
+export const SCREEN_HINT_ENTRIES: Readonly<
+  Record<ScreenContext, readonly HintEntry[]>
+> = {
   'pr-list': [
     { ctx: 'prList', action: 'filterPRs', label: 'filter' },
     { ctx: 'prList', action: 'sortPRs', label: 'sort' },
@@ -131,7 +137,7 @@ export const SCREEN_HINT_ENTRIES: Readonly<Record<ScreenContext, readonly HintEn
     { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
     { ctx: 'prDetail', action: 'nextPR', label: 'pr', key: '[/]' },
   ],
-  'settings': [
+  settings: [
     { ctx: 'global', action: 'moveDown', label: 'nav', key: 'j/k' },
     { ctx: 'global', action: 'select', label: 'edit/toggle' },
     { ctx: 'global', action: 'back', label: 'cancel', key: 'Esc' },
@@ -227,11 +233,18 @@ export function StatusBar({
   const reviewTimer = useReviewTimer()
 
   const hints = useMemo(
-    () => getContextualHints(activePanel, screenContext, selectionContext, overrides),
+    () =>
+      getContextualHints(
+        activePanel,
+        screenContext,
+        selectionContext,
+        overrides,
+      ),
     [activePanel, screenContext, selectionContext, overrides],
   )
 
-  const showRateLimitWarning = rateLimit.remaining < RATE_LIMIT_WARNING_THRESHOLD
+  const showRateLimitWarning =
+    rateLimit.remaining < RATE_LIMIT_WARNING_THRESHOLD
 
   const statusColor = (type: StatusMessageType): string => {
     switch (type) {
@@ -255,12 +268,7 @@ export function StatusBar({
   }
 
   return (
-    <Box
-      height={1}
-      width="100%"
-      justifyContent="space-between"
-      paddingX={1}
-    >
+    <Box height={1} width="100%" justifyContent="space-between" paddingX={1}>
       <Box gap={2}>
         {macroState.isRecording && macroState.activeRegister && (
           <Text color={theme.colors.error} bold>

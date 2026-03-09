@@ -95,7 +95,9 @@ describe('LabelPickerModal helpers', () => {
     })
 
     it('returns false when same labels', () => {
-      expect(hasChanges(['bug', 'feature'], new Set(['bug', 'feature']))).toBe(false)
+      expect(hasChanges(['bug', 'feature'], new Set(['bug', 'feature']))).toBe(
+        false,
+      )
     })
 
     it('returns true when label added', () => {
@@ -123,9 +125,27 @@ describe('LabelPickerModal helpers', () => {
 describe('LabelPickerModal data', () => {
   it('creates proper label display data', () => {
     const labels: readonly RepoLabel[] = [
-      { id: 1, name: 'bug', color: 'fc2929', description: 'Something is broken', default: false },
-      { id: 2, name: 'feature', color: '0075ca', description: 'New feature', default: false },
-      { id: 3, name: 'docs', color: 'e4e669', description: null, default: true },
+      {
+        id: 1,
+        name: 'bug',
+        color: 'fc2929',
+        description: 'Something is broken',
+        default: false,
+      },
+      {
+        id: 2,
+        name: 'feature',
+        color: '0075ca',
+        description: 'New feature',
+        default: false,
+      },
+      {
+        id: 3,
+        name: 'docs',
+        color: 'e4e669',
+        description: null,
+        default: true,
+      },
     ]
 
     expect(labels).toHaveLength(3)

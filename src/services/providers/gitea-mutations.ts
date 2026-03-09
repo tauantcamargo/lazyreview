@@ -1,6 +1,10 @@
 import { Effect } from 'effect'
 import type { GiteaError, NetworkError } from '../../models/errors'
-import { mutateGitea, mutateGiteaJson, giteaFetchJson } from '../GiteaApiHelpers'
+import {
+  mutateGitea,
+  mutateGiteaJson,
+  giteaFetchJson,
+} from '../GiteaApiHelpers'
 
 // ---------------------------------------------------------------------------
 // Comments

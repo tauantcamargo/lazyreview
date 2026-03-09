@@ -3,7 +3,10 @@ import { createAiService } from './index'
 import { AiConfigError } from '../../models/ai-errors'
 import type { AiServiceConfig } from './types'
 
-function makeConfig(provider: string, extras: Partial<AiServiceConfig> = {}): AiServiceConfig {
+function makeConfig(
+  provider: string,
+  extras: Partial<AiServiceConfig> = {},
+): AiServiceConfig {
   return {
     provider: provider as AiServiceConfig['provider'],
     model: 'test-model',
@@ -80,7 +83,9 @@ describe('AI Service Factory', () => {
 
     it('should pass custom endpoint to Copilot when specified', () => {
       const service = createAiService(
-        makeConfig('copilot', { endpoint: 'https://custom-copilot.example.com' }),
+        makeConfig('copilot', {
+          endpoint: 'https://custom-copilot.example.com',
+        }),
       )
       expect(service.getProviderName()).toBe('GitHub Copilot')
     })

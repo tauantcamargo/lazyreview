@@ -41,7 +41,11 @@ const TOKEN = 'ghp_testtoken123456'
 
 function createMockResponse(
   body: unknown,
-  options: { status?: number; statusText?: string; headers?: Record<string, string> } = {},
+  options: {
+    status?: number
+    statusText?: string
+    headers?: Record<string, string>
+  } = {},
 ): Response {
   const { status = 200, statusText = 'OK', headers = {} } = options
   const responseHeaders = new Headers(headers)
@@ -133,7 +137,10 @@ describe('fetchGitHub', () => {
 
   it('returns GitHubError on non-200 response', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse('Not Found', { status: 404, statusText: 'Not Found' }),
+      createMockResponse('Not Found', {
+        status: 404,
+        statusText: 'Not Found',
+      }),
     )
 
     const result = await Effect.runPromiseExit(
@@ -142,14 +149,16 @@ describe('fetchGitHub', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitHubError })
+      const error = result.cause as { _tag: string; error: GitHubError }
       expect(error.error).toBeInstanceOf(GitHubError)
       expect(error.error.status).toBe(404)
     }
   })
 
   it('returns NetworkError when fetch throws', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Connection refused'))
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValue(new Error('Connection refused'))
 
     const result = await Effect.runPromiseExit(
       fetchGitHub('/test', TOKEN, SimpleSchema),
@@ -157,7 +166,7 @@ describe('fetchGitHub', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: NetworkError })
+      const error = result.cause as { _tag: string; error: NetworkError }
       expect(error.error).toBeInstanceOf(NetworkError)
       expect(error.error.message).toContain('Connection refused')
     }
@@ -179,9 +188,9 @@ describe('fetchGitHub', () => {
 
 describe('mutateGitHub', () => {
   it('succeeds on 200 POST response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({}, { status: 200 }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse({}, { status: 200 }))
 
     await Effect.runPromise(
       mutateGitHub('POST', '/test', TOKEN, { key: 'value' }),
@@ -200,9 +209,11 @@ describe('mutateGitHub', () => {
   })
 
   it('succeeds on 204 PUT response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse(null, { status: 204, statusText: 'No Content' }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        createMockResponse(null, { status: 204, statusText: 'No Content' }),
+      )
 
     await Effect.runPromise(
       mutateGitHub('PUT', '/test', TOKEN, { data: 'test' }),
@@ -216,7 +227,10 @@ describe('mutateGitHub', () => {
 
   it('returns GitHubError on 403 response', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse('Forbidden', { status: 403, statusText: 'Forbidden' }),
+      createMockResponse('Forbidden', {
+        status: 403,
+        statusText: 'Forbidden',
+      }),
     )
 
     const result = await Effect.runPromiseExit(
@@ -225,7 +239,7 @@ describe('mutateGitHub', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitHubError })
+      const error = result.cause as { _tag: string; error: GitHubError }
       expect(error.error).toBeInstanceOf(GitHubError)
       expect(error.error.status).toBe(403)
     }
@@ -240,18 +254,20 @@ describe('mutateGitHub', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: NetworkError })
+      const error = result.cause as { _tag: string; error: NetworkError }
       expect(error.error).toBeInstanceOf(NetworkError)
     }
   })
 
   it('handles PATCH method correctly', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({}, { status: 200 }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse({}, { status: 200 }))
 
     await Effect.runPromise(
-      mutateGitHub('PATCH', '/repos/owner/repo/pulls/1', TOKEN, { title: 'New title' }),
+      mutateGitHub('PATCH', '/repos/owner/repo/pulls/1', TOKEN, {
+        title: 'New title',
+      }),
     )
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -261,9 +277,9 @@ describe('mutateGitHub', () => {
   })
 
   it('handles DELETE method correctly', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse(null, { status: 204 }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(null, { status: 204 }))
 
     await Effect.runPromise(
       mutateGitHub('DELETE', '/repos/owner/repo/comments/1', TOKEN, {}),
@@ -279,10 +295,17 @@ describe('mutateGitHub', () => {
 describe('mutateGitHubJson', () => {
   it('returns parsed JSON on success', async () => {
     const responseData = { id: 42, node_id: 'abc' }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(responseData))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(responseData))
 
     const result = await Effect.runPromise(
-      mutateGitHubJson<{ id: number; node_id: string }>('POST', '/test', TOKEN, { body: 'test' }),
+      mutateGitHubJson<{ id: number; node_id: string }>(
+        'POST',
+        '/test',
+        TOKEN,
+        { body: 'test' },
+      ),
     )
 
     expect(result).toEqual({ id: 42, node_id: 'abc' })
@@ -290,7 +313,10 @@ describe('mutateGitHubJson', () => {
 
   it('returns GitHubError on non-200 response', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse('Error', { status: 422, statusText: 'Unprocessable' }),
+      createMockResponse('Error', {
+        status: 422,
+        statusText: 'Unprocessable',
+      }),
     )
 
     const result = await Effect.runPromiseExit(
@@ -301,9 +327,9 @@ describe('mutateGitHubJson', () => {
   })
 
   it('returns GitHubError when response is null', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse(null, { status: 200 }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(null, { status: 200 }))
 
     const result = await Effect.runPromiseExit(
       mutateGitHubJson('POST', '/test', TOKEN, {}),
@@ -320,7 +346,9 @@ describe('graphqlGitHub', () => {
         repository: { pullRequest: { id: 'PR_1' } },
       },
     }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(graphqlResponse))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(graphqlResponse))
 
     const result = await Effect.runPromise(
       graphqlGitHub<{ repository: { pullRequest: { id: string } } }>(
@@ -344,7 +372,9 @@ describe('graphqlGitHub', () => {
     const graphqlResponse = {
       errors: [{ message: 'Not found' }],
     }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(graphqlResponse))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(graphqlResponse))
 
     const result = await Effect.runPromiseExit(
       graphqlGitHub(TOKEN, 'query { bad }', {}),
@@ -352,7 +382,7 @@ describe('graphqlGitHub', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitHubError })
+      const error = result.cause as { _tag: string; error: GitHubError }
       expect(error.error).toBeInstanceOf(GitHubError)
       expect(error.error.message).toContain('GraphQL request returned errors')
     }
@@ -360,7 +390,10 @@ describe('graphqlGitHub', () => {
 
   it('returns GitHubError on non-200 HTTP response', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse('Unauthorized', { status: 401, statusText: 'Unauthorized' }),
+      createMockResponse('Unauthorized', {
+        status: 401,
+        statusText: 'Unauthorized',
+      }),
     )
 
     const result = await Effect.runPromiseExit(
@@ -369,7 +402,7 @@ describe('graphqlGitHub', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitHubError })
+      const error = result.cause as { _tag: string; error: GitHubError }
       expect(error.error).toBeInstanceOf(GitHubError)
       expect(error.error.status).toBe(401)
     }
@@ -384,14 +417,16 @@ describe('graphqlGitHub', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: NetworkError })
+      const error = result.cause as { _tag: string; error: NetworkError }
       expect(error.error).toBeInstanceOf(NetworkError)
     }
   })
 
   it('returns GitHubError when data field is missing', async () => {
     const graphqlResponse = { data: null }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(graphqlResponse))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(graphqlResponse))
 
     const result = await Effect.runPromiseExit(
       graphqlGitHub(TOKEN, 'query { test }', {}),
@@ -399,7 +434,7 @@ describe('graphqlGitHub', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitHubError })
+      const error = result.cause as { _tag: string; error: GitHubError }
       expect(error.error).toBeInstanceOf(GitHubError)
       expect(error.error.message).toContain('missing data field')
     }
@@ -407,10 +442,16 @@ describe('graphqlGitHub', () => {
 
   it('passes variables in request body', async () => {
     const graphqlResponse = { data: { viewer: { login: 'user' } } }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(graphqlResponse))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(graphqlResponse))
 
     await Effect.runPromise(
-      graphqlGitHub(TOKEN, 'query($owner: String!) { repo(owner: $owner) { name } }', { owner: 'testowner' }),
+      graphqlGitHub(
+        TOKEN,
+        'query($owner: String!) { repo(owner: $owner) { name } }',
+        { owner: 'testowner' },
+      ),
     )
 
     const call = vi.mocked(globalThis.fetch).mock.calls[0]
@@ -421,10 +462,11 @@ describe('graphqlGitHub', () => {
 
 describe('fetchGitHubPaginated', () => {
   it('fetches single page of data', async () => {
-    const items = [{ id: 1, name: 'item1' }, { id: 2, name: 'item2' }]
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse(items),
-    )
+    const items = [
+      { id: 1, name: 'item1' },
+      { id: 2, name: 'item2' },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(items))
 
     const result = await Effect.runPromise(
       fetchGitHubPaginated('/test', TOKEN, SimpleSchema),
@@ -438,7 +480,8 @@ describe('fetchGitHubPaginated', () => {
     const page1 = [{ id: 1, name: 'item1' }]
     const page2 = [{ id: 2, name: 'item2' }]
 
-    globalThis.fetch = vi.fn()
+    globalThis.fetch = vi
+      .fn()
       .mockResolvedValueOnce(
         createMockResponse(page1, {
           headers: {
@@ -461,9 +504,7 @@ describe('fetchGitHubPaginated', () => {
   it('adds per_page=100 if not already present', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([]))
 
-    await Effect.runPromise(
-      fetchGitHubPaginated('/test', TOKEN, SimpleSchema),
-    )
+    await Effect.runPromise(fetchGitHubPaginated('/test', TOKEN, SimpleSchema))
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('per_page=100'),
@@ -485,7 +526,10 @@ describe('fetchGitHubPaginated', () => {
 
   it('returns GitHubError when a page fails', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse('Server Error', { status: 500, statusText: 'Internal Server Error' }),
+      createMockResponse('Server Error', {
+        status: 500,
+        statusText: 'Internal Server Error',
+      }),
     )
 
     const result = await Effect.runPromiseExit(
@@ -504,7 +548,7 @@ describe('fetchGitHubPaginated', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: NetworkError })
+      const error = result.cause as { _tag: string; error: NetworkError }
       expect(error.error).toBeInstanceOf(NetworkError)
     }
   })
@@ -518,7 +562,9 @@ describe('fetchGitHubSearch', () => {
       incomplete_results: false,
       items: [pr],
     }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(searchResponse))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(searchResponse))
 
     const result = await Effect.runPromise(
       fetchGitHubSearch('is:pr author:testuser', TOKEN),
@@ -529,9 +575,11 @@ describe('fetchGitHubSearch', () => {
   })
 
   it('returns GitHubError on non-200 response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse('', { status: 422, statusText: 'Unprocessable' }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        createMockResponse('', { status: 422, statusText: 'Unprocessable' }),
+      )
 
     const result = await Effect.runPromiseExit(
       fetchGitHubSearch('invalid query', TOKEN),
@@ -546,7 +594,9 @@ describe('fetchGitHubSearch', () => {
       incomplete_results: false,
       items: [],
     }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(searchResponse))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(searchResponse))
 
     await Effect.runPromise(
       fetchGitHubSearch('is:pr is:open author:user', TOKEN),
@@ -562,7 +612,8 @@ describe('fetchGitHubSearchPaginated', () => {
     const pr1 = makePR(1)
     const pr2 = makePR(2)
 
-    globalThis.fetch = vi.fn()
+    globalThis.fetch = vi
+      .fn()
       .mockResolvedValueOnce(
         createMockResponse(
           { total_count: 2, incomplete_results: false, items: [pr1] },
@@ -574,9 +625,11 @@ describe('fetchGitHubSearchPaginated', () => {
         ),
       )
       .mockResolvedValueOnce(
-        createMockResponse(
-          { total_count: 2, incomplete_results: false, items: [pr2] },
-        ),
+        createMockResponse({
+          total_count: 2,
+          incomplete_results: false,
+          items: [pr2],
+        }),
       )
 
     const result = await Effect.runPromise(
@@ -588,9 +641,11 @@ describe('fetchGitHubSearchPaginated', () => {
   })
 
   it('returns GitHubError on failure', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse('', { status: 403, statusText: 'Forbidden' }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        createMockResponse('', { status: 403, statusText: 'Forbidden' }),
+      )
 
     const result = await Effect.runPromiseExit(
       fetchGitHubSearchPaginated('test', TOKEN),
@@ -805,7 +860,7 @@ describe('429 rate limit handling', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitHubError })
+      const error = result.cause as { _tag: string; error: GitHubError }
       expect(error.error).toBeInstanceOf(GitHubError)
       expect(error.error.status).toBe(429)
       expect(error.error.retryAfterMs).toBe(30000)
@@ -826,7 +881,7 @@ describe('429 rate limit handling', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitHubError })
+      const error = result.cause as { _tag: string; error: GitHubError }
       expect(error.error.status).toBe(429)
       expect(error.error.retryAfterMs).toBeUndefined()
     }
@@ -847,7 +902,7 @@ describe('429 rate limit handling', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitHubError })
+      const error = result.cause as { _tag: string; error: GitHubError }
       expect(error.error.status).toBe(404)
       expect(error.error.retryAfterMs).toBeUndefined()
     }
@@ -936,7 +991,12 @@ describe('GHE baseUrl parameter', () => {
     globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockData))
 
     await Effect.runPromise(
-      fetchGitHub('/test/path', TOKEN, SimpleSchema, 'https://ghe.acme.com/api/v3'),
+      fetchGitHub(
+        '/test/path',
+        TOKEN,
+        SimpleSchema,
+        'https://ghe.acme.com/api/v3',
+      ),
     )
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -946,12 +1006,18 @@ describe('GHE baseUrl parameter', () => {
   })
 
   it('mutateGitHub uses custom baseUrl when provided', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({}, { status: 200 }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse({}, { status: 200 }))
 
     await Effect.runPromise(
-      mutateGitHub('POST', '/test', TOKEN, { key: 'val' }, 'https://ghe.acme.com/api/v3'),
+      mutateGitHub(
+        'POST',
+        '/test',
+        TOKEN,
+        { key: 'val' },
+        'https://ghe.acme.com/api/v3',
+      ),
     )
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -962,10 +1028,18 @@ describe('GHE baseUrl parameter', () => {
 
   it('mutateGitHubJson uses custom baseUrl when provided', async () => {
     const responseData = { id: 42 }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(responseData))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(responseData))
 
     await Effect.runPromise(
-      mutateGitHubJson<{ id: number }>('POST', '/test', TOKEN, {}, 'https://ghe.acme.com/api/v3'),
+      mutateGitHubJson<{ id: number }>(
+        'POST',
+        '/test',
+        TOKEN,
+        {},
+        'https://ghe.acme.com/api/v3',
+      ),
     )
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -976,10 +1050,17 @@ describe('GHE baseUrl parameter', () => {
 
   it('graphqlGitHub uses GHE graphql URL when baseUrl is provided', async () => {
     const graphqlResponse = { data: { viewer: { login: 'user' } } }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(graphqlResponse))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(graphqlResponse))
 
     await Effect.runPromise(
-      graphqlGitHub(TOKEN, 'query { viewer { login } }', {}, 'https://ghe.acme.com/api/v3'),
+      graphqlGitHub(
+        TOKEN,
+        'query { viewer { login } }',
+        {},
+        'https://ghe.acme.com/api/v3',
+      ),
     )
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -994,7 +1075,9 @@ describe('GHE baseUrl parameter', () => {
       incomplete_results: false,
       items: [],
     }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(searchResponse))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(searchResponse))
 
     await Effect.runPromise(
       fetchGitHubSearch('is:pr', TOKEN, 'https://ghe.acme.com/api/v3'),
@@ -1008,7 +1091,12 @@ describe('GHE baseUrl parameter', () => {
     globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([]))
 
     await Effect.runPromise(
-      fetchGitHubPaginated('/test', TOKEN, SimpleSchema, 'https://ghe.acme.com/api/v3'),
+      fetchGitHubPaginated(
+        '/test',
+        TOKEN,
+        SimpleSchema,
+        'https://ghe.acme.com/api/v3',
+      ),
     )
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
@@ -1021,7 +1109,9 @@ describe('GHE baseUrl parameter', () => {
       incomplete_results: false,
       items: [],
     }
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(searchResponse))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(searchResponse))
 
     await Effect.runPromise(
       fetchGitHubSearchPaginated('test', TOKEN, 'https://ghe.acme.com/api/v3'),
@@ -1041,7 +1131,11 @@ describe('fetchGitHubSinglePage', () => {
     globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(items))
 
     const result = await Effect.runPromise(
-      fetchGitHubSinglePage('/repos/owner/repo/pulls/1/files?per_page=100&page=1', TOKEN, SimpleSchema),
+      fetchGitHubSinglePage(
+        '/repos/owner/repo/pulls/1/files?per_page=100&page=1',
+        TOKEN,
+        SimpleSchema,
+      ),
     )
 
     expect(result.items).toHaveLength(2)
@@ -1052,13 +1146,20 @@ describe('fetchGitHubSinglePage', () => {
 
   it('detects hasNextPage from Link header with rel="next"', async () => {
     const items = [{ id: 1, name: 'file1' }]
-    const linkHeader = '<https://api.github.com/repos/owner/repo/pulls/1/files?per_page=100&page=2>; rel="next"'
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse(items, { headers: { Link: linkHeader } }),
-    )
+    const linkHeader =
+      '<https://api.github.com/repos/owner/repo/pulls/1/files?per_page=100&page=2>; rel="next"'
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        createMockResponse(items, { headers: { Link: linkHeader } }),
+      )
 
     const result = await Effect.runPromise(
-      fetchGitHubSinglePage('/repos/owner/repo/pulls/1/files?per_page=100&page=1', TOKEN, SimpleSchema),
+      fetchGitHubSinglePage(
+        '/repos/owner/repo/pulls/1/files?per_page=100&page=1',
+        TOKEN,
+        SimpleSchema,
+      ),
     )
 
     expect(result.items).toHaveLength(1)
@@ -1067,13 +1168,20 @@ describe('fetchGitHubSinglePage', () => {
 
   it('sets hasNextPage false when Link header has no next', async () => {
     const items = [{ id: 1, name: 'file1' }]
-    const linkHeader = '<https://api.github.com/repos/owner/repo/pulls/1/files?per_page=100&page=1>; rel="prev"'
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse(items, { headers: { Link: linkHeader } }),
-    )
+    const linkHeader =
+      '<https://api.github.com/repos/owner/repo/pulls/1/files?per_page=100&page=1>; rel="prev"'
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        createMockResponse(items, { headers: { Link: linkHeader } }),
+      )
 
     const result = await Effect.runPromise(
-      fetchGitHubSinglePage('/repos/owner/repo/pulls/1/files?per_page=100&page=1', TOKEN, SimpleSchema),
+      fetchGitHubSinglePage(
+        '/repos/owner/repo/pulls/1/files?per_page=100&page=1',
+        TOKEN,
+        SimpleSchema,
+      ),
     )
 
     expect(result.hasNextPage).toBe(false)
@@ -1083,7 +1191,11 @@ describe('fetchGitHubSinglePage', () => {
     globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([]))
 
     const result = await Effect.runPromise(
-      fetchGitHubSinglePage('/repos/owner/repo/pulls/1/files', TOKEN, SimpleSchema),
+      fetchGitHubSinglePage(
+        '/repos/owner/repo/pulls/1/files',
+        TOKEN,
+        SimpleSchema,
+      ),
     )
 
     expect(result.items).toHaveLength(0)
@@ -1091,13 +1203,22 @@ describe('fetchGitHubSinglePage', () => {
   })
 
   it('throws GitHubError on non-OK response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({ message: 'Not Found' }, { status: 404, statusText: 'Not Found' }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        createMockResponse(
+          { message: 'Not Found' },
+          { status: 404, statusText: 'Not Found' },
+        ),
+      )
 
     const result = await Effect.runPromise(
       Effect.either(
-        fetchGitHubSinglePage('/repos/owner/repo/pulls/999/files', TOKEN, SimpleSchema),
+        fetchGitHubSinglePage(
+          '/repos/owner/repo/pulls/999/files',
+          TOKEN,
+          SimpleSchema,
+        ),
       ),
     )
 
@@ -1108,11 +1229,18 @@ describe('fetchGitHubSinglePage', () => {
     globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse([]))
 
     await Effect.runPromise(
-      fetchGitHubSinglePage('/repos/owner/repo/pulls/1/files', TOKEN, SimpleSchema, 'https://ghe.acme.com/api/v3'),
+      fetchGitHubSinglePage(
+        '/repos/owner/repo/pulls/1/files',
+        TOKEN,
+        SimpleSchema,
+        'https://ghe.acme.com/api/v3',
+      ),
     )
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
-    expect(calledUrl).toContain('https://ghe.acme.com/api/v3/repos/owner/repo/pulls/1/files')
+    expect(calledUrl).toContain(
+      'https://ghe.acme.com/api/v3/repos/owner/repo/pulls/1/files',
+    )
   })
 })
 
@@ -1126,8 +1254,16 @@ describe('mapGitHubTimelineEvent', () => {
       event: 'committed',
       sha: 'abc123def456',
       message: 'fix: resolve issue',
-      author: { name: 'testuser', email: 'test@example.com', date: '2025-06-01T12:00:00Z' },
-      committer: { name: 'testuser', email: 'test@example.com', date: '2025-06-01T12:00:00Z' },
+      author: {
+        name: 'testuser',
+        email: 'test@example.com',
+        date: '2025-06-01T12:00:00Z',
+      },
+      committer: {
+        name: 'testuser',
+        email: 'test@example.com',
+        date: '2025-06-01T12:00:00Z',
+      },
     }
 
     const result = mapGitHubTimelineEvent(raw)
@@ -1148,7 +1284,10 @@ describe('mapGitHubTimelineEvent', () => {
       state: 'approved',
       body: 'Looks good!',
       submitted_at: '2025-06-01T14:00:00Z',
-      user: { login: 'reviewer1', avatar_url: 'https://example.com/avatar.png' },
+      user: {
+        login: 'reviewer1',
+        avatar_url: 'https://example.com/avatar.png',
+      },
     }
 
     const result = mapGitHubTimelineEvent(raw)
@@ -1301,7 +1440,9 @@ describe('mapGitHubTimelineEvent', () => {
     expect(mapGitHubTimelineEvent({ event: 'closed', id: 3 })).toBeNull()
     expect(mapGitHubTimelineEvent({ event: 'reopened', id: 4 })).toBeNull()
     expect(mapGitHubTimelineEvent({ event: 'referenced', id: 5 })).toBeNull()
-    expect(mapGitHubTimelineEvent({ event: 'cross-referenced', id: 6 })).toBeNull()
+    expect(
+      mapGitHubTimelineEvent({ event: 'cross-referenced', id: 6 }),
+    ).toBeNull()
   })
 
   it('handles reviewed event with null body', () => {
@@ -1328,7 +1469,11 @@ describe('mapGitHubTimelineEvent', () => {
       sha: 'xyz789',
       message: 'chore: update deps',
       author: { name: 'author1', email: 'a@b.com' },
-      committer: { name: 'committer1', email: 'c@d.com', date: '2025-06-02T10:00:00Z' },
+      committer: {
+        name: 'committer1',
+        email: 'c@d.com',
+        date: '2025-06-02T10:00:00Z',
+      },
     }
 
     const result = mapGitHubTimelineEvent(raw)
@@ -1367,15 +1512,23 @@ describe('fetchTimeline', () => {
         event: 'committed',
         sha: 'abc123',
         message: 'initial commit',
-        author: { name: 'user1', email: 'u1@test.com', date: '2025-01-01T00:00:00Z' },
-        committer: { name: 'user1', email: 'u1@test.com', date: '2025-01-01T00:00:00Z' },
+        author: {
+          name: 'user1',
+          email: 'u1@test.com',
+          date: '2025-01-01T00:00:00Z',
+        },
+        committer: {
+          name: 'user1',
+          email: 'u1@test.com',
+          date: '2025-01-01T00:00:00Z',
+        },
       },
     ]
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(timelineEvents))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(timelineEvents))
 
-    await Effect.runPromise(
-      fetchTimeline('owner', 'repo', 42, TOKEN),
-    )
+    await Effect.runPromise(fetchTimeline('owner', 'repo', 42, TOKEN))
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://api.github.com/repos/owner/repo/issues/42/timeline?per_page=100',
@@ -1394,8 +1547,16 @@ describe('fetchTimeline', () => {
         event: 'committed',
         sha: 'abc123',
         message: 'feat: add feature',
-        author: { name: 'user1', email: 'u@test.com', date: '2025-01-01T00:00:00Z' },
-        committer: { name: 'user1', email: 'u@test.com', date: '2025-01-01T00:00:00Z' },
+        author: {
+          name: 'user1',
+          email: 'u@test.com',
+          date: '2025-01-01T00:00:00Z',
+        },
+        committer: {
+          name: 'user1',
+          email: 'u@test.com',
+          date: '2025-01-01T00:00:00Z',
+        },
       },
       {
         event: 'renamed',
@@ -1410,7 +1571,9 @@ describe('fetchTimeline', () => {
         actor: { login: 'user2' },
       },
     ]
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(timelineEvents))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(timelineEvents))
 
     const result = await Effect.runPromise(
       fetchTimeline('owner', 'repo', 1, TOKEN),
@@ -1427,7 +1590,9 @@ describe('fetchTimeline', () => {
       { event: 'closed', id: 2 },
       { event: 'reopened', id: 3 },
     ]
-    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(timelineEvents))
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(timelineEvents))
 
     const result = await Effect.runPromise(
       fetchTimeline('owner', 'repo', 1, TOKEN),
@@ -1438,7 +1603,10 @@ describe('fetchTimeline', () => {
 
   it('returns GitHubError on API failure', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse('Not Found', { status: 404, statusText: 'Not Found' }),
+      createMockResponse('Not Found', {
+        status: 404,
+        statusText: 'Not Found',
+      }),
     )
 
     const result = await Effect.runPromiseExit(
@@ -1449,7 +1617,9 @@ describe('fetchTimeline', () => {
   })
 
   it('returns NetworkError when fetch throws', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Connection refused'))
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValue(new Error('Connection refused'))
 
     const result = await Effect.runPromiseExit(
       fetchTimeline('owner', 'repo', 1, TOKEN),
@@ -1457,7 +1627,7 @@ describe('fetchTimeline', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: NetworkError })
+      const error = result.cause as { _tag: string; error: NetworkError }
       expect(error.error).toBeInstanceOf(NetworkError)
     }
   })
@@ -1470,7 +1640,9 @@ describe('fetchTimeline', () => {
     )
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
-    expect(calledUrl).toContain('https://ghe.acme.com/api/v3/repos/owner/repo/issues/1/timeline')
+    expect(calledUrl).toContain(
+      'https://ghe.acme.com/api/v3/repos/owner/repo/issues/1/timeline',
+    )
   })
 
   it('follows pagination via Link header', async () => {
@@ -1480,7 +1652,11 @@ describe('fetchTimeline', () => {
         sha: 'aaa',
         message: 'commit 1',
         author: { name: 'u1', email: 'u@t.com', date: '2025-01-01T00:00:00Z' },
-        committer: { name: 'u1', email: 'u@t.com', date: '2025-01-01T00:00:00Z' },
+        committer: {
+          name: 'u1',
+          email: 'u@t.com',
+          date: '2025-01-01T00:00:00Z',
+        },
       },
     ]
     const page2 = [
@@ -1489,11 +1665,16 @@ describe('fetchTimeline', () => {
         sha: 'bbb',
         message: 'commit 2',
         author: { name: 'u1', email: 'u@t.com', date: '2025-01-02T00:00:00Z' },
-        committer: { name: 'u1', email: 'u@t.com', date: '2025-01-02T00:00:00Z' },
+        committer: {
+          name: 'u1',
+          email: 'u@t.com',
+          date: '2025-01-02T00:00:00Z',
+        },
       },
     ]
 
-    globalThis.fetch = vi.fn()
+    globalThis.fetch = vi
+      .fn()
       .mockResolvedValueOnce(
         createMockResponse(page1, {
           headers: {

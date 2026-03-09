@@ -13,13 +13,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // ---------------------------------------------------------------------------
 
 let isEnabledState = false
-const mockSetIsEnabled = vi.fn((updater: boolean | ((prev: boolean) => boolean)) => {
-  if (typeof updater === 'function') {
-    isEnabledState = updater(isEnabledState)
-  } else {
-    isEnabledState = updater
-  }
-})
+const mockSetIsEnabled = vi.fn(
+  (updater: boolean | ((prev: boolean) => boolean)) => {
+    if (typeof updater === 'function') {
+      isEnabledState = updater(isEnabledState)
+    } else {
+      isEnabledState = updater
+    }
+  },
+)
 
 let useStateCalls = 0
 
@@ -33,7 +35,8 @@ vi.mock('react', async () => {
     ...actual,
     useState: (initial: unknown) => {
       const callIndex = useStateCalls++
-      if (callIndex % 1 === 0) return [isEnabledState ?? initial, mockSetIsEnabled]
+      if (callIndex % 1 === 0)
+        return [isEnabledState ?? initial, mockSetIsEnabled]
       return [initial, vi.fn()]
     },
     useCallback: (fn: unknown) => fn,
@@ -53,7 +56,11 @@ interface CapturedQueryOptions {
 }
 
 let capturedQueryOptions: CapturedQueryOptions | null = null
-let mockQueryReturn: { data: unknown; isLoading: boolean; error: Error | null } = {
+let mockQueryReturn: {
+  data: unknown
+  isLoading: boolean
+  error: Error | null
+} = {
   data: undefined,
   isLoading: false,
   error: null,
@@ -137,7 +144,9 @@ describe('useBlame', () => {
 
     expect(mockSetIsEnabled).toHaveBeenCalled()
     // Verify the updater function toggles from false to true
-    const updater = mockSetIsEnabled.mock.calls[0]![0] as (prev: boolean) => boolean
+    const updater = mockSetIsEnabled.mock.calls[0]![0] as (
+      prev: boolean,
+    ) => boolean
     expect(updater(false)).toBe(true)
   })
 
@@ -146,7 +155,9 @@ describe('useBlame', () => {
 
     result.toggleBlame()
 
-    const updater = mockSetIsEnabled.mock.calls[0]![0] as (prev: boolean) => boolean
+    const updater = mockSetIsEnabled.mock.calls[0]![0] as (
+      prev: boolean,
+    ) => boolean
     expect(updater(true)).toBe(false)
   })
 
@@ -214,8 +225,20 @@ describe('useBlame', () => {
 
   it('returns blame data as a Map keyed by line number', () => {
     const blameEntries = [
-      { line: 1, author: 'alice', date: '2025-01-01T00:00:00Z', commitSha: 'abc', commitMessage: 'init' },
-      { line: 2, author: 'bob', date: '2025-02-01T00:00:00Z', commitSha: 'def', commitMessage: 'fix' },
+      {
+        line: 1,
+        author: 'alice',
+        date: '2025-01-01T00:00:00Z',
+        commitSha: 'abc',
+        commitMessage: 'init',
+      },
+      {
+        line: 2,
+        author: 'bob',
+        date: '2025-02-01T00:00:00Z',
+        commitSha: 'def',
+        commitMessage: 'fix',
+      },
     ]
 
     mockQueryReturn = {

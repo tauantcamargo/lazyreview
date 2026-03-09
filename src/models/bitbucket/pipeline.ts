@@ -24,13 +24,7 @@ export type BitbucketPipelineStepResult = z.infer<
 // ---------------------------------------------------------------------------
 
 export const BitbucketPipelineStepStateSchema = z.object({
-  name: z.enum([
-    'PENDING',
-    'IN_PROGRESS',
-    'COMPLETED',
-    'PAUSED',
-    'HALTED',
-  ]),
+  name: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'PAUSED', 'HALTED']),
   result: BitbucketPipelineStepResultSchema.optional(),
 })
 

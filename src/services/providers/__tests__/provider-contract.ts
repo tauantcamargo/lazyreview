@@ -67,15 +67,15 @@ export function testProviderContract(
       })
 
       it('should declare supportsMergeStrategies as array', () => {
-        expect(Array.isArray(provider.capabilities.supportsMergeStrategies)).toBe(
-          true,
-        )
+        expect(
+          Array.isArray(provider.capabilities.supportsMergeStrategies),
+        ).toBe(true)
       })
 
       it('should have at least one merge strategy', () => {
-        expect(provider.capabilities.supportsMergeStrategies.length).toBeGreaterThan(
-          0,
-        )
+        expect(
+          provider.capabilities.supportsMergeStrategies.length,
+        ).toBeGreaterThan(0)
       })
 
       it('should only contain valid merge strategies', () => {
@@ -368,7 +368,9 @@ export function testProviderContract(
       })
 
       it('getFileDiff should return a FileChange or null', async () => {
-        const result = await Effect.runPromise(provider.getFileDiff(1, 'src/index.ts'))
+        const result = await Effect.runPromise(
+          provider.getFileDiff(1, 'src/index.ts'),
+        )
         if (result !== null) {
           expect(result).toHaveProperty('filename')
           expect(result).toHaveProperty('status')

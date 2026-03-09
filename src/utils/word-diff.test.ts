@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  computeWordDiff,
-  tokenize,
-  type WordDiffSegment,
-} from './word-diff'
+import { computeWordDiff, tokenize, type WordDiffSegment } from './word-diff'
 
 describe('tokenize', () => {
   it('splits on whitespace boundaries', () => {
@@ -91,10 +87,7 @@ describe('computeWordDiff', () => {
   })
 
   it('highlights multiple changed words', () => {
-    const result = computeWordDiff(
-      'const foo = bar',
-      'let baz = qux',
-    )
+    const result = computeWordDiff('const foo = bar', 'let baz = qux')
     expectContainsChanged(result.oldSegments, 'const')
     expectContainsChanged(result.oldSegments, 'foo')
     expectContainsChanged(result.oldSegments, 'bar')
@@ -114,12 +107,16 @@ describe('computeWordDiff', () => {
   it('handles empty old line (pure addition)', () => {
     const result = computeWordDiff('', 'new content')
     expect(result.oldSegments).toEqual([])
-    expect(result.newSegments).toEqual([{ text: 'new content', type: 'changed' }])
+    expect(result.newSegments).toEqual([
+      { text: 'new content', type: 'changed' },
+    ])
   })
 
   it('handles empty new line (pure deletion)', () => {
     const result = computeWordDiff('old content', '')
-    expect(result.oldSegments).toEqual([{ text: 'old content', type: 'changed' }])
+    expect(result.oldSegments).toEqual([
+      { text: 'old content', type: 'changed' },
+    ])
     expect(result.newSegments).toEqual([])
   })
 
@@ -189,7 +186,8 @@ describe('computeWordDiff', () => {
 
   it('handles long lines efficiently without hanging', () => {
     // A long line with a single change should be fast
-    const common = 'const longVariableName = someFunction(argument1, argument2, argument3)'
+    const common =
+      'const longVariableName = someFunction(argument1, argument2, argument3)'
     const oldLine = `${common} // old comment`
     const newLine = `${common} // new comment`
     const start = performance.now()

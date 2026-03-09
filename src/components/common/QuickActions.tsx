@@ -44,7 +44,10 @@ function ActionRow({
         </Text>
       </Box>
       <Box width={12} justifyContent="flex-end">
-        <Text color={isSelected ? selectionFg : mutedColor} dimColor={!isSelected}>
+        <Text
+          color={isSelected ? selectionFg : mutedColor}
+          dimColor={!isSelected}
+        >
           {action.keybinding}
         </Text>
       </Box>
@@ -87,9 +90,7 @@ export function QuickActions({
 
     // Navigate with j/k or arrow keys
     if (input === 'j' || key.downArrow) {
-      setSelectedIndex((prev) =>
-        Math.min(prev + 1, actions.length - 1),
-      )
+      setSelectedIndex((prev) => Math.min(prev + 1, actions.length - 1))
     } else if (input === 'k' || key.upArrow) {
       setSelectedIndex((prev) => Math.max(prev - 1, 0))
     }

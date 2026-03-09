@@ -114,9 +114,7 @@ async function* mockStream(
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useAiReview(
-  aiConfig?: AiConfig,
-): UseAiReviewReturn {
+export function useAiReview(aiConfig?: AiConfig): UseAiReviewReturn {
   const [response, setResponse] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

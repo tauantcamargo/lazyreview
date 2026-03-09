@@ -69,8 +69,20 @@ describe('RepoLabelSchema', () => {
 describe('RepoLabelsSchema', () => {
   it('parses an array of labels', () => {
     const input = [
-      { id: 1, name: 'bug', color: 'fc2929', description: 'Broken', default: false },
-      { id: 2, name: 'feature', color: '0075ca', description: null, default: false },
+      {
+        id: 1,
+        name: 'bug',
+        color: 'fc2929',
+        description: 'Broken',
+        default: false,
+      },
+      {
+        id: 2,
+        name: 'feature',
+        color: '0075ca',
+        description: null,
+        default: false,
+      },
     ]
     const result = RepoLabelsSchema.parse(input)
     expect(result).toHaveLength(2)
@@ -88,9 +100,7 @@ describe('RepoLabelsSchema', () => {
   })
 
   it('rejects array with invalid items', () => {
-    expect(() =>
-      RepoLabelsSchema.parse([{ invalid: true }]),
-    ).toThrow()
+    expect(() => RepoLabelsSchema.parse([{ invalid: true }])).toThrow()
   })
 })
 

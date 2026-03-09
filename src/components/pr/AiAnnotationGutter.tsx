@@ -11,7 +11,10 @@
 import React, { useMemo } from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
-import type { AiAnnotation, AiAnnotationSeverity } from '../../services/ai/review-prompts'
+import type {
+  AiAnnotation,
+  AiAnnotationSeverity,
+} from '../../services/ai/review-prompts'
 
 // ---------------------------------------------------------------------------
 // Types

@@ -14,7 +14,10 @@ import {
   type KeyStroke,
 } from './macro-recorder'
 
-function makeKeystroke(input: string, key: Partial<KeyStroke['key']> = {}): KeyStroke {
+function makeKeystroke(
+  input: string,
+  key: Partial<KeyStroke['key']> = {},
+): KeyStroke {
   return {
     input,
     key: {

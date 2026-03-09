@@ -147,7 +147,12 @@ describe('CommentTemplate model', () => {
 
     it('should append user templates that have new names', () => {
       const userTemplates: readonly CommentTemplate[] = [
-        { name: 'Custom', prefix: 'custom:', body: '{{cursor}}', description: 'My custom template' },
+        {
+          name: 'Custom',
+          prefix: 'custom:',
+          body: '{{cursor}}',
+          description: 'My custom template',
+        },
       ]
       const result = mergeTemplates(DEFAULT_TEMPLATES, userTemplates)
       expect(result).toHaveLength(11)
@@ -156,7 +161,12 @@ describe('CommentTemplate model', () => {
 
     it('should override defaults when user template has same name', () => {
       const userTemplates: readonly CommentTemplate[] = [
-        { name: 'Nit', prefix: 'nitpick:', body: 'Custom nit: {{cursor}}', description: 'Custom nit' },
+        {
+          name: 'Nit',
+          prefix: 'nitpick:',
+          body: 'Custom nit: {{cursor}}',
+          description: 'Custom nit',
+        },
       ]
       const result = mergeTemplates(DEFAULT_TEMPLATES, userTemplates)
       expect(result).toHaveLength(10) // Same count, overridden

@@ -123,7 +123,11 @@ export function useNotifications(
     }
 
     if (config.notifyOnReviewRequest) {
-      const reviewRequests = detectNewReviewRequests(prs, prevMap, currentUserLogin)
+      const reviewRequests = detectNewReviewRequests(
+        prs,
+        prevMap,
+        currentUserLogin,
+      )
       for (const pr of reviewRequests) {
         sendNotification({
           title: 'Review Requested',
@@ -134,5 +138,12 @@ export function useNotifications(
     }
 
     previousPRsRef.current = buildSnapshotMap(prs)
-  }, [prs, config.enabled, config.notifyOnNewPR, config.notifyOnUpdate, config.notifyOnReviewRequest, currentUserLogin])
+  }, [
+    prs,
+    config.enabled,
+    config.notifyOnNewPR,
+    config.notifyOnUpdate,
+    config.notifyOnReviewRequest,
+    currentUserLogin,
+  ])
 }

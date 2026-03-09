@@ -12,7 +12,8 @@ const validChangedFile = {
   deletions: 3,
   changes: 13,
   html_url: 'https://gitea.example.com/owner/repo/src/branch/main/src/main.ts',
-  contents_url: 'https://gitea.example.com/api/v1/repos/owner/repo/contents/src/main.ts',
+  contents_url:
+    'https://gitea.example.com/api/v1/repos/owner/repo/contents/src/main.ts',
 }
 
 // ---------------------------------------------------------------------------
@@ -67,8 +68,6 @@ describe('GiteaChangedFileSchema', () => {
   })
 
   it('rejects missing filename', () => {
-    expect(() =>
-      GiteaChangedFileSchema.parse({ status: 'modified' }),
-    ).toThrow()
+    expect(() => GiteaChangedFileSchema.parse({ status: 'modified' })).toThrow()
   })
 })

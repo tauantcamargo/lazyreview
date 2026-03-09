@@ -50,7 +50,12 @@ export interface OptimisticCommentShape {
   readonly id: number
   readonly node_id?: string
   readonly body: string
-  readonly user: { readonly login: string; readonly id: number; readonly avatar_url: string; readonly html_url: string }
+  readonly user: {
+    readonly login: string
+    readonly id: number
+    readonly avatar_url: string
+    readonly html_url: string
+  }
   readonly created_at: string
   readonly updated_at: string
   readonly html_url: string
@@ -64,7 +69,12 @@ export interface OptimisticIssueCommentShape {
   readonly id: number
   readonly node_id?: string
   readonly body: string
-  readonly user: { readonly login: string; readonly id: number; readonly avatar_url: string; readonly html_url: string }
+  readonly user: {
+    readonly login: string
+    readonly id: number
+    readonly avatar_url: string
+    readonly html_url: string
+  }
   readonly created_at: string
   readonly updated_at: string
   readonly html_url: string
@@ -74,7 +84,12 @@ export interface OptimisticReviewShape {
   readonly id: number
   readonly body: string | null
   readonly state: string
-  readonly user: { readonly login: string; readonly id: number; readonly avatar_url: string; readonly html_url: string }
+  readonly user: {
+    readonly login: string
+    readonly id: number
+    readonly avatar_url: string
+    readonly html_url: string
+  }
   readonly html_url: string
   readonly submitted_at: string | null
 }
@@ -94,7 +109,9 @@ interface CreateCommentInput {
   readonly inReplyToId?: number
 }
 
-export function createOptimisticComment(input: CreateCommentInput): OptimisticComment {
+export function createOptimisticComment(
+  input: CreateCommentInput,
+): OptimisticComment {
   const now = new Date().toISOString()
   return {
     id: nextOptimisticId(),
@@ -114,7 +131,9 @@ interface CreateIssueCommentInput {
   readonly body: string
 }
 
-export function createOptimisticIssueComment(input: CreateIssueCommentInput): OptimisticIssueComment {
+export function createOptimisticIssueComment(
+  input: CreateIssueCommentInput,
+): OptimisticIssueComment {
   const now = new Date().toISOString()
   return {
     id: nextOptimisticId(),
@@ -131,7 +150,9 @@ interface CreateReviewInput {
   readonly event: ReviewEvent
 }
 
-export function createOptimisticReview(input: CreateReviewInput): OptimisticReviewShape {
+export function createOptimisticReview(
+  input: CreateReviewInput,
+): OptimisticReviewShape {
   return {
     id: nextOptimisticId(),
     body: input.body,
@@ -174,8 +195,6 @@ export function applyThreadResolution(
 ): readonly ReviewThread[] {
   if (!old) return []
   return old.map((thread) =>
-    thread.id === threadId
-      ? { ...thread, isResolved }
-      : thread,
+    thread.id === threadId ? { ...thread, isResolved } : thread,
   )
 }

@@ -60,7 +60,9 @@ function makeAction(
 /**
  * Actions available on the PR list screen.
  */
-function getPRListActions(_context: QuickActionContext): readonly QuickAction[] {
+function getPRListActions(
+  _context: QuickActionContext,
+): readonly QuickAction[] {
   return [
     makeAction('openInBrowser', 'Open in browser', 'o'),
     makeAction('copyUrl', 'Copy URL', 'y'),
@@ -76,7 +78,9 @@ function getPRListActions(_context: QuickActionContext): readonly QuickAction[] 
  * Actions available on the PR detail screen.
  * Varies based on whether the PR is open, closed, merged, or draft.
  */
-function getPRDetailActions(context: QuickActionContext): readonly QuickAction[] {
+function getPRDetailActions(
+  context: QuickActionContext,
+): readonly QuickAction[] {
   const { itemState } = context
   const actions: QuickAction[] = []
 
@@ -124,7 +128,9 @@ function getPRDetailActions(context: QuickActionContext): readonly QuickAction[]
 /**
  * Actions available on the files tab.
  */
-function getFilesTabActions(_context: QuickActionContext): readonly QuickAction[] {
+function getFilesTabActions(
+  _context: QuickActionContext,
+): readonly QuickAction[] {
   return [
     makeAction('inlineComment', 'Add inline comment', 'c'),
     makeAction('toggleSideBySide', 'Toggle side-by-side', 'd'),
@@ -146,7 +152,9 @@ function getFilesTabActions(_context: QuickActionContext): readonly QuickAction[
  * @param context - The current UI context
  * @returns An array of QuickAction objects
  */
-export function getQuickActions(context: QuickActionContext): readonly QuickAction[] {
+export function getQuickActions(
+  context: QuickActionContext,
+): readonly QuickAction[] {
   switch (context.screen) {
     case 'pr-list':
       return getPRListActions(context)

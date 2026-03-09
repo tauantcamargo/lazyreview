@@ -205,9 +205,7 @@ describe('CommandPalette logic', () => {
       const query = ''
       const total = mockActions.length
       const filtered = fuzzyFilter(mockActions, query, (a) => a.description)
-      const label = query
-        ? `${filtered.length}/${total}`
-        : `${total}`
+      const label = query ? `${filtered.length}/${total}` : `${total}`
       expect(label).toBe('5')
     })
 
@@ -215,9 +213,7 @@ describe('CommandPalette logic', () => {
       const query = 'mer'
       const total = mockActions.length
       const filtered = fuzzyFilter(mockActions, query, (a) => a.description)
-      const label = query
-        ? `${filtered.length}/${total}`
-        : `${total}`
+      const label = query ? `${filtered.length}/${total}` : `${total}`
       expect(label).toContain('/')
       expect(label).toContain(String(total))
     })

@@ -17,7 +17,11 @@ interface MarkdownTextProps {
   readonly maxWidth?: number
 }
 
-function InlineContent({ text }: { readonly text: string }): React.ReactElement {
+function InlineContent({
+  text,
+}: {
+  readonly text: string
+}): React.ReactElement {
   const theme = useTheme()
   const segments = parseInline(text)
 
@@ -155,16 +159,12 @@ function BlockRenderer({
           {taskResult.items.map((item, j) => (
             <Box key={j} gap={1}>
               <Text
-                color={
-                  item.checked ? theme.colors.success : theme.colors.muted
-                }
+                color={item.checked ? theme.colors.success : theme.colors.muted}
               >
                 {item.checked ? '[x]' : '[ ]'}
               </Text>
               <Text
-                color={
-                  item.checked ? theme.colors.muted : theme.colors.text
-                }
+                color={item.checked ? theme.colors.muted : theme.colors.text}
                 dimColor={item.checked}
               >
                 {item.text}
@@ -201,11 +201,7 @@ function BlockRenderer({
     }
 
     case 'hr':
-      return (
-        <Text color={theme.colors.border}>
-          {'─'.repeat(40)}
-        </Text>
-      )
+      return <Text color={theme.colors.border}>{'─'.repeat(40)}</Text>
 
     case 'paragraph':
     default:
@@ -217,7 +213,9 @@ function BlockRenderer({
   }
 }
 
-export function MarkdownText({ content }: MarkdownTextProps): React.ReactElement | null {
+export function MarkdownText({
+  content,
+}: MarkdownTextProps): React.ReactElement | null {
   const theme = useTheme()
 
   if (!content || content.trim() === '') {

@@ -57,7 +57,11 @@ export function updateRateLimit(headers: Headers): void {
     const parsedLimit = Number(limit)
     const parsedReset = Number(reset)
 
-    if (!Number.isNaN(parsedRemaining) && !Number.isNaN(parsedLimit) && !Number.isNaN(parsedReset)) {
+    if (
+      !Number.isNaN(parsedRemaining) &&
+      !Number.isNaN(parsedLimit) &&
+      !Number.isNaN(parsedReset)
+    ) {
       store.update({
         remaining: parsedRemaining,
         limit: parsedLimit,

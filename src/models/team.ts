@@ -27,7 +27,9 @@ export type TeamConfig = z.infer<typeof TeamConfigSchema>
  * If provider is set, returns "provider:username", otherwise just "username".
  */
 export function buildTeamMemberKey(member: TeamMember): string {
-  return member.provider ? `${member.provider}:${member.username}` : member.username
+  return member.provider
+    ? `${member.provider}:${member.username}`
+    : member.username
 }
 
 /**

@@ -77,7 +77,11 @@ export function TimelineItemView({
         {isFocus && <Text color={theme.colors.accent}>{'> '}</Text>}
         <Text color={color}>{icon}</Text>
         <Text> </Text>
-        <Text color={item.isResolved ? theme.colors.muted : theme.colors.secondary} bold dimColor={item.isResolved}>
+        <Text
+          color={item.isResolved ? theme.colors.muted : theme.colors.secondary}
+          bold
+          dimColor={item.isResolved}
+        >
           {item.user}
         </Text>
         {stateLabel ? (
@@ -89,7 +93,9 @@ export function TimelineItemView({
         {item.isResolved && (
           <>
             <Text> </Text>
-            <Text color={theme.colors.muted} dimColor>[Resolved]</Text>
+            <Text color={theme.colors.muted} dimColor>
+              [Resolved]
+            </Text>
           </>
         )}
         {location ? <Text color={theme.colors.muted}>{location}</Text> : null}
@@ -97,7 +103,9 @@ export function TimelineItemView({
       </Box>
       {item.body ? (
         <Box paddingLeft={isFocus ? 3 : 2} marginTop={0} width="80%">
-          <MarkdownText content={item.isResolved ? `~~${item.body}~~` : item.body} />
+          <MarkdownText
+            content={item.isResolved ? `~~${item.body}~~` : item.body}
+          />
         </Box>
       ) : null}
       {item.reactions && item.reactions.total_count > 0 ? (

@@ -199,12 +199,10 @@ export function mapDiffToFileChange(diff: GitLabDiff): FileChange {
 // GitLabCommit -> Commit
 // ---------------------------------------------------------------------------
 
-export function mapCommit(
-  glCommit: GitLabCommit,
-  repoWebUrl?: string,
-): Commit {
+export function mapCommit(glCommit: GitLabCommit, repoWebUrl?: string): Commit {
   const htmlUrl =
-    glCommit.web_url ?? (repoWebUrl ? `${repoWebUrl}/-/commit/${glCommit.id}` : '')
+    glCommit.web_url ??
+    (repoWebUrl ? `${repoWebUrl}/-/commit/${glCommit.id}` : '')
 
   return new Commit({
     sha: glCommit.id,
@@ -225,9 +223,7 @@ export function mapCommit(
 // Pipeline Job -> CheckRun
 // ---------------------------------------------------------------------------
 
-function mapJobStatus(
-  status: GitLabPipelineJob['status'],
-): CheckRun['status'] {
+function mapJobStatus(status: GitLabPipelineJob['status']): CheckRun['status'] {
   switch (status) {
     case 'success':
     case 'failed':

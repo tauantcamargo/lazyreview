@@ -15,7 +15,11 @@ const testMessages: readonly AiMessage[] = [
   { role: 'user', content: 'Hello, how are you?' },
 ]
 
-function mockFetchResponse(body: unknown, status = 200, headers: Record<string, string> = {}): void {
+function mockFetchResponse(
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+): void {
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue({
@@ -224,11 +228,7 @@ describe('Anthropic Adapter', () => {
     })
 
     it('should return AiRateLimitError on 429', async () => {
-      mockFetchResponse(
-        { error: 'rate limited' },
-        429,
-        { 'retry-after': '30' },
-      )
+      mockFetchResponse({ error: 'rate limited' }, 429, { 'retry-after': '30' })
 
       const service = createAnthropicService(mockConfig)
       const result = await Effect.runPromiseExit(service.complete(testMessages))

@@ -10,13 +10,15 @@ import type { ProviderConfig } from './types'
 
 const originalFetch = globalThis.fetch
 
-function mockFetchResponse(options: {
-  readonly ok?: boolean
-  readonly status?: number
-  readonly statusText?: string
-  readonly body?: unknown
-  readonly headers?: Record<string, string>
-} = {}): void {
+function mockFetchResponse(
+  options: {
+    readonly ok?: boolean
+    readonly status?: number
+    readonly statusText?: string
+    readonly body?: unknown
+    readonly headers?: Record<string, string>
+  } = {},
+): void {
   const {
     ok = true,
     status = 200,
@@ -307,9 +309,7 @@ describe('createGiteaProvider', () => {
       it('passes perPage and page parameters', async () => {
         mockFetchResponse({ body: [] })
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.listPRs({ perPage: 10, page: 2 }),
-        )
+        await Effect.runPromise(provider.listPRs({ perPage: 10, page: 2 }))
         const url = getLastFetchUrl()
         expect(url).toContain('limit=10')
         expect(url).toContain('page=2')
@@ -367,9 +367,7 @@ describe('createGiteaProvider', () => {
       it('does not pass sort for unsupported sort type', async () => {
         mockFetchResponse({ body: [] })
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.listPRs({ sort: 'popularity' }),
-        )
+        await Effect.runPromise(provider.listPRs({ sort: 'popularity' }))
         const url = getLastFetchUrl()
         expect(url).not.toContain('sort=')
       })
@@ -618,9 +616,7 @@ describe('createGiteaProvider', () => {
     describe('getPRChecks', () => {
       it('returns empty check runs response', async () => {
         const provider = createGiteaProvider(TEST_CONFIG)
-        const result = await Effect.runPromise(
-          provider.getPRChecks('abc123'),
-        )
+        const result = await Effect.runPromise(provider.getPRChecks('abc123'))
         expect(result.total_count).toBe(0)
         expect(result.check_runs).toEqual([])
       })
@@ -629,9 +625,7 @@ describe('createGiteaProvider', () => {
     describe('getReviewThreads', () => {
       it('returns empty array (not supported)', async () => {
         const provider = createGiteaProvider(TEST_CONFIG)
-        const result = await Effect.runPromise(
-          provider.getReviewThreads(1),
-        )
+        const result = await Effect.runPromise(provider.getReviewThreads(1))
         expect(result).toEqual([])
       })
     })
@@ -641,9 +635,7 @@ describe('createGiteaProvider', () => {
         const file = makeGiteaChangedFile()
         mockFetchResponse({ body: [file] })
         const provider = createGiteaProvider(TEST_CONFIG)
-        const result = await Effect.runPromise(
-          provider.getCommitDiff('abc123'),
-        )
+        const result = await Effect.runPromise(provider.getCommitDiff('abc123'))
         expect(result).toHaveLength(1)
         expect(result[0]!.filename).toBe('src/index.ts')
       })
@@ -880,9 +872,7 @@ describe('createGiteaProvider', () => {
       it('posts review via mutation helper', async () => {
         mockFetchResponse()
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.submitReview(42, 'LGTM!', 'APPROVE'),
-        )
+        await Effect.runPromise(provider.submitReview(42, 'LGTM!', 'APPROVE'))
         const url = getLastFetchUrl()
         expect(url).toContain('/repos/myowner/myrepo/pulls/42/reviews')
         const body = getLastFetchBody()
@@ -893,9 +883,7 @@ describe('createGiteaProvider', () => {
       it('maps APPROVE to APPROVED', async () => {
         mockFetchResponse()
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.submitReview(1, '', 'APPROVE'),
-        )
+        await Effect.runPromise(provider.submitReview(1, '', 'APPROVE'))
         const body = getLastFetchBody()
         expect(body.event).toBe('APPROVED')
       })
@@ -913,9 +901,7 @@ describe('createGiteaProvider', () => {
       it('passes COMMENT as-is', async () => {
         mockFetchResponse()
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.submitReview(1, 'Note', 'COMMENT'),
-        )
+        await Effect.runPromise(provider.submitReview(1, 'Note', 'COMMENT'))
         const body = getLastFetchBody()
         expect(body.event).toBe('COMMENT')
       })
@@ -924,9 +910,7 @@ describe('createGiteaProvider', () => {
     describe('createPendingReview', () => {
       it('returns dummy id=0', async () => {
         const provider = createGiteaProvider(TEST_CONFIG)
-        const result = await Effect.runPromise(
-          provider.createPendingReview(42),
-        )
+        const result = await Effect.runPromise(provider.createPendingReview(42))
         expect(result.id).toBe(0)
       })
     })
@@ -971,9 +955,7 @@ describe('createGiteaProvider', () => {
           }),
         )
         const body = getLastFetchBody()
-        const comment = (
-          body.comments as Array<Record<string, unknown>>
-        )[0]!
+        const comment = (body.comments as Array<Record<string, unknown>>)[0]!
         expect(comment.old_position).toBe(5)
         expect(comment.new_position).toBe(0)
       })
@@ -1014,9 +996,7 @@ describe('createGiteaProvider', () => {
         const provider = createGiteaProvider(TEST_CONFIG)
         await Effect.runPromise(provider.addComment(42, 'Hello!'))
         const url = getLastFetchUrl()
-        expect(url).toContain(
-          '/repos/myowner/myrepo/issues/42/comments',
-        )
+        expect(url).toContain('/repos/myowner/myrepo/issues/42/comments')
         const body = getLastFetchBody()
         expect(body.body).toBe('Hello!')
       })
@@ -1070,9 +1050,7 @@ describe('createGiteaProvider', () => {
       it('falls back to adding issue comment', async () => {
         mockFetchResponse()
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.replyToComment(42, 99, 'Thanks!'),
-        )
+        await Effect.runPromise(provider.replyToComment(42, 99, 'Thanks!'))
         const url = getLastFetchUrl()
         expect(url).toContain('/repos/myowner/myrepo/issues/42/comments')
         const body = getLastFetchBody()
@@ -1084,13 +1062,9 @@ describe('createGiteaProvider', () => {
       it('patches issue comment', async () => {
         mockFetchResponse()
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.editIssueComment(100, 'Updated text'),
-        )
+        await Effect.runPromise(provider.editIssueComment(100, 'Updated text'))
         const url = getLastFetchUrl()
-        expect(url).toContain(
-          '/repos/myowner/myrepo/issues/comments/100',
-        )
+        expect(url).toContain('/repos/myowner/myrepo/issues/comments/100')
         const body = getLastFetchBody()
         expect(body.body).toBe('Updated text')
         expect(getLastFetchMethod()).toBe('PATCH')
@@ -1101,13 +1075,9 @@ describe('createGiteaProvider', () => {
       it('uses same endpoint as editIssueComment', async () => {
         mockFetchResponse()
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.editReviewComment(200, 'Fixed'),
-        )
+        await Effect.runPromise(provider.editReviewComment(200, 'Fixed'))
         const url = getLastFetchUrl()
-        expect(url).toContain(
-          '/repos/myowner/myrepo/issues/comments/200',
-        )
+        expect(url).toContain('/repos/myowner/myrepo/issues/comments/200')
       })
     })
 
@@ -1117,9 +1087,7 @@ describe('createGiteaProvider', () => {
         const provider = createGiteaProvider(TEST_CONFIG)
         await Effect.runPromise(provider.deleteReviewComment(200))
         const url = getLastFetchUrl()
-        expect(url).toContain(
-          '/repos/myowner/myrepo/issues/comments/200',
-        )
+        expect(url).toContain('/repos/myowner/myrepo/issues/comments/200')
         expect(getLastFetchMethod()).toBe('DELETE')
       })
     })
@@ -1161,9 +1129,7 @@ describe('createGiteaProvider', () => {
       it('includes merge message with title only', async () => {
         mockFetchResponse()
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.mergePR(42, 'squash', 'Squash title'),
-        )
+        await Effect.runPromise(provider.mergePR(42, 'squash', 'Squash title'))
         const body = getLastFetchBody()
         expect(body.merge_message_field).toBe('Squash title')
       })
@@ -1217,9 +1183,7 @@ describe('createGiteaProvider', () => {
       it('patches PR title', async () => {
         mockFetchResponse()
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.updatePRTitle(42, 'New Title'),
-        )
+        await Effect.runPromise(provider.updatePRTitle(42, 'New Title'))
         const body = getLastFetchBody()
         expect(body.title).toBe('New Title')
         expect(getLastFetchMethod()).toBe('PATCH')
@@ -1230,9 +1194,7 @@ describe('createGiteaProvider', () => {
       it('patches PR body', async () => {
         mockFetchResponse()
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.updatePRBody(42, 'New description'),
-        )
+        await Effect.runPromise(provider.updatePRBody(42, 'New description'))
         const body = getLastFetchBody()
         expect(body.body).toBe('New description')
         expect(getLastFetchMethod()).toBe('PATCH')
@@ -1243,9 +1205,7 @@ describe('createGiteaProvider', () => {
       it('posts requested reviewers', async () => {
         mockFetchResponse()
         const provider = createGiteaProvider(TEST_CONFIG)
-        await Effect.runPromise(
-          provider.requestReReview(42, ['alice', 'bob']),
-        )
+        await Effect.runPromise(provider.requestReReview(42, ['alice', 'bob']))
         const url = getLastFetchUrl()
         expect(url).toContain(
           '/repos/myowner/myrepo/pulls/42/requested_reviewers',

@@ -123,9 +123,7 @@ export function parseConflictMarkers(
  * @param content - The raw file content
  * @returns Array of common and conflict chunks
  */
-export function buildThreeWayView(
-  content: string,
-): readonly ThreeWayChunk[] {
+export function buildThreeWayView(content: string): readonly ThreeWayChunk[] {
   const lines = content.split('\n')
   const regions = parseConflictMarkers(content)
 
@@ -165,8 +163,6 @@ export function buildThreeWayView(
  * @param chunks - Array of three-way chunks
  * @returns The number of conflict chunks
  */
-export function countConflicts(
-  chunks: readonly ThreeWayChunk[],
-): number {
+export function countConflicts(chunks: readonly ThreeWayChunk[]): number {
   return chunks.filter((chunk) => chunk.type === 'conflict').length
 }

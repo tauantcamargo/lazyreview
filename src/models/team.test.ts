@@ -61,9 +61,18 @@ describe('Team model', () => {
     })
 
     it('should accept all valid provider values', () => {
-      const providers = ['github', 'gitlab', 'bitbucket', 'azure', 'gitea'] as const
+      const providers = [
+        'github',
+        'gitlab',
+        'bitbucket',
+        'azure',
+        'gitea',
+      ] as const
       for (const provider of providers) {
-        const result = TeamMemberSchema.safeParse({ username: 'user', provider })
+        const result = TeamMemberSchema.safeParse({
+          username: 'user',
+          provider,
+        })
         expect(result.success).toBe(true)
       }
     })
@@ -134,7 +143,9 @@ describe('Team model', () => {
     it('should produce unique keys for same user on different providers', () => {
       const ghMember: TeamMember = { username: 'alice', provider: 'github' }
       const glMember: TeamMember = { username: 'alice', provider: 'gitlab' }
-      expect(buildTeamMemberKey(ghMember)).not.toBe(buildTeamMemberKey(glMember))
+      expect(buildTeamMemberKey(ghMember)).not.toBe(
+        buildTeamMemberKey(glMember),
+      )
     })
   })
 

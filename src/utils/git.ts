@@ -98,7 +98,8 @@ export function detectProvider(
   if (lower === 'github.com') return 'github'
   if (lower === 'gitlab.com') return 'gitlab'
   if (lower === 'bitbucket.org') return 'bitbucket'
-  if (lower.includes('dev.azure.com') || lower.includes('visualstudio.com')) return 'azure'
+  if (lower.includes('dev.azure.com') || lower.includes('visualstudio.com'))
+    return 'azure'
   if (lower.includes('ssh.dev.azure.com')) return 'azure'
 
   // Check user-configured host mappings
@@ -503,9 +504,7 @@ export function parseGitHubPRUrl(url: string): ParsedGitHubPRUrl | null {
   }
 
   // Match repo URL without PR: https://github.com/owner/repo
-  const repoMatch = url.match(
-    /https?:\/\/github\.com\/([^/]+)\/([^/?#]+)/,
-  )
+  const repoMatch = url.match(/https?:\/\/github\.com\/([^/]+)\/([^/?#]+)/)
   if (repoMatch?.[1] && repoMatch[2]) {
     return {
       owner: repoMatch[1],
@@ -532,9 +531,7 @@ export function extractRepoFromPRUrl(url: string): string | null {
   }
 
   // Fall back to GitHub-specific pattern for non-PR URLs with /pull/ path
-  const match = url.match(
-    /https?:\/\/github\.com\/([^/]+)\/([^/]+)\/pull/,
-  )
+  const match = url.match(/https?:\/\/github\.com\/([^/]+)\/([^/]+)\/pull/)
   if (!match?.[1] || !match[2]) return null
   return `${match[1]}/${match[2]}`
 }
@@ -615,10 +612,7 @@ export interface CheckoutResult {
  */
 export async function hasUncommittedChanges(): Promise<boolean> {
   try {
-    const { stdout } = await execFileAsync('git', [
-      'status',
-      '--porcelain',
-    ])
+    const { stdout } = await execFileAsync('git', ['status', '--porcelain'])
     return stdout.trim().length > 0
   } catch {
     return false
@@ -708,7 +702,8 @@ export async function checkoutPR(prNumber: number): Promise<CheckoutResult> {
     if (dirty) {
       return {
         success: false,
-        message: 'Working tree has uncommitted changes. Commit or stash them first.',
+        message:
+          'Working tree has uncommitted changes. Commit or stash them first.',
         branchName,
       }
     }
@@ -736,11 +731,7 @@ export async function checkoutPR(prNumber: number): Promise<CheckoutResult> {
       try {
         await execFileAsync('git', ['checkout', branchName])
         // Update the branch with latest PR changes
-        await execFileAsync('git', [
-          'pull',
-          'origin',
-          `pull/${prNumber}/head`,
-        ])
+        await execFileAsync('git', ['pull', 'origin', `pull/${prNumber}/head`])
         return {
           success: true,
           message: `Switched to existing branch ${branchName} and updated`,

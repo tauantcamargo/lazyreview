@@ -13,7 +13,10 @@
 import { useState, useCallback, useRef } from 'react'
 import type { AiConfig } from '../services/config-migration'
 import type { AiAnnotation } from '../services/ai/review-prompts'
-import { buildDiffAnalysisPrompt, parseAiAnnotations } from '../services/ai/review-prompts'
+import {
+  buildDiffAnalysisPrompt,
+  parseAiAnnotations,
+} from '../services/ai/review-prompts'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,11 +55,16 @@ export function buildCacheKey(filename: string, commitSha: string): string {
   return `smart-review:${filename}:${commitSha}`
 }
 
-function getCachedAnnotations(key: string): readonly AiAnnotation[] | undefined {
+function getCachedAnnotations(
+  key: string,
+): readonly AiAnnotation[] | undefined {
   return annotationCache.get(key)
 }
 
-function setCachedAnnotations(key: string, annotations: readonly AiAnnotation[]): void {
+function setCachedAnnotations(
+  key: string,
+  annotations: readonly AiAnnotation[],
+): void {
   if (annotationCache.size >= MAX_CACHE_SIZE) {
     const firstKey = annotationCache.keys().next().value
     if (firstKey !== undefined) {
@@ -197,7 +205,15 @@ export function useSmartReview(
     }
 
     void performAnalysis()
-  }, [enabled, aiConfig, rateLimited, maxAnalyses, diffContent, filename, commitSha])
+  }, [
+    enabled,
+    aiConfig,
+    rateLimited,
+    maxAnalyses,
+    diffContent,
+    filename,
+    commitSha,
+  ])
 
   return {
     annotations,

@@ -42,7 +42,11 @@ interface AiReviewModalProps {
 // ---------------------------------------------------------------------------
 
 function formatLineRange(ctx: AiReviewContext): string {
-  if (ctx.startLine != null && ctx.endLine != null && ctx.startLine !== ctx.endLine) {
+  if (
+    ctx.startLine != null &&
+    ctx.endLine != null &&
+    ctx.startLine !== ctx.endLine
+  ) {
     return `L${ctx.startLine}-L${ctx.endLine}`
   }
   if (ctx.startLine != null) {
@@ -54,7 +58,10 @@ function formatLineRange(ctx: AiReviewContext): string {
 function truncateCode(code: string, maxLines: number): string {
   const lines = code.split('\n')
   if (lines.length <= maxLines) return code
-  return lines.slice(0, maxLines).join('\n') + `\n... (${lines.length - maxLines} more lines)`
+  return (
+    lines.slice(0, maxLines).join('\n') +
+    `\n... (${lines.length - maxLines} more lines)`
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -145,9 +152,7 @@ export function AiReviewModal({
             <Text color={theme.colors.accent} bold>
               AI Review
             </Text>
-            {lineRange && (
-              <Text color={theme.colors.muted}>{lineRange}</Text>
-            )}
+            {lineRange && <Text color={theme.colors.muted}>{lineRange}</Text>}
           </Box>
           {providerInfo && (
             <Text color={theme.colors.info} dimColor>
@@ -188,9 +193,7 @@ export function AiReviewModal({
           </Box>
         )}
 
-        {error && (
-          <Text color={theme.colors.error}>{error}</Text>
-        )}
+        {error && <Text color={theme.colors.error}>{error}</Text>}
 
         {/* Actions footer */}
         <Box flexDirection="column" gap={0}>

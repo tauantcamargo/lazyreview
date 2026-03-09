@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { getLatestReviewByUser } from './ReviewSummary'
 import type { Review } from '../../models/review'
 
-function makeReview(login: string, state: string, submitted_at: string): Review {
+function makeReview(
+  login: string,
+  state: string,
+  submitted_at: string,
+): Review {
   return {
     id: Math.floor(Math.random() * 10000),
     user: { login, avatar_url: '' },

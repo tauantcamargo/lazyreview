@@ -95,7 +95,9 @@ export function TeamDashboardScreen({
         <Text color={theme.colors.muted}>·</Text>
         <Text color={theme.colors.text}>{totalOpen} open</Text>
         <Text color={theme.colors.muted}>·</Text>
-        <Text color={totalPending > 0 ? theme.colors.warning : theme.colors.muted}>
+        <Text
+          color={totalPending > 0 ? theme.colors.warning : theme.colors.muted}
+        >
           {totalPending} pending reviews
         </Text>
       </Box>
@@ -120,9 +122,7 @@ export function TeamDashboardScreen({
           <Box key={stat.member.username}>
             <Text
               color={isSelected ? theme.colors.accent : theme.colors.text}
-              backgroundColor={
-                isSelected ? theme.colors.selection : undefined
-              }
+              backgroundColor={isSelected ? theme.colors.selection : undefined}
               bold={isSelected}
             >
               {isSelected ? '▶ ' : '  '}

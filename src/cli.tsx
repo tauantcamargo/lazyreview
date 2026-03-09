@@ -153,7 +153,8 @@ async function main(): Promise<void> {
   // Resolve repo info: CLI args take priority, then git detection
   let repoOwner: string | null = parsed.owner
   let repoName: string | null = parsed.repo
-  let detectedProvider: ProviderType | null = parsed.provider as ProviderType | null
+  let detectedProvider: ProviderType | null =
+    parsed.provider as ProviderType | null
   let detectedBaseUrl: string | null = null
 
   // If no repo specified in args, try to detect from current git repo

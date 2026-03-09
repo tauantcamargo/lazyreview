@@ -13,7 +13,12 @@ interface PRHeaderProps {
   readonly hasNotes?: boolean
 }
 
-export function PRHeader({ pr, prIndex, prTotal, hasNotes }: PRHeaderProps): React.ReactElement {
+export function PRHeader({
+  pr,
+  prIndex,
+  prTotal,
+  hasNotes,
+}: PRHeaderProps): React.ReactElement {
   const theme = useTheme()
   const totalComments = pr.comments + pr.review_comments
   const conflictState = detectConflictState(pr)
@@ -56,9 +61,7 @@ export function PRHeader({ pr, prIndex, prTotal, hasNotes }: PRHeaderProps): Rea
           </Text>
         )}
         {pr.mergeable === null && (
-          <Text color={theme.colors.muted}>
-            [?merge]
-          </Text>
+          <Text color={theme.colors.muted}>[?merge]</Text>
         )}
         {prTotal !== undefined && prIndex !== undefined && prTotal > 1 && (
           <Text color={theme.colors.muted}>
@@ -83,9 +86,7 @@ export function PRHeader({ pr, prIndex, prTotal, hasNotes }: PRHeaderProps): Rea
         {totalComments > 0 && (
           <>
             <Text color={theme.colors.muted}>·</Text>
-            <Text color={theme.colors.info}>
-              {totalComments} 💬
-            </Text>
+            <Text color={theme.colors.info}>{totalComments} 💬</Text>
           </>
         )}
       </Box>
@@ -93,14 +94,14 @@ export function PRHeader({ pr, prIndex, prTotal, hasNotes }: PRHeaderProps): Rea
       {pr.labels.length > 0 && (
         <Box gap={1} paddingLeft={2}>
           {pr.labels.map((label) => {
-            const bgColor = label.color ? normalizeHexColor(label.color) : undefined
-            const fgColor = label.color ? contrastForeground(label.color) : theme.colors.muted
+            const bgColor = label.color
+              ? normalizeHexColor(label.color)
+              : undefined
+            const fgColor = label.color
+              ? contrastForeground(label.color)
+              : theme.colors.muted
             return (
-              <Text
-                key={label.id}
-                color={fgColor}
-                backgroundColor={bgColor}
-              >
+              <Text key={label.id} color={fgColor} backgroundColor={bgColor}>
                 {` ${label.name} `}
               </Text>
             )

@@ -14,10 +14,7 @@ export function buildCommentsByLine(
   if (!comments || comments.length === 0 || !filename) return undefined
 
   const fileComments = comments.filter(
-    (c) =>
-      c.path === filename &&
-      c.line != null &&
-      c.in_reply_to_id == null,
+    (c) => c.path === filename && c.line != null && c.in_reply_to_id == null,
   )
   if (fileComments.length === 0) return undefined
 

@@ -12,10 +12,7 @@ export {
   type GitHubApiService,
   type ListPRsOptions,
 } from './GitHubApi'
-export {
-  CodeReviewApi,
-  type CodeReviewApiService,
-} from './CodeReviewApiTypes'
+export { CodeReviewApi, type CodeReviewApiService } from './CodeReviewApiTypes'
 
 // GitHubApiLive provides CodeReviewApi (the provider-agnostic interface)
 const CodeReviewApiFullLive = GitHubApiLive.pipe(Layer.provide(AuthLive))

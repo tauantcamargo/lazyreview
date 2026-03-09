@@ -1,5 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
-import { truncate, padRight, pluralize, formatCount, openInBrowser, copyToClipboard, computeSidebarWidth } from './terminal'
+import {
+  truncate,
+  padRight,
+  pluralize,
+  formatCount,
+  openInBrowser,
+  copyToClipboard,
+  computeSidebarWidth,
+} from './terminal'
 
 vi.mock('node:child_process', () => ({
   execFile: vi.fn(),

@@ -111,9 +111,9 @@ describe('useKeybindings integration scenarios', () => {
         true,
       )
       // prList should not have a toggleHelp action by default
-      expect(
-        matchesAction('h', makeKey(), 'toggleHelp', prListBindings),
-      ).toBe(false)
+      expect(matchesAction('h', makeKey(), 'toggleHelp', prListBindings)).toBe(
+        false,
+      )
     })
   })
 
@@ -148,7 +148,9 @@ describe('useKeybindings integration scenarios', () => {
       expect(matchesAction('s', makeKey(), 'sortPRs', bindings)).toBe(true)
       expect(matchesAction('n', makeKey(), 'nextPage', bindings)).toBe(true)
       expect(matchesAction('p', makeKey(), 'prevPage', bindings)).toBe(true)
-      expect(matchesAction('o', makeKey(), 'openInBrowser', bindings)).toBe(true)
+      expect(matchesAction('o', makeKey(), 'openInBrowser', bindings)).toBe(
+        true,
+      )
       expect(matchesAction('y', makeKey(), 'copyUrl', bindings)).toBe(true)
       expect(matchesAction('u', makeKey(), 'toggleUnread', bindings)).toBe(true)
       expect(matchesAction('t', makeKey(), 'toggleState', bindings)).toBe(true)
@@ -161,10 +163,14 @@ describe('useKeybindings integration scenarios', () => {
       expect(matchesAction('E', makeKey(), 'reReview', bindings)).toBe(true)
       expect(matchesAction('m', makeKey(), 'mergePR', bindings)).toBe(true)
       expect(matchesAction('X', makeKey(), 'closePR', bindings)).toBe(true)
-      expect(matchesAction('G', makeKey(), 'checkoutBranch', bindings)).toBe(true)
+      expect(matchesAction('G', makeKey(), 'checkoutBranch', bindings)).toBe(
+        true,
+      )
       expect(matchesAction(']', makeKey(), 'nextPR', bindings)).toBe(true)
       expect(matchesAction('[', makeKey(), 'prevPR', bindings)).toBe(true)
-      expect(matchesAction('o', makeKey(), 'openInBrowser', bindings)).toBe(true)
+      expect(matchesAction('o', makeKey(), 'openInBrowser', bindings)).toBe(
+        true,
+      )
       expect(matchesAction('y', makeKey(), 'copyUrl', bindings)).toBe(true)
       expect(matchesAction('T', makeKey(), 'editTitle', bindings)).toBe(true)
       expect(matchesAction('W', makeKey(), 'toggleDraft', bindings)).toBe(true)
@@ -175,9 +181,15 @@ describe('useKeybindings integration scenarios', () => {
       expect(matchesAction('c', makeKey(), 'newComment', bindings)).toBe(true)
       expect(matchesAction('r', makeKey(), 'reply', bindings)).toBe(true)
       expect(matchesAction('e', makeKey(), 'editComment', bindings)).toBe(true)
-      expect(matchesAction('D', makeKey(), 'editDescription', bindings)).toBe(true)
-      expect(matchesAction('x', makeKey(), 'resolveThread', bindings)).toBe(true)
-      expect(matchesAction('f', makeKey(), 'toggleResolved', bindings)).toBe(true)
+      expect(matchesAction('D', makeKey(), 'editDescription', bindings)).toBe(
+        true,
+      )
+      expect(matchesAction('x', makeKey(), 'resolveThread', bindings)).toBe(
+        true,
+      )
+      expect(matchesAction('f', makeKey(), 'toggleResolved', bindings)).toBe(
+        true,
+      )
       expect(matchesAction('g', makeKey(), 'goToFile', bindings)).toBe(true)
       expect(matchesAction('+', makeKey(), 'addReaction', bindings)).toBe(true)
     })
@@ -186,23 +198,39 @@ describe('useKeybindings integration scenarios', () => {
       const bindings = mergeKeybindings('filesTab')
       expect(matchesAction('h', makeKey(), 'focusTree', bindings)).toBe(true)
       expect(matchesAction('l', makeKey(), 'focusDiff', bindings)).toBe(true)
-      expect(matchesAction('', makeKey({ tab: true }), 'switchPanel', bindings)).toBe(true)
+      expect(
+        matchesAction('', makeKey({ tab: true }), 'switchPanel', bindings),
+      ).toBe(true)
       expect(matchesAction('/', makeKey(), 'filterFiles', bindings)).toBe(true)
-      expect(matchesAction('d', makeKey(), 'toggleSideBySide', bindings)).toBe(true)
+      expect(matchesAction('d', makeKey(), 'toggleSideBySide', bindings)).toBe(
+        true,
+      )
       expect(matchesAction('v', makeKey(), 'visualSelect', bindings)).toBe(true)
-      expect(matchesAction('c', makeKey(), 'inlineComment', bindings)).toBe(true)
+      expect(matchesAction('c', makeKey(), 'inlineComment', bindings)).toBe(
+        true,
+      )
       expect(matchesAction('r', makeKey(), 'reply', bindings)).toBe(true)
       expect(matchesAction('e', makeKey(), 'editComment', bindings)).toBe(true)
-      expect(matchesAction('x', makeKey(), 'resolveThread', bindings)).toBe(true)
+      expect(matchesAction('x', makeKey(), 'resolveThread', bindings)).toBe(
+        true,
+      )
       expect(matchesAction('+', makeKey(), 'addReaction', bindings)).toBe(true)
     })
 
     it('all default input bindings match expected keys', () => {
       const bindings = mergeKeybindings('input')
-      expect(matchesAction('s', makeKey({ ctrl: true }), 'submit', bindings)).toBe(true)
-      expect(matchesAction('', makeKey({ return: true }), 'newLine', bindings)).toBe(true)
-      expect(matchesAction('', makeKey({ tab: true }), 'indent', bindings)).toBe(true)
-      expect(matchesAction('', makeKey({ escape: true }), 'back', bindings)).toBe(true)
+      expect(
+        matchesAction('s', makeKey({ ctrl: true }), 'submit', bindings),
+      ).toBe(true)
+      expect(
+        matchesAction('', makeKey({ return: true }), 'newLine', bindings),
+      ).toBe(true)
+      expect(
+        matchesAction('', makeKey({ tab: true }), 'indent', bindings),
+      ).toBe(true)
+      expect(
+        matchesAction('', makeKey({ escape: true }), 'back', bindings),
+      ).toBe(true)
     })
   })
 })

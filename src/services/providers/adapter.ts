@@ -5,7 +5,10 @@ import type { BlameInfo } from '../../models/blame'
 import type { Comment } from '../../models/comment'
 import type { PullRequest } from '../../models/pull-request'
 import type { TimelineEvent } from '../../models/timeline-event'
-import type { SuggestionParams, AcceptSuggestionParams } from '../../models/suggestion'
+import type {
+  SuggestionParams,
+  AcceptSuggestionParams,
+} from '../../models/suggestion'
 import type { ApiError } from '../CodeReviewApiTypes'
 import type { Provider, ProviderCapabilities } from './types'
 
@@ -55,29 +58,18 @@ export function adaptProvider(provider: Provider): Provider {
 
     // -- Default V2 implementations (only applied if not already present) --
 
-    batchGetPRs:
-      provider.batchGetPRs ??
-      defaultBatchGetPRs(provider),
+    batchGetPRs: provider.batchGetPRs ?? defaultBatchGetPRs(provider),
 
-    streamFileDiff:
-      provider.streamFileDiff ??
-      defaultStreamFileDiff(provider),
+    streamFileDiff: provider.streamFileDiff ?? defaultStreamFileDiff(provider),
 
-    getTimeline:
-      provider.getTimeline ??
-      defaultGetTimeline(),
+    getTimeline: provider.getTimeline ?? defaultGetTimeline(),
 
     submitSuggestion:
-      provider.submitSuggestion ??
-      defaultSubmitSuggestion(provider),
+      provider.submitSuggestion ?? defaultSubmitSuggestion(provider),
 
-    acceptSuggestion:
-      provider.acceptSuggestion ??
-      defaultAcceptSuggestion(),
+    acceptSuggestion: provider.acceptSuggestion ?? defaultAcceptSuggestion(),
 
-    getFileBlame:
-      provider.getFileBlame ??
-      defaultGetFileBlame(),
+    getFileBlame: provider.getFileBlame ?? defaultGetFileBlame(),
   }
 }
 
@@ -90,7 +82,9 @@ export function adaptProvider(provider: Provider): Provider {
  */
 function defaultBatchGetPRs(
   provider: Provider,
-): (prNumbers: readonly number[]) => Effect.Effect<readonly PullRequest[], ApiError> {
+): (
+  prNumbers: readonly number[],
+) => Effect.Effect<readonly PullRequest[], ApiError> {
   return (prNumbers) =>
     Effect.all(
       prNumbers.map((n) => provider.getPR(n)),
@@ -148,18 +142,15 @@ function defaultSubmitSuggestion(
         // addDiffComment returns void; fetch the latest comments to
         // find the one we just created. Return a placeholder comment
         // since the exact comment ID isn't available from addDiffComment.
-        Effect.map(
-          provider.getPRComments(params.prNumber),
-          (comments) => {
-            // Return the most recent comment on this path as the "created" comment
-            const matching = [...comments]
-              .reverse()
-              .find((c) => c.path === params.path)
-            if (matching) return matching
-            // Fallback: return the last comment
-            return comments[comments.length - 1]!
-          },
-        ),
+        Effect.map(provider.getPRComments(params.prNumber), (comments) => {
+          // Return the most recent comment on this path as the "created" comment
+          const matching = [...comments]
+            .reverse()
+            .find((c) => c.path === params.path)
+          if (matching) return matching
+          // Fallback: return the last comment
+          return comments[comments.length - 1]!
+        }),
     )
 }
 

@@ -8,7 +8,12 @@ import type { FilterState, FacetOption } from '../../hooks/useFilter'
 
 type FilterField = 'search' | 'repo' | 'author' | 'label'
 
-const FILTER_FIELDS: readonly FilterField[] = ['search', 'repo', 'author', 'label']
+const FILTER_FIELDS: readonly FilterField[] = [
+  'search',
+  'repo',
+  'author',
+  'label',
+]
 
 interface FilterModalProps {
   readonly filter: FilterState
@@ -50,15 +55,14 @@ function FacetSection({
     <Box flexDirection="column">
       <Box gap={1}>
         <Text color={isFocused ? accentColor : mutedColor} bold={isFocused}>
-          {isFocused ? '▶ ' : '  '}{title}
+          {isFocused ? '▶ ' : '  '}
+          {title}
         </Text>
-        {selectedValue && (
-          <Text color={warningColor}>[{selectedValue}]</Text>
-        )}
+        {selectedValue && <Text color={warningColor}>[{selectedValue}]</Text>}
       </Box>
       <Box flexDirection="column" paddingLeft={1}>
         {options.length === 0 ? (
-          <Text color={mutedColor}>  (none)</Text>
+          <Text color={mutedColor}> (none)</Text>
         ) : (
           options.slice(0, 8).map((opt, idx) => {
             const isHighlighted = isFocused && idx === highlightIndex
@@ -66,11 +70,18 @@ function FacetSection({
             return (
               <Box key={opt.value} gap={1}>
                 <Text
-                  color={isSelected ? warningColor : isHighlighted ? accentColor : textColor}
+                  color={
+                    isSelected
+                      ? warningColor
+                      : isHighlighted
+                        ? accentColor
+                        : textColor
+                  }
                   backgroundColor={isHighlighted ? selectionColor : undefined}
                   bold={isSelected || isHighlighted}
                 >
-                  {isHighlighted ? '▶' : ' '} {isSelected ? '✓' : '○'} {opt.value}
+                  {isHighlighted ? '▶' : ' '} {isSelected ? '✓' : '○'}{' '}
+                  {opt.value}
                 </Text>
                 <Text color={mutedColor}>({opt.count})</Text>
               </Box>
@@ -78,7 +89,7 @@ function FacetSection({
           })
         )}
         {options.length > 8 && (
-          <Text color={mutedColor}>  +{options.length - 8} more</Text>
+          <Text color={mutedColor}> +{options.length - 8} more</Text>
         )}
       </Box>
     </Box>
@@ -153,13 +164,18 @@ export function FilterModal({
     // Facet navigation
     if (input === 'j' || key.downArrow) {
       const max = getMaxIndex(activeField)
-      if (activeField === 'repo') setRepoIndex((prev) => Math.min(prev + 1, max))
-      if (activeField === 'author') setAuthorIndex((prev) => Math.min(prev + 1, max))
-      if (activeField === 'label') setLabelIndex((prev) => Math.min(prev + 1, max))
+      if (activeField === 'repo')
+        setRepoIndex((prev) => Math.min(prev + 1, max))
+      if (activeField === 'author')
+        setAuthorIndex((prev) => Math.min(prev + 1, max))
+      if (activeField === 'label')
+        setLabelIndex((prev) => Math.min(prev + 1, max))
     } else if (input === 'k' || key.upArrow) {
       if (activeField === 'repo') setRepoIndex((prev) => Math.max(prev - 1, 0))
-      if (activeField === 'author') setAuthorIndex((prev) => Math.max(prev - 1, 0))
-      if (activeField === 'label') setLabelIndex((prev) => Math.max(prev - 1, 0))
+      if (activeField === 'author')
+        setAuthorIndex((prev) => Math.max(prev - 1, 0))
+      if (activeField === 'label')
+        setLabelIndex((prev) => Math.max(prev - 1, 0))
     } else if (key.return) {
       // Toggle selection
       if (activeField === 'repo') {
@@ -207,7 +223,9 @@ export function FilterModal({
           <Box gap={1} flexWrap="wrap">
             <Text color={theme.colors.muted}>Active:</Text>
             {filter.search && (
-              <Text color={theme.colors.warning}>search:&quot;{filter.search}&quot;</Text>
+              <Text color={theme.colors.warning}>
+                search:&quot;{filter.search}&quot;
+              </Text>
             )}
             {filter.repo && (
               <Text color={theme.colors.warning}>repo:{filter.repo}</Text>
@@ -238,7 +256,9 @@ export function FilterModal({
                 placeholder="Type to search..."
               />
             ) : (
-              <Text color={searchValue ? theme.colors.text : theme.colors.muted}>
+              <Text
+                color={searchValue ? theme.colors.text : theme.colors.muted}
+              >
                 {searchValue || '(none)'}
               </Text>
             )}
@@ -285,7 +305,8 @@ export function FilterModal({
         />
 
         <Text color={theme.colors.muted} dimColor>
-          Tab: switch field | j/k: navigate | Enter: toggle | d: clear field | C: clear all | Esc: close
+          Tab: switch field | j/k: navigate | Enter: toggle | d: clear field |
+          C: clear all | Esc: close
         </Text>
       </Box>
     </Modal>

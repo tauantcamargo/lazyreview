@@ -110,9 +110,7 @@ const IGNORE_SUFFIXES: readonly string[] = [
  * @param filename - The file path or filename (e.g. "src/App.tsx" or "Dockerfile.dev")
  * @returns The language identifier string, or undefined if unrecognized
  */
-export function getLanguageFromFilename(
-  filename: string,
-): string | undefined {
+export function getLanguageFromFilename(filename: string): string | undefined {
   if (filename === '') return undefined
 
   const basename = filename.split('/').pop() ?? ''

@@ -127,7 +127,9 @@ export function DependencySection({
 
             return (
               <Box key={dep.prNumber} flexDirection="row" gap={1}>
-                <Text color={isSelected ? theme.colors.accent : theme.colors.muted}>
+                <Text
+                  color={isSelected ? theme.colors.accent : theme.colors.muted}
+                >
                   {isSelected ? '>' : ' '}
                 </Text>
                 <Text color={stateColor}>{stateIcon}</Text>

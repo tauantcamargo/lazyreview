@@ -275,23 +275,12 @@ describe('editComment', () => {
   it('sends PATCH to specific comment endpoint', async () => {
     mockFetchResponse()
     await Effect.runPromise(
-      editComment(
-        BASE_URL,
-        TOKEN,
-        OWNER,
-        REPO,
-        42,
-        100,
-        1,
-        'Updated text',
-      ),
+      editComment(BASE_URL, TOKEN, OWNER, REPO, 42, 100, 1, 'Updated text'),
     )
 
     const { url, method, body } = getLastFetchCall()
     expect(method).toBe('PATCH')
-    expect(url).toContain(
-      '/pullrequests/42/threads/100/comments/1',
-    )
+    expect(url).toContain('/pullrequests/42/threads/100/comments/1')
     expect(body).toEqual({ content: 'Updated text' })
   })
 
@@ -325,9 +314,7 @@ describe('deleteComment', () => {
 
     const { url, method } = getLastFetchCall()
     expect(method).toBe('DELETE')
-    expect(url).toContain(
-      '/pullrequests/42/threads/100/comments/1',
-    )
+    expect(url).toContain('/pullrequests/42/threads/100/comments/1')
   })
 
   it('returns void on success', async () => {
@@ -360,9 +347,7 @@ describe('updateThreadStatus', () => {
 
     const { url, method, body } = getLastFetchCall()
     expect(method).toBe('PATCH')
-    expect(url).toContain(
-      '/pullrequests/42/threads/100',
-    )
+    expect(url).toContain('/pullrequests/42/threads/100')
     expect(body).toEqual({ status: 2 })
   })
 
@@ -636,9 +621,7 @@ describe('addReviewer', () => {
 
     const { url, method, body } = getLastFetchCall()
     expect(method).toBe('PUT')
-    expect(url).toContain(
-      '/pullrequests/42/reviewers/user-id-456',
-    )
+    expect(url).toContain('/pullrequests/42/reviewers/user-id-456')
     expect(body).toEqual({ vote: 0 })
   })
 

@@ -10,12 +10,16 @@ import { GitHubError } from '../../models/errors'
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeMockService(overrides: Partial<CodeReviewApiService> = {}): CodeReviewApiService {
+function makeMockService(
+  overrides: Partial<CodeReviewApiService> = {},
+): CodeReviewApiService {
   return {
     listPRs: vi.fn(() => Effect.succeed([])),
     getPR: vi.fn(() => Effect.succeed({} as never)),
     getPRFiles: vi.fn(() => Effect.succeed([])),
-    getPRFilesPage: vi.fn(() => Effect.succeed({ items: [], hasNextPage: false })),
+    getPRFilesPage: vi.fn(() =>
+      Effect.succeed({ items: [], hasNextPage: false }),
+    ),
     getFileDiff: vi.fn(() => Effect.succeed(null)),
     getPRComments: vi.fn(() => Effect.succeed([])),
     getIssueComments: vi.fn(() => Effect.succeed([])),
@@ -24,7 +28,9 @@ function makeMockService(overrides: Partial<CodeReviewApiService> = {}): CodeRev
     getMyPRs: vi.fn(() => Effect.succeed([])),
     getReviewRequests: vi.fn(() => Effect.succeed([])),
     getInvolvedPRs: vi.fn(() => Effect.succeed([])),
-    getPRChecks: vi.fn(() => Effect.succeed({ total_count: 0, check_runs: [] } as never)),
+    getPRChecks: vi.fn(() =>
+      Effect.succeed({ total_count: 0, check_runs: [] } as never),
+    ),
     submitReview: vi.fn(() => Effect.succeed(undefined as void)),
     addComment: vi.fn(() => Effect.succeed(undefined as void)),
     addDiffComment: vi.fn(() => Effect.succeed(undefined as void)),
@@ -50,7 +56,12 @@ function makeMockService(overrides: Partial<CodeReviewApiService> = {}): CodeRev
     markReadyForReview: vi.fn(() => Effect.succeed(undefined as void)),
     getLabels: vi.fn(() => Effect.succeed([])),
     setLabels: vi.fn(() => Effect.succeed(undefined as void)),
-    createPR: vi.fn(() => Effect.succeed({ number: 1, html_url: 'https://github.com/test/test/pull/1' })),
+    createPR: vi.fn(() =>
+      Effect.succeed({
+        number: 1,
+        html_url: 'https://github.com/test/test/pull/1',
+      }),
+    ),
     getCollaborators: vi.fn(() => Effect.succeed([])),
     updateAssignees: vi.fn(() => Effect.succeed(undefined as void)),
     getCurrentUser: vi.fn(() => Effect.succeed({ login: 'testuser' })),
@@ -83,7 +94,11 @@ describe('createGitHubProvider', () => {
     expect(provider.capabilities.supportsGraphQL).toBe(true)
     expect(provider.capabilities.supportsReactions).toBe(true)
     expect(provider.capabilities.supportsCheckRuns).toBe(true)
-    expect(provider.capabilities.supportsMergeStrategies).toEqual(['merge', 'squash', 'rebase'])
+    expect(provider.capabilities.supportsMergeStrategies).toEqual([
+      'merge',
+      'squash',
+      'rebase',
+    ])
     expect(provider.capabilities.supportsBlame).toBe(true)
   })
 
@@ -91,7 +106,9 @@ describe('createGitHubProvider', () => {
     it('listPRs delegates to service.listPRs with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
-      const exit = await Effect.runPromiseExit(provider.listPRs({ state: 'open', perPage: 25 }))
+      const exit = await Effect.runPromiseExit(
+        provider.listPRs({ state: 'open', perPage: 25 }),
+      )
       expect(Exit.isSuccess(exit)).toBe(true)
       expect(service.listPRs).toHaveBeenCalledWith('myorg', 'myrepo', {
         state: 'open',
@@ -130,14 +147,24 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getPRFilesPage(7, 2))
-      expect(service.getPRFilesPage).toHaveBeenCalledWith('myorg', 'myrepo', 7, 2)
+      expect(service.getPRFilesPage).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        7,
+        2,
+      )
     })
 
     it('getFileDiff delegates with owner/repo and filename', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getFileDiff(7, 'src/index.ts'))
-      expect(service.getFileDiff).toHaveBeenCalledWith('myorg', 'myrepo', 7, 'src/index.ts')
+      expect(service.getFileDiff).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        7,
+        'src/index.ts',
+      )
     })
 
     it('getPRComments delegates with owner/repo', async () => {
@@ -151,7 +178,11 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getIssueComments(5))
-      expect(service.getIssueComments).toHaveBeenCalledWith('myorg', 'myrepo', 5)
+      expect(service.getIssueComments).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        5,
+      )
     })
 
     it('getPRReviews delegates with owner/repo', async () => {
@@ -172,21 +203,33 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getPRChecks('abc123'))
-      expect(service.getPRChecks).toHaveBeenCalledWith('myorg', 'myrepo', 'abc123')
+      expect(service.getPRChecks).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        'abc123',
+      )
     })
 
     it('getReviewThreads delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getReviewThreads(15))
-      expect(service.getReviewThreads).toHaveBeenCalledWith('myorg', 'myrepo', 15)
+      expect(service.getReviewThreads).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        15,
+      )
     })
 
     it('getCommitDiff delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.getCommitDiff('sha123'))
-      expect(service.getCommitDiff).toHaveBeenCalledWith('myorg', 'myrepo', 'sha123')
+      expect(service.getCommitDiff).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        'sha123',
+      )
     })
   })
 
@@ -218,7 +261,13 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.submitReview(1, 'LGTM', 'APPROVE'))
-      expect(service.submitReview).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'LGTM', 'APPROVE')
+      expect(service.submitReview).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        1,
+        'LGTM',
+        'APPROVE',
+      )
     })
 
     it('createPendingReview delegates and returns id', async () => {
@@ -226,7 +275,11 @@ describe('createGitHubProvider', () => {
       const provider = createGitHubProvider(TEST_CONFIG, service)
       const result = await Effect.runPromise(provider.createPendingReview(5))
       expect(result.id).toBe(42)
-      expect(service.createPendingReview).toHaveBeenCalledWith('myorg', 'myrepo', 5)
+      expect(service.createPendingReview).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        5,
+      )
     })
 
     it('addPendingReviewComment delegates with all params', async () => {
@@ -245,22 +298,45 @@ describe('createGitHubProvider', () => {
         }),
       )
       expect(service.addPendingReviewComment).toHaveBeenCalledWith(
-        'myorg', 'myrepo', 3, 42, 'needs fix', 'src/foo.ts', 10, 'RIGHT', 8, 'RIGHT',
+        'myorg',
+        'myrepo',
+        3,
+        42,
+        'needs fix',
+        'src/foo.ts',
+        10,
+        'RIGHT',
+        8,
+        'RIGHT',
       )
     })
 
     it('submitPendingReview delegates with all params', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
-      await Effect.runPromise(provider.submitPendingReview(3, 42, 'done', 'COMMENT'))
-      expect(service.submitPendingReview).toHaveBeenCalledWith('myorg', 'myrepo', 3, 42, 'done', 'COMMENT')
+      await Effect.runPromise(
+        provider.submitPendingReview(3, 42, 'done', 'COMMENT'),
+      )
+      expect(service.submitPendingReview).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        3,
+        42,
+        'done',
+        'COMMENT',
+      )
     })
 
     it('discardPendingReview delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.discardPendingReview(3, 42))
-      expect(service.discardPendingReview).toHaveBeenCalledWith('myorg', 'myrepo', 3, 42)
+      expect(service.discardPendingReview).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        3,
+        42,
+      )
     })
   })
 
@@ -269,7 +345,12 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.addComment(1, 'hello'))
-      expect(service.addComment).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'hello')
+      expect(service.addComment).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        1,
+        'hello',
+      )
     })
 
     it('addDiffComment delegates with all params', async () => {
@@ -286,7 +367,16 @@ describe('createGitHubProvider', () => {
         }),
       )
       expect(service.addDiffComment).toHaveBeenCalledWith(
-        'myorg', 'myrepo', 2, 'nit', 'abc', 'src/bar.ts', 5, 'LEFT', undefined, undefined,
+        'myorg',
+        'myrepo',
+        2,
+        'nit',
+        'abc',
+        'src/bar.ts',
+        5,
+        'LEFT',
+        undefined,
+        undefined,
       )
     })
 
@@ -294,28 +384,48 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.replyToComment(1, 99, 'thanks'))
-      expect(service.replyToComment).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'thanks', 99)
+      expect(service.replyToComment).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        1,
+        'thanks',
+        99,
+      )
     })
 
     it('editIssueComment delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.editIssueComment(55, 'updated'))
-      expect(service.editIssueComment).toHaveBeenCalledWith('myorg', 'myrepo', 55, 'updated')
+      expect(service.editIssueComment).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        55,
+        'updated',
+      )
     })
 
     it('editReviewComment delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.editReviewComment(66, 'fixed'))
-      expect(service.editReviewComment).toHaveBeenCalledWith('myorg', 'myrepo', 66, 'fixed')
+      expect(service.editReviewComment).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        66,
+        'fixed',
+      )
     })
 
     it('deleteReviewComment delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.deleteReviewComment(77))
-      expect(service.deleteReviewComment).toHaveBeenCalledWith('myorg', 'myrepo', 77)
+      expect(service.deleteReviewComment).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        77,
+      )
     })
   })
 
@@ -323,9 +433,16 @@ describe('createGitHubProvider', () => {
     it('mergePR delegates with owner/repo and method', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
-      await Effect.runPromise(provider.mergePR(1, 'squash', 'my title', 'my message'))
+      await Effect.runPromise(
+        provider.mergePR(1, 'squash', 'my title', 'my message'),
+      )
       expect(service.mergePR).toHaveBeenCalledWith(
-        'myorg', 'myrepo', 1, 'squash', 'my title', 'my message',
+        'myorg',
+        'myrepo',
+        1,
+        'squash',
+        'my title',
+        'my message',
       )
     })
 
@@ -347,21 +464,36 @@ describe('createGitHubProvider', () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.updatePRTitle(1, 'new title'))
-      expect(service.updatePRTitle).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'new title')
+      expect(service.updatePRTitle).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        1,
+        'new title',
+      )
     })
 
     it('updatePRBody delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.updatePRBody(1, 'new body'))
-      expect(service.updatePRBody).toHaveBeenCalledWith('myorg', 'myrepo', 1, 'new body')
+      expect(service.updatePRBody).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        1,
+        'new body',
+      )
     })
 
     it('requestReReview delegates with owner/repo', async () => {
       const service = makeMockService()
       const provider = createGitHubProvider(TEST_CONFIG, service)
       await Effect.runPromise(provider.requestReReview(1, ['alice', 'bob']))
-      expect(service.requestReReview).toHaveBeenCalledWith('myorg', 'myrepo', 1, ['alice', 'bob'])
+      expect(service.requestReReview).toHaveBeenCalledWith(
+        'myorg',
+        'myrepo',
+        1,
+        ['alice', 'bob'],
+      )
     })
   })
 
@@ -466,10 +598,7 @@ describe('createProvider factory', () => {
 
   it('creates a GitLab provider for gitlab type', () => {
     const service = makeMockService()
-    const provider = createProvider(
-      { ...TEST_CONFIG, type: 'gitlab' },
-      service,
-    )
+    const provider = createProvider({ ...TEST_CONFIG, type: 'gitlab' }, service)
     expect(provider.type).toBe('gitlab')
     expect(provider.capabilities.supportsCheckRuns).toBe(true)
     expect(provider.capabilities.supportsDraftPR).toBe(true)
@@ -486,19 +615,13 @@ describe('createProvider factory', () => {
 
   it('creates an unsupported provider for azure', () => {
     const service = makeMockService()
-    const provider = createProvider(
-      { ...TEST_CONFIG, type: 'azure' },
-      service,
-    )
+    const provider = createProvider({ ...TEST_CONFIG, type: 'azure' }, service)
     expect(provider.type).toBe('azure')
   })
 
   it('creates an unsupported provider for gitea', () => {
     const service = makeMockService()
-    const provider = createProvider(
-      { ...TEST_CONFIG, type: 'gitea' },
-      service,
-    )
+    const provider = createProvider({ ...TEST_CONFIG, type: 'gitea' }, service)
     expect(provider.type).toBe('gitea')
   })
 

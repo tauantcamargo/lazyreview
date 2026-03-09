@@ -64,11 +64,7 @@ function buildAzureError(
   try {
     const parsed = JSON.parse(body)
     if (typeof parsed === 'object' && parsed !== null) {
-      detail =
-        parsed.message ??
-        parsed.Message ??
-        parsed.value?.Message ??
-        body
+      detail = parsed.message ?? parsed.Message ?? parsed.value?.Message ?? body
     }
   } catch {
     // body is not JSON, use as-is
@@ -80,9 +76,7 @@ function buildAzureError(
     status: response.status,
     url,
     retryAfterMs:
-      response.status === 429
-        ? parseRetryAfter(response.headers)
-        : undefined,
+      response.status === 429 ? parseRetryAfter(response.headers) : undefined,
   })
 }
 

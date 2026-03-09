@@ -19,20 +19,17 @@ export const CACHE_STALENESS_MS = 2 * 60 * 1000 // 2 minutes
 // Query key helpers
 // ---------------------------------------------------------------------------
 
-const involvedKey = (stateFilter: PRStateFilter): readonly [string, PRStateFilter] => [
-  'involved-prs',
-  stateFilter,
-]
+const involvedKey = (
+  stateFilter: PRStateFilter,
+): readonly [string, PRStateFilter] => ['involved-prs', stateFilter]
 
-const myPRsKey = (stateFilter: PRStateFilter): readonly [string, PRStateFilter] => [
-  'my-prs',
-  stateFilter,
-]
+const myPRsKey = (
+  stateFilter: PRStateFilter,
+): readonly [string, PRStateFilter] => ['my-prs', stateFilter]
 
-const reviewRequestsKey = (stateFilter: PRStateFilter): readonly [string, PRStateFilter] => [
-  'review-requests',
-  stateFilter,
-]
+const reviewRequestsKey = (
+  stateFilter: PRStateFilter,
+): readonly [string, PRStateFilter] => ['review-requests', stateFilter]
 
 // ---------------------------------------------------------------------------
 // Pure filter functions (exported for testing and reuse)
@@ -59,7 +56,9 @@ export function filterReviewRequests(
   currentUserLogin: string,
 ): readonly PullRequest[] {
   return prs.filter((pr) =>
-    pr.requested_reviewers.some((reviewer) => reviewer.login === currentUserLogin),
+    pr.requested_reviewers.some(
+      (reviewer) => reviewer.login === currentUserLogin,
+    ),
   )
 }
 
@@ -135,7 +134,10 @@ export function deriveCacheData(
   if (involvedData && isCacheFresh(queryClient, iKey)) {
     return {
       myPRsPlaceholder: filterMyPRs(involvedData, currentUserLogin),
-      reviewRequestsPlaceholder: filterReviewRequests(involvedData, currentUserLogin),
+      reviewRequestsPlaceholder: filterReviewRequests(
+        involvedData,
+        currentUserLogin,
+      ),
       involvedPlaceholder: undefined, // Already cached, no placeholder needed
     }
   }
@@ -208,7 +210,12 @@ export function crossPopulateToInvolved(
   const myPRsData = queryClient.getQueryData<readonly PullRequest[]>(mKey)
   const reviewData = queryClient.getQueryData<readonly PullRequest[]>(rKey)
 
-  if (myPRsData && reviewData && isCacheFresh(queryClient, mKey) && isCacheFresh(queryClient, rKey)) {
+  if (
+    myPRsData &&
+    reviewData &&
+    isCacheFresh(queryClient, mKey) &&
+    isCacheFresh(queryClient, rKey)
+  ) {
     queryClient.setQueryData(iKey, mergePRLists(myPRsData, reviewData))
   }
 }

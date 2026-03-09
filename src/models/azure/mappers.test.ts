@@ -12,7 +12,11 @@ import {
   mapAzureBuildToCheckRun,
   mapAzureBuildsToCheckRunsResponse,
 } from './mappers'
-import type { AzureIdentity, AzureReviewer, AzurePullRequest } from './pull-request'
+import type {
+  AzureIdentity,
+  AzureReviewer,
+  AzurePullRequest,
+} from './pull-request'
 import type { AzureThread, AzureComment as AzureCommentType } from './comment'
 import type { AzureIterationChange } from './diff'
 import type { AzureBuild } from './build'
@@ -316,13 +320,25 @@ describe('mapAzureReviewersToReviews', () => {
 
 describe('mapAzurePRToPullRequest', () => {
   it('maps pullRequestId to number', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.number).toBe(42)
     expect(pr.id).toBe(42)
   })
 
   it('maps active status to open', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.state).toBe('open')
     expect(pr.merged).toBe(false)
   })
@@ -330,7 +346,10 @@ describe('mapAzurePRToPullRequest', () => {
   it('maps completed status to closed with merged=true', () => {
     const pr = mapAzurePRToPullRequest(
       { ...minimalPR, status: 'completed', closedDate: '2026-01-17T14:00:00Z' },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr.state).toBe('closed')
     expect(pr.merged).toBe(true)
@@ -340,7 +359,10 @@ describe('mapAzurePRToPullRequest', () => {
   it('maps abandoned status to closed', () => {
     const pr = mapAzurePRToPullRequest(
       { ...minimalPR, status: 'abandoned', closedDate: '2026-01-17T14:00:00Z' },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr.state).toBe('closed')
     expect(pr.merged).toBe(false)
@@ -348,24 +370,45 @@ describe('mapAzurePRToPullRequest', () => {
   })
 
   it('strips refs/heads/ from source branch', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.head.ref).toBe('feature/dark-mode')
   })
 
   it('strips refs/heads/ from target branch', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.base.ref).toBe('main')
   })
 
   it('builds html_url correctly', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.html_url).toBe(prHtmlUrl)
   })
 
   it('maps lastMergeSourceCommit to head.sha', () => {
     const pr = mapAzurePRToPullRequest(
       { ...minimalPR, lastMergeSourceCommit: { commitId: 'src-sha-123' } },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr.head.sha).toBe('src-sha-123')
   })
@@ -373,7 +416,10 @@ describe('mapAzurePRToPullRequest', () => {
   it('maps lastMergeTargetCommit to base.sha', () => {
     const pr = mapAzurePRToPullRequest(
       { ...minimalPR, lastMergeTargetCommit: { commitId: 'tgt-sha-456' } },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr.base.sha).toBe('tgt-sha-456')
   })
@@ -381,13 +427,22 @@ describe('mapAzurePRToPullRequest', () => {
   it('maps lastMergeCommit to merge_commit_sha', () => {
     const pr = mapAzurePRToPullRequest(
       { ...minimalPR, lastMergeCommit: { commitId: 'merge-sha-789' } },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr.merge_commit_sha).toBe('merge-sha-789')
   })
 
   it('defaults head.sha and base.sha to empty string', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.head.sha).toBe('')
     expect(pr.base.sha).toBe('')
   })
@@ -395,7 +450,10 @@ describe('mapAzurePRToPullRequest', () => {
   it('maps isDraft', () => {
     const pr = mapAzurePRToPullRequest(
       { ...minimalPR, isDraft: true },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr.draft).toBe(true)
   })
@@ -409,7 +467,10 @@ describe('mapAzurePRToPullRequest', () => {
           { id: 'label-2', name: 'enhancement', active: true },
         ],
       },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr.labels).toHaveLength(2)
     expect(pr.labels[0].name).toBe('bug')
@@ -425,19 +486,31 @@ describe('mapAzurePRToPullRequest', () => {
           { ...validReviewer, id: 'r2', displayName: 'Alice', vote: 10 },
         ],
       },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr.requested_reviewers).toHaveLength(1)
     expect(pr.requested_reviewers[0].login).toBe('bob@example.com')
   })
 
   it('maps description to body, null for empty', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.body).toBe('Implements dark mode toggle')
 
     const pr2 = mapAzurePRToPullRequest(
       { ...minimalPR, description: '' },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr2.body).toBeNull()
   })
@@ -445,23 +518,44 @@ describe('mapAzurePRToPullRequest', () => {
   it('maps mergeStatus to mergeable_state', () => {
     const pr = mapAzurePRToPullRequest(
       { ...minimalPR, mergeStatus: 'succeeded' },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr.mergeable_state).toBe('succeeded')
   })
 
   it('sets assignees to empty array', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.assignees).toEqual([])
   })
 
   it('sets mergeable to null', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.mergeable).toBeNull()
   })
 
   it('maps timestamps', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.created_at).toBe('2026-01-15T10:00:00Z')
     expect(pr.updated_at).toBe('2026-01-15T10:00:00Z')
   })
@@ -469,19 +563,34 @@ describe('mapAzurePRToPullRequest', () => {
   it('uses closedDate for updated_at when present', () => {
     const pr = mapAzurePRToPullRequest(
       { ...minimalPR, closedDate: '2026-01-17T14:00:00Z' },
-      baseUrl, org, project, repoName,
+      baseUrl,
+      org,
+      project,
+      repoName,
     )
     expect(pr.updated_at).toBe('2026-01-17T14:00:00Z')
   })
 
   it('sets merged_at and closed_at to null for active PRs', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.merged_at).toBeNull()
     expect(pr.closed_at).toBeNull()
   })
 
   it('maps createdBy to user', () => {
-    const pr = mapAzurePRToPullRequest(minimalPR, baseUrl, org, project, repoName)
+    const pr = mapAzurePRToPullRequest(
+      minimalPR,
+      baseUrl,
+      org,
+      project,
+      repoName,
+    )
     expect(pr.user.login).toBe('jane@example.com')
   })
 })
@@ -492,7 +601,11 @@ describe('mapAzurePRToPullRequest', () => {
 
 describe('mapAzureCommentToComment', () => {
   it('maps an inline comment with path and line', () => {
-    const comment = mapAzureCommentToComment(textComment, inlineThread, prHtmlUrl)
+    const comment = mapAzureCommentToComment(
+      textComment,
+      inlineThread,
+      prHtmlUrl,
+    )
     expect(comment.id).toBe(1)
     expect(comment.body).toBe('This looks great!')
     expect(comment.user.login).toBe('jane@example.com')
@@ -502,42 +615,68 @@ describe('mapAzureCommentToComment', () => {
   })
 
   it('maps a comment on the left side to LEFT', () => {
-    const comment = mapAzureCommentToComment(textComment, leftSideThread, prHtmlUrl)
+    const comment = mapAzureCommentToComment(
+      textComment,
+      leftSideThread,
+      prHtmlUrl,
+    )
     expect(comment.line).toBe(10)
     expect(comment.side).toBe('LEFT')
   })
 
   it('maps a general comment without threadContext', () => {
-    const comment = mapAzureCommentToComment(textComment, generalThread, prHtmlUrl)
+    const comment = mapAzureCommentToComment(
+      textComment,
+      generalThread,
+      prHtmlUrl,
+    )
     expect(comment.path).toBeUndefined()
     expect(comment.line).toBeUndefined()
     expect(comment.side).toBeUndefined()
   })
 
   it('constructs html_url with discussionId', () => {
-    const comment = mapAzureCommentToComment(textComment, inlineThread, prHtmlUrl)
-    expect(comment.html_url).toBe(
-      `${prHtmlUrl}?_a=files&discussionId=100`,
+    const comment = mapAzureCommentToComment(
+      textComment,
+      inlineThread,
+      prHtmlUrl,
     )
+    expect(comment.html_url).toBe(`${prHtmlUrl}?_a=files&discussionId=100`)
   })
 
   it('maps parentCommentId to in_reply_to_id', () => {
-    const comment = mapAzureCommentToComment(replyComment, generalThread, prHtmlUrl)
+    const comment = mapAzureCommentToComment(
+      replyComment,
+      generalThread,
+      prHtmlUrl,
+    )
     expect(comment.in_reply_to_id).toBe(1)
   })
 
   it('sets in_reply_to_id to undefined when parentCommentId is 0', () => {
-    const comment = mapAzureCommentToComment(textComment, generalThread, prHtmlUrl)
+    const comment = mapAzureCommentToComment(
+      textComment,
+      generalThread,
+      prHtmlUrl,
+    )
     expect(comment.in_reply_to_id).toBeUndefined()
   })
 
   it('sets node_id as threadId:commentId', () => {
-    const comment = mapAzureCommentToComment(textComment, inlineThread, prHtmlUrl)
+    const comment = mapAzureCommentToComment(
+      textComment,
+      inlineThread,
+      prHtmlUrl,
+    )
     expect(comment.node_id).toBe('100:1')
   })
 
   it('maps timestamps', () => {
-    const comment = mapAzureCommentToComment(textComment, generalThread, prHtmlUrl)
+    const comment = mapAzureCommentToComment(
+      textComment,
+      generalThread,
+      prHtmlUrl,
+    )
     expect(comment.created_at).toBe('2026-01-15T10:00:00Z')
     expect(comment.updated_at).toBe('2026-01-15T10:00:00Z')
   })
@@ -558,7 +697,11 @@ describe('mapAzureThreadsToComments', () => {
   })
 
   it('filters out deleted threads', () => {
-    const deletedInline: AzureThread = { ...inlineThread, id: 500, isDeleted: true }
+    const deletedInline: AzureThread = {
+      ...inlineThread,
+      id: 500,
+      isDeleted: true,
+    }
     const comments = mapAzureThreadsToComments(
       [inlineThread, deletedInline],
       prHtmlUrl,
@@ -585,10 +728,7 @@ describe('mapAzureThreadsToComments', () => {
       id: 700,
       comments: [textComment, systemComment],
     }
-    const comments = mapAzureThreadsToComments(
-      [mixedThread],
-      prHtmlUrl,
-    )
+    const comments = mapAzureThreadsToComments([mixedThread], prHtmlUrl)
     expect(comments).toHaveLength(1)
     expect(comments[0].body).toBe('This looks great!')
   })
@@ -639,21 +779,13 @@ describe('mapAzureThreadsToIssueComments', () => {
   })
 
   it('filters out inline threads', () => {
-    const ics = mapAzureThreadsToIssueComments(
-      [inlineThread],
-      prHtmlUrl,
-    )
+    const ics = mapAzureThreadsToIssueComments([inlineThread], prHtmlUrl)
     expect(ics).toEqual([])
   })
 
   it('constructs html_url with overview discussionId', () => {
-    const ics = mapAzureThreadsToIssueComments(
-      [generalThread],
-      prHtmlUrl,
-    )
-    expect(ics[0].html_url).toBe(
-      `${prHtmlUrl}?_a=overview&discussionId=200`,
-    )
+    const ics = mapAzureThreadsToIssueComments([generalThread], prHtmlUrl)
+    expect(ics[0].html_url).toBe(`${prHtmlUrl}?_a=overview&discussionId=200`)
   })
 
   it('returns empty array for empty input', () => {
@@ -861,9 +993,7 @@ describe('mapAzureCommitToCommit', () => {
       azCommit,
       'https://dev.azure.com/org/proj/_git/repo',
     )
-    expect(commit.html_url).toBe(
-      'https://dev.azure.com/org/proj/_git/repo',
-    )
+    expect(commit.html_url).toBe('https://dev.azure.com/org/proj/_git/repo')
   })
 
   it('defaults html_url to empty string when no URL', () => {
@@ -888,7 +1018,9 @@ describe('mapAzureBuildToCheckRun', () => {
     result: 'succeeded',
     definition: { id: 1, name: 'CI Build' },
     _links: {
-      web: { href: 'https://dev.azure.com/org/proj/_build/results?buildId=100' },
+      web: {
+        href: 'https://dev.azure.com/org/proj/_build/results?buildId=100',
+      },
     },
     url: 'https://dev.azure.com/org/proj/_apis/build/Builds/100',
   }

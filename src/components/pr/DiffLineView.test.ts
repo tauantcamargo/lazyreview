@@ -11,14 +11,35 @@ describe('BLAME_GUTTER_WIDTH', () => {
 
 describe('getBlameForRow', () => {
   const blameData = new Map<number, BlameInfo>([
-    [5, { author: 'alice', date: '2026-01-15', commitHash: 'abc123', summary: 'init' }],
-    [10, { author: 'bob', date: '2026-02-01', commitHash: 'def456', summary: 'fix' }],
+    [
+      5,
+      {
+        author: 'alice',
+        date: '2026-01-15',
+        commitHash: 'abc123',
+        summary: 'init',
+      },
+    ],
+    [
+      10,
+      {
+        author: 'bob',
+        date: '2026-02-01',
+        commitHash: 'def456',
+        summary: 'fix',
+      },
+    ],
   ])
 
   it('returns blame info for context lines using newLineNumber', () => {
     const row: FoldableRow = {
       type: 'line',
-      line: { type: 'context', content: 'code', oldLineNumber: 4, newLineNumber: 5 },
+      line: {
+        type: 'context',
+        content: 'code',
+        oldLineNumber: 4,
+        newLineNumber: 5,
+      },
       lineNumber: 5,
       oldLineNumber: 4,
       newLineNumber: 5,

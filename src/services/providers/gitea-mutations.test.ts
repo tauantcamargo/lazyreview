@@ -88,7 +88,9 @@ function getLastFetchCall(): {
 describe('addComment', () => {
   it('sends POST to issues/{index}/comments', async () => {
     mockFetchResponse()
-    await Effect.runPromise(addComment(BASE_URL, TOKEN, OWNER, REPO, 42, 'Great work!'))
+    await Effect.runPromise(
+      addComment(BASE_URL, TOKEN, OWNER, REPO, 42, 'Great work!'),
+    )
 
     const { url, method, body } = getLastFetchCall()
     expect(method).toBe('POST')
@@ -270,9 +272,7 @@ describe('editIssueComment', () => {
 
     const { url, method, body } = getLastFetchCall()
     expect(method).toBe('PATCH')
-    expect(url).toBe(
-      `${BASE_URL}/repos/${OWNER}/${REPO}/issues/comments/99`,
-    )
+    expect(url).toBe(`${BASE_URL}/repos/${OWNER}/${REPO}/issues/comments/99`)
     expect(body).toEqual({ body: 'Updated text' })
   })
 
@@ -302,9 +302,7 @@ describe('deleteIssueComment', () => {
 
     const { url, method } = getLastFetchCall()
     expect(method).toBe('DELETE')
-    expect(url).toBe(
-      `${BASE_URL}/repos/${OWNER}/${REPO}/issues/comments/99`,
-    )
+    expect(url).toBe(`${BASE_URL}/repos/${OWNER}/${REPO}/issues/comments/99`)
   })
 
   it('returns void on success', async () => {
@@ -386,7 +384,11 @@ describe('submitReview', () => {
   })
 
   it('fails on HTTP error', async () => {
-    mockFetchResponse({ ok: false, status: 500, statusText: 'Internal Server Error' })
+    mockFetchResponse({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+    })
     const exit = await Effect.runPromiseExit(
       submitReview(BASE_URL, TOKEN, OWNER, REPO, 1, '', 'APPROVE'),
     )
@@ -418,32 +420,24 @@ describe('createPendingReview', () => {
 describe('mergePR', () => {
   it('sends POST to pulls/{index}/merge with Do field', async () => {
     mockFetchResponse()
-    await Effect.runPromise(
-      mergePR(BASE_URL, TOKEN, OWNER, REPO, 42, 'merge'),
-    )
+    await Effect.runPromise(mergePR(BASE_URL, TOKEN, OWNER, REPO, 42, 'merge'))
 
     const { url, method, body } = getLastFetchCall()
     expect(method).toBe('POST')
-    expect(url).toBe(
-      `${BASE_URL}/repos/${OWNER}/${REPO}/pulls/42/merge`,
-    )
+    expect(url).toBe(`${BASE_URL}/repos/${OWNER}/${REPO}/pulls/42/merge`)
     expect(body!.Do).toBe('merge')
   })
 
   it('sends squash method', async () => {
     mockFetchResponse()
-    await Effect.runPromise(
-      mergePR(BASE_URL, TOKEN, OWNER, REPO, 42, 'squash'),
-    )
+    await Effect.runPromise(mergePR(BASE_URL, TOKEN, OWNER, REPO, 42, 'squash'))
     const { body } = getLastFetchCall()
     expect(body!.Do).toBe('squash')
   })
 
   it('sends rebase method', async () => {
     mockFetchResponse()
-    await Effect.runPromise(
-      mergePR(BASE_URL, TOKEN, OWNER, REPO, 42, 'rebase'),
-    )
+    await Effect.runPromise(mergePR(BASE_URL, TOKEN, OWNER, REPO, 42, 'rebase'))
     const { body } = getLastFetchCall()
     expect(body!.Do).toBe('rebase')
   })
@@ -468,9 +462,7 @@ describe('mergePR', () => {
 
   it('omits merge_message_field when no title', async () => {
     mockFetchResponse()
-    await Effect.runPromise(
-      mergePR(BASE_URL, TOKEN, OWNER, REPO, 42, 'merge'),
-    )
+    await Effect.runPromise(mergePR(BASE_URL, TOKEN, OWNER, REPO, 42, 'merge'))
     const { body } = getLastFetchCall()
     expect(body!.merge_message_field).toBeUndefined()
   })
@@ -617,7 +609,11 @@ describe('requestReReview', () => {
   })
 
   it('fails on HTTP error', async () => {
-    mockFetchResponse({ ok: false, status: 422, statusText: 'Unprocessable Entity' })
+    mockFetchResponse({
+      ok: false,
+      status: 422,
+      statusText: 'Unprocessable Entity',
+    })
     const exit = await Effect.runPromiseExit(
       requestReReview(BASE_URL, TOKEN, OWNER, REPO, 42, ['nonexistent']),
     )
@@ -634,9 +630,7 @@ describe('getCurrentUser', () => {
     mockFetchResponse({
       body: { login: 'alice', id: 1 },
     })
-    const result = await Effect.runPromise(
-      getCurrentUser(BASE_URL, TOKEN),
-    )
+    const result = await Effect.runPromise(getCurrentUser(BASE_URL, TOKEN))
 
     expect(result.login).toBe('alice')
     expect(result.id).toBe(1)
@@ -670,9 +664,7 @@ describe('getCurrentUser', () => {
 
   it('fails on HTTP error', async () => {
     mockFetchResponse({ ok: false, status: 401, statusText: 'Unauthorized' })
-    const exit = await Effect.runPromiseExit(
-      getCurrentUser(BASE_URL, TOKEN),
-    )
+    const exit = await Effect.runPromiseExit(getCurrentUser(BASE_URL, TOKEN))
     expect(exit._tag).toBe('Failure')
   })
 })

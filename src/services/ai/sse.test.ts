@@ -65,7 +65,9 @@ describe('SSE Parser', () => {
     })
 
     it('should parse events with event type', async () => {
-      const stream = stringToStream('event: content_block_delta\ndata: {"text":"hi"}\n\n')
+      const stream = stringToStream(
+        'event: content_block_delta\ndata: {"text":"hi"}\n\n',
+      )
       const events = await collectEvents(parseSseStream(stream))
 
       expect(events).toEqual([
@@ -84,11 +86,7 @@ describe('SSE Parser', () => {
     })
 
     it('should handle chunked delivery', async () => {
-      const stream = chunksToStream([
-        'data: fir',
-        'st\n\ndata: sec',
-        'ond\n\n',
-      ])
+      const stream = chunksToStream(['data: fir', 'st\n\ndata: sec', 'ond\n\n'])
       const events = await collectEvents(parseSseStream(stream))
 
       expect(events).toEqual([
@@ -111,9 +109,7 @@ describe('SSE Parser', () => {
       const stream = stringToStream('data: line1\ndata: line2\n\n')
       const events = await collectEvents(parseSseStream(stream))
 
-      expect(events).toEqual([
-        { event: undefined, data: 'line1\nline2' },
-      ])
+      expect(events).toEqual([{ event: undefined, data: 'line1\nline2' }])
     })
 
     it('should flush remaining buffer on stream end', async () => {

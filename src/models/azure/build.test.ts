@@ -28,7 +28,9 @@ describe('AzureBuildSchema', () => {
       finishTime: '2026-01-15T10:05:00Z',
       url: 'https://dev.azure.com/org/proj/_apis/build/Builds/200',
       _links: {
-        web: { href: 'https://dev.azure.com/org/proj/_build/results?buildId=200' },
+        web: {
+          href: 'https://dev.azure.com/org/proj/_build/results?buildId=200',
+        },
       },
     })
     expect(result.buildNumber).toBe('20260115.1')
@@ -92,14 +94,10 @@ describe('AzureBuildSchema', () => {
   })
 
   it('rejects invalid status', () => {
-    expect(() =>
-      AzureBuildSchema.parse({ id: 1, status: 'running' }),
-    ).toThrow()
+    expect(() => AzureBuildSchema.parse({ id: 1, status: 'running' })).toThrow()
   })
 
   it('rejects missing id', () => {
-    expect(() =>
-      AzureBuildSchema.parse({ status: 'completed' }),
-    ).toThrow()
+    expect(() => AzureBuildSchema.parse({ status: 'completed' })).toThrow()
   })
 })

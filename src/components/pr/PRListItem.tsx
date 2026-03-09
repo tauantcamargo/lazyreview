@@ -13,7 +13,9 @@ import { parseGitHubPRUrl, extractRepoFromPRUrl } from '../../utils/git'
 /**
  * Returns a short state badge for a PR: OPEN, DRFT, MRGD, or CLSD.
  */
-export function getStateBadge(item: Pick<PullRequest, 'state' | 'draft' | 'merged'>): string {
+export function getStateBadge(
+  item: Pick<PullRequest, 'state' | 'draft' | 'merged'>,
+): string {
   if (item.draft) return 'DRFT'
   if (item.merged) return 'MRGD'
   if (item.state === 'open') return 'OPEN'
@@ -25,7 +27,9 @@ export function getStateBadge(item: Pick<PullRequest, 'state' | 'draft' | 'merge
  */
 export function getStateColor(
   item: Pick<PullRequest, 'state' | 'draft' | 'merged'>,
-  theme: { colors: { muted: string; secondary: string; success: string; error: string } },
+  theme: {
+    colors: { muted: string; secondary: string; success: string; error: string }
+  },
 ): string {
   if (item.draft) return theme.colors.muted
   if (item.merged) return theme.colors.secondary
@@ -81,7 +85,10 @@ function CompactPRListItem({
   return (
     <Box paddingX={1} gap={1}>
       {isMultiSelect && (
-        <Text color={isSelected ? theme.colors.success : theme.colors.muted} bold={isSelected}>
+        <Text
+          color={isSelected ? theme.colors.success : theme.colors.muted}
+          bold={isSelected}
+        >
           {isSelected ? '[x]' : '[ ]'}
         </Text>
       )}
@@ -89,11 +96,11 @@ function CompactPRListItem({
         {getStateBadge(item)}
       </Text>
       {unread && (
-        <Text color={theme.colors.accent} bold>●</Text>
+        <Text color={theme.colors.accent} bold>
+          ●
+        </Text>
       )}
-      {hasNotes && (
-        <Text color={theme.colors.warning}>N</Text>
-      )}
+      {hasNotes && <Text color={theme.colors.warning}>N</Text>}
       <Text color={textColor} bold={isFocus || unread} inverse={isFocus}>
         #{item.number}
       </Text>
@@ -137,7 +144,10 @@ function FullPRListItem({
       {/* Line 1: badge · number · title · labels · status icons */}
       <Box gap={1}>
         {isMultiSelect && (
-          <Text color={isSelected ? theme.colors.success : theme.colors.muted} bold={isSelected}>
+          <Text
+            color={isSelected ? theme.colors.success : theme.colors.muted}
+            bold={isSelected}
+          >
             {isSelected ? '[x]' : '[ ]'}
           </Text>
         )}
@@ -145,26 +155,48 @@ function FullPRListItem({
           {getStateBadge(item)}
         </Text>
         {ownerRepo && headSha && (
-          <CheckStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} sha={headSha} enabled={isFocus} />
+          <CheckStatusIcon
+            owner={ownerRepo.owner}
+            repo={ownerRepo.repo}
+            sha={headSha}
+            enabled={isFocus}
+          />
         )}
         {ownerRepo && (
-          <ReviewStatusIcon owner={ownerRepo.owner} repo={ownerRepo.repo} prNumber={item.number} enabled={isFocus} />
+          <ReviewStatusIcon
+            owner={ownerRepo.owner}
+            repo={ownerRepo.repo}
+            prNumber={item.number}
+            enabled={isFocus}
+          />
         )}
         {unread && (
-          <Text color={theme.colors.accent} bold>●</Text>
+          <Text color={theme.colors.accent} bold>
+            ●
+          </Text>
         )}
-        {hasNotes && (
-          <Text color={theme.colors.warning}>N</Text>
-        )}
+        {hasNotes && <Text color={theme.colors.warning}>N</Text>}
         <Text
-          color={isFocus ? theme.colors.listSelectedFg : unread ? theme.colors.accent : theme.colors.text}
+          color={
+            isFocus
+              ? theme.colors.listSelectedFg
+              : unread
+                ? theme.colors.accent
+                : theme.colors.text
+          }
           bold={isFocus || unread}
           inverse={isFocus}
         >
           #{item.number}
         </Text>
         <Text
-          color={isFocus ? theme.colors.listSelectedFg : unread ? theme.colors.accent : theme.colors.text}
+          color={
+            isFocus
+              ? theme.colors.listSelectedFg
+              : unread
+                ? theme.colors.accent
+                : theme.colors.text
+          }
           bold={isFocus || unread}
           inverse={isFocus}
         >
@@ -174,8 +206,12 @@ function FullPRListItem({
           <Box gap={0}>
             {item.labels.map(
               (label: { id: number; name: string; color: string }) => {
-                const bgColor = label.color ? normalizeHexColor(label.color) : undefined
-                const fgColor = label.color ? contrastForeground(label.color) : theme.colors.muted
+                const bgColor = label.color
+                  ? normalizeHexColor(label.color)
+                  : undefined
+                const fgColor = label.color
+                  ? contrastForeground(label.color)
+                  : theme.colors.muted
                 return (
                   <Text
                     key={label.id}

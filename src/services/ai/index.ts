@@ -13,8 +13,17 @@ import { createCopilotService } from './copilot'
 import { createGeminiService } from './gemini'
 import { createOllamaService } from './ollama'
 
-export { type AiService, type AiServiceConfig, type AiProviderType } from './types'
-export type { AiMessage, AiResponse, AiStreamChunk, AiRequestOptions } from './types'
+export {
+  type AiService,
+  type AiServiceConfig,
+  type AiProviderType,
+} from './types'
+export type {
+  AiMessage,
+  AiResponse,
+  AiStreamChunk,
+  AiRequestOptions,
+} from './types'
 export {
   AiError,
   AiConfigError,

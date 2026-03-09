@@ -13,7 +13,10 @@ interface MutateCall {
 function createMockMutation() {
   const calls: MutateCall[] = []
   return {
-    mutate: (params: unknown, options: { onSuccess?: () => void; onError?: (err: Error) => void }) => {
+    mutate: (
+      params: unknown,
+      options: { onSuccess?: () => void; onError?: (err: Error) => void },
+    ) => {
       calls.push({ params, options })
     },
     isPending: false,
@@ -56,7 +59,8 @@ function createState<T>(init: T): StateCell<T> {
   const cell: StateCell<T> = {
     value: init,
     setValue: (v) => {
-      cell.value = typeof v === 'function' ? (v as (prev: T) => T)(cell.value) : v
+      cell.value =
+        typeof v === 'function' ? (v as (prev: T) => T)(cell.value) : v
     },
   }
   return cell
@@ -106,7 +110,12 @@ describe('useCommentActions — modal title derivation', () => {
     const title = deriveModalTitle({
       descriptionEditContext: null,
       editContext: null,
-      replyContext: { commentId: 1, user: 'alice', body: 'hello', isIssueComment: false },
+      replyContext: {
+        commentId: 1,
+        user: 'alice',
+        body: 'hello',
+        isIssueComment: false,
+      },
       inlineContext: null,
     })
     expect(title).toBe('Reply to alice')
@@ -168,7 +177,12 @@ describe('useCommentActions — modal context derivation', () => {
     const ctx = deriveModalContext({
       descriptionEditContext: null,
       editContext: null,
-      replyContext: { commentId: 1, user: 'bob', body: 'short reply', isIssueComment: false },
+      replyContext: {
+        commentId: 1,
+        user: 'bob',
+        body: 'short reply',
+        isIssueComment: false,
+      },
       inlineContext: null,
     })
     expect(ctx).toBe('short reply')
@@ -179,7 +193,12 @@ describe('useCommentActions — modal context derivation', () => {
     const ctx = deriveModalContext({
       descriptionEditContext: null,
       editContext: null,
-      replyContext: { commentId: 1, user: 'bob', body: longBody, isIssueComment: false },
+      replyContext: {
+        commentId: 1,
+        user: 'bob',
+        body: longBody,
+        isIssueComment: false,
+      },
       inlineContext: null,
     })
     expect(ctx).toBe('x'.repeat(100) + '...')
@@ -199,7 +218,12 @@ describe('useCommentActions — modal context derivation', () => {
     const ctx = deriveModalContext({
       descriptionEditContext: null,
       editContext: null,
-      replyContext: { commentId: 1, user: 'bob', body: null, isIssueComment: false },
+      replyContext: {
+        commentId: 1,
+        user: 'bob',
+        body: null,
+        isIssueComment: false,
+      },
       inlineContext: null,
     })
     expect(ctx).toBeUndefined()
@@ -208,7 +232,10 @@ describe('useCommentActions — modal context derivation', () => {
 
 describe('useCommentActions — modal default value', () => {
   it('returns undefined when no edit context', () => {
-    const val = deriveDefaultValue({ descriptionEditContext: null, editContext: null })
+    const val = deriveDefaultValue({
+      descriptionEditContext: null,
+      editContext: null,
+    })
     expect(val).toBeUndefined()
   })
 
@@ -223,7 +250,11 @@ describe('useCommentActions — modal default value', () => {
   it('returns edit body when editContext is set', () => {
     const val = deriveDefaultValue({
       descriptionEditContext: null,
-      editContext: { commentId: 1, body: 'edited text', isReviewComment: false },
+      editContext: {
+        commentId: 1,
+        body: 'edited text',
+        isReviewComment: false,
+      },
     })
     expect(val).toBe('edited text')
   })
@@ -262,20 +293,32 @@ describe('useCommentActions — handleCommentSubmit dispatch', () => {
     )
     expect(mockCreateComment.calls).toHaveLength(1)
     expect(mockCreateComment.calls[0]!.params).toEqual({
-      owner: 'o', repo: 'r', issueNumber: 1, body: 'test',
+      owner: 'o',
+      repo: 'r',
+      issueNumber: 1,
+      body: 'test',
     })
   })
 
   it('dispatches to createReviewComment for inline comment', () => {
     mockCreateReviewComment.mutate(
       {
-        owner: 'o', repo: 'r', prNumber: 1, body: 'inline',
-        commitId: 'sha', path: 'file.ts', line: 10, side: 'RIGHT',
+        owner: 'o',
+        repo: 'r',
+        prNumber: 1,
+        body: 'inline',
+        commitId: 'sha',
+        path: 'file.ts',
+        line: 10,
+        side: 'RIGHT',
       },
       { onSuccess: () => {} },
     )
     expect(mockCreateReviewComment.calls).toHaveLength(1)
-    expect(mockCreateReviewComment.calls[0]!.params).toHaveProperty('path', 'file.ts')
+    expect(mockCreateReviewComment.calls[0]!.params).toHaveProperty(
+      'path',
+      'file.ts',
+    )
   })
 
   it('dispatches to replyToReviewComment for review thread reply', () => {
@@ -284,7 +327,10 @@ describe('useCommentActions — handleCommentSubmit dispatch', () => {
       { onSuccess: () => {} },
     )
     expect(mockReplyToReviewComment.calls).toHaveLength(1)
-    expect(mockReplyToReviewComment.calls[0]!.params).toHaveProperty('inReplyTo', 42)
+    expect(mockReplyToReviewComment.calls[0]!.params).toHaveProperty(
+      'inReplyTo',
+      42,
+    )
   })
 
   it('dispatches to createComment for issue comment reply (with quoted body)', () => {
@@ -294,7 +340,9 @@ describe('useCommentActions — handleCommentSubmit dispatch', () => {
       { onSuccess: () => {} },
     )
     expect(mockCreateComment.calls).toHaveLength(1)
-    expect((mockCreateComment.calls[0]!.params as { body: string }).body).toContain('@alice wrote')
+    expect(
+      (mockCreateComment.calls[0]!.params as { body: string }).body,
+    ).toContain('@alice wrote')
   })
 
   it('dispatches to editIssueComment for non-review comment edit', () => {
@@ -303,16 +351,28 @@ describe('useCommentActions — handleCommentSubmit dispatch', () => {
       { onSuccess: () => {} },
     )
     expect(mockEditIssueComment.calls).toHaveLength(1)
-    expect(mockEditIssueComment.calls[0]!.params).toHaveProperty('commentId', 99)
+    expect(mockEditIssueComment.calls[0]!.params).toHaveProperty(
+      'commentId',
+      99,
+    )
   })
 
   it('dispatches to editReviewComment for review comment edit', () => {
     mockEditReviewComment.mutate(
-      { owner: 'o', repo: 'r', prNumber: 1, commentId: 100, body: 'updated review' },
+      {
+        owner: 'o',
+        repo: 'r',
+        prNumber: 1,
+        commentId: 100,
+        body: 'updated review',
+      },
       { onSuccess: () => {} },
     )
     expect(mockEditReviewComment.calls).toHaveLength(1)
-    expect(mockEditReviewComment.calls[0]!.params).toHaveProperty('commentId', 100)
+    expect(mockEditReviewComment.calls[0]!.params).toHaveProperty(
+      'commentId',
+      100,
+    )
   })
 
   it('dispatches to updatePRDescription for description edit', () => {
@@ -321,7 +381,10 @@ describe('useCommentActions — handleCommentSubmit dispatch', () => {
       { onSuccess: () => {} },
     )
     expect(mockUpdatePRDescription.calls).toHaveLength(1)
-    expect(mockUpdatePRDescription.calls[0]!.params).toHaveProperty('body', 'new desc')
+    expect(mockUpdatePRDescription.calls[0]!.params).toHaveProperty(
+      'body',
+      'new desc',
+    )
   })
 })
 
@@ -337,7 +400,9 @@ describe('useCommentActions — error states', () => {
       { owner: 'o', repo: 'r', issueNumber: 1, body: 'test' },
       {
         onSuccess: () => {},
-        onError: (err) => { capturedError = String(err) },
+        onError: (err) => {
+          capturedError = String(err)
+        },
       },
     )
     mockCreateComment.triggerError(new Error('Network error'))
@@ -350,7 +415,9 @@ describe('useCommentActions — error states', () => {
       { owner: 'o', repo: 'r', prNumber: 1, commentId: 1, body: 'x' },
       {
         onSuccess: () => {},
-        onError: (err) => { capturedError = String(err) },
+        onError: (err) => {
+          capturedError = String(err)
+        },
       },
     )
     mockEditIssueComment.triggerError(new Error('Forbidden'))
@@ -388,7 +455,12 @@ describe('useCommentActions — handler state clearing', () => {
   it('handleOpenReply sets reply context only', () => {
     const contexts = {
       inlineContext: null,
-      replyContext: { commentId: 5, user: 'carol', body: 'hello world', isIssueComment: false },
+      replyContext: {
+        commentId: 5,
+        user: 'carol',
+        body: 'hello world',
+        isIssueComment: false,
+      },
       editContext: null,
       descriptionEditContext: null,
     }
@@ -463,9 +535,22 @@ describe('useCommentActions — reply preview truncation', () => {
 
 interface ModalTitleInput {
   readonly descriptionEditContext: { readonly body: string } | null
-  readonly editContext: { readonly commentId: number; readonly body: string; readonly isReviewComment: boolean } | null
-  readonly replyContext: { readonly commentId: number; readonly user: string; readonly body: string | null; readonly isIssueComment?: boolean } | null
-  readonly inlineContext: { readonly path: string; readonly line: number; readonly side: 'LEFT' | 'RIGHT' } | null
+  readonly editContext: {
+    readonly commentId: number
+    readonly body: string
+    readonly isReviewComment: boolean
+  } | null
+  readonly replyContext: {
+    readonly commentId: number
+    readonly user: string
+    readonly body: string | null
+    readonly isIssueComment?: boolean
+  } | null
+  readonly inlineContext: {
+    readonly path: string
+    readonly line: number
+    readonly side: 'LEFT' | 'RIGHT'
+  } | null
 }
 
 function deriveModalTitle(input: ModalTitleInput): string {
@@ -499,5 +584,7 @@ function deriveDefaultValue(input: {
   readonly descriptionEditContext: { readonly body: string } | null
   readonly editContext: { readonly body: string } | null
 }): string | undefined {
-  return input.descriptionEditContext?.body ?? input.editContext?.body ?? undefined
+  return (
+    input.descriptionEditContext?.body ?? input.editContext?.body ?? undefined
+  )
 }

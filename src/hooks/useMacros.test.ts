@@ -1,12 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import {
-  macroStore,
-  resetMacroStore,
-  type MacroStoreState,
-} from './useMacros'
+import { macroStore, resetMacroStore, type MacroStoreState } from './useMacros'
 import type { KeyStroke } from '../utils/macro-recorder'
 
-function makeKeystroke(input: string, key: Partial<KeyStroke['key']> = {}): KeyStroke {
+function makeKeystroke(
+  input: string,
+  key: Partial<KeyStroke['key']> = {},
+): KeyStroke {
   return {
     input,
     key: {
@@ -98,7 +97,10 @@ describe('macroStore.stopRecording', () => {
     const state = macroStore.getSnapshot()
     expect(state.isRecording).toBe(false)
     expect(state.activeRegister).toBeNull()
-    expect(state.registers['a']).toEqual([makeKeystroke('j'), makeKeystroke('k')])
+    expect(state.registers['a']).toEqual([
+      makeKeystroke('j'),
+      makeKeystroke('k'),
+    ])
   })
 
   it('notifies subscribers', () => {
@@ -195,7 +197,10 @@ describe('macroStore.replay', () => {
 
     const handler = vi.fn()
     macroStore.replay('a', handler)
-    expect(handler).toHaveBeenCalledWith('b', expect.objectContaining({ ctrl: true }))
+    expect(handler).toHaveBeenCalledWith(
+      'b',
+      expect.objectContaining({ ctrl: true }),
+    )
   })
 })
 
@@ -208,7 +213,10 @@ describe('macroStore.loadRegisters', () => {
 
     const state = macroStore.getSnapshot()
     expect(state.registers['a']).toEqual([makeKeystroke('j')])
-    expect(state.registers['b']).toEqual([makeKeystroke('k'), makeKeystroke('l')])
+    expect(state.registers['b']).toEqual([
+      makeKeystroke('k'),
+      makeKeystroke('l'),
+    ])
   })
 
   it('notifies subscribers', () => {

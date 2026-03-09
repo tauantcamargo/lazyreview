@@ -7,7 +7,11 @@ export { usePagination } from './usePagination'
 export { useFilter } from './useFilter'
 export { useStatusMessage } from './useStatusMessage'
 export type { StatusMessageType } from './useStatusMessage'
-export { useRateLimit, updateRateLimit, getRateLimitRemaining } from './useRateLimit'
+export {
+  useRateLimit,
+  updateRateLimit,
+  getRateLimitRemaining,
+} from './useRateLimit'
 export { useLastUpdated, touchLastUpdated } from './useLastUpdated'
 export { useRefreshInterval } from './useRefreshInterval'
 export { useManualRefresh } from './useManualRefresh'

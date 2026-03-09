@@ -11,14 +11,13 @@ import type { PullRequest } from '../models/pull-request'
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makePR(overrides: Partial<{
-  readonly number: number
-  readonly login: string
-}>): PullRequest {
-  const {
-    number = 1,
-    login = 'alice',
-  } = overrides
+function makePR(
+  overrides: Partial<{
+    readonly number: number
+    readonly login: string
+  }>,
+): PullRequest {
+  const { number = 1, login = 'alice' } = overrides
 
   return {
     id: number,

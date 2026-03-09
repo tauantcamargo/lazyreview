@@ -372,7 +372,9 @@ describe('getLanguageFromFilename', () => {
     })
 
     it('handles deeply nested paths', () => {
-      expect(getLanguageFromFilename('src/components/layout/TopBar.tsx')).toBe('typescript')
+      expect(getLanguageFromFilename('src/components/layout/TopBar.tsx')).toBe(
+        'typescript',
+      )
     })
 
     it('handles files with multiple dots', () => {

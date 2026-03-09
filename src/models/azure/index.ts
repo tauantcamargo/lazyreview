@@ -22,11 +22,7 @@ export {
   AzureThreadContextSchema,
   AzureThreadSchema,
 } from './comment'
-export type {
-  AzureComment,
-  AzureThreadContext,
-  AzureThread,
-} from './comment'
+export type { AzureComment, AzureThreadContext, AzureThread } from './comment'
 
 export {
   AzureIterationSchema,

@@ -77,13 +77,16 @@ export function createGitHubProvider(
 
     getPRFiles: (number) => service.getPRFiles(owner, repo, number),
 
-    getPRFilesPage: (number, page) => service.getPRFilesPage(owner, repo, number, page),
+    getPRFilesPage: (number, page) =>
+      service.getPRFilesPage(owner, repo, number, page),
 
-    getFileDiff: (number, filename) => service.getFileDiff(owner, repo, number, filename),
+    getFileDiff: (number, filename) =>
+      service.getFileDiff(owner, repo, number, filename),
 
     getPRComments: (number) => service.getPRComments(owner, repo, number),
 
-    getIssueComments: (issueNumber) => service.getIssueComments(owner, repo, issueNumber),
+    getIssueComments: (issueNumber) =>
+      service.getIssueComments(owner, repo, issueNumber),
 
     getPRReviews: (number) => service.getPRReviews(owner, repo, number),
 
@@ -91,7 +94,8 @@ export function createGitHubProvider(
 
     getPRChecks: (ref) => service.getPRChecks(owner, repo, ref),
 
-    getReviewThreads: (prNumber) => service.getReviewThreads(owner, repo, prNumber),
+    getReviewThreads: (prNumber) =>
+      service.getReviewThreads(owner, repo, prNumber),
 
     getCommitDiff: (sha) => service.getCommitDiff(owner, repo, sha),
 
@@ -165,7 +169,14 @@ export function createGitHubProvider(
     // -- PR state mutations -------------------------------------------------
 
     mergePR: (prNumber, method, commitTitle, commitMessage) =>
-      service.mergePR(owner, repo, prNumber, method, commitTitle, commitMessage),
+      service.mergePR(
+        owner,
+        repo,
+        prNumber,
+        method,
+        commitTitle,
+        commitMessage,
+      ),
 
     closePR: (prNumber) => service.closePR(owner, repo, prNumber),
 
@@ -209,13 +220,15 @@ export function createGitHubProvider(
 
     getLabels: () => service.getLabels(owner, repo),
 
-    setLabels: (prNumber, labels) => service.setLabels(owner, repo, prNumber, labels),
+    setLabels: (prNumber, labels) =>
+      service.setLabels(owner, repo, prNumber, labels),
 
     // -- Assignee operations ------------------------------------------------
 
     getCollaborators: () => service.getCollaborators(owner, repo),
 
-    updateAssignees: (prNumber, assignees) => service.updateAssignees(owner, repo, prNumber, assignees),
+    updateAssignees: (prNumber, assignees) =>
+      service.updateAssignees(owner, repo, prNumber, assignees),
 
     // -- Reaction operations ------------------------------------------------
 
@@ -228,13 +241,18 @@ export function createGitHubProvider(
 
     // -- V2 methods (GitHub-native implementations) -------------------------
 
-    batchGetPRs: (prNumbers: readonly number[]): Effect.Effect<readonly PullRequest[], ApiError> =>
+    batchGetPRs: (
+      prNumbers: readonly number[],
+    ): Effect.Effect<readonly PullRequest[], ApiError> =>
       Effect.all(
         prNumbers.map((n) => service.getPR(owner, repo, n)),
         { concurrency: 'unbounded' },
       ),
 
-    getCompareFiles: (base: string, head: string): Effect.Effect<readonly FileChange[], ApiError> =>
+    getCompareFiles: (
+      base: string,
+      head: string,
+    ): Effect.Effect<readonly FileChange[], ApiError> =>
       service.getCompareFiles
         ? service.getCompareFiles(owner, repo, base, head)
         : Effect.succeed([]),
@@ -244,7 +262,9 @@ export function createGitHubProvider(
         ? service.getTimeline(owner, repo, prNumber)
         : Effect.succeed([]),
 
-    submitSuggestion: (params: SuggestionParams): Effect.Effect<Comment, ApiError> =>
+    submitSuggestion: (
+      params: SuggestionParams,
+    ): Effect.Effect<Comment, ApiError> =>
       Effect.flatMap(
         service.addDiffComment(
           owner,

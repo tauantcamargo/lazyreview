@@ -41,7 +41,11 @@ export type BitbucketParticipant = z.infer<typeof BitbucketParticipantSchema>
 export const BitbucketPullRequestSchema = z.object({
   id: z.number(),
   title: z.string(),
-  description: z.string().nullable().transform((v) => v ?? '').default(''),
+  description: z
+    .string()
+    .nullable()
+    .transform((v) => v ?? '')
+    .default(''),
   state: z.enum(['OPEN', 'MERGED', 'DECLINED', 'SUPERSEDED']),
   author: BitbucketUserSchema,
   source: z.object({

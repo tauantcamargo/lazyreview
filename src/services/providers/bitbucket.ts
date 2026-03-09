@@ -82,9 +82,11 @@ const BitbucketPipelineSchema = z.object({
   state: z.object({
     name: z.string(),
   }),
-  target: z.object({
-    ref_name: z.string().optional(),
-  }).optional(),
+  target: z
+    .object({
+      ref_name: z.string().optional(),
+    })
+    .optional(),
 })
 
 // ---------------------------------------------------------------------------
@@ -148,13 +150,10 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
   const fetchCurrentUsername = (): Effect.Effect<string, ApiError> =>
     cachedUsername != null
       ? Effect.succeed(cachedUsername)
-      : Effect.map(
-          getCurrentUser(baseUrl, token),
-          (user) => {
-            cachedUsername = user.username
-            return user.username
-          },
-        )
+      : Effect.map(getCurrentUser(baseUrl, token), (user) => {
+          cachedUsername = user.username
+          return user.username
+        })
 
   return {
     type: 'bitbucket',
@@ -233,7 +232,9 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
           token,
         ),
         (data) =>
-          parseDiffStats(data).map(mapBitbucketDiffStatToFileChange).find((f) => f.filename === filename) ?? null,
+          parseDiffStats(data)
+            .map(mapBitbucketDiffStatToFileChange)
+            .find((f) => f.filename === filename) ?? null,
       ),
 
     getPRComments: (number) =>
@@ -256,7 +257,9 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
         const prHtmlUrl = pr.links.html.href
 
         // Only inline (diff-attached) comments
-        const inlineComments = comments.filter((c) => !c.deleted && c.inline != null)
+        const inlineComments = comments.filter(
+          (c) => !c.deleted && c.inline != null,
+        )
         return mapBitbucketCommentsToComments(inlineComments, prHtmlUrl)
       }),
 
@@ -319,9 +322,9 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
           token,
         )
 
-        const pipelines = z.array(BitbucketPipelineSchema).parse(
-          pipelinesData.values ?? [],
-        )
+        const pipelines = z
+          .array(BitbucketPipelineSchema)
+          .parse(pipelinesData.values ?? [])
 
         if (pipelines.length === 0) {
           return new CheckRunsResponse({
@@ -449,8 +452,7 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
     },
 
     // Bitbucket doesn't have pending reviews -- immediate submission
-    createPendingReview: () =>
-      Effect.succeed({ id: 0 }),
+    createPendingReview: () => Effect.succeed({ id: 0 }),
 
     addPendingReviewComment: (params) =>
       addInlineComment(
@@ -490,8 +492,7 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
       }
     },
 
-    discardPendingReview: () =>
-      Effect.succeed(undefined as void),
+    discardPendingReview: () => Effect.succeed(undefined as void),
 
     // -- Comment mutations --------------------------------------------------
 
@@ -512,15 +513,7 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
       ),
 
     replyToComment: (prNumber, commentId, body) =>
-      replyToComment(
-        baseUrl,
-        token,
-        owner,
-        repo,
-        prNumber,
-        commentId,
-        body,
-      ),
+      replyToComment(baseUrl, token, owner, repo, prNumber, commentId, body),
 
     editIssueComment: (commentId, body) =>
       // Bitbucket requires the PR number to edit a comment.
@@ -538,16 +531,25 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
     // -- PR state mutations -------------------------------------------------
 
     mergePR: (prNumber, method, commitTitle, commitMessage) =>
-      mergePR(baseUrl, token, owner, repo, prNumber, method, commitTitle, commitMessage),
+      mergePR(
+        baseUrl,
+        token,
+        owner,
+        repo,
+        prNumber,
+        method,
+        commitTitle,
+        commitMessage,
+      ),
 
-    closePR: (prNumber) =>
-      declinePR(baseUrl, token, owner, repo, prNumber),
+    closePR: (prNumber) => declinePR(baseUrl, token, owner, repo, prNumber),
 
     reopenPR: () =>
       // Bitbucket does not support reopening declined PRs
       Effect.fail(
         new BitbucketError({
-          message: 'Bitbucket does not support reopening declined pull requests. Create a new PR instead.',
+          message:
+            'Bitbucket does not support reopening declined pull requests. Create a new PR instead.',
           status: 400,
         }),
       ),
@@ -610,46 +612,63 @@ export function createBitbucketProvider(config: ProviderConfig): Provider {
 
     createPR: () =>
       Effect.fail(
-        new BitbucketError({ message: 'PR creation is not yet supported for Bitbucket', status: 501 }),
+        new BitbucketError({
+          message: 'PR creation is not yet supported for Bitbucket',
+          status: 501,
+        }),
       ),
 
     // -- Label operations (not supported for Bitbucket) ----------------------
 
     getLabels: () =>
       Effect.fail(
-        new BitbucketError({ message: 'Labels are not yet supported for Bitbucket', status: 501 }),
+        new BitbucketError({
+          message: 'Labels are not yet supported for Bitbucket',
+          status: 501,
+        }),
       ),
 
     setLabels: () =>
       Effect.fail(
-        new BitbucketError({ message: 'Labels are not yet supported for Bitbucket', status: 501 }),
+        new BitbucketError({
+          message: 'Labels are not yet supported for Bitbucket',
+          status: 501,
+        }),
       ),
 
     // -- Assignee operations (not supported for Bitbucket) --------------------
 
     getCollaborators: () =>
       Effect.fail(
-        new BitbucketError({ message: 'Assignee management is not yet supported for Bitbucket', status: 501 }),
+        new BitbucketError({
+          message: 'Assignee management is not yet supported for Bitbucket',
+          status: 501,
+        }),
       ),
 
     updateAssignees: () =>
       Effect.fail(
-        new BitbucketError({ message: 'Assignee management is not yet supported for Bitbucket', status: 501 }),
+        new BitbucketError({
+          message: 'Assignee management is not yet supported for Bitbucket',
+          status: 501,
+        }),
       ),
 
     // -- Reaction operations (not supported for Bitbucket) --------------------
 
     addReaction: () =>
       Effect.fail(
-        new BitbucketError({ message: 'Reactions are not supported for Bitbucket', status: 501 }),
+        new BitbucketError({
+          message: 'Reactions are not supported for Bitbucket',
+          status: 501,
+        }),
       ),
 
     // -- User info ----------------------------------------------------------
 
     getCurrentUser: () =>
-      Effect.map(
-        getCurrentUser(baseUrl, token),
-        (user) => ({ login: user.username }),
-      ),
+      Effect.map(getCurrentUser(baseUrl, token), (user) => ({
+        login: user.username,
+      })),
   }
 }

@@ -2,7 +2,10 @@ import React, { useMemo } from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useKeybindings } from '../../hooks/useKeybindings'
-import { mergeKeybindings, formatActionBindings } from '../../config/keybindings'
+import {
+  mergeKeybindings,
+  formatActionBindings,
+} from '../../config/keybindings'
 import type { KeybindingOverrides } from '../../config/keybindings'
 import { Divider } from '../common/Divider'
 import { Modal } from '../common/Modal'
@@ -94,33 +97,84 @@ const HELP_SECTIONS: readonly HelpSectionDef[] = [
   {
     title: 'Global',
     context: 'global',
-    actions: ['moveDown', 'moveUp', 'select', 'toggleSidebar', 'toggleHelp', 'commandPalette', 'back', 'quit'],
+    actions: [
+      'moveDown',
+      'moveUp',
+      'select',
+      'toggleSidebar',
+      'toggleHelp',
+      'commandPalette',
+      'back',
+      'quit',
+    ],
   },
   {
     title: 'PR List',
     context: 'prList',
-    actions: ['filterPRs', 'sortPRs', 'nextPage', 'prevPage', 'openInBrowser', 'copyUrl', 'toggleUnread', 'toggleState'],
-    staticEntries: [
-      { key: 'R', description: 'Refresh' },
+    actions: [
+      'filterPRs',
+      'sortPRs',
+      'nextPage',
+      'prevPage',
+      'openInBrowser',
+      'copyUrl',
+      'toggleUnread',
+      'toggleState',
     ],
+    staticEntries: [{ key: 'R', description: 'Refresh' }],
   },
   {
     title: 'PR Detail',
     context: 'prDetail',
-    actions: ['openInBrowser', 'copyUrl', 'submitReview', 'batchReview', 'reReview', 'mergePR', 'editTitle', 'toggleDraft', 'closePR', 'checkoutBranch', 'nextPR', 'prevPR'],
+    actions: [
+      'openInBrowser',
+      'copyUrl',
+      'submitReview',
+      'batchReview',
+      'reReview',
+      'mergePR',
+      'editTitle',
+      'toggleDraft',
+      'closePR',
+      'checkoutBranch',
+      'nextPR',
+      'prevPR',
+    ],
     staticEntries: [
-      { key: '1-6', description: 'Switch tabs (Desc/Conv/Commits/Files/Checks/Timeline)' },
+      {
+        key: '1-6',
+        description: 'Switch tabs (Desc/Conv/Commits/Files/Checks/Timeline)',
+      },
     ],
   },
   {
     title: 'Conversations Tab',
     context: 'conversations',
-    actions: ['newComment', 'reply', 'editComment', 'editDescription', 'resolveThread', 'toggleResolved', 'goToFile'],
+    actions: [
+      'newComment',
+      'reply',
+      'editComment',
+      'editDescription',
+      'resolveThread',
+      'toggleResolved',
+      'goToFile',
+    ],
   },
   {
     title: 'Files Tab',
     context: 'filesTab',
-    actions: ['focusTree', 'focusDiff', 'switchPanel', 'filterFiles', 'toggleSideBySide', 'visualSelect', 'inlineComment', 'reply', 'editComment', 'resolveThread'],
+    actions: [
+      'focusTree',
+      'focusDiff',
+      'switchPanel',
+      'filterFiles',
+      'toggleSideBySide',
+      'visualSelect',
+      'inlineComment',
+      'reply',
+      'editComment',
+      'resolveThread',
+    ],
     staticEntries: [
       { key: 'F', description: 'Search across all files' },
       { key: 'n / N', description: 'Next / previous search match' },
@@ -189,7 +243,9 @@ function ShortcutGroupView({
       {group.items.map((s) => (
         <Box key={`${group.title}-${s.key}-${s.description}`} gap={1}>
           <Box width={16}>
-            <Text color={theme.colors.warning} bold>{s.key}</Text>
+            <Text color={theme.colors.warning} bold>
+              {s.key}
+            </Text>
           </Box>
           <Text color={theme.colors.text}>{s.description}</Text>
         </Box>
@@ -207,8 +263,12 @@ export function HelpModal({ onClose }: HelpModalProps): React.ReactElement {
     [overrides],
   )
 
-  const leftGroups = shortcutGroups.filter((g) => LEFT_COLUMN_TITLES.has(g.title))
-  const rightGroups = shortcutGroups.filter((g) => !LEFT_COLUMN_TITLES.has(g.title))
+  const leftGroups = shortcutGroups.filter((g) =>
+    LEFT_COLUMN_TITLES.has(g.title),
+  )
+  const rightGroups = shortcutGroups.filter(
+    (g) => !LEFT_COLUMN_TITLES.has(g.title),
+  )
 
   return (
     <Modal>

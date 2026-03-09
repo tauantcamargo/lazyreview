@@ -23,7 +23,12 @@ vi.mock('../services/index', () => {
     stop: () => Effect.succeed(undefined),
   })
 
-  const AppLayer = Layer.mergeAll(ConfigLive, AuthLive, GitHubApiLive, LoadingLive)
+  const AppLayer = Layer.mergeAll(
+    ConfigLive,
+    AuthLive,
+    GitHubApiLive,
+    LoadingLive,
+  )
 
   return { AppLayer, Config, Auth, GitHubApi, Loading }
 })

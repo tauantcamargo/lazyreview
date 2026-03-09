@@ -20,7 +20,13 @@ export const TimelineReviewEventSchema = z.object({
   type: z.literal('review'),
   id: z.string(),
   timestamp: z.string(),
-  state: z.enum(['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED', 'DISMISSED', 'PENDING']),
+  state: z.enum([
+    'APPROVED',
+    'CHANGES_REQUESTED',
+    'COMMENTED',
+    'DISMISSED',
+    'PENDING',
+  ]),
   body: z.string(),
   author: z.object({
     login: z.string(),
@@ -107,7 +113,15 @@ export type TimelineEvent = z.infer<typeof TimelineEventSchema>
 export type TimelineCommitEvent = z.infer<typeof TimelineCommitEventSchema>
 export type TimelineReviewEvent = z.infer<typeof TimelineReviewEventSchema>
 export type TimelineCommentEvent = z.infer<typeof TimelineCommentEventSchema>
-export type TimelineLabelChangeEvent = z.infer<typeof TimelineLabelChangeEventSchema>
-export type TimelineAssigneeChangeEvent = z.infer<typeof TimelineAssigneeChangeEventSchema>
-export type TimelineStatusCheckEvent = z.infer<typeof TimelineStatusCheckEventSchema>
-export type TimelineForcePushEvent = z.infer<typeof TimelineForcePushEventSchema>
+export type TimelineLabelChangeEvent = z.infer<
+  typeof TimelineLabelChangeEventSchema
+>
+export type TimelineAssigneeChangeEvent = z.infer<
+  typeof TimelineAssigneeChangeEventSchema
+>
+export type TimelineStatusCheckEvent = z.infer<
+  typeof TimelineStatusCheckEventSchema
+>
+export type TimelineForcePushEvent = z.infer<
+  typeof TimelineForcePushEventSchema
+>

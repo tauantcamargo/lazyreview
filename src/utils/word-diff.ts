@@ -74,7 +74,10 @@ function backtrackLcs(
   oldTokens: readonly string[],
   newTokens: readonly string[],
   dp: readonly (readonly number[])[],
-): { readonly oldLcs: ReadonlySet<number>; readonly newLcs: ReadonlySet<number> } {
+): {
+  readonly oldLcs: ReadonlySet<number>
+  readonly newLcs: ReadonlySet<number>
+} {
   const oldLcs = new Set<number>()
   const newLcs = new Set<number>()
   let i = oldTokens.length

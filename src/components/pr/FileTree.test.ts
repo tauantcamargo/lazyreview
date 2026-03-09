@@ -65,11 +65,7 @@ describe('buildFileTree', () => {
   })
 
   it('sorts directories before files, both alphabetically', () => {
-    const files = [
-      makeFile('src/z.ts'),
-      makeFile('a.ts'),
-      makeFile('src/a.ts'),
-    ]
+    const files = [makeFile('src/z.ts'), makeFile('a.ts'), makeFile('src/a.ts')]
     const tree = buildFileTree(files)
     // Root should have: dir "src" first, then file "a.ts"
     expect(tree[0]!.type).toBe('dir')
@@ -157,7 +153,9 @@ describe('buildDisplayRows', () => {
     const dirRows = rows.filter((r) => r.type === 'dir')
     expect(dirRows).toHaveLength(2)
     expect(dirRows[0]!.type === 'dir' && dirRows[0]!.dirPath).toBe('src')
-    expect(dirRows[1]!.type === 'dir' && dirRows[1]!.dirPath).toBe('src/components')
+    expect(dirRows[1]!.type === 'dir' && dirRows[1]!.dirPath).toBe(
+      'src/components',
+    )
   })
 
   it('marks dirs as not collapsed by default', () => {
@@ -170,7 +168,11 @@ describe('buildDisplayRows', () => {
   })
 
   it('hides children of collapsed directories', () => {
-    const files = [makeFile('src/a.ts'), makeFile('src/b.ts'), makeFile('README.md')]
+    const files = [
+      makeFile('src/a.ts'),
+      makeFile('src/b.ts'),
+      makeFile('README.md'),
+    ]
     const tree = buildFileTree(files)
     const collapsed = new Set(['src'])
     const ref = { current: 0 }
@@ -189,7 +191,11 @@ describe('buildDisplayRows', () => {
   })
 
   it('advances fileIndex correctly when directories are collapsed', () => {
-    const files = [makeFile('src/a.ts'), makeFile('src/b.ts'), makeFile('README.md')]
+    const files = [
+      makeFile('src/a.ts'),
+      makeFile('src/b.ts'),
+      makeFile('README.md'),
+    ]
     const tree = buildFileTree(files)
     const collapsed = new Set(['src'])
     const ref = { current: 0 }
@@ -215,7 +221,9 @@ describe('buildDisplayRows', () => {
     const componentsDir = dirRows.find(
       (r) => r.type === 'dir' && r.name === 'components',
     )
-    expect(componentsDir?.type === 'dir' && componentsDir.isCollapsed).toBe(true)
+    expect(componentsDir?.type === 'dir' && componentsDir.isCollapsed).toBe(
+      true,
+    )
     // hooks dir should still be expanded
     const hooksDir = dirRows.find((r) => r.type === 'dir' && r.name === 'hooks')
     expect(hooksDir?.type === 'dir' && hooksDir.isCollapsed).toBe(false)

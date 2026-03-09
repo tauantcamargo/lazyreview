@@ -63,11 +63,7 @@ describe('bot-detection', () => {
   })
 
   describe('findMostRecentBotComment', () => {
-    const makeComment = (
-      login: string,
-      body: string,
-      created_at: string,
-    ) => ({
+    const makeComment = (login: string, body: string, created_at: string) => ({
       id: Math.floor(Math.random() * 10000),
       body,
       user: { login, id: 1, avatar_url: '', html_url: '', type: 'Bot' },
@@ -90,9 +86,17 @@ describe('bot-detection', () => {
 
     it('returns the most recent bot comment', () => {
       const comments = [
-        makeComment('github-actions[bot]', 'Old summary', '2025-01-01T00:00:00Z'),
+        makeComment(
+          'github-actions[bot]',
+          'Old summary',
+          '2025-01-01T00:00:00Z',
+        ),
         makeComment('alice', 'LGTM', '2025-01-02T00:00:00Z'),
-        makeComment('github-actions[bot]', 'New summary', '2025-01-03T00:00:00Z'),
+        makeComment(
+          'github-actions[bot]',
+          'New summary',
+          '2025-01-03T00:00:00Z',
+        ),
       ]
       const result = findMostRecentBotComment(comments)
       expect(result).not.toBeNull()
@@ -101,7 +105,11 @@ describe('bot-detection', () => {
 
     it('finds bot comments using custom bot list', () => {
       const comments = [
-        makeComment('coderabbitai', 'AI Review Summary', '2025-01-01T00:00:00Z'),
+        makeComment(
+          'coderabbitai',
+          'AI Review Summary',
+          '2025-01-01T00:00:00Z',
+        ),
         makeComment('alice', 'LGTM', '2025-01-02T00:00:00Z'),
       ]
       const result = findMostRecentBotComment(comments, ['coderabbitai'])
@@ -111,9 +119,17 @@ describe('bot-detection', () => {
 
     it('returns the most recent across mixed bot types', () => {
       const comments = [
-        makeComment('dependabot[bot]', 'Dependency update', '2025-01-01T00:00:00Z'),
+        makeComment(
+          'dependabot[bot]',
+          'Dependency update',
+          '2025-01-01T00:00:00Z',
+        ),
         makeComment('coderabbitai', 'AI summary', '2025-01-03T00:00:00Z'),
-        makeComment('github-actions[bot]', 'CI results', '2025-01-02T00:00:00Z'),
+        makeComment(
+          'github-actions[bot]',
+          'CI results',
+          '2025-01-02T00:00:00Z',
+        ),
       ]
       const result = findMostRecentBotComment(comments, ['coderabbitai'])
       expect(result).not.toBeNull()
@@ -122,7 +138,11 @@ describe('bot-detection', () => {
 
     it('handles single bot comment', () => {
       const comments = [
-        makeComment('renovate[bot]', 'Update available', '2025-01-01T00:00:00Z'),
+        makeComment(
+          'renovate[bot]',
+          'Update available',
+          '2025-01-01T00:00:00Z',
+        ),
       ]
       const result = findMostRecentBotComment(comments)
       expect(result).not.toBeNull()

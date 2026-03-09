@@ -15,13 +15,15 @@ const originalFetch = globalThis.fetch
 const BASE_URL = 'https://api.bitbucket.org/2.0'
 const TOKEN = 'bb-test-token'
 
-function mockFetchResponse(options: {
-  readonly ok?: boolean
-  readonly status?: number
-  readonly statusText?: string
-  readonly body?: unknown
-  readonly headers?: Record<string, string>
-} = {}): void {
+function mockFetchResponse(
+  options: {
+    readonly ok?: boolean
+    readonly status?: number
+    readonly statusText?: string
+    readonly body?: unknown
+    readonly headers?: Record<string, string>
+  } = {},
+): void {
   const {
     ok = true,
     status = 200,
@@ -117,9 +119,7 @@ describe('mutateBitbucket', () => {
 
   it('handles DELETE without body', async () => {
     mockFetchResponse()
-    await Effect.runPromise(
-      mutateBitbucket('DELETE', BASE_URL, '/test', TOKEN),
-    )
+    await Effect.runPromise(mutateBitbucket('DELETE', BASE_URL, '/test', TOKEN))
 
     const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
     const options = calls[0][1] as { body?: string }
@@ -147,7 +147,11 @@ describe('mutateBitbucketJson', () => {
   })
 
   it('fails on HTTP error', async () => {
-    mockFetchResponse({ ok: false, status: 500, statusText: 'Internal Server Error' })
+    mockFetchResponse({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+    })
     const exit = await Effect.runPromiseExit(
       mutateBitbucketJson('POST', BASE_URL, '/test', TOKEN, {}),
     )

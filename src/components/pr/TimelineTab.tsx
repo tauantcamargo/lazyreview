@@ -1,7 +1,10 @@
 import React from 'react'
 import { Box, Text, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
-import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
+import {
+  useListNavigation,
+  deriveScrollOffset,
+} from '../../hooks/useListNavigation'
 import { useTimeline } from '../../hooks/useTimeline'
 import { LoadingIndicator } from '../common/LoadingIndicator'
 import { EmptyState } from '../common/EmptyState'
@@ -188,7 +191,10 @@ interface TimelineEventRowProps {
   readonly isFocus: boolean
 }
 
-function TimelineEventRow({ event, isFocus }: TimelineEventRowProps): React.ReactElement {
+function TimelineEventRow({
+  event,
+  isFocus,
+}: TimelineEventRowProps): React.ReactElement {
   const theme = useTheme()
   const icon = getEventIcon(event)
   const description = getEventDescription(event)
@@ -246,7 +252,10 @@ export function TimelineTab({
   const { data: events = [], isLoading } = useTimeline(owner, repo, prNumber, {
     enabled: isActive || prNumber > 0,
   })
-  const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - TIMELINE_TAB_RESERVED_LINES)
+  const viewportHeight = Math.max(
+    1,
+    (stdout?.rows ?? 24) - TIMELINE_TAB_RESERVED_LINES,
+  )
 
   const { selectedIndex } = useListNavigation({
     itemCount: events.length,
@@ -254,8 +263,15 @@ export function TimelineTab({
     isActive,
   })
 
-  const scrollOffset = deriveScrollOffset(selectedIndex, viewportHeight, events.length)
-  const visibleEvents = events.slice(scrollOffset, scrollOffset + viewportHeight)
+  const scrollOffset = deriveScrollOffset(
+    selectedIndex,
+    viewportHeight,
+    events.length,
+  )
+  const visibleEvents = events.slice(
+    scrollOffset,
+    scrollOffset + viewportHeight,
+  )
 
   if (isLoading) {
     return <LoadingIndicator message="Loading timeline..." />

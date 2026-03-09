@@ -1,6 +1,10 @@
 import { useCallback, useSyncExternalStore } from 'react'
 
-export type FileReviewStatus = 'pending' | 'approved' | 'needs-changes' | 'skipped'
+export type FileReviewStatus =
+  | 'pending'
+  | 'approved'
+  | 'needs-changes'
+  | 'skipped'
 
 export interface FileReviewSummary {
   readonly total: number
@@ -21,10 +25,16 @@ type Listener = () => void
 export interface FileReviewStatusStore {
   readonly subscribe: (listener: Listener) => () => void
   readonly getSnapshot: () => StoreData
-  readonly setStatus: (prKey: string, filePath: string, status: FileReviewStatus) => void
+  readonly setStatus: (
+    prKey: string,
+    filePath: string,
+    status: FileReviewStatus,
+  ) => void
   readonly clearStatus: (prKey: string, filePath: string) => void
   readonly clearAll: (prKey: string) => void
-  readonly getStatusForPR: (prKey: string) => ReadonlyMap<string, FileReviewStatus>
+  readonly getStatusForPR: (
+    prKey: string,
+  ) => ReadonlyMap<string, FileReviewStatus>
 }
 
 export function createFileReviewStatusStore(): FileReviewStatusStore {
@@ -167,8 +177,14 @@ export function useFileReviewStatus(prKey: string): {
   readonly clearStatus: (filePath: string) => void
   readonly clearAll: () => void
   readonly getSummary: (totalFiles: number) => FileReviewSummary
-  readonly nextUnreviewed: (currentFile: string, files: readonly string[]) => string | null
-  readonly prevUnreviewed: (currentFile: string, files: readonly string[]) => string | null
+  readonly nextUnreviewed: (
+    currentFile: string,
+    files: readonly string[],
+  ) => string | null
+  readonly prevUnreviewed: (
+    currentFile: string,
+    files: readonly string[],
+  ) => string | null
 } {
   const snapshot = useSyncExternalStore(
     store.subscribe,

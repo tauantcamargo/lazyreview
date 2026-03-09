@@ -11,10 +11,7 @@ import type {
   PRListResult,
   AddDiffCommentParams,
 } from './types'
-import {
-  giteaFetchJson,
-  giteaFetchAllPages,
-} from '../GiteaApiHelpers'
+import { giteaFetchJson, giteaFetchAllPages } from '../GiteaApiHelpers'
 import {
   GiteaPullRequestSchema,
   GiteaReviewCommentSchema,
@@ -156,13 +153,10 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
   const fetchCurrentUsername = (): Effect.Effect<string, ApiError> =>
     cachedUsername != null
       ? Effect.succeed(cachedUsername)
-      : Effect.map(
-          getCurrentUser(baseUrl, token),
-          (user) => {
-            cachedUsername = user.login
-            return user.login
-          },
-        )
+      : Effect.map(getCurrentUser(baseUrl, token), (user) => {
+          cachedUsername = user.login
+          return user.login
+        })
 
   return {
     type: 'gitea',
@@ -199,11 +193,7 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
 
     getPR: (number) =>
       Effect.map(
-        giteaFetchJson<unknown>(
-          `${repoBase}/pulls/${number}`,
-          baseUrl,
-          token,
-        ),
+        giteaFetchJson<unknown>(`${repoBase}/pulls/${number}`, baseUrl, token),
         (data) => mapGiteaPRToPullRequest(parsePullRequest(data)),
       ),
 
@@ -214,8 +204,7 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
           baseUrl,
           token,
         ),
-        (data) =>
-          mapGiteaChangedFilesToFileChanges(parseChangedFiles(data)),
+        (data) => mapGiteaChangedFilesToFileChanges(parseChangedFiles(data)),
       ),
 
     getPRFilesPage: (number, _page) =>
@@ -320,8 +309,7 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
           baseUrl,
           token,
         ),
-        (data) =>
-          mapGiteaChangedFilesToFileChanges(parseChangedFiles(data)),
+        (data) => mapGiteaChangedFilesToFileChanges(parseChangedFiles(data)),
       ),
 
     // -- User-scoped queries ------------------------------------------------
@@ -426,8 +414,7 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
     submitPendingReview: (prNumber, _reviewId, body, event) =>
       submitReview(baseUrl, token, owner, repo, prNumber, body, event),
 
-    discardPendingReview: () =>
-      Effect.succeed(undefined as void),
+    discardPendingReview: () => Effect.succeed(undefined as void),
 
     // -- Comment mutations --------------------------------------------------
 
@@ -466,13 +453,20 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
     // -- PR state mutations -------------------------------------------------
 
     mergePR: (prNumber, method, commitTitle, commitMessage) =>
-      mergePR(baseUrl, token, owner, repo, prNumber, method, commitTitle, commitMessage),
+      mergePR(
+        baseUrl,
+        token,
+        owner,
+        repo,
+        prNumber,
+        method,
+        commitTitle,
+        commitMessage,
+      ),
 
-    closePR: (prNumber) =>
-      closePR(baseUrl, token, owner, repo, prNumber),
+    closePR: (prNumber) => closePR(baseUrl, token, owner, repo, prNumber),
 
-    reopenPR: (prNumber) =>
-      reopenPR(baseUrl, token, owner, repo, prNumber),
+    reopenPR: (prNumber) => reopenPR(baseUrl, token, owner, repo, prNumber),
 
     updatePRTitle: (prNumber, title) =>
       updatePRTitle(baseUrl, token, owner, repo, prNumber, title),
@@ -532,46 +526,63 @@ export function createGiteaProvider(config: ProviderConfig): Provider {
 
     createPR: () =>
       Effect.fail(
-        new GiteaError({ message: 'PR creation is not yet supported for Gitea', status: 501 }),
+        new GiteaError({
+          message: 'PR creation is not yet supported for Gitea',
+          status: 501,
+        }),
       ),
 
     // -- Label operations (not supported for Gitea) --------------------------
 
     getLabels: () =>
       Effect.fail(
-        new GiteaError({ message: 'Labels are not yet supported for Gitea', status: 501 }),
+        new GiteaError({
+          message: 'Labels are not yet supported for Gitea',
+          status: 501,
+        }),
       ),
 
     setLabels: () =>
       Effect.fail(
-        new GiteaError({ message: 'Labels are not yet supported for Gitea', status: 501 }),
+        new GiteaError({
+          message: 'Labels are not yet supported for Gitea',
+          status: 501,
+        }),
       ),
 
     // -- Assignee operations (not supported for Gitea) ------------------------
 
     getCollaborators: () =>
       Effect.fail(
-        new GiteaError({ message: 'Assignee management is not yet supported for Gitea', status: 501 }),
+        new GiteaError({
+          message: 'Assignee management is not yet supported for Gitea',
+          status: 501,
+        }),
       ),
 
     updateAssignees: () =>
       Effect.fail(
-        new GiteaError({ message: 'Assignee management is not yet supported for Gitea', status: 501 }),
+        new GiteaError({
+          message: 'Assignee management is not yet supported for Gitea',
+          status: 501,
+        }),
       ),
 
     // -- Reaction operations (not yet wired for Gitea) ------------------------
 
     addReaction: () =>
       Effect.fail(
-        new GiteaError({ message: 'Reactions are not yet supported for Gitea', status: 501 }),
+        new GiteaError({
+          message: 'Reactions are not yet supported for Gitea',
+          status: 501,
+        }),
       ),
 
     // -- User info ----------------------------------------------------------
 
     getCurrentUser: () =>
-      Effect.map(
-        getCurrentUser(baseUrl, token),
-        (user) => ({ login: user.login }),
-      ),
+      Effect.map(getCurrentUser(baseUrl, token), (user) => ({
+        login: user.login,
+      })),
   }
 }

@@ -30,7 +30,9 @@ export function usePendingReview({
   setStatusMessage,
 }: UsePendingReviewOptions) {
   const [reviewId, setReviewId] = useState<number | null>(null)
-  const [pendingComments, setPendingComments] = useState<readonly PendingComment[]>([])
+  const [pendingComments, setPendingComments] = useState<
+    readonly PendingComment[]
+  >([])
   const [error, setError] = useState<string | null>(null)
 
   const createPending = useCreatePendingReview()
@@ -78,7 +80,9 @@ export function usePendingReview({
         {
           onSuccess: () => {
             setPendingComments((prev) => [...prev, comment])
-            setStatusMessage(`Pending comment added (${pendingComments.length + 1} total)`)
+            setStatusMessage(
+              `Pending comment added (${pendingComments.length + 1} total)`,
+            )
           },
           onError: (err) => {
             setError(String(err))
@@ -87,7 +91,15 @@ export function usePendingReview({
         },
       )
     },
-    [owner, repo, prNumber, reviewId, addComment, pendingComments.length, setStatusMessage],
+    [
+      owner,
+      repo,
+      prNumber,
+      reviewId,
+      addComment,
+      pendingComments.length,
+      setStatusMessage,
+    ],
   )
 
   const submitReview = useCallback(

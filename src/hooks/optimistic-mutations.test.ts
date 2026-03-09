@@ -83,14 +83,18 @@ describe('optimistic update flow with QueryClient', () => {
       )
 
       // Verify optimistic data is present
-      const afterOptimistic = queryClient.getQueryData(commentKey) as readonly unknown[]
+      const afterOptimistic = queryClient.getQueryData(
+        commentKey,
+      ) as readonly unknown[]
       expect(afterOptimistic).toHaveLength(2)
 
       // Simulate rollback
       queryClient.setQueryData(commentKey, snapshot)
 
       // Verify rollback
-      const afterRollback = queryClient.getQueryData(commentKey) as readonly unknown[]
+      const afterRollback = queryClient.getQueryData(
+        commentKey,
+      ) as readonly unknown[]
       expect(afterRollback).toHaveLength(1)
       expect(afterRollback).toEqual(existingComments)
     })
@@ -131,16 +135,22 @@ describe('optimistic update flow with QueryClient', () => {
     it('inserts optimistic issue comment', () => {
       queryClient.setQueryData(issueCommentKey, existingComments)
 
-      const optimistic = createOptimisticIssueComment({ body: 'new issue comment' })
+      const optimistic = createOptimisticIssueComment({
+        body: 'new issue comment',
+      })
       queryClient.setQueryData(
         issueCommentKey,
         applyOptimisticIssueComment(existingComments, optimistic),
       )
 
-      const cached = queryClient.getQueryData(issueCommentKey) as readonly unknown[]
+      const cached = queryClient.getQueryData(
+        issueCommentKey,
+      ) as readonly unknown[]
       expect(cached).toHaveLength(2)
       expect((cached[1] as { body: string }).body).toBe('new issue comment')
-      expect((cached[1] as { user: typeof OPTIMISTIC_USER }).user).toEqual(OPTIMISTIC_USER)
+      expect((cached[1] as { user: typeof OPTIMISTIC_USER }).user).toEqual(
+        OPTIMISTIC_USER,
+      )
     })
 
     it('rolls back issue comment on error', () => {
@@ -153,11 +163,17 @@ describe('optimistic update flow with QueryClient', () => {
         applyOptimisticIssueComment(existingComments, optimistic),
       )
 
-      expect((queryClient.getQueryData(issueCommentKey) as readonly unknown[]).length).toBe(2)
+      expect(
+        (queryClient.getQueryData(issueCommentKey) as readonly unknown[])
+          .length,
+      ).toBe(2)
 
       // Rollback
       queryClient.setQueryData(issueCommentKey, snapshot)
-      expect((queryClient.getQueryData(issueCommentKey) as readonly unknown[]).length).toBe(1)
+      expect(
+        (queryClient.getQueryData(issueCommentKey) as readonly unknown[])
+          .length,
+      ).toBe(1)
     })
   })
 
@@ -182,7 +198,10 @@ describe('optimistic update flow with QueryClient', () => {
     it('inserts optimistic APPROVE review', () => {
       queryClient.setQueryData(reviewKey, existingReviews)
 
-      const optimistic = createOptimisticReview({ body: 'LGTM', event: 'APPROVE' })
+      const optimistic = createOptimisticReview({
+        body: 'LGTM',
+        event: 'APPROVE',
+      })
       queryClient.setQueryData(
         reviewKey,
         applyOptimisticReview(existingReviews, optimistic),
@@ -198,7 +217,10 @@ describe('optimistic update flow with QueryClient', () => {
     it('inserts optimistic REQUEST_CHANGES review', () => {
       queryClient.setQueryData(reviewKey, existingReviews)
 
-      const optimistic = createOptimisticReview({ body: 'needs fixes', event: 'REQUEST_CHANGES' })
+      const optimistic = createOptimisticReview({
+        body: 'needs fixes',
+        event: 'REQUEST_CHANGES',
+      })
       queryClient.setQueryData(
         reviewKey,
         applyOptimisticReview(existingReviews, optimistic),
@@ -213,21 +235,31 @@ describe('optimistic update flow with QueryClient', () => {
       queryClient.setQueryData(reviewKey, existingReviews)
       const snapshot = queryClient.getQueryData(reviewKey)
 
-      const optimistic = createOptimisticReview({ body: 'will fail', event: 'APPROVE' })
+      const optimistic = createOptimisticReview({
+        body: 'will fail',
+        event: 'APPROVE',
+      })
       queryClient.setQueryData(
         reviewKey,
         applyOptimisticReview(existingReviews, optimistic),
       )
 
-      expect((queryClient.getQueryData(reviewKey) as readonly unknown[]).length).toBe(2)
+      expect(
+        (queryClient.getQueryData(reviewKey) as readonly unknown[]).length,
+      ).toBe(2)
 
       queryClient.setQueryData(reviewKey, snapshot)
-      expect((queryClient.getQueryData(reviewKey) as readonly unknown[]).length).toBe(1)
+      expect(
+        (queryClient.getQueryData(reviewKey) as readonly unknown[]).length,
+      ).toBe(1)
       expect(queryClient.getQueryData(reviewKey)).toEqual(existingReviews)
     })
 
     it('handles empty review cache', () => {
-      const optimistic = createOptimisticReview({ body: 'first', event: 'COMMENT' })
+      const optimistic = createOptimisticReview({
+        body: 'first',
+        event: 'COMMENT',
+      })
       const result = applyOptimisticReview(undefined, optimistic)
       queryClient.setQueryData(reviewKey, result)
 
@@ -256,7 +288,9 @@ describe('optimistic update flow with QueryClient', () => {
       const updated = applyThreadResolution(existingThreads, 'thread-1', true)
       queryClient.setQueryData(threadKey, updated)
 
-      const cached = queryClient.getQueryData(threadKey) as readonly ReviewThread[]
+      const cached = queryClient.getQueryData(
+        threadKey,
+      ) as readonly ReviewThread[]
       expect(cached[0]!.isResolved).toBe(true)
       expect(cached[1]!.isResolved).toBe(false) // unchanged
       expect(cached[2]!.isResolved).toBe(true) // unchanged
@@ -268,7 +302,9 @@ describe('optimistic update flow with QueryClient', () => {
       const updated = applyThreadResolution(existingThreads, 'thread-3', false)
       queryClient.setQueryData(threadKey, updated)
 
-      const cached = queryClient.getQueryData(threadKey) as readonly ReviewThread[]
+      const cached = queryClient.getQueryData(
+        threadKey,
+      ) as readonly ReviewThread[]
       expect(cached[2]!.isResolved).toBe(false)
     })
 
@@ -279,19 +315,31 @@ describe('optimistic update flow with QueryClient', () => {
       const updated = applyThreadResolution(existingThreads, 'thread-1', true)
       queryClient.setQueryData(threadKey, updated)
 
-      expect((queryClient.getQueryData(threadKey) as readonly ReviewThread[])[0]!.isResolved).toBe(true)
+      expect(
+        (queryClient.getQueryData(threadKey) as readonly ReviewThread[])[0]!
+          .isResolved,
+      ).toBe(true)
 
       queryClient.setQueryData(threadKey, snapshot)
-      expect((queryClient.getQueryData(threadKey) as readonly ReviewThread[])[0]!.isResolved).toBe(false)
+      expect(
+        (queryClient.getQueryData(threadKey) as readonly ReviewThread[])[0]!
+          .isResolved,
+      ).toBe(false)
     })
 
     it('handles thread not found gracefully', () => {
       queryClient.setQueryData(threadKey, existingThreads)
 
-      const updated = applyThreadResolution(existingThreads, 'nonexistent', true)
+      const updated = applyThreadResolution(
+        existingThreads,
+        'nonexistent',
+        true,
+      )
       queryClient.setQueryData(threadKey, updated)
 
-      const cached = queryClient.getQueryData(threadKey) as readonly ReviewThread[]
+      const cached = queryClient.getQueryData(
+        threadKey,
+      ) as readonly ReviewThread[]
       // All threads unchanged
       expect(cached[0]!.isResolved).toBe(false)
       expect(cached[1]!.isResolved).toBe(false)
@@ -302,7 +350,9 @@ describe('optimistic update flow with QueryClient', () => {
       const updated = applyThreadResolution(undefined, 'thread-1', true)
       queryClient.setQueryData(threadKey, updated)
 
-      const cached = queryClient.getQueryData(threadKey) as readonly ReviewThread[]
+      const cached = queryClient.getQueryData(
+        threadKey,
+      ) as readonly ReviewThread[]
       expect(cached).toEqual([])
     })
   })
@@ -317,7 +367,14 @@ describe('optimistic update flow with QueryClient', () => {
       const threadsKey = ['pr-review-threads', 'o', 'r', 1]
 
       const existingComments = [
-        { id: 1, body: 'comment', user: OPTIMISTIC_USER, created_at: '', updated_at: '', html_url: '' },
+        {
+          id: 1,
+          body: 'comment',
+          user: OPTIMISTIC_USER,
+          created_at: '',
+          updated_at: '',
+          html_url: '',
+        },
       ]
       const existingThreads: readonly ReviewThread[] = [
         { id: 't1', isResolved: false, comments: [{ databaseId: 1 }] },
@@ -333,7 +390,10 @@ describe('optimistic update flow with QueryClient', () => {
       // Apply optimistic updates
       queryClient.setQueryData(
         commentsKey,
-        applyOptimisticComment(existingComments, createOptimisticComment({ body: 'reply', inReplyToId: 1 })),
+        applyOptimisticComment(
+          existingComments,
+          createOptimisticComment({ body: 'reply', inReplyToId: 1 }),
+        ),
       )
       queryClient.setQueryData(
         threadsKey,
@@ -341,16 +401,26 @@ describe('optimistic update flow with QueryClient', () => {
       )
 
       // Verify optimistic state
-      expect((queryClient.getQueryData(commentsKey) as readonly unknown[]).length).toBe(2)
-      expect((queryClient.getQueryData(threadsKey) as readonly ReviewThread[])[0]!.isResolved).toBe(true)
+      expect(
+        (queryClient.getQueryData(commentsKey) as readonly unknown[]).length,
+      ).toBe(2)
+      expect(
+        (queryClient.getQueryData(threadsKey) as readonly ReviewThread[])[0]!
+          .isResolved,
+      ).toBe(true)
 
       // Roll back all
       queryClient.setQueryData(commentsKey, commentSnapshot)
       queryClient.setQueryData(threadsKey, threadSnapshot)
 
       // Verify rollback
-      expect((queryClient.getQueryData(commentsKey) as readonly unknown[]).length).toBe(1)
-      expect((queryClient.getQueryData(threadsKey) as readonly ReviewThread[])[0]!.isResolved).toBe(false)
+      expect(
+        (queryClient.getQueryData(commentsKey) as readonly unknown[]).length,
+      ).toBe(1)
+      expect(
+        (queryClient.getQueryData(threadsKey) as readonly ReviewThread[])[0]!
+          .isResolved,
+      ).toBe(false)
     })
   })
 })

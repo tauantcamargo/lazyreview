@@ -54,7 +54,11 @@ function makeReview(id: number, state: string, date: string): Review {
   } as unknown as Review
 }
 
-function makeIssueComment(id: number, date: string, body = 'issue comment body'): IssueComment {
+function makeIssueComment(
+  id: number,
+  date: string,
+  body = 'issue comment body',
+): IssueComment {
   return {
     id,
     body,
@@ -208,10 +212,12 @@ describe('buildTimeline', () => {
       eyes: 0,
       total_count: 4,
     }
-    const comments = [{
-      ...makeComment(1, '2025-01-02T00:00:00Z'),
-      reactions,
-    }] as unknown as Comment[]
+    const comments = [
+      {
+        ...makeComment(1, '2025-01-02T00:00:00Z'),
+        reactions,
+      },
+    ] as unknown as Comment[]
     const items = buildTimeline(pr, comments, [])
     expect(items[0]!.reactions).toEqual(reactions)
   })
@@ -229,10 +235,12 @@ describe('buildTimeline', () => {
       eyes: 0,
       total_count: 7,
     }
-    const issueComments = [{
-      ...makeIssueComment(50, '2025-01-02T00:00:00Z'),
-      reactions,
-    }] as unknown as IssueComment[]
+    const issueComments = [
+      {
+        ...makeIssueComment(50, '2025-01-02T00:00:00Z'),
+        reactions,
+      },
+    ] as unknown as IssueComment[]
     const items = buildTimeline(pr, [], [], undefined, issueComments)
     expect(items[0]!.reactions).toEqual(reactions)
   })

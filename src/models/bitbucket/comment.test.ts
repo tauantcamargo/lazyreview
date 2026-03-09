@@ -90,9 +90,7 @@ describe('BitbucketInlineSchema', () => {
   })
 
   it('rejects missing path', () => {
-    expect(() =>
-      BitbucketInlineSchema.parse({ from: 10, to: 15 }),
-    ).toThrow()
+    expect(() => BitbucketInlineSchema.parse({ from: 10, to: 15 })).toThrow()
   })
 })
 

@@ -22,7 +22,8 @@ export function useReactionActions({
 }: UseReactionActionsOptions) {
   const [showReactionPicker, setShowReactionPicker] = useState(false)
   const [reactionError, setReactionError] = useState<string | null>(null)
-  const [reactionContext, setReactionContext] = useState<ReactionContext | null>(null)
+  const [reactionContext, setReactionContext] =
+    useState<ReactionContext | null>(null)
 
   const addReaction = useAddReaction()
 

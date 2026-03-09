@@ -106,14 +106,13 @@ const ACTION_DESCRIPTIONS: Readonly<Record<string, string>> = {
  * Global context is always included.
  */
 const SCREEN_TO_CONTEXTS: Readonly<
-  Record<ScreenContext, readonly { readonly context: string; readonly label: string }[]>
+  Record<
+    ScreenContext,
+    readonly { readonly context: string; readonly label: string }[]
+  >
 > = {
-  'pr-list': [
-    { context: 'prList', label: 'PR List' },
-  ],
-  'pr-detail-description': [
-    { context: 'prDetail', label: 'PR Detail' },
-  ],
+  'pr-list': [{ context: 'prList', label: 'PR List' }],
+  'pr-detail-description': [{ context: 'prDetail', label: 'PR Detail' }],
   'pr-detail-conversations': [
     { context: 'prDetail', label: 'PR Detail' },
     { context: 'conversations', label: 'Conversations' },
@@ -142,11 +141,9 @@ const SCREEN_TO_CONTEXTS: Readonly<
     { context: 'prDetail', label: 'PR Detail' },
     { context: 'timelineTab', label: 'Timeline' },
   ],
-  'settings': [],
+  settings: [],
   'browse-picker': [],
-  'browse-list': [
-    { context: 'prList', label: 'PR List' },
-  ],
+  'browse-list': [{ context: 'prList', label: 'PR List' }],
 }
 
 /**

@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  detectPasteType,
-  detectLanguage,
-  formatPaste,
-} from './smart-paste'
+import { detectPasteType, detectLanguage, formatPaste } from './smart-paste'
 
 describe('smart-paste', () => {
   describe('detectPasteType', () => {
@@ -42,7 +38,9 @@ describe('smart-paste', () => {
     })
 
     it('detects https URL as url', () => {
-      expect(detectPasteType('https://github.com/user/repo/pull/42')).toBe('url')
+      expect(detectPasteType('https://github.com/user/repo/pull/42')).toBe(
+        'url',
+      )
     })
 
     it('detects URL with trailing whitespace as url', () => {
@@ -70,7 +68,9 @@ describe('smart-paste', () => {
     })
 
     it('detects multi-line plain text as plain', () => {
-      expect(detectPasteType('This is a\nsimple paragraph\nof text.')).toBe('plain')
+      expect(detectPasteType('This is a\nsimple paragraph\nof text.')).toBe(
+        'plain',
+      )
     })
 
     it('returns plain for empty string', () => {
@@ -174,7 +174,9 @@ describe('smart-paste', () => {
 
     it('wraps URL in markdown link format', () => {
       const result = formatPaste('https://github.com/user/repo')
-      expect(result).toBe('[https://github.com/user/repo](https://github.com/user/repo)')
+      expect(result).toBe(
+        '[https://github.com/user/repo](https://github.com/user/repo)',
+      )
     })
 
     it('wraps single-line code in backticks', () => {

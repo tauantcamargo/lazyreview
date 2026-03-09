@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { GitHubError, AuthError, ConfigError, NetworkError, StreamError, TimelineError } from './errors'
+import {
+  GitHubError,
+  AuthError,
+  ConfigError,
+  NetworkError,
+  StreamError,
+  TimelineError,
+} from './errors'
 
 describe('GitHubError', () => {
   it('creates instance with message', () => {
@@ -9,7 +16,11 @@ describe('GitHubError', () => {
   })
 
   it('creates instance with status and url', () => {
-    const error = new GitHubError({ message: 'Forbidden', status: 403, url: '/repos' })
+    const error = new GitHubError({
+      message: 'Forbidden',
+      status: 403,
+      url: '/repos',
+    })
     expect(error.status).toBe(403)
     expect(error.url).toBe('/repos')
   })
@@ -24,7 +35,12 @@ describe('AuthError', () => {
   })
 
   it('supports all reason types', () => {
-    const reasons = ['no_token', 'invalid_token', 'expired_token', 'save_failed'] as const
+    const reasons = [
+      'no_token',
+      'invalid_token',
+      'expired_token',
+      'save_failed',
+    ] as const
     for (const reason of reasons) {
       const error = new AuthError({ message: 'test', reason })
       expect(error.reason).toBe(reason)

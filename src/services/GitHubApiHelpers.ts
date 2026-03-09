@@ -6,7 +6,10 @@ import { touchLastUpdated } from '../hooks/useLastUpdated'
 import { sanitizeApiError } from '../utils/sanitize'
 import { notifyTokenExpired } from '../hooks/useTokenExpired'
 import type { ListPRsOptions } from './GitHubApiTypes'
-import type { TimelineEvent, TimelineReviewEvent } from '../models/timeline-event'
+import type {
+  TimelineEvent,
+  TimelineReviewEvent,
+} from '../models/timeline-event'
 
 const MAX_PAGES = 20
 
@@ -412,7 +415,10 @@ export function fetchGitHubSinglePage<A, I>(
   token: string,
   schema: S.Schema<A, I>,
   baseUrl?: string,
-): Effect.Effect<{ readonly items: readonly A[]; readonly hasNextPage: boolean }, GitHubError | NetworkError> {
+): Effect.Effect<
+  { readonly items: readonly A[]; readonly hasNextPage: boolean },
+  GitHubError | NetworkError
+> {
   const decode = S.decodeUnknownSync(S.Array(schema))
 
   return Effect.tryPromise({
@@ -467,7 +473,8 @@ export function fetchGitHubSearchPaginated(
     try: async () => {
       const allItems: PullRequest[] = []
       const restBase = getGitHubRestUrl(baseUrl)
-      let url: string | null = `${restBase}/search/issues?q=${encodeURIComponent(query)}&per_page=100`
+      let url: string | null =
+        `${restBase}/search/issues?q=${encodeURIComponent(query)}&per_page=100`
       let pageCount = 0
 
       while (url && pageCount < MAX_PAGES) {
@@ -527,13 +534,14 @@ export function buildQueryString(options: ListPRsOptions): string {
 /**
  * GitHub review state values mapped to TimelineEvent review states.
  */
-const REVIEW_STATE_MAP: Readonly<Record<string, TimelineReviewEvent['state']>> = {
-  approved: 'APPROVED',
-  changes_requested: 'CHANGES_REQUESTED',
-  commented: 'COMMENTED',
-  dismissed: 'DISMISSED',
-  pending: 'PENDING',
-}
+const REVIEW_STATE_MAP: Readonly<Record<string, TimelineReviewEvent['state']>> =
+  {
+    approved: 'APPROVED',
+    changes_requested: 'CHANGES_REQUESTED',
+    commented: 'COMMENTED',
+    dismissed: 'DISMISSED',
+    pending: 'PENDING',
+  }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**

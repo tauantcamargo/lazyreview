@@ -49,7 +49,10 @@ interface MacroStore {
   readonly reset: () => void
 }
 
-function buildSnapshot(recorder: MacroRecorder, replaying: boolean): MacroStoreState {
+function buildSnapshot(
+  recorder: MacroRecorder,
+  replaying: boolean,
+): MacroStoreState {
   return {
     isRecording: isRec(recorder),
     activeRegister: getActiveReg(recorder),
@@ -174,9 +177,9 @@ export function useMacros(): {
   useEffect(() => {
     if (config && !configLoadedRef.current) {
       configLoadedRef.current = true
-      const savedMacros = (config as unknown as Record<string, unknown>)['macros'] as
-        | Record<string, readonly KeyStroke[]>
-        | undefined
+      const savedMacros = (config as unknown as Record<string, unknown>)[
+        'macros'
+      ] as Record<string, readonly KeyStroke[]> | undefined
       if (savedMacros && typeof savedMacros === 'object') {
         macroStore.loadRegisters(savedMacros)
       }

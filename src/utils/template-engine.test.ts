@@ -167,7 +167,9 @@ describe('template-engine', () => {
       const variables: TemplateVariables = { file: 'utils.ts', line: '25' }
       const result = resolveTemplate(template, variables)
       expect(result.text).toBe('Missing test coverage for utils.ts:25 ')
-      expect(result.cursorOffset).toBe('Missing test coverage for utils.ts:25 '.length)
+      expect(result.cursorOffset).toBe(
+        'Missing test coverage for utils.ts:25 '.length,
+      )
     })
   })
 })

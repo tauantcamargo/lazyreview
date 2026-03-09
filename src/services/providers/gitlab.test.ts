@@ -11,13 +11,15 @@ import type { ProviderConfig } from './types'
 
 const originalFetch = globalThis.fetch
 
-function mockFetchResponse(options: {
-  readonly ok?: boolean
-  readonly status?: number
-  readonly statusText?: string
-  readonly body?: unknown
-  readonly headers?: Record<string, string>
-} = {}): void {
+function mockFetchResponse(
+  options: {
+    readonly ok?: boolean
+    readonly status?: number
+    readonly statusText?: string
+    readonly body?: unknown
+    readonly headers?: Record<string, string>
+  } = {},
+): void {
   const {
     ok = true,
     status = 200,
@@ -145,13 +147,32 @@ describe('createGitLabProvider', () => {
   describe('read operations', () => {
     it('listPRs returns items when API responds', async () => {
       const mr = {
-        id: 1, iid: 1, title: 'MR', description: null,
-        state: 'opened', draft: false, source_branch: 'feat', target_branch: 'main',
-        author: { id: 1, username: 'u', name: 'U', avatar_url: null, web_url: 'https://gl.com/u' },
-        assignees: [], reviewers: [], labels: [],
-        created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
-        merged_at: null, closed_at: null, merge_commit_sha: null,
-        sha: 'abc', web_url: 'https://gl.com/mr/1', user_notes_count: 0,
+        id: 1,
+        iid: 1,
+        title: 'MR',
+        description: null,
+        state: 'opened',
+        draft: false,
+        source_branch: 'feat',
+        target_branch: 'main',
+        author: {
+          id: 1,
+          username: 'u',
+          name: 'U',
+          avatar_url: null,
+          web_url: 'https://gl.com/u',
+        },
+        assignees: [],
+        reviewers: [],
+        labels: [],
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        merged_at: null,
+        closed_at: null,
+        merge_commit_sha: null,
+        sha: 'abc',
+        web_url: 'https://gl.com/mr/1',
+        user_notes_count: 0,
         has_conflicts: false,
       }
       mockFetchResponse({ body: [mr] })
@@ -163,13 +184,32 @@ describe('createGitLabProvider', () => {
 
     it('getPR returns a PullRequest when API responds', async () => {
       const mr = {
-        id: 1, iid: 1, title: 'MR', description: null,
-        state: 'opened', draft: false, source_branch: 'feat', target_branch: 'main',
-        author: { id: 1, username: 'u', name: 'U', avatar_url: null, web_url: 'https://gl.com/u' },
-        assignees: [], reviewers: [], labels: [],
-        created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
-        merged_at: null, closed_at: null, merge_commit_sha: null,
-        sha: 'abc', web_url: 'https://gl.com/mr/1', user_notes_count: 0,
+        id: 1,
+        iid: 1,
+        title: 'MR',
+        description: null,
+        state: 'opened',
+        draft: false,
+        source_branch: 'feat',
+        target_branch: 'main',
+        author: {
+          id: 1,
+          username: 'u',
+          name: 'U',
+          avatar_url: null,
+          web_url: 'https://gl.com/u',
+        },
+        assignees: [],
+        reviewers: [],
+        labels: [],
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        merged_at: null,
+        closed_at: null,
+        merge_commit_sha: null,
+        sha: 'abc',
+        web_url: 'https://gl.com/mr/1',
+        user_notes_count: 0,
         has_conflicts: false,
       }
       mockFetchResponse({ body: mr })
@@ -181,13 +221,32 @@ describe('createGitLabProvider', () => {
 
     it('getMyPRs returns PRs from created_by_me scope', async () => {
       const mr = {
-        id: 1, iid: 1, title: 'My MR', description: null,
-        state: 'opened', draft: false, source_branch: 'feat', target_branch: 'main',
-        author: { id: 1, username: 'u', name: 'U', avatar_url: null, web_url: 'https://gl.com/u' },
-        assignees: [], reviewers: [], labels: [],
-        created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
-        merged_at: null, closed_at: null, merge_commit_sha: null,
-        sha: 'abc', web_url: 'https://gl.com/mr/1', user_notes_count: 0,
+        id: 1,
+        iid: 1,
+        title: 'My MR',
+        description: null,
+        state: 'opened',
+        draft: false,
+        source_branch: 'feat',
+        target_branch: 'main',
+        author: {
+          id: 1,
+          username: 'u',
+          name: 'U',
+          avatar_url: null,
+          web_url: 'https://gl.com/u',
+        },
+        assignees: [],
+        reviewers: [],
+        labels: [],
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        merged_at: null,
+        closed_at: null,
+        merge_commit_sha: null,
+        sha: 'abc',
+        web_url: 'https://gl.com/mr/1',
+        user_notes_count: 0,
         has_conflicts: false,
       }
       mockFetchResponse({ body: [mr], headers: { 'x-next-page': '' } })
@@ -223,8 +282,8 @@ describe('createGitLabProvider', () => {
       // Should have made two calls: approve + note
       const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
       expect(calls.length).toBe(2)
-      expect((calls[0][0] as string)).toContain('/approve')
-      expect((calls[1][0] as string)).toContain('/notes')
+      expect(calls[0][0] as string).toContain('/approve')
+      expect(calls[1][0] as string).toContain('/notes')
     })
 
     it('adds note for REQUEST_CHANGES event', async () => {
@@ -344,9 +403,7 @@ describe('createGitLabProvider', () => {
     it('posts reply to discussion', async () => {
       mockFetchResponse()
       const provider = createGitLabProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.replyToComment(42, 99, 'Thanks!'),
-      )
+      await Effect.runPromise(provider.replyToComment(42, 99, 'Thanks!'))
 
       const url = getLastFetchUrl()
       expect(url).toContain('/discussions/99/notes')

@@ -38,23 +38,37 @@ export function DiffCommentView({
         paddingY={0}
       >
         {thread.isResolved && (
-          <Text color={theme.colors.muted} dimColor>[Resolved]</Text>
+          <Text color={theme.colors.muted} dimColor>
+            [Resolved]
+          </Text>
         )}
         {thread.comments.map((comment, idx) => (
-          <Box key={comment.id} flexDirection="column" paddingLeft={idx > 0 ? 2 : 0}>
+          <Box
+            key={comment.id}
+            flexDirection="column"
+            paddingLeft={idx > 0 ? 2 : 0}
+          >
             <Box flexDirection="row" gap={1}>
               <Text
-                color={thread.isResolved ? theme.colors.muted : theme.colors.secondary}
+                color={
+                  thread.isResolved
+                    ? theme.colors.muted
+                    : theme.colors.secondary
+                }
                 bold
                 dimColor={thread.isResolved}
               >
                 {comment.user.login}
               </Text>
-              <Text color={theme.colors.muted}>{timeAgo(comment.created_at)}</Text>
+              <Text color={theme.colors.muted}>
+                {timeAgo(comment.created_at)}
+              </Text>
             </Box>
             <Box width="90%">
               <MarkdownText
-                content={thread.isResolved ? `~~${comment.body}~~` : comment.body}
+                content={
+                  thread.isResolved ? `~~${comment.body}~~` : comment.body
+                }
               />
             </Box>
             {comment.reactions && comment.reactions.total_count > 0 ? (
@@ -64,7 +78,8 @@ export function DiffCommentView({
         ))}
         {isFocus && (
           <Text color={theme.colors.muted} dimColor>
-            r: reply | x: {thread.isResolved ? 'unresolve' : 'resolve'} | e: edit | +: react
+            r: reply | x: {thread.isResolved ? 'unresolve' : 'resolve'} | e:
+            edit | +: react
           </Text>
         )}
       </Box>

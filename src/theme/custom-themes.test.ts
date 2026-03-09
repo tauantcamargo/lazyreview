@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { resolveTheme, validateThemeColors, parseCustomThemeFile, loadCustomThemes } from './custom-themes'
+import {
+  resolveTheme,
+  validateThemeColors,
+  parseCustomThemeFile,
+  loadCustomThemes,
+} from './custom-themes'
 import type { CustomThemeFile, ValidationResult } from './custom-themes'
 import type { ThemeColors } from './types'
 import { themes } from './themes'
@@ -369,7 +374,9 @@ colors:
       return Promise.reject(new Error('Not found'))
     })
 
-    const result = await loadCustomThemes('/home/user/.config/lazyreview/themes')
+    const result = await loadCustomThemes(
+      '/home/user/.config/lazyreview/themes',
+    )
     expect(result.themes).toHaveLength(2)
     expect(result.themes[0]!.name).toBe('my-theme')
     expect(result.themes[1]!.name).toBe('other')

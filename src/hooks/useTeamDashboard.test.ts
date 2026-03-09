@@ -80,8 +80,14 @@ describe('computeTeamDashboard', () => {
       { username: 'bob' },
     ]
     const prs = [
-      makePR({ user: makeUser('alice'), requested_reviewers: [makeUser('bob')] }),
-      makePR({ user: makeUser('bob'), requested_reviewers: [makeUser('alice')] }),
+      makePR({
+        user: makeUser('alice'),
+        requested_reviewers: [makeUser('bob')],
+      }),
+      makePR({
+        user: makeUser('bob'),
+        requested_reviewers: [makeUser('alice')],
+      }),
     ]
     const result = computeTeamDashboard(members, prs)
     expect(result.memberStats).toHaveLength(2)

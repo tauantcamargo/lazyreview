@@ -11,7 +11,9 @@ interface ConflictBannerProps {
  * A warning banner that displays merge conflict status at the top of a tab.
  * Shows nothing when there are no issues (clean state with empty message).
  */
-export function ConflictBanner({ state }: ConflictBannerProps): React.ReactElement | null {
+export function ConflictBanner({
+  state,
+}: ConflictBannerProps): React.ReactElement | null {
   const theme = useTheme()
 
   // Nothing to display
@@ -46,9 +48,8 @@ export function ConflictBanner({ state }: ConflictBannerProps): React.ReactEleme
   }
 
   // Non-conflict warning (unstable, blocked, behind, computing)
-  const color = state.mergeableState === null
-    ? theme.colors.muted
-    : theme.colors.warning
+  const color =
+    state.mergeableState === null ? theme.colors.muted : theme.colors.warning
 
   return (
     <Box paddingX={1}>

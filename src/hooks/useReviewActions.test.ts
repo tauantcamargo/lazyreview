@@ -12,7 +12,10 @@ interface MutateCall {
 function createMockMutation() {
   const calls: MutateCall[] = []
   return {
-    mutate: (params: unknown, options: { onSuccess?: () => void; onError?: (err: Error) => void }) => {
+    mutate: (
+      params: unknown,
+      options: { onSuccess?: () => void; onError?: (err: Error) => void },
+    ) => {
       calls.push({ params, options })
     },
     isPending: false,
@@ -70,7 +73,13 @@ describe('useReviewActions — handleReviewSubmit dispatch', () => {
 
   it('calls submitReview.mutate with correct params', () => {
     mockSubmitReview.mutate(
-      { owner: 'octocat', repo: 'hello', prNumber: 42, body: 'LGTM', event: 'APPROVE' },
+      {
+        owner: 'octocat',
+        repo: 'hello',
+        prNumber: 42,
+        body: 'LGTM',
+        event: 'APPROVE',
+      },
       { onSuccess: () => {}, onError: () => {} },
     )
 
@@ -86,10 +95,18 @@ describe('useReviewActions — handleReviewSubmit dispatch', () => {
 
   it('accepts REQUEST_CHANGES event', () => {
     mockSubmitReview.mutate(
-      { owner: 'o', repo: 'r', prNumber: 1, body: 'fix issues', event: 'REQUEST_CHANGES' },
+      {
+        owner: 'o',
+        repo: 'r',
+        prNumber: 1,
+        body: 'fix issues',
+        event: 'REQUEST_CHANGES',
+      },
       { onSuccess: () => {} },
     )
-    expect((mockSubmitReview.calls[0]!.params as { event: string }).event).toBe('REQUEST_CHANGES')
+    expect((mockSubmitReview.calls[0]!.params as { event: string }).event).toBe(
+      'REQUEST_CHANGES',
+    )
   })
 
   it('accepts COMMENT event', () => {
@@ -97,7 +114,9 @@ describe('useReviewActions — handleReviewSubmit dispatch', () => {
       { owner: 'o', repo: 'r', prNumber: 1, body: 'note', event: 'COMMENT' },
       { onSuccess: () => {} },
     )
-    expect((mockSubmitReview.calls[0]!.params as { event: string }).event).toBe('COMMENT')
+    expect((mockSubmitReview.calls[0]!.params as { event: string }).event).toBe(
+      'COMMENT',
+    )
   })
 
   it('onSuccess closes review modal and sets status message', () => {
@@ -125,7 +144,9 @@ describe('useReviewActions — handleReviewSubmit dispatch', () => {
     mockSubmitReview.mutate(
       { owner: 'o', repo: 'r', prNumber: 1, body: '', event: 'APPROVE' },
       {
-        onError: (err) => { capturedError = String(err) },
+        onError: (err) => {
+          capturedError = String(err)
+        },
       },
     )
     mockSubmitReview.triggerError(new Error('API rate limit exceeded'))
@@ -148,7 +169,10 @@ describe('useReviewActions — handleToggleResolve', () => {
     )
 
     expect(mockResolveThread.calls).toHaveLength(1)
-    expect(mockResolveThread.calls[0]!.params).toHaveProperty('threadId', 'thread-123')
+    expect(mockResolveThread.calls[0]!.params).toHaveProperty(
+      'threadId',
+      'thread-123',
+    )
   })
 
   it('calls unresolveThread when thread is already resolved', () => {
@@ -159,7 +183,10 @@ describe('useReviewActions — handleToggleResolve', () => {
     )
 
     expect(mockUnresolveThread.calls).toHaveLength(1)
-    expect(mockUnresolveThread.calls[0]!.params).toHaveProperty('threadId', 'thread-456')
+    expect(mockUnresolveThread.calls[0]!.params).toHaveProperty(
+      'threadId',
+      'thread-456',
+    )
   })
 
   it('resolve onSuccess sets status message', () => {
@@ -167,7 +194,9 @@ describe('useReviewActions — handleToggleResolve', () => {
     mockResolveThread.mutate(
       { owner: 'o', repo: 'r', prNumber: 1, threadId: 'thread-1' },
       {
-        onSuccess: () => { statusMsg = 'Thread resolved' },
+        onSuccess: () => {
+          statusMsg = 'Thread resolved'
+        },
         onError: () => {},
       },
     )
@@ -180,7 +209,9 @@ describe('useReviewActions — handleToggleResolve', () => {
     mockUnresolveThread.mutate(
       { owner: 'o', repo: 'r', prNumber: 1, threadId: 'thread-2' },
       {
-        onSuccess: () => { statusMsg = 'Thread unresolved' },
+        onSuccess: () => {
+          statusMsg = 'Thread unresolved'
+        },
         onError: () => {},
       },
     )
@@ -194,7 +225,9 @@ describe('useReviewActions — handleToggleResolve', () => {
       { owner: 'o', repo: 'r', prNumber: 1, threadId: 'thread-3' },
       {
         onSuccess: () => {},
-        onError: (err) => { statusMsg = `Error: ${String(err)}` },
+        onError: (err) => {
+          statusMsg = `Error: ${String(err)}`
+        },
       },
     )
     mockResolveThread.triggerError(new Error('GraphQL error'))
@@ -207,7 +240,9 @@ describe('useReviewActions — handleToggleResolve', () => {
       { owner: 'o', repo: 'r', prNumber: 1, threadId: 'thread-4' },
       {
         onSuccess: () => {},
-        onError: (err) => { statusMsg = `Error: ${String(err)}` },
+        onError: (err) => {
+          statusMsg = `Error: ${String(err)}`
+        },
       },
     )
     mockUnresolveThread.triggerError(new Error('Not found'))
@@ -224,14 +259,18 @@ describe('useReviewActions — showResolved toggle', () => {
 
   it('toggles from true to false', () => {
     let showResolved = true
-    const toggle = () => { showResolved = !showResolved }
+    const toggle = () => {
+      showResolved = !showResolved
+    }
     toggle()
     expect(showResolved).toBe(false)
   })
 
   it('toggles from false back to true', () => {
     let showResolved = false
-    const toggle = () => { showResolved = !showResolved }
+    const toggle = () => {
+      showResolved = !showResolved
+    }
     toggle()
     expect(showResolved).toBe(true)
   })
@@ -290,7 +329,9 @@ describe('useReviewActions — re-review modal flow', () => {
     mockRequestReReview.mutate(
       { owner: 'o', repo: 'r', prNumber: 1, reviewers: ['alice'] },
       {
-        onError: (err) => { capturedError = String(err) },
+        onError: (err) => {
+          capturedError = String(err)
+        },
       },
     )
     mockRequestReReview.triggerError(new Error('Reviewer not found'))
@@ -302,7 +343,9 @@ describe('useReviewActions — re-review modal flow', () => {
     // The hook sets: setReReviewError(null), setShowReReviewModal(true)
     // This verifies the pattern of always clearing error on open
     let error: string | null = 'previous error'
-    const openModal = () => { error = null }
+    const openModal = () => {
+      error = null
+    }
     openModal()
     expect(error).toBeNull()
   })
@@ -311,14 +354,18 @@ describe('useReviewActions — re-review modal flow', () => {
 describe('useReviewActions — closeReviewModal / closeReReviewModal', () => {
   it('closeReviewModal hides review modal', () => {
     let showReviewModal = true
-    const close = () => { showReviewModal = false }
+    const close = () => {
+      showReviewModal = false
+    }
     close()
     expect(showReviewModal).toBe(false)
   })
 
   it('closeReReviewModal hides re-review modal', () => {
     let showReReviewModal = true
-    const close = () => { showReReviewModal = false }
+    const close = () => {
+      showReReviewModal = false
+    }
     close()
     expect(showReReviewModal).toBe(false)
   })

@@ -10,8 +10,16 @@ interface TestProps {
   readonly isActive?: boolean
 }
 
-function TestComponent({ itemCount, viewportHeight, isActive }: TestProps): React.ReactElement {
-  const { selectedIndex, scrollOffset } = useListNavigation({ itemCount, viewportHeight, isActive })
+function TestComponent({
+  itemCount,
+  viewportHeight,
+  isActive,
+}: TestProps): React.ReactElement {
+  const { selectedIndex, scrollOffset } = useListNavigation({
+    itemCount,
+    viewportHeight,
+    isActive,
+  })
   return (
     <Box flexDirection="column">
       <Text>index:{selectedIndex}</Text>
@@ -39,13 +47,17 @@ describe('useListNavigation hook', () => {
   })
 
   it('starts at index 0', () => {
-    const { lastFrame } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     expect(extractIndex(lastFrame())).toBe(0)
   })
 
   it('moves down with j key', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('j')
     await delay()
     expect(extractIndex(lastFrame())).toBe(1)
@@ -53,7 +65,9 @@ describe('useListNavigation hook', () => {
 
   it('moves up with k key', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('j')
     await delay()
     stdin.write('j')
@@ -65,7 +79,9 @@ describe('useListNavigation hook', () => {
 
   it('does not go below 0 with k', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('k')
     await delay()
     expect(extractIndex(lastFrame())).toBe(0)
@@ -73,7 +89,9 @@ describe('useListNavigation hook', () => {
 
   it('does not go above itemCount-1 with j', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={3} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={3} viewportHeight={20} />,
+    )
     stdin.write('j')
     await delay()
     stdin.write('j')
@@ -87,7 +105,9 @@ describe('useListNavigation hook', () => {
 
   it('jumps to end with G', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('G')
     await delay()
     expect(extractIndex(lastFrame())).toBe(9)
@@ -95,7 +115,9 @@ describe('useListNavigation hook', () => {
 
   it('jumps to beginning with gg', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('G')
     await delay()
     expect(extractIndex(lastFrame())).toBe(9)
@@ -110,7 +132,9 @@ describe('useListNavigation hook', () => {
 
   it('does not jump with single g (waits for second g)', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('j')
     await delay()
     stdin.write('j')
@@ -126,7 +150,9 @@ describe('useListNavigation hook', () => {
 
   it('resets gg detection after timeout', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('j')
     await delay()
     stdin.write('j')
@@ -145,7 +171,9 @@ describe('useListNavigation hook', () => {
 
   it('pages down with Ctrl+d', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={50} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={50} viewportHeight={20} />,
+    )
     // Ctrl+d should move down by half viewport (10)
     stdin.write('\x04') // Ctrl+d
     await delay()
@@ -154,7 +182,9 @@ describe('useListNavigation hook', () => {
 
   it('pages up with Ctrl+u', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={50} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={50} viewportHeight={20} />,
+    )
     stdin.write('G')
     await delay()
     expect(extractIndex(lastFrame())).toBe(49)
@@ -165,7 +195,9 @@ describe('useListNavigation hook', () => {
 
   it('Ctrl+d clamps to end', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={5} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={5} viewportHeight={20} />,
+    )
     stdin.write('\x04') // Ctrl+d - would go to 10 but clamp to 4
     await delay()
     expect(extractIndex(lastFrame())).toBe(4)
@@ -173,7 +205,9 @@ describe('useListNavigation hook', () => {
 
   it('Ctrl+u clamps to start', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={50} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={50} viewportHeight={20} />,
+    )
     stdin.write('j')
     await delay()
     stdin.write('j')
@@ -186,7 +220,9 @@ describe('useListNavigation hook', () => {
 
   it('does not respond when isActive is false', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} isActive={false} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} isActive={false} />,
+    )
     stdin.write('j')
     await delay()
     expect(extractIndex(lastFrame())).toBe(0)
@@ -197,7 +233,9 @@ describe('useListNavigation hook', () => {
 
   it('does not respond when itemCount is 0', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={0} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={0} viewportHeight={20} />,
+    )
     stdin.write('j')
     await delay()
     expect(extractIndex(lastFrame())).toBe(0)
@@ -208,7 +246,9 @@ describe('useListNavigation hook', () => {
 
   it('moves down with arrow key', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('\x1B[B') // Down arrow
     await delay()
     expect(extractIndex(lastFrame())).toBe(1)
@@ -216,7 +256,9 @@ describe('useListNavigation hook', () => {
 
   it('moves up with arrow key', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('j')
     await delay()
     stdin.write('j')
@@ -228,7 +270,9 @@ describe('useListNavigation hook', () => {
 
   it('gg state persists through j/k presses (early return keys)', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('j')
     await delay()
     stdin.write('j')
@@ -250,7 +294,9 @@ describe('useListNavigation hook', () => {
 
   it('multiple rapid j presses accumulate', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={20} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={20} viewportHeight={20} />,
+    )
     stdin.write('j')
     stdin.write('j')
     stdin.write('j')
@@ -262,7 +308,9 @@ describe('useListNavigation hook', () => {
 
   it('G then k moves to second-to-last', async () => {
     vi.useRealTimers()
-    const { lastFrame, stdin } = render(<TestComponent itemCount={10} viewportHeight={20} />)
+    const { lastFrame, stdin } = render(
+      <TestComponent itemCount={10} viewportHeight={20} />,
+    )
     stdin.write('G')
     await delay()
     expect(extractIndex(lastFrame())).toBe(9)

@@ -23,7 +23,9 @@ export class CheckRun extends S.Class<CheckRun>('CheckRun')({
   details_url: S.optionalWith(S.NullOr(S.String), { default: () => null }),
 }) {}
 
-export class CheckRunsResponse extends S.Class<CheckRunsResponse>('CheckRunsResponse')({
+export class CheckRunsResponse extends S.Class<CheckRunsResponse>(
+  'CheckRunsResponse',
+)({
   total_count: S.Number,
   check_runs: S.Array(CheckRun),
 }) {}
@@ -44,9 +46,7 @@ export class CombinedStatus extends S.Class<CombinedStatus>('CombinedStatus')({
 
 export type CheckConclusion = 'success' | 'failure' | 'pending' | 'neutral'
 
-export function summarizeChecks(
-  checkRuns: readonly CheckRun[],
-): {
+export function summarizeChecks(checkRuns: readonly CheckRun[]): {
   readonly conclusion: CheckConclusion
   readonly passed: number
   readonly failed: number
@@ -60,7 +60,11 @@ export function summarizeChecks(
   for (const run of checkRuns) {
     if (run.status !== 'completed') {
       pending += 1
-    } else if (run.conclusion === 'success' || run.conclusion === 'neutral' || run.conclusion === 'skipped') {
+    } else if (
+      run.conclusion === 'success' ||
+      run.conclusion === 'neutral' ||
+      run.conclusion === 'skipped'
+    ) {
       passed += 1
     } else {
       failed += 1

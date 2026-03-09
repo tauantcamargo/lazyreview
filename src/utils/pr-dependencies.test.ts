@@ -67,8 +67,7 @@ describe('parseDependencyReferences', () => {
   })
 
   it('extracts multiple references from the same body', () => {
-    const body =
-      'Depends on #1 and depends on #2.\nAlso blocked by #3.'
+    const body = 'Depends on #1 and depends on #2.\nAlso blocked by #3.'
     const result = parseDependencyReferences(body)
     expect(result).toEqual([1, 2, 3])
   })

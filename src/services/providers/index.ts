@@ -19,7 +19,11 @@ export { createGitLabProvider, encodeThreadId, decodeThreadId } from './gitlab'
 
 export { createBitbucketProvider } from './bitbucket'
 
-export { createAzureProvider, encodeAzureThreadId, decodeAzureThreadId } from './azure'
+export {
+  createAzureProvider,
+  encodeAzureThreadId,
+  decodeAzureThreadId,
+} from './azure'
 
 export { createGiteaProvider } from './gitea'
 

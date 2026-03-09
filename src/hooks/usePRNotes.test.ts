@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  createPRNotesStore,
-  type PRNotesStore,
-} from './usePRNotes'
+import { createPRNotesStore, type PRNotesStore } from './usePRNotes'
 
 describe('PRNotesStore', () => {
   function makeStore(): PRNotesStore {

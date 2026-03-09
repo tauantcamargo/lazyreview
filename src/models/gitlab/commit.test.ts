@@ -39,9 +39,7 @@ describe('GitLabCommitSchema', () => {
       ...validCommit,
       web_url: 'https://gitlab.com/project/-/commit/abc123',
     })
-    expect(result.web_url).toBe(
-      'https://gitlab.com/project/-/commit/abc123',
-    )
+    expect(result.web_url).toBe('https://gitlab.com/project/-/commit/abc123')
   })
 
   it('rejects missing id', () => {

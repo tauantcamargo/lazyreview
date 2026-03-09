@@ -74,7 +74,9 @@ export function validateThemeColors(colors: unknown): ValidationResult {
 
   for (const [key, value] of entries) {
     if (!VALID_COLOR_KEYS.has(key)) {
-      errors.push(`Unknown color key "${key}". Valid keys: ${[...VALID_COLOR_KEYS].join(', ')}`)
+      errors.push(
+        `Unknown color key "${key}". Valid keys: ${[...VALID_COLOR_KEYS].join(', ')}`,
+      )
       continue
     }
 
@@ -92,7 +94,10 @@ export function validateThemeColors(colors: unknown): ValidationResult {
  * Parse the raw YAML content of a theme file into a CustomThemeFile.
  * Returns validation errors if the content is invalid.
  */
-export function parseCustomThemeFile(content: string, filename: string): ParseResult {
+export function parseCustomThemeFile(
+  content: string,
+  filename: string,
+): ParseResult {
   let parsed: unknown
   try {
     parsed = parse(content, { maxAliasCount: 10 })
@@ -115,12 +120,19 @@ export function parseCustomThemeFile(content: string, filename: string): ParseRe
 
   // Validate name
   if (typeof record['name'] !== 'string' || record['name'].trim() === '') {
-    errors.push(`"${filename}" is missing required "name" field (must be a non-empty string)`)
+    errors.push(
+      `"${filename}" is missing required "name" field (must be a non-empty string)`,
+    )
   }
 
   // Validate extends (optional, but must be string if present)
-  if (record['extends'] !== undefined && typeof record['extends'] !== 'string') {
-    errors.push(`"${filename}" has invalid "extends" field (must be a string theme name)`)
+  if (
+    record['extends'] !== undefined &&
+    typeof record['extends'] !== 'string'
+  ) {
+    errors.push(
+      `"${filename}" has invalid "extends" field (must be a string theme name)`,
+    )
   }
 
   // Validate colors
@@ -139,7 +151,9 @@ export function parseCustomThemeFile(content: string, filename: string): ParseRe
 
   const theme: CustomThemeFile = {
     name: (record['name'] as string).trim(),
-    ...(typeof record['extends'] === 'string' ? { extends: record['extends'] } : {}),
+    ...(typeof record['extends'] === 'string'
+      ? { extends: record['extends'] }
+      : {}),
     colors: record['colors'] as Partial<ThemeColors>,
   }
 
@@ -162,7 +176,7 @@ export function resolveTheme(
   const fallback = builtInThemes['tokyo-night']!
 
   const base: ThemeColors = custom.extends
-    ? builtInThemes[custom.extends] ?? fallback
+    ? (builtInThemes[custom.extends] ?? fallback)
     : fallback
 
   return { ...base, ...custom.colors } as ThemeColors

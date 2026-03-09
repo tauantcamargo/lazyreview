@@ -103,7 +103,12 @@ describe('Label schema', () => {
   })
 
   it('decodes a label with description', () => {
-    const result = decode({ id: 1, name: 'bug', color: 'ff0000', description: 'A bug' })
+    const result = decode({
+      id: 1,
+      name: 'bug',
+      color: 'ff0000',
+      description: 'A bug',
+    })
     expect(result.description).toBe('A bug')
   })
 })

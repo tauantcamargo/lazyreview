@@ -33,9 +33,7 @@ export const AzureCommitChangeSchema = z.object({
   item: z.object({
     path: z.string(),
   }),
-  changeType: z
-    .union([z.string(), z.number()])
-    .transform((v) => String(v)),
+  changeType: z.union([z.string(), z.number()]).transform((v) => String(v)),
 })
 
 export type AzureCommitChange = z.infer<typeof AzureCommitChangeSchema>

@@ -56,7 +56,10 @@ describe('BlameInfoSchema', () => {
   })
 
   it('allows empty commitMessage', () => {
-    const result = BlameInfoSchema.safeParse({ ...validBlame, commitMessage: '' })
+    const result = BlameInfoSchema.safeParse({
+      ...validBlame,
+      commitMessage: '',
+    })
     expect(result.success).toBe(true)
   })
 
@@ -145,22 +148,30 @@ describe('formatBlameDate', () => {
   })
 
   it('formats dates within the last day as hours', () => {
-    const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+    const threeHoursAgo = new Date(
+      Date.now() - 3 * 60 * 60 * 1000,
+    ).toISOString()
     expect(formatBlameDate(threeHoursAgo)).toBe('3h')
   })
 
   it('formats dates within the last month as days', () => {
-    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    const fiveDaysAgo = new Date(
+      Date.now() - 5 * 24 * 60 * 60 * 1000,
+    ).toISOString()
     expect(formatBlameDate(fiveDaysAgo)).toBe('5d')
   })
 
   it('formats dates within the last year as months', () => {
-    const twoMonthsAgo = new Date(Date.now() - 65 * 24 * 60 * 60 * 1000).toISOString()
+    const twoMonthsAgo = new Date(
+      Date.now() - 65 * 24 * 60 * 60 * 1000,
+    ).toISOString()
     expect(formatBlameDate(twoMonthsAgo)).toBe('2mo')
   })
 
   it('formats dates older than a year as years', () => {
-    const twoYearsAgo = new Date(Date.now() - 730 * 24 * 60 * 60 * 1000).toISOString()
+    const twoYearsAgo = new Date(
+      Date.now() - 730 * 24 * 60 * 60 * 1000,
+    ).toISOString()
     expect(formatBlameDate(twoYearsAgo)).toBe('2y')
   })
 

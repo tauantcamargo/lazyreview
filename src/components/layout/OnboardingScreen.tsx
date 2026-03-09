@@ -9,7 +9,11 @@ const PROGRESS_WIDTH = 16
  * Build a progress bar string for the onboarding stepper.
  * e.g. formatStepProgress(1, 4) → "Step 1 of 4  ━━━━○○○○○○○○"
  */
-export function formatStepProgress(current: number, total: number, width = PROGRESS_WIDTH): string {
+export function formatStepProgress(
+  current: number,
+  total: number,
+  width = PROGRESS_WIDTH,
+): string {
   const filled = Math.round((current / total) * width)
   const bar = '━'.repeat(filled) + '○'.repeat(width - filled)
   return `Step ${current} of ${total}  ${bar}`
@@ -88,8 +92,8 @@ const ONBOARDING_STEPS: readonly OnboardingStep[] = [
       '  2. Manually entered token (Settings > Set New Token)',
       '  3. GITEA_TOKEN env variable',
       '',
-      "Provider is auto-detected from your git remote. You can also",
-      "switch providers in Settings.",
+      'Provider is auto-detected from your git remote. You can also',
+      'switch providers in Settings.',
     ],
   },
 ]

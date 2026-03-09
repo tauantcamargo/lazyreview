@@ -40,18 +40,16 @@ export const DEFAULT_MIN_RATE_LIMIT = 200
  * Determine whether a prefetch should be scheduled for the given state.
  * Returns the PR number to prefetch, or null if prefetch should be skipped.
  */
-export function shouldPrefetch(
-  options: {
-    readonly items: readonly PullRequest[]
-    readonly selectedIndex: number
-    readonly enabled: boolean
-    readonly owner: string
-    readonly repo: string
-    readonly minRateLimit: number
-    readonly rateLimitRemaining: number
-    readonly alreadyPrefetched: ReadonlySet<number>
-  },
-): number | null {
+export function shouldPrefetch(options: {
+  readonly items: readonly PullRequest[]
+  readonly selectedIndex: number
+  readonly enabled: boolean
+  readonly owner: string
+  readonly repo: string
+  readonly minRateLimit: number
+  readonly rateLimitRemaining: number
+  readonly alreadyPrefetched: ReadonlySet<number>
+}): number | null {
   const {
     items,
     selectedIndex,
@@ -193,7 +191,10 @@ export function usePrefetch({
         ])
 
         setPrefetchedPR(prNumber)
-        prefetchedSetRef.current = new Set([...prefetchedSetRef.current, prNumber])
+        prefetchedSetRef.current = new Set([
+          ...prefetchedSetRef.current,
+          prNumber,
+        ])
       } finally {
         setIsPrefetching(false)
       }
@@ -228,7 +229,16 @@ export function usePrefetch({
     return () => {
       clearTimeout(timerId)
     }
-  }, [items, selectedIndex, enabled, owner, repo, delayMs, minRateLimit, doPrefetch])
+  }, [
+    items,
+    selectedIndex,
+    enabled,
+    owner,
+    repo,
+    delayMs,
+    minRateLimit,
+    doPrefetch,
+  ])
 
   return { prefetchedPR, isPrefetching }
 }

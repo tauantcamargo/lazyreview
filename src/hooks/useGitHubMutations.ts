@@ -1,7 +1,14 @@
-import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import {
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query'
 import { Effect } from 'effect'
 import { CodeReviewApi } from '../services/GitHubApi'
-import type { CodeReviewApiService, ReviewThread } from '../services/CodeReviewApiTypes'
+import type {
+  CodeReviewApiService,
+  ReviewThread,
+} from '../services/CodeReviewApiTypes'
 import type { ApiError } from '../services/CodeReviewApiTypes'
 import { runEffect } from '../utils/effect'
 import {
@@ -22,8 +29,13 @@ import {
 // ---------------------------------------------------------------------------
 
 interface CreateMutationOptions<TParams, TResult> {
-  readonly effect: (api: CodeReviewApiService, params: TParams) => Effect.Effect<TResult, ApiError>
-  readonly invalidateKeys?: (params: TParams) => readonly (readonly (string | number)[])[]
+  readonly effect: (
+    api: CodeReviewApiService,
+    params: TParams,
+  ) => Effect.Effect<TResult, ApiError>
+  readonly invalidateKeys?: (
+    params: TParams,
+  ) => readonly (readonly (string | number)[])[]
 }
 
 export function createGitHubMutation<TParams, TResult = void>(
@@ -62,8 +74,13 @@ interface OptimisticCacheUpdate<TParams> {
 }
 
 interface CreateOptimisticMutationOptions<TParams, TResult> {
-  readonly effect: (api: CodeReviewApiService, params: TParams) => Effect.Effect<TResult, ApiError>
-  readonly invalidateKeys: (params: TParams) => readonly (readonly (string | number)[])[]
+  readonly effect: (
+    api: CodeReviewApiService,
+    params: TParams,
+  ) => Effect.Effect<TResult, ApiError>
+  readonly invalidateKeys: (
+    params: TParams,
+  ) => readonly (readonly (string | number)[])[]
   readonly cacheUpdates: readonly OptimisticCacheUpdate<TParams>[]
 }
 
@@ -85,7 +102,11 @@ export function createOptimisticMutation<TParams, TResult = void>(
           }),
         ),
       onMutate: async (params: TParams) => {
-        const snapshots = await takeSnapshots(queryClient, options.cacheUpdates, params)
+        const snapshots = await takeSnapshots(
+          queryClient,
+          options.cacheUpdates,
+          params,
+        )
         for (const update of options.cacheUpdates) {
           const key = [...update.queryKey(params)]
           const oldData = queryClient.getQueryData(key)
@@ -93,14 +114,25 @@ export function createOptimisticMutation<TParams, TResult = void>(
         }
         return { snapshots }
       },
-      onError: (_error: Error, params: TParams, context?: OptimisticContext) => {
+      onError: (
+        _error: Error,
+        params: TParams,
+        context?: OptimisticContext,
+      ) => {
         if (context?.snapshots) {
           for (const [keyStr, data] of context.snapshots) {
-            queryClient.setQueryData(JSON.parse(keyStr) as readonly unknown[], data)
+            queryClient.setQueryData(
+              JSON.parse(keyStr) as readonly unknown[],
+              data,
+            )
           }
         }
       },
-      onSettled: (_data: TResult | undefined, _error: Error | null, params: TParams) => {
+      onSettled: (
+        _data: TResult | undefined,
+        _error: Error | null,
+        params: TParams,
+      ) => {
         for (const key of options.invalidateKeys(params)) {
           queryClient.invalidateQueries({ queryKey: [...key] })
         }
@@ -246,7 +278,8 @@ interface EditCommentParams extends PRParams {
 // ---------------------------------------------------------------------------
 
 export const useSubmitReview = createOptimisticMutation<SubmitReviewParams>({
-  effect: (api, p) => api.submitReview(p.owner, p.repo, p.prNumber, p.body, p.event),
+  effect: (api, p) =>
+    api.submitReview(p.owner, p.repo, p.prNumber, p.body, p.event),
   invalidateKeys: (p) => [
     ['pr-reviews', p.owner, p.repo, p.prNumber],
     ...invalidatePRComments(p.owner, p.repo, p.prNumber),
@@ -281,63 +314,93 @@ export const useCreateComment = createOptimisticMutation<CreateCommentParams>({
   ],
 })
 
-export const useCreateReviewComment = createOptimisticMutation<CreateReviewCommentParams>({
-  effect: (api, p) =>
-    api.addDiffComment(p.owner, p.repo, p.prNumber, p.body, p.commitId, p.path, p.line, p.side, p.startLine, p.startSide),
-  invalidateKeys: (p) => invalidatePRComments(p.owner, p.repo, p.prNumber),
-  cacheUpdates: [
-    {
-      queryKey: (p) => ['pr-comments', p.owner, p.repo, p.prNumber],
-      updater: (old, p) =>
-        applyOptimisticComment(
-          old as readonly OptimisticCommentShape[] | undefined,
-          createOptimisticComment({ body: p.body, path: p.path, line: p.line, side: p.side }),
-        ),
-    },
-  ],
-})
+export const useCreateReviewComment =
+  createOptimisticMutation<CreateReviewCommentParams>({
+    effect: (api, p) =>
+      api.addDiffComment(
+        p.owner,
+        p.repo,
+        p.prNumber,
+        p.body,
+        p.commitId,
+        p.path,
+        p.line,
+        p.side,
+        p.startLine,
+        p.startSide,
+      ),
+    invalidateKeys: (p) => invalidatePRComments(p.owner, p.repo, p.prNumber),
+    cacheUpdates: [
+      {
+        queryKey: (p) => ['pr-comments', p.owner, p.repo, p.prNumber],
+        updater: (old, p) =>
+          applyOptimisticComment(
+            old as readonly OptimisticCommentShape[] | undefined,
+            createOptimisticComment({
+              body: p.body,
+              path: p.path,
+              line: p.line,
+              side: p.side,
+            }),
+          ),
+      },
+    ],
+  })
 
-export const useResolveReviewThread = createOptimisticMutation<ResolveThreadParams>({
-  effect: (api, p) => api.resolveThread(p.threadId),
-  invalidateKeys: (p) => invalidatePRThreads(p.owner, p.repo, p.prNumber),
-  cacheUpdates: [
-    {
-      queryKey: (p) => ['pr-review-threads', p.owner, p.repo, p.prNumber],
-      updater: (old, p) =>
-        applyThreadResolution(old as readonly ReviewThread[] | undefined, p.threadId, true),
-    },
-  ],
-})
+export const useResolveReviewThread =
+  createOptimisticMutation<ResolveThreadParams>({
+    effect: (api, p) => api.resolveThread(p.threadId),
+    invalidateKeys: (p) => invalidatePRThreads(p.owner, p.repo, p.prNumber),
+    cacheUpdates: [
+      {
+        queryKey: (p) => ['pr-review-threads', p.owner, p.repo, p.prNumber],
+        updater: (old, p) =>
+          applyThreadResolution(
+            old as readonly ReviewThread[] | undefined,
+            p.threadId,
+            true,
+          ),
+      },
+    ],
+  })
 
-export const useUnresolveReviewThread = createOptimisticMutation<ResolveThreadParams>({
-  effect: (api, p) => api.unresolveThread(p.threadId),
-  invalidateKeys: (p) => invalidatePRThreads(p.owner, p.repo, p.prNumber),
-  cacheUpdates: [
-    {
-      queryKey: (p) => ['pr-review-threads', p.owner, p.repo, p.prNumber],
-      updater: (old, p) =>
-        applyThreadResolution(old as readonly ReviewThread[] | undefined, p.threadId, false),
-    },
-  ],
-})
+export const useUnresolveReviewThread =
+  createOptimisticMutation<ResolveThreadParams>({
+    effect: (api, p) => api.unresolveThread(p.threadId),
+    invalidateKeys: (p) => invalidatePRThreads(p.owner, p.repo, p.prNumber),
+    cacheUpdates: [
+      {
+        queryKey: (p) => ['pr-review-threads', p.owner, p.repo, p.prNumber],
+        updater: (old, p) =>
+          applyThreadResolution(
+            old as readonly ReviewThread[] | undefined,
+            p.threadId,
+            false,
+          ),
+      },
+    ],
+  })
 
-export const useReplyToReviewComment = createOptimisticMutation<ReplyToReviewCommentParams>({
-  effect: (api, p) => api.replyToComment(p.owner, p.repo, p.prNumber, p.body, p.inReplyTo),
-  invalidateKeys: (p) => invalidatePRThreads(p.owner, p.repo, p.prNumber),
-  cacheUpdates: [
-    {
-      queryKey: (p) => ['pr-comments', p.owner, p.repo, p.prNumber],
-      updater: (old, p) =>
-        applyOptimisticComment(
-          old as readonly OptimisticCommentShape[] | undefined,
-          createOptimisticComment({ body: p.body, inReplyToId: p.inReplyTo }),
-        ),
-    },
-  ],
-})
+export const useReplyToReviewComment =
+  createOptimisticMutation<ReplyToReviewCommentParams>({
+    effect: (api, p) =>
+      api.replyToComment(p.owner, p.repo, p.prNumber, p.body, p.inReplyTo),
+    invalidateKeys: (p) => invalidatePRThreads(p.owner, p.repo, p.prNumber),
+    cacheUpdates: [
+      {
+        queryKey: (p) => ['pr-comments', p.owner, p.repo, p.prNumber],
+        updater: (old, p) =>
+          applyOptimisticComment(
+            old as readonly OptimisticCommentShape[] | undefined,
+            createOptimisticComment({ body: p.body, inReplyToId: p.inReplyTo }),
+          ),
+      },
+    ],
+  })
 
 export const useRequestReReview = createGitHubMutation<RequestReReviewParams>({
-  effect: (api, p) => api.requestReReview(p.owner, p.repo, p.prNumber, p.reviewers),
+  effect: (api, p) =>
+    api.requestReReview(p.owner, p.repo, p.prNumber, p.reviewers),
   invalidateKeys: (p) => [
     ['pr', p.owner, p.repo, p.prNumber],
     ['pr-reviews', p.owner, p.repo, p.prNumber],
@@ -346,38 +409,72 @@ export const useRequestReReview = createGitHubMutation<RequestReReviewParams>({
 
 export const useMergePR = createGitHubMutation<MergePRParams>({
   effect: (api, p) =>
-    api.mergePR(p.owner, p.repo, p.prNumber, p.mergeMethod, p.commitTitle, p.commitMessage),
+    api.mergePR(
+      p.owner,
+      p.repo,
+      p.prNumber,
+      p.mergeMethod,
+      p.commitTitle,
+      p.commitMessage,
+    ),
   invalidateKeys: (p) => [
     ['pr', p.owner, p.repo, p.prNumber],
     ...invalidatePRLists(),
   ],
 })
 
-export const useDeleteReviewComment = createGitHubMutation<DeleteReviewCommentParams>({
-  effect: (api, p) => api.deleteReviewComment(p.owner, p.repo, p.commentId),
-  invalidateKeys: (p) => invalidatePRThreads(p.owner, p.repo, p.prNumber),
-})
+export const useDeleteReviewComment =
+  createGitHubMutation<DeleteReviewCommentParams>({
+    effect: (api, p) => api.deleteReviewComment(p.owner, p.repo, p.commentId),
+    invalidateKeys: (p) => invalidatePRThreads(p.owner, p.repo, p.prNumber),
+  })
 
-export const useCreatePendingReview = createGitHubMutation<PRParams, { readonly id: number }>({
+export const useCreatePendingReview = createGitHubMutation<
+  PRParams,
+  { readonly id: number }
+>({
   effect: (api, p) => api.createPendingReview(p.owner, p.repo, p.prNumber),
 })
 
-export const useAddPendingReviewComment = createGitHubMutation<PendingReviewCommentParams>({
-  effect: (api, p) =>
-    api.addPendingReviewComment(p.owner, p.repo, p.prNumber, p.reviewId, p.body, p.path, p.line, p.side, p.startLine, p.startSide),
-})
+export const useAddPendingReviewComment =
+  createGitHubMutation<PendingReviewCommentParams>({
+    effect: (api, p) =>
+      api.addPendingReviewComment(
+        p.owner,
+        p.repo,
+        p.prNumber,
+        p.reviewId,
+        p.body,
+        p.path,
+        p.line,
+        p.side,
+        p.startLine,
+        p.startSide,
+      ),
+  })
 
-export const useSubmitPendingReview = createGitHubMutation<SubmitPendingReviewParams>({
-  effect: (api, p) => api.submitPendingReview(p.owner, p.repo, p.prNumber, p.reviewId, p.body, p.event),
-  invalidateKeys: (p) => [
-    ['pr-reviews', p.owner, p.repo, p.prNumber],
-    ...invalidatePRThreads(p.owner, p.repo, p.prNumber),
-  ],
-})
+export const useSubmitPendingReview =
+  createGitHubMutation<SubmitPendingReviewParams>({
+    effect: (api, p) =>
+      api.submitPendingReview(
+        p.owner,
+        p.repo,
+        p.prNumber,
+        p.reviewId,
+        p.body,
+        p.event,
+      ),
+    invalidateKeys: (p) => [
+      ['pr-reviews', p.owner, p.repo, p.prNumber],
+      ...invalidatePRThreads(p.owner, p.repo, p.prNumber),
+    ],
+  })
 
-export const useDiscardPendingReview = createGitHubMutation<DiscardPendingReviewParams>({
-  effect: (api, p) => api.discardPendingReview(p.owner, p.repo, p.prNumber, p.reviewId),
-})
+export const useDiscardPendingReview =
+  createGitHubMutation<DiscardPendingReviewParams>({
+    effect: (api, p) =>
+      api.discardPendingReview(p.owner, p.repo, p.prNumber, p.reviewId),
+  })
 
 export const useClosePullRequest = createGitHubMutation<PRParams>({
   effect: (api, p) => api.closePR(p.owner, p.repo, p.prNumber),
@@ -395,13 +492,14 @@ export const useReopenPullRequest = createGitHubMutation<PRParams>({
   ],
 })
 
-export const useUpdatePRDescription = createGitHubMutation<UpdatePRDescriptionParams>({
-  effect: (api, p) => api.updatePRBody(p.owner, p.repo, p.prNumber, p.body),
-  invalidateKeys: (p) => [
-    ['pr', p.owner, p.repo, p.prNumber],
-    ...invalidatePRLists(),
-  ],
-})
+export const useUpdatePRDescription =
+  createGitHubMutation<UpdatePRDescriptionParams>({
+    effect: (api, p) => api.updatePRBody(p.owner, p.repo, p.prNumber, p.body),
+    invalidateKeys: (p) => [
+      ['pr', p.owner, p.repo, p.prNumber],
+      ...invalidatePRLists(),
+    ],
+  })
 
 export const useUpdatePRTitle = createGitHubMutation<UpdatePRTitleParams>({
   effect: (api, p) => api.updatePRTitle(p.owner, p.repo, p.prNumber, p.title),
@@ -412,7 +510,8 @@ export const useUpdatePRTitle = createGitHubMutation<UpdatePRTitleParams>({
 })
 
 export const useEditIssueComment = createGitHubMutation<EditCommentParams>({
-  effect: (api, p) => api.editIssueComment(p.owner, p.repo, p.commentId, p.body),
+  effect: (api, p) =>
+    api.editIssueComment(p.owner, p.repo, p.commentId, p.body),
   invalidateKeys: (p) => [
     ...invalidatePRComments(p.owner, p.repo, p.prNumber),
     ['issue-comments', p.owner, p.repo, p.prNumber],
@@ -420,7 +519,8 @@ export const useEditIssueComment = createGitHubMutation<EditCommentParams>({
 })
 
 export const useEditReviewComment = createGitHubMutation<EditCommentParams>({
-  effect: (api, p) => api.editReviewComment(p.owner, p.repo, p.commentId, p.body),
+  effect: (api, p) =>
+    api.editReviewComment(p.owner, p.repo, p.commentId, p.body),
   invalidateKeys: (p) => invalidatePRThreads(p.owner, p.repo, p.prNumber),
 })
 
@@ -473,7 +573,8 @@ interface UpdateAssigneesParams extends PRParams {
 }
 
 export const useUpdateAssignees = createGitHubMutation<UpdateAssigneesParams>({
-  effect: (api, p) => api.updateAssignees(p.owner, p.repo, p.prNumber, p.assignees),
+  effect: (api, p) =>
+    api.updateAssignees(p.owner, p.repo, p.prNumber, p.assignees),
   invalidateKeys: (p) => [
     ['pr', p.owner, p.repo, p.prNumber],
     ...invalidatePRLists(),
@@ -491,7 +592,8 @@ interface AddReactionParams extends PRParams {
 }
 
 export const useAddReaction = createGitHubMutation<AddReactionParams>({
-  effect: (api, p) => api.addReaction(p.owner, p.repo, p.commentId, p.reaction, p.commentType),
+  effect: (api, p) =>
+    api.addReaction(p.owner, p.repo, p.commentId, p.reaction, p.commentType),
   invalidateKeys: (p) => [
     ...invalidatePRComments(p.owner, p.repo, p.prNumber),
     ['issue-comments', p.owner, p.repo, p.prNumber],
@@ -522,9 +624,14 @@ export const useCreatePullRequest = createGitHubMutation<
   CreatePullRequestResult
 >({
   effect: (api, p) =>
-    api.createPR(p.owner, p.repo, p.title, p.body, p.baseBranch, p.headBranch, p.draft),
-  invalidateKeys: (p) => [
-    ['prs', p.owner, p.repo],
-    ...invalidatePRLists(),
-  ],
+    api.createPR(
+      p.owner,
+      p.repo,
+      p.title,
+      p.body,
+      p.baseBranch,
+      p.headBranch,
+      p.draft,
+    ),
+  invalidateKeys: (p) => [['prs', p.owner, p.repo], ...invalidatePRLists()],
 })

@@ -1,7 +1,10 @@
 import React, { useEffect } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
-import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
+import {
+  useListNavigation,
+  deriveScrollOffset,
+} from '../../hooks/useListNavigation'
 import { setSelectionContext } from '../../hooks/useSelectionContext'
 import type { PullRequest } from '../../models/pull-request'
 import type { Comment } from '../../models/comment'
@@ -149,12 +152,24 @@ export function ConversationsTab({
 }: ConversationsTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
-  const allTimeline = buildTimeline(pr, comments, reviews, reviewThreads, issueComments)
+  const allTimeline = buildTimeline(
+    pr,
+    comments,
+    reviews,
+    reviewThreads,
+    issueComments,
+  )
   const timeline = showResolved
     ? allTimeline
     : allTimeline.filter((item) => !item.isResolved)
-  const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_CONTENT_HEIGHT_RESERVED)
-  const viewportHeight = Math.max(1, contentHeight - CONVERSATIONS_TIMELINE_HEADER_LINES)
+  const contentHeight = Math.max(
+    1,
+    (stdout?.rows ?? 24) - PR_DETAIL_CONTENT_HEIGHT_RESERVED,
+  )
+  const viewportHeight = Math.max(
+    1,
+    contentHeight - CONVERSATIONS_TIMELINE_HEADER_LINES,
+  )
 
   const { selectedIndex } = useListNavigation({
     itemCount: timeline.length,
@@ -190,7 +205,10 @@ export function ConversationsTab({
             user: selected.user,
             body: selected.body,
           })
-        } else if (selected?.type === 'issue_comment' && selected.commentId != null) {
+        } else if (
+          selected?.type === 'issue_comment' &&
+          selected.commentId != null
+        ) {
           onReply({
             commentId: selected.commentId,
             user: selected.user,
@@ -217,7 +235,8 @@ export function ConversationsTab({
       if (input === 'e' && onEditComment && currentUser) {
         const selected = timeline[selectedIndex]
         if (
-          (selected?.type === 'comment' || selected?.type === 'issue_comment') &&
+          (selected?.type === 'comment' ||
+            selected?.type === 'issue_comment') &&
           selected.commentId != null &&
           selected.user === currentUser
         ) {
@@ -228,7 +247,12 @@ export function ConversationsTab({
           })
         }
       }
-      if (input === 'D' && onEditDescription && currentUser && pr.user.login === currentUser) {
+      if (
+        input === 'D' &&
+        onEditDescription &&
+        currentUser &&
+        pr.user.login === currentUser
+      ) {
         onEditDescription({ body: pr.body ?? '' })
       }
       if (input === 'f' && onToggleShowResolved) {
@@ -241,7 +265,10 @@ export function ConversationsTab({
             commentId: selected.commentId,
             commentType: 'review_comment',
           })
-        } else if (selected?.type === 'issue_comment' && selected.commentId != null) {
+        } else if (
+          selected?.type === 'issue_comment' &&
+          selected.commentId != null
+        ) {
           onAddReaction({
             commentId: selected.commentId,
             commentType: 'issue_comment',
@@ -252,8 +279,15 @@ export function ConversationsTab({
     { isActive },
   )
 
-  const scrollOffset = deriveScrollOffset(selectedIndex, viewportHeight, timeline.length)
-  const visibleItems = timeline.slice(scrollOffset, scrollOffset + viewportHeight)
+  const scrollOffset = deriveScrollOffset(
+    selectedIndex,
+    viewportHeight,
+    timeline.length,
+  )
+  const visibleItems = timeline.slice(
+    scrollOffset,
+    scrollOffset + viewportHeight,
+  )
 
   return (
     <Box flexDirection="column" flexGrow={1} minHeight={0} overflow="hidden">

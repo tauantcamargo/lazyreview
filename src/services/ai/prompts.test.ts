@@ -50,13 +50,19 @@ describe('buildLineReviewPrompt', () => {
   })
 
   it('user message describes context for removed lines', () => {
-    const messages = buildLineReviewPrompt({ ...baseParams, context: 'removed' })
+    const messages = buildLineReviewPrompt({
+      ...baseParams,
+      context: 'removed',
+    })
     const user = messages[1]!.content
     expect(user).toContain('removed in the pull request')
   })
 
   it('user message describes context for unchanged lines', () => {
-    const messages = buildLineReviewPrompt({ ...baseParams, context: 'unchanged' })
+    const messages = buildLineReviewPrompt({
+      ...baseParams,
+      context: 'unchanged',
+    })
     const user = messages[1]!.content
     expect(user).toContain('unchanged context')
   })
@@ -104,7 +110,8 @@ describe('buildLineReviewPrompt', () => {
   })
 
   it('handles multi-line code snippets', () => {
-    const multiLineCode = 'function add(a: number, b: number): number {\n  return a + b\n}'
+    const multiLineCode =
+      'function add(a: number, b: number): number {\n  return a + b\n}'
     const messages = buildLineReviewPrompt({
       ...baseParams,
       code: multiLineCode,
@@ -138,7 +145,9 @@ describe('determineLineContext', () => {
   })
 
   it('returns mixed when add, del, and context lines', () => {
-    expect(determineLineContext(new Set(['add', 'del', 'context']))).toBe('mixed')
+    expect(determineLineContext(new Set(['add', 'del', 'context']))).toBe(
+      'mixed',
+    )
   })
 
   it('returns added when add and context lines', () => {

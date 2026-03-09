@@ -183,7 +183,11 @@ describe('parseAiAnnotations', () => {
     ])
     const annotations = parseAiAnnotations(response)
     expect(annotations).toHaveLength(3)
-    expect(annotations.map((a) => a.severity)).toEqual(['info', 'warning', 'error'])
+    expect(annotations.map((a) => a.severity)).toEqual([
+      'info',
+      'warning',
+      'error',
+    ])
   })
 
   it('extracts JSON array from markdown code fences', () => {

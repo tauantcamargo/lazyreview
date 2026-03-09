@@ -22,7 +22,13 @@ function mockFetchResponse(options: {
   readonly body?: unknown
   readonly headers?: Record<string, string>
 }): void {
-  const { ok = true, status = 200, statusText = 'OK', body = {}, headers = {} } = options
+  const {
+    ok = true,
+    status = 200,
+    statusText = 'OK',
+    body = {},
+    headers = {},
+  } = options
   const mockHeaders = new Headers(headers)
 
   globalThis.fetch = vi.fn().mockResolvedValue({
@@ -107,7 +113,13 @@ describe('mutateGitLab', () => {
   it('sends request with PRIVATE-TOKEN header', async () => {
     mockFetchResponse({})
     await Effect.runPromise(
-      mutateGitLab('POST', 'https://gitlab.com/api/v4', '/test', 'glpat-abc123', { key: 'value' }),
+      mutateGitLab(
+        'POST',
+        'https://gitlab.com/api/v4',
+        '/test',
+        'glpat-abc123',
+        { key: 'value' },
+      ),
     )
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -150,7 +162,13 @@ describe('mutateGitLab', () => {
   it('handles DELETE method', async () => {
     mockFetchResponse({})
     await Effect.runPromise(
-      mutateGitLab('DELETE', 'https://gitlab.com/api/v4', '/test/1', 'token', {}),
+      mutateGitLab(
+        'DELETE',
+        'https://gitlab.com/api/v4',
+        '/test/1',
+        'token',
+        {},
+      ),
     )
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -182,7 +200,13 @@ describe('mutateGitLabJson', () => {
   it('fails with GitHubError on HTTP error', async () => {
     mockFetchResponse({ ok: false, status: 422, statusText: 'Unprocessable' })
     const exit = await Effect.runPromiseExit(
-      mutateGitLabJson('POST', 'https://gitlab.com/api/v4', '/test', 'token', {}),
+      mutateGitLabJson(
+        'POST',
+        'https://gitlab.com/api/v4',
+        '/test',
+        'token',
+        {},
+      ),
     )
     expect(exit._tag).toBe('Failure')
   })
@@ -190,7 +214,13 @@ describe('mutateGitLabJson', () => {
   it('fails with NetworkError on network failure', async () => {
     mockFetchNetworkError()
     const exit = await Effect.runPromiseExit(
-      mutateGitLabJson('POST', 'https://gitlab.com/api/v4', '/test', 'token', {}),
+      mutateGitLabJson(
+        'POST',
+        'https://gitlab.com/api/v4',
+        '/test',
+        'token',
+        {},
+      ),
     )
     expect(exit._tag).toBe('Failure')
   })

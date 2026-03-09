@@ -99,7 +99,15 @@ export function useSidebarCounts(
     // Team count comes from team-prs query key (if team dashboard has been loaded)
     const team = extractCount(queryClient, 'team-prs')
 
-    return { involved, myPrs, forReview, forReviewUnread, thisRepo, browse, team }
+    return {
+      involved,
+      myPrs,
+      forReview,
+      forReviewUnread,
+      thisRepo,
+      browse,
+      team,
+    }
   }, [queryClient, isUnread])
 
   // Subscribe to query cache changes

@@ -26,7 +26,9 @@ function createMockQueryClient(
     getQueryCache: vi.fn(() => ({
       subscribe: vi.fn(() => vi.fn()),
     })),
-  } as unknown as ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+  } as unknown as ReturnType<
+    typeof import('@tanstack/react-query').useQueryClient
+  >
 }
 
 describe('SidebarCounts type', () => {
@@ -148,9 +150,7 @@ describe('extractThisRepoCount', () => {
   })
 
   it('ignores non-prs query data', () => {
-    const client = createMockQueryClient(
-      new Map([['other-key', makePRs(3)]]),
-    )
+    const client = createMockQueryClient(new Map([['other-key', makePRs(3)]]))
     expect(extractThisRepoCount(client)).toBeNull()
   })
 })
@@ -159,13 +159,13 @@ describe('extractCount with undefined data entries', () => {
   it('skips undefined data entries and returns null', () => {
     // When getQueriesData returns entries with undefined data
     const client = {
-      getQueriesData: vi.fn(() => [
-        [['involved-prs', 'open'], undefined],
-      ]),
+      getQueriesData: vi.fn(() => [[['involved-prs', 'open'], undefined]]),
       getQueryCache: vi.fn(() => ({
         subscribe: vi.fn(() => vi.fn()),
       })),
-    } as unknown as ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+    } as unknown as ReturnType<
+      typeof import('@tanstack/react-query').useQueryClient
+    >
 
     expect(extractCount(client, 'involved-prs')).toBeNull()
   })
@@ -180,7 +180,9 @@ describe('extractCount with undefined data entries', () => {
       getQueryCache: vi.fn(() => ({
         subscribe: vi.fn(() => vi.fn()),
       })),
-    } as unknown as ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+    } as unknown as ReturnType<
+      typeof import('@tanstack/react-query').useQueryClient
+    >
 
     expect(extractCount(client, 'involved-prs')).toBe(4)
   })
@@ -194,7 +196,9 @@ describe('subscriber behavior', () => {
       getQueryCache: vi.fn(() => ({
         subscribe: subscribeFn,
       })),
-    } as unknown as ReturnType<typeof import('@tanstack/react-query').useQueryClient>
+    } as unknown as ReturnType<
+      typeof import('@tanstack/react-query').useQueryClient
+    >
 
     const cache = client.getQueryCache()
     const unsub = cache.subscribe(() => {})

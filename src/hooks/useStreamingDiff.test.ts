@@ -45,14 +45,18 @@ function createStreamingController(
   let listeners: readonly (() => void)[] = []
 
   const effectiveSize = Math.max(1, chunkSize)
-  const totalChunks = files.length === 0 ? 0 : Math.ceil(files.length / effectiveSize)
+  const totalChunks =
+    files.length === 0 ? 0 : Math.ceil(files.length / effectiveSize)
 
   const notify = () => {
     listeners.forEach((l) => l())
   }
 
   const getState = (): StreamingState => {
-    const loadedCount = Math.min(currentChunkIndex * effectiveSize, files.length)
+    const loadedCount = Math.min(
+      currentChunkIndex * effectiveSize,
+      files.length,
+    )
     const visibleFiles = files.slice(0, loadedCount)
     const isStreaming = currentChunkIndex < totalChunks
     const total = files.length

@@ -22,9 +22,9 @@ export interface UseSidebarSectionsReturn {
 }
 
 export function useSidebarSections(): UseSidebarSectionsReturn {
-  const [collapsedSections, setCollapsedSections] = useState<ReadonlySet<string>>(
-    new Set(),
-  )
+  const [collapsedSections, setCollapsedSections] = useState<
+    ReadonlySet<string>
+  >(new Set())
 
   const toggleSection = useCallback((sectionName: string) => {
     setCollapsedSections((prev) => {

@@ -25,7 +25,13 @@ describe('Review schema', () => {
   })
 
   it('decodes all valid review states', () => {
-    const states = ['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED', 'DISMISSED', 'PENDING'] as const
+    const states = [
+      'APPROVED',
+      'CHANGES_REQUESTED',
+      'COMMENTED',
+      'DISMISSED',
+      'PENDING',
+    ] as const
     for (const state of states) {
       const result = decode({
         id: 1,

@@ -6,8 +6,7 @@ import type { SideBySideRow } from './SideBySideDiffView'
  */
 function isChangedRow(row: DiffDisplayRow): boolean {
   return (
-    row.type === 'line' &&
-    (row.line.type === 'add' || row.line.type === 'del')
+    row.type === 'line' && (row.line.type === 'add' || row.line.type === 'del')
   )
 }
 
@@ -44,7 +43,8 @@ function collectHunkStarts(rows: readonly DiffDisplayRow[]): readonly number[] {
       // Find the first changed line in this hunk
       for (let j = i; j < rows.length; j++) {
         const candidate = rows[j]
-        if (candidate.type === 'line' && candidate.hunkIndex !== row.hunkIndex) break
+        if (candidate.type === 'line' && candidate.hunkIndex !== row.hunkIndex)
+          break
         if (isChangedRow(candidate)) {
           starts.push(j)
           break
@@ -299,12 +299,14 @@ export function findSbsRowByLineNumber(
     if (row.type === 'comment') continue
     if (row.type === 'header') continue
 
-    const leftNum = row.left?.type === 'del' || row.left?.type === 'context'
-      ? row.left.oldLineNumber
-      : row.left?.newLineNumber
-    const rightNum = row.right?.type === 'add' || row.right?.type === 'context'
-      ? row.right.newLineNumber
-      : row.right?.oldLineNumber
+    const leftNum =
+      row.left?.type === 'del' || row.left?.type === 'context'
+        ? row.left.oldLineNumber
+        : row.left?.newLineNumber
+    const rightNum =
+      row.right?.type === 'add' || row.right?.type === 'context'
+        ? row.right.newLineNumber
+        : row.right?.oldLineNumber
 
     if (leftNum === lineNumber || rightNum === lineNumber) {
       return i

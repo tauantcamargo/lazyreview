@@ -12,14 +12,23 @@ import { FileChange } from '../../models/file-change'
 // directly, following the same pattern as CommandPalette.test.tsx.
 // ---------------------------------------------------------------------------
 
-function makeFile(overrides: Partial<{
-  sha: string
-  filename: string
-  status: 'added' | 'removed' | 'modified' | 'renamed' | 'copied' | 'changed' | 'unchanged'
-  additions: number
-  deletions: number
-  changes: number
-}>): FileChange {
+function makeFile(
+  overrides: Partial<{
+    sha: string
+    filename: string
+    status:
+      | 'added'
+      | 'removed'
+      | 'modified'
+      | 'renamed'
+      | 'copied'
+      | 'changed'
+      | 'unchanged'
+    additions: number
+    deletions: number
+    changes: number
+  }>,
+): FileChange {
   return new FileChange({
     sha: overrides.sha ?? 'abc123',
     filename: overrides.filename ?? 'src/index.ts',
@@ -31,13 +40,48 @@ function makeFile(overrides: Partial<{
 }
 
 const mockFiles: readonly FileChange[] = [
-  makeFile({ filename: 'src/components/Button.tsx', status: 'modified', additions: 20, deletions: 5 }),
-  makeFile({ filename: 'src/utils/format.ts', status: 'added', additions: 45, deletions: 0 }),
-  makeFile({ filename: 'src/hooks/useAuth.ts', status: 'modified', additions: 8, deletions: 3 }),
-  makeFile({ filename: 'README.md', status: 'modified', additions: 2, deletions: 1 }),
-  makeFile({ filename: 'src/services/api.ts', status: 'removed', additions: 0, deletions: 120 }),
-  makeFile({ filename: 'src/components/Header.tsx', status: 'renamed', additions: 3, deletions: 2 }),
-  makeFile({ filename: 'src/components/layout/Sidebar.tsx', status: 'modified', additions: 15, deletions: 10 }),
+  makeFile({
+    filename: 'src/components/Button.tsx',
+    status: 'modified',
+    additions: 20,
+    deletions: 5,
+  }),
+  makeFile({
+    filename: 'src/utils/format.ts',
+    status: 'added',
+    additions: 45,
+    deletions: 0,
+  }),
+  makeFile({
+    filename: 'src/hooks/useAuth.ts',
+    status: 'modified',
+    additions: 8,
+    deletions: 3,
+  }),
+  makeFile({
+    filename: 'README.md',
+    status: 'modified',
+    additions: 2,
+    deletions: 1,
+  }),
+  makeFile({
+    filename: 'src/services/api.ts',
+    status: 'removed',
+    additions: 0,
+    deletions: 120,
+  }),
+  makeFile({
+    filename: 'src/components/Header.tsx',
+    status: 'renamed',
+    additions: 3,
+    deletions: 2,
+  }),
+  makeFile({
+    filename: 'src/components/layout/Sidebar.tsx',
+    status: 'modified',
+    additions: 15,
+    deletions: 10,
+  }),
 ]
 
 // ---------------------------------------------------------------------------
@@ -46,10 +90,14 @@ const mockFiles: readonly FileChange[] = [
 
 function getStatusIcon(status: string): string {
   switch (status) {
-    case 'added': return 'A'
-    case 'removed': return 'D'
-    case 'renamed': return 'R'
-    default: return 'M'
+    case 'added':
+      return 'A'
+    case 'removed':
+      return 'D'
+    case 'renamed':
+      return 'R'
+    default:
+      return 'M'
   }
 }
 
@@ -374,9 +422,7 @@ describe('FilePickerModal logic', () => {
       const query = ''
       const total = mockFiles.length
       const filtered = filterAndSort(mockFiles, query)
-      const label = query
-        ? `${filtered.length}/${total}`
-        : `${total}`
+      const label = query ? `${filtered.length}/${total}` : `${total}`
       expect(label).toBe('7')
     })
 
@@ -384,9 +430,7 @@ describe('FilePickerModal logic', () => {
       const query = 'component'
       const total = mockFiles.length
       const filtered = filterAndSort(mockFiles, query)
-      const label = query
-        ? `${filtered.length}/${total}`
-        : `${total}`
+      const label = query ? `${filtered.length}/${total}` : `${total}`
       expect(label).toContain('/')
       expect(label).toContain(String(total))
     })

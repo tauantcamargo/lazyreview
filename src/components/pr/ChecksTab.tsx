@@ -3,7 +3,10 @@ import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useCheckRuns } from '../../hooks/useGitHub'
 import { summarizeChecks, type CheckRun } from '../../models/check'
-import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
+import {
+  useListNavigation,
+  deriveScrollOffset,
+} from '../../hooks/useListNavigation'
 import { LoadingIndicator } from '../common/LoadingIndicator'
 import { EmptyState } from '../common/EmptyState'
 import { openInBrowser, copyToClipboard } from '../../utils/terminal'
@@ -28,14 +31,18 @@ function CheckRunRow({
   const icon =
     run.status !== 'completed'
       ? '●'
-      : run.conclusion === 'success' || run.conclusion === 'neutral' || run.conclusion === 'skipped'
+      : run.conclusion === 'success' ||
+          run.conclusion === 'neutral' ||
+          run.conclusion === 'skipped'
         ? '✓'
         : '✗'
 
   const color =
     run.status !== 'completed'
       ? theme.colors.warning
-      : run.conclusion === 'success' || run.conclusion === 'neutral' || run.conclusion === 'skipped'
+      : run.conclusion === 'success' ||
+          run.conclusion === 'neutral' ||
+          run.conclusion === 'skipped'
         ? theme.colors.success
         : theme.colors.error
 
@@ -55,9 +62,11 @@ function CheckRunRow({
       {run.status !== 'completed' && (
         <Text color={theme.colors.muted}>({run.status})</Text>
       )}
-      {run.status === 'completed' && run.conclusion && run.conclusion !== 'success' && (
-        <Text color={theme.colors.muted}>({run.conclusion})</Text>
-      )}
+      {run.status === 'completed' &&
+        run.conclusion &&
+        run.conclusion !== 'success' && (
+          <Text color={theme.colors.muted}>({run.conclusion})</Text>
+        )}
     </Box>
   )
 }
@@ -113,8 +122,15 @@ export function ChecksTab({
     { isActive },
   )
 
-  const scrollOffset = deriveScrollOffset(selectedIndex, viewportHeight, checkRuns.length)
-  const visibleRuns = checkRuns.slice(scrollOffset, scrollOffset + viewportHeight)
+  const scrollOffset = deriveScrollOffset(
+    selectedIndex,
+    viewportHeight,
+    checkRuns.length,
+  )
+  const visibleRuns = checkRuns.slice(
+    scrollOffset,
+    scrollOffset + viewportHeight,
+  )
 
   if (isLoading) {
     return <LoadingIndicator message="Loading checks..." />

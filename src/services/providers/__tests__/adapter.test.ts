@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { Effect } from 'effect'
 import { adaptProvider, ensureV2Capabilities } from '../adapter'
-import { createMockProvider, createMockPR, createMockComment } from './mock-helpers'
+import {
+  createMockProvider,
+  createMockPR,
+  createMockComment,
+} from './mock-helpers'
 import type { Provider, ProviderCapabilities } from '../types'
 
 describe('ensureV2Capabilities', () => {
@@ -284,7 +288,9 @@ describe('adaptProvider', () => {
   describe('default getFileBlame', () => {
     it('returns empty array by default', async () => {
       const adapted = adaptProvider(createMockProvider())
-      const result = await Effect.runPromise(adapted.getFileBlame!('owner', 'repo', 'file.ts', 'main'))
+      const result = await Effect.runPromise(
+        adapted.getFileBlame!('owner', 'repo', 'file.ts', 'main'),
+      )
 
       expect(result).toEqual([])
     })

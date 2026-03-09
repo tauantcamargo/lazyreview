@@ -170,29 +170,44 @@ describe('useSmartReview pure logic', () => {
 
   describe('rate limiting', () => {
     it('is not rate limited when count is below max', () => {
-      const state: RateLimitState = { count: 0, maxAnalyses: DEFAULT_MAX_ANALYSES }
+      const state: RateLimitState = {
+        count: 0,
+        maxAnalyses: DEFAULT_MAX_ANALYSES,
+      }
       expect(isRateLimited(state)).toBe(false)
     })
 
     it('is rate limited when count equals max', () => {
-      const state: RateLimitState = { count: 10, maxAnalyses: DEFAULT_MAX_ANALYSES }
+      const state: RateLimitState = {
+        count: 10,
+        maxAnalyses: DEFAULT_MAX_ANALYSES,
+      }
       expect(isRateLimited(state)).toBe(true)
     })
 
     it('is rate limited when count exceeds max', () => {
-      const state: RateLimitState = { count: 15, maxAnalyses: DEFAULT_MAX_ANALYSES }
+      const state: RateLimitState = {
+        count: 15,
+        maxAnalyses: DEFAULT_MAX_ANALYSES,
+      }
       expect(isRateLimited(state)).toBe(true)
     })
 
     it('incrementCount increases count by 1', () => {
-      const state: RateLimitState = { count: 3, maxAnalyses: DEFAULT_MAX_ANALYSES }
+      const state: RateLimitState = {
+        count: 3,
+        maxAnalyses: DEFAULT_MAX_ANALYSES,
+      }
       const next = incrementCount(state)
       expect(next.count).toBe(4)
       expect(next.maxAnalyses).toBe(DEFAULT_MAX_ANALYSES)
     })
 
     it('incrementCount is immutable', () => {
-      const state: RateLimitState = { count: 3, maxAnalyses: DEFAULT_MAX_ANALYSES }
+      const state: RateLimitState = {
+        count: 3,
+        maxAnalyses: DEFAULT_MAX_ANALYSES,
+      }
       const next = incrementCount(state)
       expect(state.count).toBe(3)
       expect(next.count).toBe(4)

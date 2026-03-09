@@ -2,19 +2,38 @@ import React, { useState, useEffect } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { TextInput, PasswordInput } from '@inkjs/ui'
 import { useQueryClient } from '@tanstack/react-query'
-import { useTheme, getAllThemeNames, isCustomTheme, getCustomThemeMeta } from '../theme/index'
+import {
+  useTheme,
+  getAllThemeNames,
+  isCustomTheme,
+  getCustomThemeMeta,
+} from '../theme/index'
 import type { ThemeName } from '../theme/index'
 import { useConfig } from '../hooks/useConfig'
 import { useAuth } from '../hooks/useAuth'
 import { useStatusMessage } from '../hooks/useStatusMessage'
 import { useInputFocus } from '../hooks/useInputFocus'
-import { useBookmarkedRepos, validateBookmarkInput } from '../hooks/useBookmarkedRepos'
+import {
+  useBookmarkedRepos,
+  validateBookmarkInput,
+} from '../hooks/useBookmarkedRepos'
 import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
 import { SettingRow, TokenSourceLabel } from '../components/settings/SettingRow'
 import { useReviewSessions } from '../hooks/useReviewSession'
-import { aggregateStats, filterByRange, formatDuration, type DateRange } from '../utils/review-stats'
-import { getAuthProvider, setAuthProvider, getProviderTokenFilePath, getProviderMeta, getInstanceAuthStatus } from '../services/Auth'
+import {
+  aggregateStats,
+  filterByRange,
+  formatDuration,
+  type DateRange,
+} from '../utils/review-stats'
+import {
+  getAuthProvider,
+  setAuthProvider,
+  getProviderTokenFilePath,
+  getProviderMeta,
+  getInstanceAuthStatus,
+} from '../services/Auth'
 import type { TokenSource } from '../services/Auth'
 import { getConfiguredInstances } from '../services/Config'
 import type { Provider, ConfiguredInstance } from '../services/Config'
@@ -39,7 +58,13 @@ function formatThemeLabel(name: string): string {
   return `${name} (custom${extendsLabel})`
 }
 
-const PROVIDER_ORDER: readonly Provider[] = ['github', 'gitlab', 'bitbucket', 'azure', 'gitea']
+const PROVIDER_ORDER: readonly Provider[] = [
+  'github',
+  'gitlab',
+  'bitbucket',
+  'azure',
+  'gitea',
+]
 
 const PROVIDER_LABELS: Readonly<Record<Provider, string>> = {
   github: 'GitHub',
@@ -49,7 +74,13 @@ const PROVIDER_LABELS: Readonly<Record<Provider, string>> = {
   gitea: 'Gitea / Forgejo',
 }
 
-const SUPPORTED_PROVIDERS: ReadonlySet<Provider> = new Set(['github', 'gitlab', 'bitbucket', 'azure', 'gitea'])
+const SUPPORTED_PROVIDERS: ReadonlySet<Provider> = new Set([
+  'github',
+  'gitlab',
+  'bitbucket',
+  'azure',
+  'gitea',
+])
 
 type SettingsItem =
   | 'provider'
@@ -70,7 +101,17 @@ type SettingsItem =
   | 'notify_review_request'
   | 'bookmarked_repos'
 
-type EditingField = 'page_size' | 'refresh_interval' | 'default_owner' | 'default_repo' | 'new_token' | 'bookmark_add' | 'ai_model' | 'ai_api_key' | 'ai_endpoint' | null
+type EditingField =
+  | 'page_size'
+  | 'refresh_interval'
+  | 'default_owner'
+  | 'default_repo'
+  | 'new_token'
+  | 'bookmark_add'
+  | 'ai_model'
+  | 'ai_api_key'
+  | 'ai_endpoint'
+  | null
 
 const SETTINGS_ITEMS: readonly SettingsItem[] = [
   'provider',
@@ -92,7 +133,15 @@ const SETTINGS_ITEMS: readonly SettingsItem[] = [
   'bookmarked_repos',
 ]
 
-const AI_PROVIDER_ORDER = ['', 'anthropic', 'openai', 'copilot', 'gemini', 'ollama', 'custom'] as const
+const AI_PROVIDER_ORDER = [
+  '',
+  'anthropic',
+  'openai',
+  'copilot',
+  'gemini',
+  'ollama',
+  'custom',
+] as const
 
 const AI_PROVIDER_LABELS: Readonly<Record<string, string>> = {
   '': '(none)',
@@ -113,7 +162,10 @@ function maskApiKey(key: string): string {
 // Review Stats sub-component
 // ---------------------------------------------------------------------------
 
-const STATS_RANGES: readonly { readonly label: string; readonly range: DateRange }[] = [
+const STATS_RANGES: readonly {
+  readonly label: string
+  readonly range: DateRange
+}[] = [
   { label: 'Today', range: 'today' },
   { label: 'This Week', range: 'week' },
   { label: 'All Time', range: 'all' },
@@ -135,7 +187,7 @@ function ReviewStatsSection(): React.ReactElement {
           return (
             <Box key={range} gap={2} paddingX={2}>
               <Box width={20}>
-                <Text color={theme.colors.muted}>  {label}</Text>
+                <Text color={theme.colors.muted}> {label}</Text>
               </Box>
               <Text color={theme.colors.text}>
                 {stats.count === 0
@@ -156,7 +208,12 @@ function ReviewStatsSection(): React.ReactElement {
 
 export function SettingsScreen(): React.ReactElement {
   const theme = useTheme()
-  const { config, loading: configLoading, error: configError, updateConfig } = useConfig()
+  const {
+    config,
+    loading: configLoading,
+    error: configError,
+    updateConfig,
+  } = useConfig()
   const {
     tokenInfo,
     availableSources,
@@ -177,7 +234,10 @@ export function SettingsScreen(): React.ReactElement {
   const [bookmarkSelectedIndex, setBookmarkSelectedIndex] = useState(0)
   const [bookmarkError, setBookmarkError] = useState<string | null>(null)
   const [instanceStatuses, setInstanceStatuses] = useState<
-    ReadonlyMap<string, { readonly hasToken: boolean; readonly source: TokenSource }>
+    ReadonlyMap<
+      string,
+      { readonly hasToken: boolean; readonly source: TokenSource }
+    >
   >(new Map())
 
   // Compute configured instances from config
@@ -195,7 +255,9 @@ export function SettingsScreen(): React.ReactElement {
 
     let cancelled = false
     const loadStatuses = async (): Promise<void> => {
-      const entries: Array<[string, { hasToken: boolean; source: TokenSource }]> = []
+      const entries: Array<
+        [string, { hasToken: boolean; source: TokenSource }]
+      > = []
       for (const inst of nonDefaultInstances) {
         const status = await getInstanceAuthStatus(inst.provider, inst.host)
         entries.push([`${inst.provider}:${inst.host}`, status])
@@ -205,7 +267,9 @@ export function SettingsScreen(): React.ReactElement {
       }
     }
     loadStatuses()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [config])
 
   const isEditing = editingField !== null
@@ -215,7 +279,9 @@ export function SettingsScreen(): React.ReactElement {
     const currentProvider = (config?.provider ?? 'github') as Provider
     const currentIndex = PROVIDER_ORDER.indexOf(currentProvider)
     // Only cycle through supported providers
-    const supportedProviders = PROVIDER_ORDER.filter((p) => SUPPORTED_PROVIDERS.has(p))
+    const supportedProviders = PROVIDER_ORDER.filter((p) =>
+      SUPPORTED_PROVIDERS.has(p),
+    )
     const currentSupportedIndex = supportedProviders.indexOf(currentProvider)
     const nextIndex = (currentSupportedIndex + 1) % supportedProviders.length
     const nextProvider = supportedProviders[nextIndex]
@@ -242,7 +308,9 @@ export function SettingsScreen(): React.ReactElement {
 
   const cycleAiProvider = (): void => {
     const current = config?.aiProvider ?? ''
-    const currentIndex = AI_PROVIDER_ORDER.indexOf(current as typeof AI_PROVIDER_ORDER[number])
+    const currentIndex = AI_PROVIDER_ORDER.indexOf(
+      current as (typeof AI_PROVIDER_ORDER)[number],
+    )
     const nextIndex = (currentIndex + 1) % AI_PROVIDER_ORDER.length
     const next = AI_PROVIDER_ORDER[nextIndex] ?? ''
     updateConfig({ aiProvider: next })
@@ -368,7 +436,9 @@ export function SettingsScreen(): React.ReactElement {
         } else if (selectedItem === 'token_source') {
           const currentSource = tokenInfo?.source ?? 'none'
           const sourceOrder: TokenSource[] = ['gh_cli', 'env', 'manual']
-          const availableInOrder = sourceOrder.filter((s) => availableSources.includes(s))
+          const availableInOrder = sourceOrder.filter((s) =>
+            availableSources.includes(s),
+          )
 
           if (availableInOrder.length > 0) {
             const currentIndex = availableInOrder.indexOf(currentSource)
@@ -432,7 +502,9 @@ export function SettingsScreen(): React.ReactElement {
   useInput(
     (input, key) => {
       if (input === 'J' || (key.downArrow && key.shift)) {
-        setBookmarkSelectedIndex((prev) => Math.min(prev + 1, bookmarkedRepos.length - 1))
+        setBookmarkSelectedIndex((prev) =>
+          Math.min(prev + 1, bookmarkedRepos.length - 1),
+        )
       } else if (input === 'K' || (key.upArrow && key.shift)) {
         setBookmarkSelectedIndex((prev) => Math.max(prev - 1, 0))
       }
@@ -459,12 +531,14 @@ export function SettingsScreen(): React.ReactElement {
     if (editingField === field) {
       const isPassword = field === 'new_token' || field === 'ai_api_key'
       return (
-        <Box borderStyle="single" borderColor={theme.colors.accent} paddingX={1} width={40}>
+        <Box
+          borderStyle="single"
+          borderColor={theme.colors.accent}
+          paddingX={1}
+          width={40}
+        >
           {isPassword ? (
-            <PasswordInput
-              onChange={setEditValue}
-              placeholder={placeholder}
-            />
+            <PasswordInput onChange={setEditValue} placeholder={placeholder} />
           ) : (
             <TextInput
               defaultValue={editValue}
@@ -496,7 +570,11 @@ export function SettingsScreen(): React.ReactElement {
         <Box gap={2} paddingX={2}>
           <Box width={20}>
             <Text
-              color={selectedItem === 'token_source' ? theme.colors.accent : theme.colors.muted}
+              color={
+                selectedItem === 'token_source'
+                  ? theme.colors.accent
+                  : theme.colors.muted
+              }
               bold={selectedItem === 'token_source'}
             >
               {selectedItem === 'token_source' ? '> ' : '  '}
@@ -513,7 +591,7 @@ export function SettingsScreen(): React.ReactElement {
 
         <Box gap={2} paddingX={2}>
           <Box width={20}>
-            <Text color={theme.colors.muted}>  Token</Text>
+            <Text color={theme.colors.muted}> Token</Text>
           </Box>
           <Text color={theme.colors.text}>
             {tokenInfo?.maskedToken ?? '(none)'}
@@ -522,19 +600,21 @@ export function SettingsScreen(): React.ReactElement {
 
         <Box gap={2} paddingX={2}>
           <Box width={20}>
-            <Text color={theme.colors.muted}>  Available</Text>
+            <Text color={theme.colors.muted}> Available</Text>
           </Box>
           <Text color={theme.colors.muted}>
-            {availableSources.length > 0
-              ? availableSources.join(', ')
-              : 'none'}
+            {availableSources.length > 0 ? availableSources.join(', ') : 'none'}
           </Text>
         </Box>
 
         <Box gap={2} paddingX={2} marginTop={1}>
           <Box width={20}>
             <Text
-              color={selectedItem === 'new_token' ? theme.colors.accent : theme.colors.muted}
+              color={
+                selectedItem === 'new_token'
+                  ? theme.colors.accent
+                  : theme.colors.muted
+              }
               bold={selectedItem === 'new_token'}
             >
               {selectedItem === 'new_token' ? '> ' : '  '}
@@ -542,7 +622,10 @@ export function SettingsScreen(): React.ReactElement {
             </Text>
           </Box>
           {editingField === 'new_token' ? (
-            renderEditableField('new_token', getProviderMeta(getAuthProvider()).tokenPlaceholder)
+            renderEditableField(
+              'new_token',
+              getProviderMeta(getAuthProvider()).tokenPlaceholder,
+            )
           ) : (
             <Text color={theme.colors.muted} dimColor>
               (Enter to add)
@@ -553,7 +636,11 @@ export function SettingsScreen(): React.ReactElement {
         {tokenMessage && (
           <Box paddingX={4} marginTop={1}>
             <Text
-              color={tokenMessage.startsWith('Error') ? theme.colors.error : theme.colors.success}
+              color={
+                tokenMessage.startsWith('Error')
+                  ? theme.colors.error
+                  : theme.colors.success
+              }
             >
               {tokenMessage}
             </Text>
@@ -574,14 +661,21 @@ export function SettingsScreen(): React.ReactElement {
                 const key = `${inst.provider}:${inst.host}`
                 const status = instanceStatuses.get(key)
                 const statusText = status?.hasToken
-                  ? status.source === 'env' ? 'env' : status.source === 'gh_cli' ? 'cli' : 'token'
+                  ? status.source === 'env'
+                    ? 'env'
+                    : status.source === 'gh_cli'
+                      ? 'cli'
+                      : 'token'
                   : 'no token'
-                const statusColor = status?.hasToken ? theme.colors.success : theme.colors.error
+                const statusColor = status?.hasToken
+                  ? theme.colors.success
+                  : theme.colors.error
                 return (
                   <Box key={key} gap={2} paddingX={2}>
                     <Box width={20}>
                       <Text color={theme.colors.muted}>
-                        {'  '}{PROVIDER_LABELS[inst.provider] ?? inst.provider}
+                        {'  '}
+                        {PROVIDER_LABELS[inst.provider] ?? inst.provider}
                       </Text>
                     </Box>
                     <Text color={theme.colors.text}>{inst.host}</Text>
@@ -600,7 +694,11 @@ export function SettingsScreen(): React.ReactElement {
       <Box flexDirection="column" gap={0}>
         <SettingRow
           label="Provider"
-          value={PROVIDER_LABELS[config?.provider ?? 'github'] ?? config?.provider ?? 'github'}
+          value={
+            PROVIDER_LABELS[config?.provider ?? 'github'] ??
+            config?.provider ??
+            'github'
+          }
           isSelected={selectedItem === 'provider'}
           hint="Enter to switch"
         />
@@ -663,7 +761,11 @@ export function SettingsScreen(): React.ReactElement {
       <Box flexDirection="column" gap={0}>
         <SettingRow
           label="AI Provider"
-          value={AI_PROVIDER_LABELS[config?.aiProvider ?? ''] ?? config?.aiProvider ?? '(none)'}
+          value={
+            AI_PROVIDER_LABELS[config?.aiProvider ?? ''] ??
+            config?.aiProvider ??
+            '(none)'
+          }
           isSelected={selectedItem === 'ai_provider'}
           hint="Enter to cycle"
         />
@@ -739,7 +841,7 @@ export function SettingsScreen(): React.ReactElement {
       {isBookmarkSection && (
         <Box paddingX={2}>
           <Text color={theme.colors.muted} dimColor>
-            a:add  x:remove  J/K:select
+            a:add x:remove J/K:select
           </Text>
         </Box>
       )}
@@ -767,13 +869,16 @@ export function SettingsScreen(): React.ReactElement {
           </Box>
         ) : (
           bookmarkedRepos.map((bookmark, index) => {
-            const isBmSelected = isBookmarkSection && index === bookmarkSelectedIndex
+            const isBmSelected =
+              isBookmarkSection && index === bookmarkSelectedIndex
             return (
               <Box key={`${bookmark.owner}/${bookmark.repo}`} paddingX={1}>
                 <Text
                   color={isBmSelected ? theme.colors.accent : theme.colors.text}
                   bold={isBmSelected}
-                  backgroundColor={isBmSelected ? theme.colors.selection : undefined}
+                  backgroundColor={
+                    isBmSelected ? theme.colors.selection : undefined
+                  }
                 >
                   {isBmSelected ? '> ' : '  '}
                   {bookmark.owner}/{bookmark.repo}
@@ -791,13 +896,18 @@ export function SettingsScreen(): React.ReactElement {
           Config: ~/.config/lazyreview/config.yaml
         </Text>
         <Text color={theme.colors.muted} dimColor>
-          Token: {getProviderTokenFilePath(getAuthProvider()).replace(process.env['HOME'] ?? '', '~')}
+          Token:{' '}
+          {getProviderTokenFilePath(getAuthProvider()).replace(
+            process.env['HOME'] ?? '',
+            '~',
+          )}
         </Text>
         <Text color={theme.colors.muted} dimColor>
           Themes: ~/.config/lazyreview/themes/*.yaml
         </Text>
         <Text color={theme.colors.muted} dimColor>
-          Keybindings: add keybindingOverrides to config.yaml (see ? help for defaults)
+          Keybindings: add keybindingOverrides to config.yaml (see ? help for
+          defaults)
         </Text>
       </Box>
 

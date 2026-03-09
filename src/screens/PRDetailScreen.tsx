@@ -34,7 +34,10 @@ import { TimelineTab } from '../components/pr/TimelineTab'
 import { ReviewModal } from '../components/pr/ReviewModal'
 import { CommentModal } from '../components/pr/CommentModal'
 import { MergeModal } from '../components/pr/MergeModal'
-import { ReReviewModal, buildReviewerList } from '../components/pr/ReReviewModal'
+import {
+  ReReviewModal,
+  buildReviewerList,
+} from '../components/pr/ReReviewModal'
 import { LabelPickerModal } from '../components/pr/LabelPickerModal'
 import { AssigneePickerModal } from '../components/pr/AssigneePickerModal'
 import { ReactionPicker } from '../components/pr/ReactionPicker'
@@ -59,8 +62,15 @@ import type { PullRequest } from '../models/pull-request'
 import type { InlineCommentContext } from '../models/inline-comment'
 
 export type { InlineCommentContext }
-export type { ReplyContext, ResolveContext } from '../components/pr/ConversationsTab'
-export type { EditCommentContext, EditDescriptionContext, EditTitleContext } from '../hooks/usePRDetailModals'
+export type {
+  ReplyContext,
+  ResolveContext,
+} from '../components/pr/ConversationsTab'
+export type {
+  EditCommentContext,
+  EditDescriptionContext,
+  EditTitleContext,
+} from '../hooks/usePRDetailModals'
 
 interface PRDetailScreenProps {
   readonly pr: PullRequest
@@ -103,11 +113,19 @@ export function PRDetailScreen({
   const [commitRange, setCommitRange] = useState<CommitRange | null>(null)
   const [aiSummaryExpanded, setAiSummaryExpanded] = useState(false)
   const [showNotesModal, setShowNotesModal] = useState(false)
-  const contentHeight = Math.max(1, (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES)
+  const contentHeight = Math.max(
+    1,
+    (stdout?.rows ?? 24) - PR_DETAIL_RESERVED_LINES,
+  )
 
   // PR notes
   const prNotesKey = `${owner}/${repo}#${pr.number}`
-  const { note: prNote, saveNote: savePRNote, deleteNote: deletePRNote, hasNote: hasPRNote } = usePRNotes(prNotesKey)
+  const {
+    note: prNote,
+    saveNote: savePRNote,
+    deleteNote: deletePRNote,
+    hasNote: hasPRNote,
+  } = usePRNotes(prNotesKey)
 
   // Review session timer (auto-starts on mount, persists on unmount)
   const reviewSessionKey = `${owner}/${repo}#${pr.number}`
@@ -142,7 +160,12 @@ export function PRDetailScreen({
   // Conversations and files tabs publish their own more specific context.
   // Uses `pr` prop directly because `activePR` (fullPR ?? pr) is declared later.
   React.useEffect(() => {
-    if (currentTab === 0 || currentTab === 2 || currentTab === 4 || currentTab === 5) {
+    if (
+      currentTab === 0 ||
+      currentTab === 2 ||
+      currentTab === 4 ||
+      currentTab === 5
+    ) {
       setSelectionContext({
         type: 'pr-detail',
         prState: pr.state,
@@ -188,11 +211,32 @@ export function PRDetailScreen({
   } = usePaginatedFiles(owner, repo, pr.number, activePR.changed_files, {
     enabled: needsFiles,
   })
-  const { data: comments = [], isLoading: commentsLoading } = usePRComments(owner, repo, pr.number, { enabled: needsComments })
-  const { data: reviews = [], isLoading: reviewsLoading } = usePRReviews(owner, repo, pr.number)
-  const { data: commits = [], isLoading: commitsLoading } = usePRCommits(owner, repo, pr.number, { enabled: needsCommits })
-  const { data: reviewThreads } = useReviewThreads(owner, repo, pr.number, { enabled: needsThreads })
-  const { data: issueComments = [] } = useIssueComments(owner, repo, pr.number, { enabled: needsIssueComments })
+  const { data: comments = [], isLoading: commentsLoading } = usePRComments(
+    owner,
+    repo,
+    pr.number,
+    { enabled: needsComments },
+  )
+  const { data: reviews = [], isLoading: reviewsLoading } = usePRReviews(
+    owner,
+    repo,
+    pr.number,
+  )
+  const { data: commits = [], isLoading: commitsLoading } = usePRCommits(
+    owner,
+    repo,
+    pr.number,
+    { enabled: needsCommits },
+  )
+  const { data: reviewThreads } = useReviewThreads(owner, repo, pr.number, {
+    enabled: needsThreads,
+  })
+  const { data: issueComments = [] } = useIssueComments(
+    owner,
+    repo,
+    pr.number,
+    { enabled: needsIssueComments },
+  )
   const { data: currentUser } = useCurrentUser()
 
   // Fetch compare files when a commit range is active
@@ -205,7 +249,8 @@ export function PRDetailScreen({
   )
 
   // Use compare files when range is active, otherwise use full PR files
-  const activeFiles = commitRange !== null && compareFiles.length > 0 ? compareFiles : files
+  const activeFiles =
+    commitRange !== null && compareFiles.length > 0 ? compareFiles : files
 
   // Only show loading for data the current tab needs
   const isCurrentTabLoading = (): boolean => {
@@ -281,11 +326,8 @@ export function PRDetailScreen({
     { enabled: showLabelPicker },
   )
   const updateAssigneesMutation = useUpdateAssignees()
-  const { data: collaborators = [], isLoading: collaboratorsLoading } = useCollaborators(
-    owner,
-    repo,
-    { enabled: showAssigneePicker },
-  )
+  const { data: collaborators = [], isLoading: collaboratorsLoading } =
+    useCollaborators(owner, repo, { enabled: showAssigneePicker })
 
   const handleReviewSubmit = useCallback(
     (body: string, event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT') => {
@@ -321,13 +363,21 @@ export function PRDetailScreen({
     [pendingReview, modals],
   )
 
-  const handleGoToFile = useCallback((path: string) => {
-    setInitialFile(path)
-    setCurrentTab(3) // Switch to Files tab
-    setStatusMessage(`Jumped to ${path}`)
-  }, [setStatusMessage])
+  const handleGoToFile = useCallback(
+    (path: string) => {
+      setInitialFile(path)
+      setCurrentTab(3) // Switch to Files tab
+      setStatusMessage(`Jumped to ${path}`)
+    },
+    [setStatusMessage],
+  )
 
-  const anyModalOpen = modals.hasModal || showLabelPicker || showAssigneePicker || reactionActions.showReactionPicker || showNotesModal
+  const anyModalOpen =
+    modals.hasModal ||
+    showLabelPicker ||
+    showAssigneePicker ||
+    reactionActions.showReactionPicker ||
+    showNotesModal
 
   useManualRefresh({
     isActive: !anyModalOpen,
@@ -357,7 +407,8 @@ export function PRDetailScreen({
             markReady.mutate(
               { owner, repo, prNumber: pr.number, nodeId },
               {
-                onSuccess: () => setStatusMessage('PR marked as ready for review'),
+                onSuccess: () =>
+                  setStatusMessage('PR marked as ready for review'),
                 onError: (err) => setStatusMessage(`Error: ${String(err)}`),
               },
             )
@@ -443,20 +494,24 @@ export function PRDetailScreen({
         setShowAssigneePicker(true)
       } else if (input === 'G') {
         setStatusMessage('Checking out PR #' + pr.number + '...', 10000)
-        checkoutPR(pr.number).then((result) => {
-          setStatusMessage(
-            result.message,
-            result.success ? 3000 : 5000,
-          )
-        }).catch((error: unknown) => {
-          setStatusMessage(
-            `Checkout failed: ${error instanceof Error ? error.message : String(error)}`,
-            5000,
-          )
-        })
+        checkoutPR(pr.number)
+          .then((result) => {
+            setStatusMessage(result.message, result.success ? 3000 : 5000)
+          })
+          .catch((error: unknown) => {
+            setStatusMessage(
+              `Checkout failed: ${error instanceof Error ? error.message : String(error)}`,
+              5000,
+            )
+          })
       } else if (input === 'n') {
         setShowNotesModal(true)
-      } else if (input === 'r' && key.ctrl && currentTab === 0 && aiSummaryExpanded) {
+      } else if (
+        input === 'r' &&
+        key.ctrl &&
+        currentTab === 0 &&
+        aiSummaryExpanded
+      ) {
         aiSummaryHook.regenerateSummary()
       } else if (input === 'q' || key.escape) {
         if (pendingReview.isActive) {
@@ -590,14 +645,19 @@ export function PRDetailScreen({
           allPRs={allPRs}
           onNavigateToPR={onNavigateToPR}
         />
-      ))
+      )),
     )
   }
 
   return (
     <Box flexDirection="column" flexGrow={1} minHeight={0}>
       <Box flexShrink={0} flexDirection="column">
-        <PRHeader pr={activePR} prIndex={prIndex} prTotal={prTotal} hasNotes={hasPRNote} />
+        <PRHeader
+          pr={activePR}
+          prIndex={prIndex}
+          prTotal={prTotal}
+          hasNotes={hasPRNote}
+        />
         <PRTabs activeIndex={currentTab} onChange={setCurrentTab} />
       </Box>
       <Box
@@ -615,7 +675,8 @@ export function PRDetailScreen({
       {pendingReview.isActive && (
         <Box paddingX={1}>
           <Text color={theme.colors.warning} bold>
-            Review in progress ({pendingReview.pendingCount} pending comment{pendingReview.pendingCount !== 1 ? 's' : ''})
+            Review in progress ({pendingReview.pendingCount} pending comment
+            {pendingReview.pendingCount !== 1 ? 's' : ''})
           </Text>
           <Text color={theme.colors.muted}> | R: submit | q: discard</Text>
         </Box>
@@ -623,12 +684,16 @@ export function PRDetailScreen({
       {showDiscardConfirm && (
         <Box paddingX={1} flexDirection="column">
           <Text color={theme.colors.warning} bold>
-            Discard pending review with {pendingReview.pendingCount} comment{pendingReview.pendingCount !== 1 ? 's' : ''}? (y/n)
+            Discard pending review with {pendingReview.pendingCount} comment
+            {pendingReview.pendingCount !== 1 ? 's' : ''}? (y/n)
           </Text>
           {pendingReview.pendingComments.length > 0 && (
             <Box flexDirection="column" paddingLeft={2}>
               {pendingReview.pendingComments.map((c, i) => (
-                <Text key={`${c.path}-${c.line}-${i}`} color={theme.colors.muted}>
+                <Text
+                  key={`${c.path}-${c.line}-${i}`}
+                  color={theme.colors.muted}
+                >
                   {c.path}:{c.line}
                 </Text>
               ))}
@@ -640,19 +705,35 @@ export function PRDetailScreen({
         <ReviewModal
           onSubmit={handleReviewSubmit}
           onClose={modals.closeReviewModal}
-          isSubmitting={pendingReview.isActive ? pendingReview.isSubmitting : modals.submitReviewPending}
-          error={pendingReview.isActive ? pendingReview.error : modals.reviewError}
+          isSubmitting={
+            pendingReview.isActive
+              ? pendingReview.isSubmitting
+              : modals.submitReviewPending
+          }
+          error={
+            pendingReview.isActive ? pendingReview.error : modals.reviewError
+          }
         />
       )}
       {modals.showCommentModal && (
         <CommentModal
-          title={pendingReview.isActive && modals.inlineContext ? 'Add Pending Comment' : modals.commentModalTitle}
+          title={
+            pendingReview.isActive && modals.inlineContext
+              ? 'Add Pending Comment'
+              : modals.commentModalTitle
+          }
           context={modals.commentModalContext}
           defaultValue={modals.commentModalDefaultValue}
           onSubmit={handleCommentSubmit}
           onClose={modals.closeCommentModal}
-          isSubmitting={pendingReview.isActive ? pendingReview.isAdding : modals.commentSubmitPending}
-          error={pendingReview.isActive ? pendingReview.error : modals.commentError}
+          isSubmitting={
+            pendingReview.isActive
+              ? pendingReview.isAdding
+              : modals.commentSubmitPending
+          }
+          error={
+            pendingReview.isActive ? pendingReview.error : modals.commentError
+          }
         />
       )}
       {showDraftConfirm && (

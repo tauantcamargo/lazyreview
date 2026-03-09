@@ -16,14 +16,18 @@ function CheckRunItem({ run }: { readonly run: CheckRun }): React.ReactElement {
   const icon =
     run.status !== 'completed'
       ? '●'
-      : run.conclusion === 'success' || run.conclusion === 'neutral' || run.conclusion === 'skipped'
+      : run.conclusion === 'success' ||
+          run.conclusion === 'neutral' ||
+          run.conclusion === 'skipped'
         ? '✓'
         : '✗'
 
   const color =
     run.status !== 'completed'
       ? theme.colors.warning
-      : run.conclusion === 'success' || run.conclusion === 'neutral' || run.conclusion === 'skipped'
+      : run.conclusion === 'success' ||
+          run.conclusion === 'neutral' ||
+          run.conclusion === 'skipped'
         ? theme.colors.success
         : theme.colors.error
 
@@ -34,9 +38,11 @@ function CheckRunItem({ run }: { readonly run: CheckRun }): React.ReactElement {
       {run.status !== 'completed' && (
         <Text color={theme.colors.muted}>({run.status})</Text>
       )}
-      {run.status === 'completed' && run.conclusion && run.conclusion !== 'success' && (
-        <Text color={theme.colors.muted}>({run.conclusion})</Text>
-      )}
+      {run.status === 'completed' &&
+        run.conclusion &&
+        run.conclusion !== 'success' && (
+          <Text color={theme.colors.muted}>({run.conclusion})</Text>
+        )}
     </Box>
   )
 }

@@ -69,9 +69,7 @@ export function buildCrossFileMatches(
 /**
  * Count how many unique files have matches.
  */
-export function countMatchedFiles(
-  matches: readonly CrossFileMatch[],
-): number {
+export function countMatchedFiles(matches: readonly CrossFileMatch[]): number {
   const seen = new Set<number>()
   for (const match of matches) {
     seen.add(match.fileIndex)
@@ -117,7 +115,7 @@ export function useCrossFileSearch(
     }
     // Eagerly compute matches so we can return the first one immediately
     const eagerMatches = buildCrossFileMatches(files, query)
-    return eagerMatches.length > 0 ? eagerMatches[0] ?? null : null
+    return eagerMatches.length > 0 ? (eagerMatches[0] ?? null) : null
   }, [query, files])
 
   const clearSearch = useCallback(() => {
@@ -144,8 +142,7 @@ export function useCrossFileSearch(
 
   const navigatePrev = useCallback((): CrossFileMatch | null => {
     if (matches.length === 0) return null
-    const prevIndex =
-      (currentIndex - 1 + matches.length) % matches.length
+    const prevIndex = (currentIndex - 1 + matches.length) % matches.length
     setCurrentIndex(prevIndex)
     return matches[prevIndex] ?? null
   }, [currentIndex, matches])

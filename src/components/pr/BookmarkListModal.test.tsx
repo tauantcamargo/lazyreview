@@ -58,7 +58,9 @@ describe('BookmarkListModal logic', () => {
       // Bookmarks come pre-sorted from listBookmarks
       for (let i = 0; i < mockBookmarks.length - 1; i++) {
         expect(
-          mockBookmarks[i]!.register.localeCompare(mockBookmarks[i + 1]!.register),
+          mockBookmarks[i]!.register.localeCompare(
+            mockBookmarks[i + 1]!.register,
+          ),
         ).toBeLessThan(0)
       }
     })

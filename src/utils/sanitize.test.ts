@@ -15,13 +15,19 @@ describe('sanitizeApiError', () => {
     expect(sanitizeApiError(403, 'Forbidden')).toBe('Permission denied')
     expect(sanitizeApiError(404, 'Not Found')).toBe('Resource not found')
     expect(sanitizeApiError(422, 'Unprocessable')).toBe('Validation failed')
-    expect(sanitizeApiError(429, 'Too Many Requests')).toBe('Rate limit exceeded')
-    expect(sanitizeApiError(500, 'Internal Server Error')).toBe('Internal server error')
+    expect(sanitizeApiError(429, 'Too Many Requests')).toBe(
+      'Rate limit exceeded',
+    )
+    expect(sanitizeApiError(500, 'Internal Server Error')).toBe(
+      'Internal server error',
+    )
   })
 
   it('returns generic message for unknown status codes', () => {
     expect(sanitizeApiError(418, "I'm a teapot")).toBe("HTTP 418 I'm a teapot")
-    expect(sanitizeApiError(504, 'Gateway Timeout')).toBe('HTTP 504 Gateway Timeout')
+    expect(sanitizeApiError(504, 'Gateway Timeout')).toBe(
+      'HTTP 504 Gateway Timeout',
+    )
   })
 })
 
@@ -113,16 +119,30 @@ describe('validateRef', () => {
 
 describe('isValidGitHubToken', () => {
   it('accepts tokens with valid prefixes', () => {
-    expect(isValidGitHubToken('ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ12345678')).toBe(true)
-    expect(isValidGitHubToken('gho_aBcDeFgHiJkLmNoPqRsTuVwXyZ12345678')).toBe(true)
-    expect(isValidGitHubToken('ghu_aBcDeFgHiJkLmNoPqRsTuVwXyZ12345678')).toBe(true)
-    expect(isValidGitHubToken('ghs_aBcDeFgHiJkLmNoPqRsTuVwXyZ12345678')).toBe(true)
-    expect(isValidGitHubToken('ghr_aBcDeFgHiJkLmNoPqRsTuVwXyZ12345678')).toBe(true)
-    expect(isValidGitHubToken('github_pat_1234567890abcdefghijklmnopqrstuvwxyz')).toBe(true)
+    expect(isValidGitHubToken('ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ12345678')).toBe(
+      true,
+    )
+    expect(isValidGitHubToken('gho_aBcDeFgHiJkLmNoPqRsTuVwXyZ12345678')).toBe(
+      true,
+    )
+    expect(isValidGitHubToken('ghu_aBcDeFgHiJkLmNoPqRsTuVwXyZ12345678')).toBe(
+      true,
+    )
+    expect(isValidGitHubToken('ghs_aBcDeFgHiJkLmNoPqRsTuVwXyZ12345678')).toBe(
+      true,
+    )
+    expect(isValidGitHubToken('ghr_aBcDeFgHiJkLmNoPqRsTuVwXyZ12345678')).toBe(
+      true,
+    )
+    expect(
+      isValidGitHubToken('github_pat_1234567890abcdefghijklmnopqrstuvwxyz'),
+    ).toBe(true)
   })
 
   it('rejects tokens with invalid prefixes', () => {
-    expect(isValidGitHubToken('sk-proj-aBcDeFgHiJkLmNoPqRsTuVwXyZ12')).toBe(false)
+    expect(isValidGitHubToken('sk-proj-aBcDeFgHiJkLmNoPqRsTuVwXyZ12')).toBe(
+      false,
+    )
     expect(isValidGitHubToken('random_token_value_here_1234567')).toBe(false)
   })
 

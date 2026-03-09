@@ -21,10 +21,7 @@ function makeLine(
   return { type, content, oldLineNumber, newLineNumber }
 }
 
-function makeHunk(
-  lines: DiffLine[],
-  overrides?: Partial<Hunk>,
-): Hunk {
+function makeHunk(lines: DiffLine[], overrides?: Partial<Hunk>): Hunk {
   return {
     header: '@@ -1,1 +1,1 @@',
     oldStart: 1,
@@ -84,7 +81,8 @@ describe('findNextHunkStart (unified)', () => {
 
     // Find a context line in hunk 0 and jump to next hunk
     const contextIndex = rows.findIndex(
-      (r) => r.type === 'line' && r.line.type === 'context' && r.hunkIndex === 0,
+      (r) =>
+        r.type === 'line' && r.line.type === 'context' && r.hunkIndex === 0,
     )
     const result = findNextHunkStart(rows, contextIndex)
     expect(result).toBeGreaterThan(contextIndex)
@@ -230,11 +228,7 @@ describe('findRowByLineNumber (unified)', () => {
   })
 
   it('finds a del line by its old line number', () => {
-    const patch = [
-      '@@ -10,2 +10,1 @@',
-      ' context',
-      '-deleted',
-    ].join('\n')
+    const patch = ['@@ -10,2 +10,1 @@', ' context', '-deleted'].join('\n')
     const hunks = parseDiffPatch(patch)
     const rows = buildDiffRows(hunks)
 
@@ -247,11 +241,7 @@ describe('findRowByLineNumber (unified)', () => {
   })
 
   it('returns -1 when line number is not found', () => {
-    const patch = [
-      '@@ -1,2 +1,2 @@',
-      ' line one',
-      ' line two',
-    ].join('\n')
+    const patch = ['@@ -1,2 +1,2 @@', ' line one', ' line two'].join('\n')
     const hunks = parseDiffPatch(patch)
     const rows = buildDiffRows(hunks)
 
@@ -292,7 +282,12 @@ describe('findNextSbsHunkStart (side-by-side)', () => {
     if (row?.type === 'paired') {
       const leftType = row.left?.type
       const rightType = row.right?.type
-      expect(leftType === 'add' || leftType === 'del' || rightType === 'add' || rightType === 'del').toBe(true)
+      expect(
+        leftType === 'add' ||
+          leftType === 'del' ||
+          rightType === 'add' ||
+          rightType === 'del',
+      ).toBe(true)
     }
   })
 
@@ -342,11 +337,7 @@ describe('findSbsRowByLineNumber (side-by-side)', () => {
   })
 
   it('returns -1 when line not found', () => {
-    const patch = [
-      '@@ -1,2 +1,2 @@',
-      ' line one',
-      ' line two',
-    ].join('\n')
+    const patch = ['@@ -1,2 +1,2 @@', ' line one', ' line two'].join('\n')
     const hunks = parseDiffPatch(patch)
     const rows = buildSideBySideRows(hunks)
 

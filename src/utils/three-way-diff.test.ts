@@ -175,12 +175,9 @@ describe('parseConflictMarkers', () => {
   })
 
   it('handles empty theirs section', () => {
-    const content = [
-      '<<<<<<< HEAD',
-      'ours',
-      '=======',
-      '>>>>>>> branch',
-    ].join('\n')
+    const content = ['<<<<<<< HEAD', 'ours', '=======', '>>>>>>> branch'].join(
+      '\n',
+    )
 
     const regions = parseConflictMarkers(content)
     expect(regions).toHaveLength(1)
@@ -349,7 +346,13 @@ describe('countConflicts', () => {
       { type: 'common', lines: ['before'] },
       {
         type: 'conflict',
-        region: { ours: ['a'], base: [], theirs: ['b'], startLine: 1, endLine: 5 },
+        region: {
+          ours: ['a'],
+          base: [],
+          theirs: ['b'],
+          startLine: 1,
+          endLine: 5,
+        },
       },
       { type: 'common', lines: ['after'] },
     ]
@@ -361,16 +364,34 @@ describe('countConflicts', () => {
       { type: 'common', lines: ['before'] },
       {
         type: 'conflict',
-        region: { ours: ['a'], base: [], theirs: ['b'], startLine: 1, endLine: 5 },
+        region: {
+          ours: ['a'],
+          base: [],
+          theirs: ['b'],
+          startLine: 1,
+          endLine: 5,
+        },
       },
       { type: 'common', lines: ['mid'] },
       {
         type: 'conflict',
-        region: { ours: ['c'], base: [], theirs: ['d'], startLine: 7, endLine: 11 },
+        region: {
+          ours: ['c'],
+          base: [],
+          theirs: ['d'],
+          startLine: 7,
+          endLine: 11,
+        },
       },
       {
         type: 'conflict',
-        region: { ours: ['e'], base: [], theirs: ['f'], startLine: 12, endLine: 16 },
+        region: {
+          ours: ['e'],
+          base: [],
+          theirs: ['f'],
+          startLine: 12,
+          endLine: 16,
+        },
       },
     ]
     expect(countConflicts(chunks)).toBe(3)

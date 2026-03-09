@@ -3,11 +3,19 @@ import { Box, Text, useStdout, measureElement } from 'ink'
 import type { DOMElement } from 'ink'
 import { TextInput, Spinner } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
-import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
+import {
+  useListNavigation,
+  deriveScrollOffset,
+} from '../../hooks/useListNavigation'
 import { setScreenContext } from '../../hooks/useScreenContext'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { useViewedFiles } from '../../hooks/useViewedFiles'
-import { useFileReviewStatus, computeSummary, findNextUnreviewed, findPrevUnreviewed } from '../../hooks/useFileReviewStatus'
+import {
+  useFileReviewStatus,
+  computeSummary,
+  findNextUnreviewed,
+  findPrevUnreviewed,
+} from '../../hooks/useFileReviewStatus'
 import { useDiffSearch } from '../../hooks/useDiffSearch'
 import { useCrossFileSearch } from '../../hooks/useCrossFileSearch'
 import { useVisualSelect } from '../../hooks/useVisualSelect'
@@ -28,7 +36,10 @@ import type { ReviewThread } from '../../services/GitHubApiTypes'
 import { buildCommentsByLine } from './buildCommentsByLine'
 import { EmptyState } from '../common/EmptyState'
 import { DiffView, buildDiffRows } from './DiffView'
-import { computeMaxDiffLineLength, computeMaxSbsLineLength } from './diffScrollHelpers'
+import {
+  computeMaxDiffLineLength,
+  computeMaxSbsLineLength,
+} from './diffScrollHelpers'
 import {
   SideBySideDiffView,
   buildSideBySideRows,
@@ -44,12 +55,18 @@ import type { InlineCommentContext } from '../../models/inline-comment'
 import { ConflictBanner } from './ConflictBanner'
 import { detectConflictState } from '../../utils/conflict-detection'
 import { DiffStatsSummary } from './DiffStatsSummary'
-import { findRowByLineNumber, findSbsRowByLineNumber } from './diffNavigationHelpers'
+import {
+  findRowByLineNumber,
+  findSbsRowByLineNumber,
+} from './diffNavigationHelpers'
 import { applyHunkFolding } from '../../utils/hunk-folding'
 import { FilePickerModal } from './FilePickerModal'
 import { AiReviewModal } from './AiReviewModal'
 import type { AiReviewContext } from './AiReviewModal'
-import { buildLineReviewPrompt, determineLineContext } from '../../services/ai/prompts'
+import {
+  buildLineReviewPrompt,
+  determineLineContext,
+} from '../../services/ai/prompts'
 import { getLanguageFromFilename } from '../../utils/languages'
 
 export function fuzzyMatch(filename: string, query: string): boolean {
@@ -171,14 +188,17 @@ export function FilesTab({
   const [selectedFileIndex, setSelectedFileIndex] = useState(0)
   const [diffMode, setDiffMode] = useState<DiffMode>('unified')
   const [treePanelPct, setTreePanelPct] = useState(30)
-  const [collapsedDirs, setCollapsedDirs] = useState<ReadonlySet<string>>(new Set())
+  const [collapsedDirs, setCollapsedDirs] = useState<ReadonlySet<string>>(
+    new Set(),
+  )
   const visual = useVisualSelect()
 
   // AI review state
   const { aiConfig } = useAiConfig()
   const aiReview = useAiReview(aiConfig)
   const [showAiReview, setShowAiReview] = useState(false)
-  const [aiReviewContext, setAiReviewContext] = useState<AiReviewContext | null>(null)
+  const [aiReviewContext, setAiReviewContext] =
+    useState<AiReviewContext | null>(null)
 
   // Measure actual container width
   const containerRef = useRef<DOMElement>(null)
@@ -209,7 +229,10 @@ export function FilesTab({
   const [foldedHunks, setFoldedHunks] = useState<ReadonlySet<number>>(new Set())
   const [isFilePickerOpen, setIsFilePickerOpen] = useState(false)
 
-  const treePanelWidth = Math.max(32, Math.floor(containerWidth * (treePanelPct / 100)))
+  const treePanelWidth = Math.max(
+    32,
+    Math.floor(containerWidth * (treePanelPct / 100)),
+  )
   const diffContentWidth = Math.max(10, containerWidth - treePanelWidth - 8)
 
   // Use streamed files as the base for filtering so large PRs render progressively
@@ -242,7 +265,11 @@ export function FilesTab({
   const { selectedIndex: treeSelectedIndex } = useListNavigation({
     itemCount: fileOrder.length,
     viewportHeight: treeViewportHeight,
-    isActive: isActive && focusPanel === 'tree' && !isFiltering && !crossFileSearch.isSearching,
+    isActive:
+      isActive &&
+      focusPanel === 'tree' &&
+      !isFiltering &&
+      !crossFileSearch.isSearching,
   })
   const selectedRowIndex = displayRows.findIndex(
     (r) => r.type === 'file' && r.fileIndex === treeSelectedIndex,
@@ -260,7 +287,9 @@ export function FilesTab({
 
   React.useEffect(() => {
     if (isActive) {
-      setScreenContext(focusPanel === 'tree' ? 'pr-detail-files-tree' : 'pr-detail-files-diff')
+      setScreenContext(
+        focusPanel === 'tree' ? 'pr-detail-files-tree' : 'pr-detail-files-diff',
+      )
     }
   }, [focusPanel, isActive])
 
@@ -277,7 +306,8 @@ export function FilesTab({
   const inlinePatch = selectedFile?.patch ?? null
 
   // Lazy diff loading: fetch on-demand when file has no inline patch
-  const needsLazyDiff = !!selectedFilename && inlinePatch == null && !!owner && !!repo && !!prNumber
+  const needsLazyDiff =
+    !!selectedFilename && inlinePatch == null && !!owner && !!repo && !!prNumber
   const { data: lazyDiffFile, isLoading: isDiffLoading } = useFileDiff(
     owner ?? '',
     repo ?? '',
@@ -301,15 +331,18 @@ export function FilesTab({
     const fileComments = comments.filter((c) => c.path === selectedFilename)
     const ids = fileComments.map((c) => `${c.id}:${c.body.length}`).join(',')
     const threadIds = reviewThreads
-      ? reviewThreads
-          .map((t) => `${t.id}:${t.isResolved ? 1 : 0}`)
-          .join(',')
+      ? reviewThreads.map((t) => `${t.id}:${t.isResolved ? 1 : 0}`).join(',')
       : ''
     return `${ids}|${threadIds}`
   }, [comments, reviewThreads, selectedFilename])
 
   const commentsByLine = useMemo(
-    () => buildCommentsByLine(comments, reviewThreads, selectedFilename ?? undefined),
+    () =>
+      buildCommentsByLine(
+        comments,
+        reviewThreads,
+        selectedFilename ?? undefined,
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [commentIdKey, selectedFilename],
   )
@@ -376,7 +409,10 @@ export function FilesTab({
     [sideBySideRows],
   )
 
-  const maxDiffScrollXUnified = Math.max(0, maxDiffLineLength - diffContentWidth)
+  const maxDiffScrollXUnified = Math.max(
+    0,
+    maxDiffLineLength - diffContentWidth,
+  )
   const maxDiffScrollXSbs = Math.max(
     0,
     maxDiffLineLengthSbs - diffContentWidthSbs,
@@ -386,12 +422,20 @@ export function FilesTab({
       ? maxDiffScrollXSbs
       : maxDiffScrollXUnified
 
-  const { selectedIndex: diffSelectedLine, scrollOffset: diffScrollOffset, setSelectedIndex: setDiffSelectedLine } =
-    useListNavigation({
-      itemCount: totalDiffLines,
-      viewportHeight,
-      isActive: isActive && focusPanel === 'diff' && !search.isDiffSearching && !crossFileSearch.isSearching && !isGoToLine,
-    })
+  const {
+    selectedIndex: diffSelectedLine,
+    scrollOffset: diffScrollOffset,
+    setSelectedIndex: setDiffSelectedLine,
+  } = useListNavigation({
+    itemCount: totalDiffLines,
+    viewportHeight,
+    isActive:
+      isActive &&
+      focusPanel === 'diff' &&
+      !search.isDiffSearching &&
+      !crossFileSearch.isSearching &&
+      !isGoToLine,
+  })
 
   const handleAiReviewRequest = useCallback(
     (lineContext: AiReviewLineContext) => {
@@ -476,7 +520,11 @@ export function FilesTab({
     const currentFile = fileOrder[treeSelectedIndex]
     if (!currentFile) return
     const filenames = fileOrder.map((f) => f.filename)
-    const next = findNextUnreviewed(currentFile.filename, filenames, fileReview.statuses)
+    const next = findNextUnreviewed(
+      currentFile.filename,
+      filenames,
+      fileReview.statuses,
+    )
     if (next) {
       const idx = fileOrder.findIndex((f) => f.filename === next)
       if (idx >= 0) {
@@ -489,7 +537,11 @@ export function FilesTab({
     const currentFile = fileOrder[treeSelectedIndex]
     if (!currentFile) return
     const filenames = fileOrder.map((f) => f.filename)
-    const prev = findPrevUnreviewed(currentFile.filename, filenames, fileReview.statuses)
+    const prev = findPrevUnreviewed(
+      currentFile.filename,
+      filenames,
+      fileReview.statuses,
+    )
     if (prev) {
       const idx = fileOrder.findIndex((f) => f.filename === prev)
       if (idx >= 0) {
@@ -572,7 +624,9 @@ export function FilesTab({
     if (thread) {
       const firstComment = thread.comments[0]
       const isOwn =
-        !!currentUser && !!firstComment && firstComment.user.login === currentUser
+        !!currentUser &&
+        !!firstComment &&
+        firstComment.user.login === currentUser
       setSelectionContext({
         type: 'diff-row',
         isCommentRow: true,
@@ -587,12 +641,22 @@ export function FilesTab({
         isOwnComment: false,
       })
     }
-  }, [isActive, focusPanel, diffSelectedLine, effectiveDiffMode, allRows, sideBySideRows, currentUser])
+  }, [
+    isActive,
+    focusPanel,
+    diffSelectedLine,
+    effectiveDiffMode,
+    allRows,
+    sideBySideRows,
+    currentUser,
+  ])
 
   // Compute recently viewed filenames for file picker ordering
   const recentlyViewedFilenames = useMemo(() => {
     if (!prUrl) return [] as string[]
-    return files.filter((f) => isViewed(prUrl, f.filename)).map((f) => f.filename)
+    return files
+      .filter((f) => isViewed(prUrl, f.filename))
+      .map((f) => f.filename)
   }, [files, prUrl, isViewed])
 
   const handleFilePickerSelect = React.useCallback(
@@ -612,271 +676,323 @@ export function FilesTab({
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      {conflictState && (
-        <ConflictBanner state={conflictState} />
-      )}
+      {conflictState && <ConflictBanner state={conflictState} />}
       <Box ref={containerRef} flexDirection="row" flexGrow={1}>
-      {isFilePickerOpen && (
-        <FilePickerModal
-          files={files}
-          recentlyViewed={recentlyViewedFilenames}
-          onSelect={handleFilePickerSelect}
-          onClose={() => setIsFilePickerOpen(false)}
-        />
-      )}
-      {showAiReview && aiReviewContext && (
-        <AiReviewModal
-          context={aiReviewContext}
-          response={aiReview.response}
-          isLoading={aiReview.isLoading}
-          error={aiReview.error}
-          providerName={aiReview.providerName}
-          modelName={aiReview.modelName}
-          onClose={handleAiReviewClose}
-          onRegenerate={handleAiReviewRegenerate}
-        />
-      )}
-      <Box
-        flexDirection="column"
-        width={`${treePanelPct}%`}
-        minWidth={32}
-        minHeight={0}
-        overflow="hidden"
-        borderStyle="single"
-        borderColor={
-          focusPanel === 'tree' && isActive
-            ? theme.colors.accent
-            : theme.colors.border
-        }
-      >
-        <Box paddingX={1} paddingY={0} gap={1}>
-          <Text color={theme.colors.accent} bold>
-            Files
-          </Text>
-          <Text color={theme.colors.muted}>
-            {activeFilter || isFiltering
-              ? `(${filteredFiles.length} of ${files.length})`
-              : `(${files.length})`}
-          </Text>
-          {prKey && reviewSummary.total > 0 && (reviewSummary.approved > 0 || reviewSummary.needsChanges > 0 || reviewSummary.skipped > 0) ? (
-            <Text color={theme.colors.info}>
-              {reviewSummary.approved + reviewSummary.needsChanges + reviewSummary.skipped}/{reviewSummary.total} reviewed
-              {reviewSummary.approved > 0 ? ` (${reviewSummary.approved} approved` : ''}
-              {reviewSummary.needsChanges > 0 ? `${reviewSummary.approved > 0 ? ', ' : ' ('}${reviewSummary.needsChanges} flagged` : ''}
-              {reviewSummary.skipped > 0 ? `${reviewSummary.approved > 0 || reviewSummary.needsChanges > 0 ? ', ' : ' ('}${reviewSummary.skipped} skipped` : ''}
-              {(reviewSummary.approved > 0 || reviewSummary.needsChanges > 0 || reviewSummary.skipped > 0) ? ')' : ''}
-            </Text>
-          ) : prUrl ? (
-            <Text color={theme.colors.success}>
-              {getViewedCount(prUrl)}/{files.length} viewed
-            </Text>
-          ) : null}
-          {activeFilter && !isFiltering && (
-            <Text color={theme.colors.warning}>[/{activeFilter}]</Text>
-          )}
-          {totalFileCount != null && totalFileCount > files.length && (
-            <Text color={theme.colors.info}>
-              [{files.length}/{totalFileCount}]
-            </Text>
-          )}
-          {hasMoreFiles && (
-            <Text color={theme.colors.muted}>[more...]</Text>
-          )}
-          {streaming.isStreaming && (
-            <Text color={theme.colors.info}>
-              Loading files... ({streaming.progress.loaded}/{streaming.progress.total})
-            </Text>
-          )}
-          {commitRangeLabel && (
-            <Text color={theme.colors.warning}>[range: {commitRangeLabel}]</Text>
-          )}
-        </Box>
-        <DiffStatsSummary files={files} />
-        {isFiltering && (
-          <Box paddingX={1}>
-            <Text color={theme.colors.accent}>/</Text>
-            <TextInput
-              defaultValue={filterQuery}
-              onChange={setFilterQuery}
-              placeholder="filter files..."
-            />
-          </Box>
+        {isFilePickerOpen && (
+          <FilePickerModal
+            files={files}
+            recentlyViewed={recentlyViewedFilenames}
+            onSelect={handleFilePickerSelect}
+            onClose={() => setIsFilePickerOpen(false)}
+          />
+        )}
+        {showAiReview && aiReviewContext && (
+          <AiReviewModal
+            context={aiReviewContext}
+            response={aiReview.response}
+            isLoading={aiReview.isLoading}
+            error={aiReview.error}
+            providerName={aiReview.providerName}
+            modelName={aiReview.modelName}
+            onClose={handleAiReviewClose}
+            onRegenerate={handleAiReviewRegenerate}
+          />
         )}
         <Box
           flexDirection="column"
-          width="100%"
-          minWidth={0}
-          paddingX={1}
-          overflow="hidden"
-          height={treeViewportHeight}
+          width={`${treePanelPct}%`}
+          minWidth={32}
           minHeight={0}
-          flexShrink={1}
+          overflow="hidden"
+          borderStyle="single"
+          borderColor={
+            focusPanel === 'tree' && isActive
+              ? theme.colors.accent
+              : theme.colors.border
+          }
         >
-          {visibleRows.map((row, i) => {
-            const rowIndex = treeScrollOffset + i
-            return row.type === 'dir' ? (
-              <Box
-                key={`row-${rowIndex}`}
-                width="100%"
-                minWidth={0}
-                overflow="hidden"
-                paddingLeft={row.indent * 2}
-              >
-                <Text wrap="truncate-end" color={theme.colors.muted}>
-                  {row.isCollapsed ? '\u25B8' : '\u25BE'} {row.name}/
+          <Box paddingX={1} paddingY={0} gap={1}>
+            <Text color={theme.colors.accent} bold>
+              Files
+            </Text>
+            <Text color={theme.colors.muted}>
+              {activeFilter || isFiltering
+                ? `(${filteredFiles.length} of ${files.length})`
+                : `(${files.length})`}
+            </Text>
+            {prKey &&
+            reviewSummary.total > 0 &&
+            (reviewSummary.approved > 0 ||
+              reviewSummary.needsChanges > 0 ||
+              reviewSummary.skipped > 0) ? (
+              <Text color={theme.colors.info}>
+                {reviewSummary.approved +
+                  reviewSummary.needsChanges +
+                  reviewSummary.skipped}
+                /{reviewSummary.total} reviewed
+                {reviewSummary.approved > 0
+                  ? ` (${reviewSummary.approved} approved`
+                  : ''}
+                {reviewSummary.needsChanges > 0
+                  ? `${reviewSummary.approved > 0 ? ', ' : ' ('}${reviewSummary.needsChanges} flagged`
+                  : ''}
+                {reviewSummary.skipped > 0
+                  ? `${reviewSummary.approved > 0 || reviewSummary.needsChanges > 0 ? ', ' : ' ('}${reviewSummary.skipped} skipped`
+                  : ''}
+                {reviewSummary.approved > 0 ||
+                reviewSummary.needsChanges > 0 ||
+                reviewSummary.skipped > 0
+                  ? ')'
+                  : ''}
+              </Text>
+            ) : prUrl ? (
+              <Text color={theme.colors.success}>
+                {getViewedCount(prUrl)}/{files.length} viewed
+              </Text>
+            ) : null}
+            {activeFilter && !isFiltering && (
+              <Text color={theme.colors.warning}>[/{activeFilter}]</Text>
+            )}
+            {totalFileCount != null && totalFileCount > files.length && (
+              <Text color={theme.colors.info}>
+                [{files.length}/{totalFileCount}]
+              </Text>
+            )}
+            {hasMoreFiles && <Text color={theme.colors.muted}>[more...]</Text>}
+            {streaming.isStreaming && (
+              <Text color={theme.colors.info}>
+                Loading files... ({streaming.progress.loaded}/
+                {streaming.progress.total})
+              </Text>
+            )}
+            {commitRangeLabel && (
+              <Text color={theme.colors.warning}>
+                [range: {commitRangeLabel}]
+              </Text>
+            )}
+          </Box>
+          <DiffStatsSummary files={files} />
+          {isFiltering && (
+            <Box paddingX={1}>
+              <Text color={theme.colors.accent}>/</Text>
+              <TextInput
+                defaultValue={filterQuery}
+                onChange={setFilterQuery}
+                placeholder="filter files..."
+              />
+            </Box>
+          )}
+          <Box
+            flexDirection="column"
+            width="100%"
+            minWidth={0}
+            paddingX={1}
+            overflow="hidden"
+            height={treeViewportHeight}
+            minHeight={0}
+            flexShrink={1}
+          >
+            {visibleRows.map((row, i) => {
+              const rowIndex = treeScrollOffset + i
+              return row.type === 'dir' ? (
+                <Box
+                  key={`row-${rowIndex}`}
+                  width="100%"
+                  minWidth={0}
+                  overflow="hidden"
+                  paddingLeft={row.indent * 2}
+                >
+                  <Text wrap="truncate-end" color={theme.colors.muted}>
+                    {row.isCollapsed ? '\u25B8' : '\u25BE'} {row.name}/
+                  </Text>
+                </Box>
+              ) : (
+                <Box
+                  key={`row-${rowIndex}`}
+                  width="100%"
+                  minWidth={0}
+                  overflow="hidden"
+                  paddingLeft={row.indent * 2}
+                >
+                  <FileItem
+                    item={row.file}
+                    isFocus={
+                      isPanelFocused && row.fileIndex === treeSelectedIndex
+                    }
+                    isSelected={row.fileIndex === selectedFileIndex}
+                    isViewed={
+                      prUrl ? isViewed(prUrl, row.file.filename) : undefined
+                    }
+                    reviewStatus={
+                      prKey
+                        ? fileReview.statuses.get(row.file.filename)
+                        : undefined
+                    }
+                  />
+                </Box>
+              )
+            })}
+          </Box>
+        </Box>
+        <Box
+          flexDirection="column"
+          flexGrow={1}
+          minWidth={0}
+          overflow="hidden"
+          borderStyle="single"
+          borderColor={
+            focusPanel === 'diff' && isActive
+              ? theme.colors.accent
+              : theme.colors.border
+          }
+        >
+          <Box paddingX={1} paddingY={0} gap={2} overflow="hidden">
+            <Text wrap="truncate-end" color={theme.colors.accent} bold>
+              {selectedFile?.filename ?? 'No file selected'}
+            </Text>
+            {selectedFile && (
+              <Box gap={1}>
+                <Text color={theme.colors.diffAdd}>
+                  +{selectedFile.additions}
+                </Text>
+                <Text color={theme.colors.diffDel}>
+                  -{selectedFile.deletions}
                 </Text>
               </Box>
+            )}
+            {totalDiffLines > 0 && focusPanel === 'diff' && (
+              <Text color={theme.colors.muted}>
+                {diffSelectedLine + 1}/{totalDiffLines}
+              </Text>
+            )}
+            {effectiveDiffMode === 'side-by-side' && (
+              <Text color={theme.colors.info}>[split]</Text>
+            )}
+            {maxDiffScrollX > 0 && (
+              <Text color={theme.colors.muted}>[left/right h-scroll]</Text>
+            )}
+            {visual.visualStart != null && focusPanel === 'diff' && (
+              <Text color={theme.colors.warning} bold>
+                -- VISUAL LINE --
+              </Text>
+            )}
+            {search.activeDiffSearch && !search.isDiffSearching && (
+              <Text color={theme.colors.warning}>
+                [/{search.activeDiffSearch}]{' '}
+                {search.diffSearchMatches.length > 0
+                  ? `${search.currentSearchMatchIndex + 1}/${search.diffSearchMatches.length}`
+                  : 'no matches'}
+              </Text>
+            )}
+            {crossFileSearch.activeQuery &&
+              !crossFileSearch.isSearching &&
+              !search.activeDiffSearch && (
+                <Text color={theme.colors.info}>
+                  [F:{crossFileSearch.activeQuery}]{' '}
+                  {crossFileSearch.matches.length > 0
+                    ? `${crossFileSearch.currentIndex + 1}/${crossFileSearch.matches.length} (${crossFileSearch.matchedFileCount()} files)`
+                    : 'no matches'}
+                </Text>
+              )}
+          </Box>
+          {crossFileSearch.isSearching && (
+            <Box paddingX={1}>
+              <Text color={theme.colors.info}>F/</Text>
+              <TextInput
+                defaultValue={crossFileSearch.query}
+                onChange={crossFileSearch.setQuery}
+                placeholder="search all files..."
+              />
+            </Box>
+          )}
+          {search.isDiffSearching && (
+            <Box paddingX={1}>
+              <Text color={theme.colors.accent}>/</Text>
+              <TextInput
+                defaultValue={search.diffSearchQuery}
+                onChange={search.setDiffSearchQuery}
+                placeholder="search diff..."
+              />
+            </Box>
+          )}
+          {isGoToLine && (
+            <Box paddingX={1}>
+              <Text color={theme.colors.accent}>:</Text>
+              <TextInput
+                defaultValue={goToLineQuery}
+                onChange={setGoToLineQuery}
+                placeholder="line number..."
+              />
+            </Box>
+          )}
+          <Box
+            flexDirection="column"
+            flexGrow={1}
+            minWidth={0}
+            overflow="hidden"
+          >
+            {isDiffLoading && needsLazyDiff ? (
+              <Box justifyContent="center" alignItems="center" flexGrow={1}>
+                <Box gap={1}>
+                  <Spinner />
+                  <Text color={theme.colors.accent}>Loading diff...</Text>
+                </Box>
+              </Box>
+            ) : effectiveDiffMode === 'side-by-side' ? (
+              <SideBySideDiffView
+                rows={sideBySideRows}
+                selectedLine={diffSelectedLine}
+                scrollOffset={diffScrollOffset}
+                viewportHeight={
+                  viewportHeight -
+                  2 -
+                  (search.isDiffSearching ||
+                  crossFileSearch.isSearching ||
+                  isGoToLine
+                    ? 1
+                    : 0)
+                }
+                isActive={isActive && focusPanel === 'diff'}
+                filename={selectedFile?.filename}
+                contentWidth={diffContentWidthSbs}
+                scrollOffsetX={Math.min(diffScrollOffsetX, maxDiffScrollXSbs)}
+                searchMatchIndices={
+                  search.diffSearchMatchSet.size > 0
+                    ? search.diffSearchMatchSet
+                    : undefined
+                }
+              />
             ) : (
-              <Box
-                key={`row-${rowIndex}`}
-                width="100%"
-                minWidth={0}
-                overflow="hidden"
-                paddingLeft={row.indent * 2}
-              >
-                <FileItem
-                  item={row.file}
-                  isFocus={
-                    isPanelFocused && row.fileIndex === treeSelectedIndex
-                  }
-                  isSelected={row.fileIndex === selectedFileIndex}
-                  isViewed={
-                    prUrl ? isViewed(prUrl, row.file.filename) : undefined
-                  }
-                  reviewStatus={
-                    prKey
-                      ? fileReview.statuses.get(row.file.filename)
-                      : undefined
-                  }
-                />
-              </Box>
-            )
-          })}
-        </Box>
-      </Box>
-      <Box
-        flexDirection="column"
-        flexGrow={1}
-        minWidth={0}
-        overflow="hidden"
-        borderStyle="single"
-        borderColor={
-          focusPanel === 'diff' && isActive
-            ? theme.colors.accent
-            : theme.colors.border
-        }
-      >
-        <Box paddingX={1} paddingY={0} gap={2} overflow="hidden">
-          <Text wrap="truncate-end" color={theme.colors.accent} bold>
-            {selectedFile?.filename ?? 'No file selected'}
-          </Text>
-          {selectedFile && (
-            <Box gap={1}>
-              <Text color={theme.colors.diffAdd}>
-                +{selectedFile.additions}
-              </Text>
-              <Text color={theme.colors.diffDel}>
-                -{selectedFile.deletions}
-              </Text>
-            </Box>
-          )}
-          {totalDiffLines > 0 && focusPanel === 'diff' && (
-            <Text color={theme.colors.muted}>
-              {diffSelectedLine + 1}/{totalDiffLines}
-            </Text>
-          )}
-          {effectiveDiffMode === 'side-by-side' && (
-            <Text color={theme.colors.info}>[split]</Text>
-          )}
-          {maxDiffScrollX > 0 && (
-            <Text color={theme.colors.muted}>[left/right h-scroll]</Text>
-          )}
-          {visual.visualStart != null && focusPanel === 'diff' && (
-            <Text color={theme.colors.warning} bold>
-              -- VISUAL LINE --
-            </Text>
-          )}
-          {search.activeDiffSearch && !search.isDiffSearching && (
-            <Text color={theme.colors.warning}>
-              [/{search.activeDiffSearch}] {search.diffSearchMatches.length > 0
-                ? `${search.currentSearchMatchIndex + 1}/${search.diffSearchMatches.length}`
-                : 'no matches'}
-            </Text>
-          )}
-          {crossFileSearch.activeQuery && !crossFileSearch.isSearching && !search.activeDiffSearch && (
-            <Text color={theme.colors.info}>
-              [F:{crossFileSearch.activeQuery}] {crossFileSearch.matches.length > 0
-                ? `${crossFileSearch.currentIndex + 1}/${crossFileSearch.matches.length} (${crossFileSearch.matchedFileCount()} files)`
-                : 'no matches'}
-            </Text>
-          )}
-        </Box>
-        {crossFileSearch.isSearching && (
-          <Box paddingX={1}>
-            <Text color={theme.colors.info}>F/</Text>
-            <TextInput
-              defaultValue={crossFileSearch.query}
-              onChange={crossFileSearch.setQuery}
-              placeholder="search all files..."
-            />
+              <DiffView
+                allRows={foldedRows}
+                selectedLine={diffSelectedLine}
+                scrollOffset={diffScrollOffset}
+                viewportHeight={
+                  viewportHeight -
+                  2 -
+                  (search.isDiffSearching ||
+                  crossFileSearch.isSearching ||
+                  isGoToLine
+                    ? 1
+                    : 0)
+                }
+                isActive={isActive && focusPanel === 'diff'}
+                filename={selectedFile?.filename}
+                visualStart={focusPanel === 'diff' ? visual.visualStart : null}
+                contentWidth={diffContentWidth}
+                scrollOffsetX={Math.min(
+                  diffScrollOffsetX,
+                  maxDiffScrollXUnified,
+                )}
+                searchMatchIndices={
+                  search.diffSearchMatchSet.size > 0
+                    ? search.diffSearchMatchSet
+                    : undefined
+                }
+              />
+            )}
           </Box>
-        )}
-        {search.isDiffSearching && (
-          <Box paddingX={1}>
-            <Text color={theme.colors.accent}>/</Text>
-            <TextInput
-              defaultValue={search.diffSearchQuery}
-              onChange={search.setDiffSearchQuery}
-              placeholder="search diff..."
-            />
-          </Box>
-        )}
-        {isGoToLine && (
-          <Box paddingX={1}>
-            <Text color={theme.colors.accent}>:</Text>
-            <TextInput
-              defaultValue={goToLineQuery}
-              onChange={setGoToLineQuery}
-              placeholder="line number..."
-            />
-          </Box>
-        )}
-        <Box flexDirection="column" flexGrow={1} minWidth={0} overflow="hidden">
-          {isDiffLoading && needsLazyDiff ? (
-            <Box justifyContent="center" alignItems="center" flexGrow={1}>
-              <Box gap={1}>
-                <Spinner />
-                <Text color={theme.colors.accent}>Loading diff...</Text>
-              </Box>
-            </Box>
-          ) : effectiveDiffMode === 'side-by-side' ? (
-            <SideBySideDiffView
-              rows={sideBySideRows}
-              selectedLine={diffSelectedLine}
-              scrollOffset={diffScrollOffset}
-              viewportHeight={viewportHeight - 2 - (search.isDiffSearching || crossFileSearch.isSearching || isGoToLine ? 1 : 0)}
-              isActive={isActive && focusPanel === 'diff'}
-              filename={selectedFile?.filename}
-              contentWidth={diffContentWidthSbs}
-              scrollOffsetX={Math.min(diffScrollOffsetX, maxDiffScrollXSbs)}
-              searchMatchIndices={search.diffSearchMatchSet.size > 0 ? search.diffSearchMatchSet : undefined}
-            />
-          ) : (
-            <DiffView
-              allRows={foldedRows}
-              selectedLine={diffSelectedLine}
-              scrollOffset={diffScrollOffset}
-              viewportHeight={viewportHeight - 2 - (search.isDiffSearching || crossFileSearch.isSearching || isGoToLine ? 1 : 0)}
-              isActive={isActive && focusPanel === 'diff'}
-              filename={selectedFile?.filename}
-              visualStart={focusPanel === 'diff' ? visual.visualStart : null}
-              contentWidth={diffContentWidth}
-              scrollOffsetX={Math.min(diffScrollOffsetX, maxDiffScrollXUnified)}
-              searchMatchIndices={search.diffSearchMatchSet.size > 0 ? search.diffSearchMatchSet : undefined}
-            />
-          )}
         </Box>
-      </Box>
       </Box>
     </Box>
   )

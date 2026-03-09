@@ -217,7 +217,9 @@ describe('computeVirtualWindow', () => {
       expect(result.paddingTop).toBe(45)
       expect(result.paddingBottom).toBe(35)
       // paddingTop + visibleRange.length + paddingBottom should equal totalItems
-      expect(result.paddingTop + result.visibleRange.length + result.paddingBottom).toBe(100)
+      expect(
+        result.paddingTop + result.visibleRange.length + result.paddingBottom,
+      ).toBe(100)
     })
 
     it('has zero paddingTop at start', () => {

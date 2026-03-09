@@ -93,18 +93,16 @@ export function useReviewChecklist(
     }
   }, [state, prKey, hasChecklist])
 
-  const toggle = useCallback(
-    (index: number) => {
-      setState((prev) => {
-        if (!prev) return prev
-        return toggleItemPure(prev, index)
-      })
-    },
-    [],
-  )
+  const toggle = useCallback((index: number) => {
+    setState((prev) => {
+      if (!prev) return prev
+      return toggleItemPure(prev, index)
+    })
+  }, [])
 
   const summary = useMemo(
-    () => (state ? completionSummary(state) : { checked: 0, total: 0, percent: 100 }),
+    () =>
+      state ? completionSummary(state) : { checked: 0, total: 0, percent: 100 },
     [state],
   )
 

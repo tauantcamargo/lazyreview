@@ -4,10 +4,16 @@ import { PRListScreen } from './PRListScreen'
 import type { PullRequest } from '../models/pull-request'
 
 interface ReviewRequestsScreenProps {
-  readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
+  readonly onSelect: (
+    pr: PullRequest,
+    list?: readonly PullRequest[],
+    index?: number,
+  ) => void
 }
 
-export function ReviewRequestsScreen({ onSelect }: ReviewRequestsScreenProps): React.ReactElement {
+export function ReviewRequestsScreen({
+  onSelect,
+}: ReviewRequestsScreenProps): React.ReactElement {
   const [stateFilter, setStateFilter] = useState<PRStateFilter>('open')
   const { data: prs = [], isLoading, error } = useReviewRequests(stateFilter)
 

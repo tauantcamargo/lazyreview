@@ -164,9 +164,7 @@ describe('ReviewChecklist', () => {
         { label: 'A', checked: false },
         { label: 'B', checked: false },
       ]
-      const indicators = items.map((_, i) =>
-        i === selectedIndex ? '>' : ' ',
-      )
+      const indicators = items.map((_, i) => (i === selectedIndex ? '>' : ' '))
       expect(indicators[0]).toBe(' ')
       expect(indicators[1]).toBe('>')
     })

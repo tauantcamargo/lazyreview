@@ -15,16 +15,28 @@ describe('createGitHubMutation', () => {
   })
 
   it('accepts invalidateKeys as a function', () => {
-    const hook = createGitHubMutation<{ owner: string; repo: string; prNumber: number }>({
-      effect: (api, params) => api.closePR(params.owner, params.repo, params.prNumber),
-      invalidateKeys: (params) => [['pr', params.owner, params.repo, String(params.prNumber)]],
+    const hook = createGitHubMutation<{
+      owner: string
+      repo: string
+      prNumber: number
+    }>({
+      effect: (api, params) =>
+        api.closePR(params.owner, params.repo, params.prNumber),
+      invalidateKeys: (params) => [
+        ['pr', params.owner, params.repo, String(params.prNumber)],
+      ],
     })
     expect(typeof hook).toBe('function')
   })
 
   it('accepts no invalidateKeys', () => {
-    const hook = createGitHubMutation<{ owner: string; repo: string; prNumber: number }>({
-      effect: (api, params) => api.discardPendingReview(params.owner, params.repo, params.prNumber, 1),
+    const hook = createGitHubMutation<{
+      owner: string
+      repo: string
+      prNumber: number
+    }>({
+      effect: (api, params) =>
+        api.discardPendingReview(params.owner, params.repo, params.prNumber, 1),
     })
     expect(typeof hook).toBe('function')
   })

@@ -6,7 +6,11 @@ import { Review } from '../review'
 import { FileChange } from '../file-change'
 import { Commit, CommitDetails, CommitAuthor } from '../commit'
 import { CheckRun, CheckRunsResponse } from '../check'
-import type { BitbucketUser, BitbucketParticipant, BitbucketPullRequest } from './pull-request'
+import type {
+  BitbucketUser,
+  BitbucketParticipant,
+  BitbucketPullRequest,
+} from './pull-request'
 import type { BitbucketComment } from './comment'
 import type { BitbucketDiffStat } from './diff'
 import type { BitbucketCommit } from './commit'
@@ -192,9 +196,7 @@ export function mapBitbucketDiffStatToFileChange(
     deletions: diffStat.lines_removed,
     changes: diffStat.lines_added + diffStat.lines_removed,
     previous_filename:
-      status === 'renamed' && diffStat.old
-        ? diffStat.old.path
-        : undefined,
+      status === 'renamed' && diffStat.old ? diffStat.old.path : undefined,
   })
 }
 
@@ -216,9 +218,7 @@ function parseRawAuthor(raw: string): {
   return { name: raw, email: '' }
 }
 
-export function mapBitbucketCommitToCommit(
-  bbCommit: BitbucketCommit,
-): Commit {
+export function mapBitbucketCommitToCommit(bbCommit: BitbucketCommit): Commit {
   const { name, email } = parseRawAuthor(bbCommit.author.raw)
   const htmlUrl = bbCommit.links?.html?.href ?? ''
 

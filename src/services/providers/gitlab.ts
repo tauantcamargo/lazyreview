@@ -11,10 +11,7 @@ import type {
   PRListResult,
   AddDiffCommentParams,
 } from './types'
-import {
-  gitlabFetchJson,
-  gitlabFetchAllPages,
-} from '../GitLabApiHelpers'
+import { gitlabFetchJson, gitlabFetchAllPages } from '../GitLabApiHelpers'
 import {
   GitLabMergeRequestSchema,
   GitLabNoteSchema,
@@ -190,9 +187,10 @@ export function encodeThreadId(iid: number, discussionId: string): string {
 /**
  * Decode a thread identifier back into MR iid and discussion ID.
  */
-export function decodeThreadId(
-  threadId: string,
-): { readonly iid: number; readonly discussionId: string } {
+export function decodeThreadId(threadId: string): {
+  readonly iid: number
+  readonly discussionId: string
+} {
   const separatorIndex = threadId.indexOf(':')
   if (separatorIndex === -1) {
     return { iid: 0, discussionId: threadId }
@@ -241,7 +239,8 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
       }
 
       if (params.sort) {
-        queryParams.order_by = params.sort === 'popularity' ? 'popularity' : params.sort
+        queryParams.order_by =
+          params.sort === 'popularity' ? 'popularity' : params.sort
       }
       if (params.direction) {
         queryParams.sort = params.direction
@@ -299,7 +298,9 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
           token,
         ),
         (data) =>
-          parseDiffs(data).map(mapDiffToFileChange).find((f) => f.filename === filename) ?? null,
+          parseDiffs(data)
+            .map(mapDiffToFileChange)
+            .find((f) => f.filename === filename) ?? null,
       ),
 
     getPRComments: (number) =>
@@ -421,9 +422,7 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
           const discussions = parseDiscussions(data)
           return discussions
             .map(mapDiscussionToThread)
-            .filter(
-              (thread): thread is ReviewThread => thread != null,
-            )
+            .filter((thread): thread is ReviewThread => thread != null)
         },
       ),
 
@@ -445,15 +444,10 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
 
     getMyPRs: (stateFilter) =>
       Effect.map(
-        gitlabFetchAllPages<unknown>(
-          '/merge_requests',
-          baseUrl,
-          token,
-          {
-            scope: 'created_by_me',
-            state: mapProviderStateToGitLabState(stateFilter),
-          },
-        ),
+        gitlabFetchAllPages<unknown>('/merge_requests', baseUrl, token, {
+          scope: 'created_by_me',
+          state: mapProviderStateToGitLabState(stateFilter),
+        }),
         (data) => parseMergeRequests(data).map(mapMergeRequestToPR),
       ),
 
@@ -474,15 +468,10 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
 
     getInvolvedPRs: (stateFilter) =>
       Effect.map(
-        gitlabFetchAllPages<unknown>(
-          '/merge_requests',
-          baseUrl,
-          token,
-          {
-            scope: 'all',
-            state: mapProviderStateToGitLabState(stateFilter),
-          },
-        ),
+        gitlabFetchAllPages<unknown>('/merge_requests', baseUrl, token, {
+          scope: 'all',
+          state: mapProviderStateToGitLabState(stateFilter),
+        }),
         (data) => parseMergeRequests(data).map(mapMergeRequestToPR),
       ),
 
@@ -518,8 +507,7 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
       }
     },
 
-    createPendingReview: () =>
-      Effect.succeed({ id: 0 }),
+    createPendingReview: () => Effect.succeed({ id: 0 }),
 
     addPendingReviewComment: (params) =>
       addDiffNote(baseUrl, token, owner, repo, params.prNumber, params.body, {
@@ -556,8 +544,7 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
       }
     },
 
-    discardPendingReview: () =>
-      Effect.succeed(undefined as void),
+    discardPendingReview: () => Effect.succeed(undefined as void),
 
     // -- Comment mutations --------------------------------------------------
 
@@ -597,13 +584,20 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
     // -- PR state mutations -------------------------------------------------
 
     mergePR: (prNumber, method, commitTitle, commitMessage) =>
-      mergeMR(baseUrl, token, owner, repo, prNumber, method, commitTitle, commitMessage),
+      mergeMR(
+        baseUrl,
+        token,
+        owner,
+        repo,
+        prNumber,
+        method,
+        commitTitle,
+        commitMessage,
+      ),
 
-    closePR: (prNumber) =>
-      closeMR(baseUrl, token, owner, repo, prNumber),
+    closePR: (prNumber) => closeMR(baseUrl, token, owner, repo, prNumber),
 
-    reopenPR: (prNumber) =>
-      reopenMR(baseUrl, token, owner, repo, prNumber),
+    reopenPR: (prNumber) => reopenMR(baseUrl, token, owner, repo, prNumber),
 
     updatePRTitle: (prNumber, title) =>
       updateMRTitle(baseUrl, token, owner, repo, prNumber, title),
@@ -692,46 +686,63 @@ export function createGitLabProvider(config: ProviderConfig): Provider {
 
     createPR: () =>
       Effect.fail(
-        new GitHubError({ message: 'PR creation is not yet supported for GitLab', status: 501 }),
+        new GitHubError({
+          message: 'PR creation is not yet supported for GitLab',
+          status: 501,
+        }),
       ),
 
     // -- Label operations (not supported for GitLab) -------------------------
 
     getLabels: () =>
       Effect.fail(
-        new GitHubError({ message: 'Labels are not yet supported for GitLab', status: 501 }),
+        new GitHubError({
+          message: 'Labels are not yet supported for GitLab',
+          status: 501,
+        }),
       ),
 
     setLabels: () =>
       Effect.fail(
-        new GitHubError({ message: 'Labels are not yet supported for GitLab', status: 501 }),
+        new GitHubError({
+          message: 'Labels are not yet supported for GitLab',
+          status: 501,
+        }),
       ),
 
     // -- Assignee operations (not supported for GitLab) -----------------------
 
     getCollaborators: () =>
       Effect.fail(
-        new GitHubError({ message: 'Assignee management is not yet supported for GitLab', status: 501 }),
+        new GitHubError({
+          message: 'Assignee management is not yet supported for GitLab',
+          status: 501,
+        }),
       ),
 
     updateAssignees: () =>
       Effect.fail(
-        new GitHubError({ message: 'Assignee management is not yet supported for GitLab', status: 501 }),
+        new GitHubError({
+          message: 'Assignee management is not yet supported for GitLab',
+          status: 501,
+        }),
       ),
 
     // -- Reaction operations (not yet wired for GitLab) -----------------------
 
     addReaction: () =>
       Effect.fail(
-        new GitHubError({ message: 'Reactions are not yet supported for GitLab', status: 501 }),
+        new GitHubError({
+          message: 'Reactions are not yet supported for GitLab',
+          status: 501,
+        }),
       ),
 
     // -- User info ----------------------------------------------------------
 
     getCurrentUser: () =>
-      Effect.map(
-        getCurrentUser(baseUrl, token),
-        (user) => ({ login: user.username }),
-      ),
+      Effect.map(getCurrentUser(baseUrl, token), (user) => ({
+        login: user.username,
+      })),
   }
 }

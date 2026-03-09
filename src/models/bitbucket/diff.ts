@@ -5,13 +5,7 @@ import { z } from 'zod'
 // ---------------------------------------------------------------------------
 
 export const BitbucketDiffStatSchema = z.object({
-  status: z.enum([
-    'added',
-    'removed',
-    'modified',
-    'renamed',
-    'merge conflict',
-  ]),
+  status: z.enum(['added', 'removed', 'modified', 'renamed', 'merge conflict']),
   old: z.object({ path: z.string() }).nullable(),
   new: z.object({ path: z.string() }).nullable(),
   lines_added: z.number().optional().default(0),

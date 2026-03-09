@@ -46,9 +46,7 @@ export function ReviewChecklist({
       }
       if (isExpanded) {
         if (input === 'j' || key.downArrow) {
-          setSelectedIndex((prev) =>
-            Math.min(prev + 1, state.items.length - 1),
-          )
+          setSelectedIndex((prev) => Math.min(prev + 1, state.items.length - 1))
         }
         if (input === 'k' || key.upArrow) {
           setSelectedIndex((prev) => Math.max(prev - 1, 0))
@@ -66,9 +64,8 @@ export function ReviewChecklist({
   }
 
   const toggleHint = isExpanded ? '[c: collapse]' : '[c: expand]'
-  const headerColor = summary.checked === summary.total
-    ? theme.colors.success
-    : theme.colors.info
+  const headerColor =
+    summary.checked === summary.total ? theme.colors.success : theme.colors.info
 
   return (
     <Box

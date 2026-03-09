@@ -1,7 +1,10 @@
 import React, { useMemo, useState } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
-import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
+import {
+  useListNavigation,
+  deriveScrollOffset,
+} from '../../hooks/useListNavigation'
 import type { FileChange } from '../../models/file-change'
 import { parseDiffPatch } from '../../models/diff'
 import { DiffView, buildDiffRows } from './DiffView'
@@ -10,8 +13,16 @@ import {
   buildSideBySideRows,
   SIDE_BY_SIDE_MIN_WIDTH,
 } from './SideBySideDiffView'
-import { computeMaxDiffLineLength, computeMaxSbsLineLength } from './diffScrollHelpers'
-import { buildFileTree, flattenTreeToFiles, buildDisplayRows, FileItem } from './FileTree'
+import {
+  computeMaxDiffLineLength,
+  computeMaxSbsLineLength,
+} from './diffScrollHelpers'
+import {
+  buildFileTree,
+  flattenTreeToFiles,
+  buildDisplayRows,
+  FileItem,
+} from './FileTree'
 import { LoadingIndicator } from '../common/LoadingIndicator'
 import { EmptyState } from '../common/EmptyState'
 
@@ -101,10 +112,7 @@ export function CommitDiffView({
     [selectedPatch],
   )
 
-  const allRows = useMemo(
-    () => buildDiffRows(hunks, undefined),
-    [hunks],
-  )
+  const allRows = useMemo(() => buildDiffRows(hunks, undefined), [hunks])
   const sideBySideRows = useMemo(
     () =>
       effectiveDiffMode === 'side-by-side'
@@ -129,19 +137,25 @@ export function CommitDiffView({
     () => computeMaxSbsLineLength(sideBySideRows),
     [sideBySideRows],
   )
-  const maxDiffScrollXUnified = Math.max(0, maxDiffLineLength - diffContentWidth)
-  const maxDiffScrollXSbs = Math.max(0, maxDiffLineLengthSbs - diffContentWidthSbs)
+  const maxDiffScrollXUnified = Math.max(
+    0,
+    maxDiffLineLength - diffContentWidth,
+  )
+  const maxDiffScrollXSbs = Math.max(
+    0,
+    maxDiffLineLengthSbs - diffContentWidthSbs,
+  )
   const maxDiffScrollX =
-    effectiveDiffMode === 'side-by-side' ? maxDiffScrollXSbs : maxDiffScrollXUnified
+    effectiveDiffMode === 'side-by-side'
+      ? maxDiffScrollXSbs
+      : maxDiffScrollXUnified
 
-  const {
-    selectedIndex: diffSelectedLine,
-    scrollOffset: diffScrollOffset,
-  } = useListNavigation({
-    itemCount: totalDiffLines,
-    viewportHeight,
-    isActive: isActive && focusPanel === 'diff',
-  })
+  const { selectedIndex: diffSelectedLine, scrollOffset: diffScrollOffset } =
+    useListNavigation({
+      itemCount: totalDiffLines,
+      viewportHeight,
+      isActive: isActive && focusPanel === 'diff',
+    })
 
   useInput(
     (input, key) => {
@@ -152,9 +166,7 @@ export function CommitDiffView({
       } else if (input === 'l' || (key.return && focusPanel === 'tree')) {
         setFocusPanel('diff')
       } else if (input === 'd') {
-        setDiffMode((prev) =>
-          prev === 'unified' ? 'side-by-side' : 'unified',
-        )
+        setDiffMode((prev) => (prev === 'unified' ? 'side-by-side' : 'unified'))
       } else if (key.tab) {
         setFocusPanel((prev) => (prev === 'tree' ? 'diff' : 'tree'))
       } else if (input === 'H' && focusPanel === 'diff') {
@@ -245,7 +257,9 @@ export function CommitDiffView({
                 >
                   <FileItem
                     item={row.file}
-                    isFocus={isPanelFocused && row.fileIndex === treeSelectedIndex}
+                    isFocus={
+                      isPanelFocused && row.fileIndex === treeSelectedIndex
+                    }
                     isSelected={row.fileIndex === selectedFileIndex}
                   />
                 </Box>
@@ -271,15 +285,24 @@ export function CommitDiffView({
             </Text>
             {selectedFile && (
               <Box gap={1}>
-                <Text color={theme.colors.diffAdd}>+{selectedFile.additions}</Text>
-                <Text color={theme.colors.diffDel}>-{selectedFile.deletions}</Text>
+                <Text color={theme.colors.diffAdd}>
+                  +{selectedFile.additions}
+                </Text>
+                <Text color={theme.colors.diffDel}>
+                  -{selectedFile.deletions}
+                </Text>
               </Box>
             )}
             {effectiveDiffMode === 'side-by-side' && (
               <Text color={theme.colors.info}>[split]</Text>
             )}
           </Box>
-          <Box flexDirection="column" flexGrow={1} minWidth={0} overflow="hidden">
+          <Box
+            flexDirection="column"
+            flexGrow={1}
+            minWidth={0}
+            overflow="hidden"
+          >
             {effectiveDiffMode === 'side-by-side' ? (
               <SideBySideDiffView
                 rows={sideBySideRows}
@@ -301,7 +324,10 @@ export function CommitDiffView({
                 filename={selectedFile?.filename}
                 visualStart={null}
                 contentWidth={diffContentWidth}
-                scrollOffsetX={Math.min(diffScrollOffsetX, maxDiffScrollXUnified)}
+                scrollOffsetX={Math.min(
+                  diffScrollOffsetX,
+                  maxDiffScrollXUnified,
+                )}
               />
             )}
           </Box>

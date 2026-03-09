@@ -48,7 +48,11 @@ describe('CodeReviewApi', () => {
       markReadyForReview: () => Effect.succeed(undefined as void),
       getLabels: () => Effect.succeed([]),
       setLabels: () => Effect.succeed(undefined as void),
-      createPR: () => Effect.succeed({ number: 1, html_url: 'https://github.com/test/test/pull/1' }),
+      createPR: () =>
+        Effect.succeed({
+          number: 1,
+          html_url: 'https://github.com/test/test/pull/1',
+        }),
       getCollaborators: () => Effect.succeed([]),
       updateAssignees: () => Effect.succeed(undefined as void),
       getCurrentUser: () => Effect.succeed({ login: 'test' }),

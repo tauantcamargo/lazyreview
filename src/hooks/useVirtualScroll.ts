@@ -33,7 +33,9 @@ interface UseVirtualScrollResult<T> {
  *
  * Exported for direct testing without React hook overhead.
  */
-export function computeVisibleSlice<T>(options: UseVirtualScrollOptions<T>): UseVirtualScrollResult<T> {
+export function computeVisibleSlice<T>(
+  options: UseVirtualScrollOptions<T>,
+): UseVirtualScrollResult<T> {
   const { items, viewportSize, overscan } = options
   const totalItems = items.length
 
@@ -48,10 +50,17 @@ export function computeVisibleSlice<T>(options: UseVirtualScrollOptions<T>): Use
   }
 
   // Clamp selectedIndex to valid range
-  const selectedIndex = Math.max(0, Math.min(options.selectedIndex, totalItems - 1))
+  const selectedIndex = Math.max(
+    0,
+    Math.min(options.selectedIndex, totalItems - 1),
+  )
 
   // Derive scroll offset to keep selection centered in viewport
-  const scrollOffset = deriveScrollOffset(selectedIndex, viewportSize, totalItems)
+  const scrollOffset = deriveScrollOffset(
+    selectedIndex,
+    viewportSize,
+    totalItems,
+  )
 
   // Compute the virtual window with overscan
   const window = computeVirtualWindow({

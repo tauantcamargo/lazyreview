@@ -40,11 +40,31 @@ function makePR(overrides: {
 
 describe('findNextUnread', () => {
   const prs = [
-    makePR({ number: 1, html_url: 'https://github.com/o/r/pull/1', updated_at: '2024-01-01T00:00:00Z' }),
-    makePR({ number: 2, html_url: 'https://github.com/o/r/pull/2', updated_at: '2024-01-02T00:00:00Z' }),
-    makePR({ number: 3, html_url: 'https://github.com/o/r/pull/3', updated_at: '2024-01-03T00:00:00Z' }),
-    makePR({ number: 4, html_url: 'https://github.com/o/r/pull/4', updated_at: '2024-01-04T00:00:00Z' }),
-    makePR({ number: 5, html_url: 'https://github.com/o/r/pull/5', updated_at: '2024-01-05T00:00:00Z' }),
+    makePR({
+      number: 1,
+      html_url: 'https://github.com/o/r/pull/1',
+      updated_at: '2024-01-01T00:00:00Z',
+    }),
+    makePR({
+      number: 2,
+      html_url: 'https://github.com/o/r/pull/2',
+      updated_at: '2024-01-02T00:00:00Z',
+    }),
+    makePR({
+      number: 3,
+      html_url: 'https://github.com/o/r/pull/3',
+      updated_at: '2024-01-03T00:00:00Z',
+    }),
+    makePR({
+      number: 4,
+      html_url: 'https://github.com/o/r/pull/4',
+      updated_at: '2024-01-04T00:00:00Z',
+    }),
+    makePR({
+      number: 5,
+      html_url: 'https://github.com/o/r/pull/5',
+      updated_at: '2024-01-05T00:00:00Z',
+    }),
   ]
 
   it('returns -1 for empty list', () => {

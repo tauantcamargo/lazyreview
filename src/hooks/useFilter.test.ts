@@ -58,7 +58,9 @@ describe('extractRepoFromUrl', () => {
   })
 
   it('returns null for a GitHub URL without /pull/', () => {
-    expect(extractRepoFromUrl('https://github.com/owner/repo/issues/5')).toBeNull()
+    expect(
+      extractRepoFromUrl('https://github.com/owner/repo/issues/5'),
+    ).toBeNull()
   })
 
   it('handles URL with query parameters', () => {
@@ -74,7 +76,9 @@ describe('matchesSearch', () => {
   })
 
   it('matches on title', () => {
-    expect(matchesSearch(makePR({ title: 'Fix login bug' }), 'login')).toBe(true)
+    expect(matchesSearch(makePR({ title: 'Fix login bug' }), 'login')).toBe(
+      true,
+    )
   })
 
   it('matches on user login', () => {
@@ -94,11 +98,18 @@ describe('matchesSearch', () => {
   })
 
   it('matches partial title substring', () => {
-    expect(matchesSearch(makePR({ title: 'refactor authentication' }), 'auth')).toBe(true)
+    expect(
+      matchesSearch(makePR({ title: 'refactor authentication' }), 'auth'),
+    ).toBe(true)
   })
 
   it('matches partial user login substring', () => {
-    expect(matchesSearch(makePR({ user: { login: 'alice-smith', avatar_url: '' } }), 'smith')).toBe(true)
+    expect(
+      matchesSearch(
+        makePR({ user: { login: 'alice-smith', avatar_url: '' } }),
+        'smith',
+      ),
+    ).toBe(true)
   })
 
   it('matches partial PR number', () => {
@@ -151,7 +162,12 @@ describe('matchesAuthor', () => {
   })
 
   it('matches partial author name', () => {
-    expect(matchesAuthor(makePR({ user: { login: 'alice-smith', avatar_url: '' } }), 'alice')).toBe(true)
+    expect(
+      matchesAuthor(
+        makePR({ user: { login: 'alice-smith', avatar_url: '' } }),
+        'alice',
+      ),
+    ).toBe(true)
   })
 })
 
@@ -180,7 +196,9 @@ describe('matchesLabel', () => {
 
   it('matches partial label name', () => {
     const pr = makePR({
-      labels: [{ id: 1, name: 'enhancement', color: '00ff00', description: null }],
+      labels: [
+        { id: 1, name: 'enhancement', color: '00ff00', description: null },
+      ],
     })
     expect(matchesLabel(pr, 'enhance')).toBe(true)
   })

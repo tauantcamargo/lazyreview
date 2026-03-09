@@ -220,7 +220,10 @@ function buildStoreFromInit(init: StoreInit): StateStore {
 
   function removeViewedFile(key: string, filePath: string): void {
     const db = getDb()
-    db.run('DELETE FROM viewed_files WHERE key = ? AND file_path = ?', [key, filePath])
+    db.run('DELETE FROM viewed_files WHERE key = ? AND file_path = ?', [
+      key,
+      filePath,
+    ])
   }
 
   // -- Bookmarked repos -------------------------------------------------------
@@ -250,7 +253,10 @@ function buildStoreFromInit(init: StoreInit): StateStore {
 
   function removeBookmarkedRepo(owner: string, repo: string): void {
     const db = getDb()
-    db.run('DELETE FROM bookmarked_repos WHERE owner = ? AND repo = ?', [owner, repo])
+    db.run('DELETE FROM bookmarked_repos WHERE owner = ? AND repo = ?', [
+      owner,
+      repo,
+    ])
   }
 
   // -- Recent repos -----------------------------------------------------------
@@ -337,7 +343,10 @@ function buildStoreFromInit(init: StoreInit): StateStore {
 
   function removeDiffBookmark(key: string, register: string): void {
     const db = getDb()
-    db.run('DELETE FROM diff_bookmarks WHERE key = ? AND register = ?', [key, register])
+    db.run('DELETE FROM diff_bookmarks WHERE key = ? AND register = ?', [
+      key,
+      register,
+    ])
   }
 
   // -- Review checklists ------------------------------------------------------
@@ -374,10 +383,7 @@ function buildStoreFromInit(init: StoreInit): StateStore {
 
   function getKV(key: string): string | undefined {
     const db = getDb()
-    const results = db.exec(
-      'SELECT value FROM kv_store WHERE key = ?',
-      [key],
-    )
+    const results = db.exec('SELECT value FROM kv_store WHERE key = ?', [key])
     if (results.length === 0 || results[0].values.length === 0) return undefined
     return String(results[0].values[0][0])
   }

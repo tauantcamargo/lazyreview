@@ -4,7 +4,11 @@ import { useTheme } from '../../theme/index'
 import { usePRReviews } from '../../hooks/useGitHub'
 import type { Review } from '../../models/review'
 
-export type ReviewDecision = 'approved' | 'changes_requested' | 'pending' | 'none'
+export type ReviewDecision =
+  | 'approved'
+  | 'changes_requested'
+  | 'pending'
+  | 'none'
 
 /**
  * Determine the overall review decision from a list of reviews.

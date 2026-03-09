@@ -45,9 +45,7 @@ function mockFetchResponse(options: MockFetchOptions = {}): void {
 /**
  * Mock fetch to return different responses on consecutive calls.
  */
-function mockFetchSequence(
-  responses: readonly MockFetchOptions[],
-): void {
+function mockFetchSequence(responses: readonly MockFetchOptions[]): void {
   let callIndex = 0
   globalThis.fetch = vi.fn().mockImplementation(async () => {
     const options = responses[callIndex] ?? responses[responses.length - 1]
@@ -349,9 +347,7 @@ describe('createAzureProvider', () => {
     it('listPRs passes pagination params', async () => {
       mockFetchResponse({ body: { value: [] } })
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.listPRs({ perPage: 20, page: 3 }),
-      )
+      await Effect.runPromise(provider.listPRs({ perPage: 20, page: 3 }))
 
       const url = getLastFetchUrl()
       expect(url).toContain('%24top=20')
@@ -460,9 +456,7 @@ describe('createAzureProvider', () => {
         body: { value: [generalThread] },
       })
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getIssueComments(42),
-      )
+      const result = await Effect.runPromise(provider.getIssueComments(42))
       expect(result).toHaveLength(1)
       expect(result[0]!.body).toBe('This is a comment')
     })
@@ -501,9 +495,7 @@ describe('createAzureProvider', () => {
         body: { value: [makeAzureBuild()] },
       })
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getPRChecks('feature/x'),
-      )
+      const result = await Effect.runPromise(provider.getPRChecks('feature/x'))
       expect(result.total_count).toBe(1)
       expect(result.check_runs).toHaveLength(1)
       expect(result.check_runs[0]!.name).toBe('CI Build')
@@ -513,9 +505,7 @@ describe('createAzureProvider', () => {
     it('getPRChecks returns empty response when no builds', async () => {
       mockFetchResponse({ body: { value: [] } })
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getPRChecks('feature/x'),
-      )
+      const result = await Effect.runPromise(provider.getPRChecks('feature/x'))
       expect(result.total_count).toBe(0)
       expect(result.check_runs).toEqual([])
     })
@@ -532,9 +522,7 @@ describe('createAzureProvider', () => {
     it('getPRChecks does not double-prepend refs/heads/', async () => {
       mockFetchResponse({ body: { value: [] } })
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.getPRChecks('refs/heads/feature/x'),
-      )
+      await Effect.runPromise(provider.getPRChecks('refs/heads/feature/x'))
 
       const url = getLastFetchUrl()
       expect(url).toContain('branchName=refs%2Fheads%2Ffeature%2Fx')
@@ -563,18 +551,11 @@ describe('createAzureProvider', () => {
 
       mockFetchResponse({
         body: {
-          value: [
-            inlineThread,
-            systemThread,
-            deletedThread,
-            noContextThread,
-          ],
+          value: [inlineThread, systemThread, deletedThread, noContextThread],
         },
       })
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getReviewThreads(42),
-      )
+      const result = await Effect.runPromise(provider.getReviewThreads(42))
       // Only inlineThread should pass: has threadContext, not deleted, has non-system comments
       expect(result).toHaveLength(1)
       expect(result[0]!.id).toBe('42:100')
@@ -599,9 +580,7 @@ describe('createAzureProvider', () => {
         },
       })
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getReviewThreads(42),
-      )
+      const result = await Effect.runPromise(provider.getReviewThreads(42))
       expect(result).toHaveLength(4)
       expect(result.every((t) => t.isResolved)).toBe(true)
     })
@@ -622,9 +601,7 @@ describe('createAzureProvider', () => {
         },
       })
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getCommitDiff('abc123'),
-      )
+      const result = await Effect.runPromise(provider.getCommitDiff('abc123'))
       expect(result).toHaveLength(2)
       expect(result[0]!.status).toBe('modified')
       expect(result[1]!.status).toBe('added')
@@ -633,18 +610,14 @@ describe('createAzureProvider', () => {
     it('getCommitDiff handles empty changes', async () => {
       mockFetchResponse({ body: { changes: [] } })
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getCommitDiff('abc123'),
-      )
+      const result = await Effect.runPromise(provider.getCommitDiff('abc123'))
       expect(result).toEqual([])
     })
 
     it('getCommitDiff handles null changes', async () => {
       mockFetchResponse({ body: { changes: null } })
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getCommitDiff('abc123'),
-      )
+      const result = await Effect.runPromise(provider.getCommitDiff('abc123'))
       expect(result).toEqual([])
     })
 
@@ -661,9 +634,7 @@ describe('createAzureProvider', () => {
         },
       })
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getCommitDiff('abc123'),
-      )
+      const result = await Effect.runPromise(provider.getCommitDiff('abc123'))
       expect(result[0]!.status).toBe('renamed')
       expect(result[0]!.previous_filename).toBe('src/old-name.ts')
     })
@@ -713,9 +684,7 @@ describe('createAzureProvider', () => {
         },
       ])
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getReviewRequests(),
-      )
+      const result = await Effect.runPromise(provider.getReviewRequests())
       expect(result).toHaveLength(1)
 
       const prUrl = getNthFetchUrl(1)
@@ -746,9 +715,7 @@ describe('createAzureProvider', () => {
     it('getInvolvedPRs returns all PRs', async () => {
       mockFetchResponse({ body: { value: [makeAzurePR()] } })
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.getInvolvedPRs(),
-      )
+      const result = await Effect.runPromise(provider.getInvolvedPRs())
       expect(result).toHaveLength(1)
     })
 
@@ -815,9 +782,7 @@ describe('createAzureProvider', () => {
         {},
       ])
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.submitReview(42, 'LGTM', 'APPROVE'),
-      )
+      await Effect.runPromise(provider.submitReview(42, 'LGTM', 'APPROVE'))
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(3)
     })
@@ -835,9 +800,7 @@ describe('createAzureProvider', () => {
         {},
       ])
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.submitReview(42, '', 'APPROVE'),
-      )
+      await Effect.runPromise(provider.submitReview(42, '', 'APPROVE'))
 
       // Only getConnectionData + votePR
       expect(globalThis.fetch).toHaveBeenCalledTimes(2)
@@ -878,9 +841,7 @@ describe('createAzureProvider', () => {
         {},
       ])
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.submitReview(42, '', 'REQUEST_CHANGES'),
-      )
+      await Effect.runPromise(provider.submitReview(42, '', 'REQUEST_CHANGES'))
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(3)
     })
@@ -898,9 +859,7 @@ describe('createAzureProvider', () => {
         {},
       ])
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.submitReview(42, 'Nice work', 'COMMENT'),
-      )
+      await Effect.runPromise(provider.submitReview(42, 'Nice work', 'COMMENT'))
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(2)
     })
@@ -918,9 +877,7 @@ describe('createAzureProvider', () => {
         {},
       ])
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.submitReview(42, '', 'COMMENT'),
-      )
+      await Effect.runPromise(provider.submitReview(42, '', 'COMMENT'))
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(2)
     })
@@ -929,9 +886,7 @@ describe('createAzureProvider', () => {
   describe('createPendingReview', () => {
     it('returns dummy id 0', async () => {
       const provider = createAzureProvider(TEST_CONFIG)
-      const result = await Effect.runPromise(
-        provider.createPendingReview(42),
-      )
+      const result = await Effect.runPromise(provider.createPendingReview(42))
       expect(result.id).toBe(0)
     })
   })
@@ -1049,12 +1004,7 @@ describe('createAzureProvider', () => {
       ])
       const provider = createAzureProvider(TEST_CONFIG)
       await Effect.runPromise(
-        provider.submitPendingReview(
-          42,
-          0,
-          'Please fix',
-          'REQUEST_CHANGES',
-        ),
+        provider.submitPendingReview(42, 0, 'Please fix', 'REQUEST_CHANGES'),
       )
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(3)
@@ -1165,9 +1115,7 @@ describe('createAzureProvider', () => {
     it('replies to a thread', async () => {
       mockFetchResponse()
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.replyToComment(42, 100, 'Thanks!'),
-      )
+      await Effect.runPromise(provider.replyToComment(42, 100, 'Thanks!'))
 
       const url = getLastFetchUrl()
       expect(url).toContain('/threads/100/comments')
@@ -1186,7 +1134,9 @@ describe('createAzureProvider', () => {
 
       const body = getLastFetchBody()
       expect(body.status).toBe('completed')
-      expect((body.completionOptions as Record<string, unknown>).mergeStrategy).toBe(1)
+      expect(
+        (body.completionOptions as Record<string, unknown>).mergeStrategy,
+      ).toBe(1)
     })
 
     it('uses squash strategy (3) for squash method', async () => {
@@ -1195,7 +1145,9 @@ describe('createAzureProvider', () => {
       await Effect.runPromise(provider.mergePR(42, 'squash'))
 
       const body = getLastFetchBody()
-      expect((body.completionOptions as Record<string, unknown>).mergeStrategy).toBe(3)
+      expect(
+        (body.completionOptions as Record<string, unknown>).mergeStrategy,
+      ).toBe(3)
     })
 
     it('uses rebase strategy (2) for rebase method', async () => {
@@ -1204,15 +1156,15 @@ describe('createAzureProvider', () => {
       await Effect.runPromise(provider.mergePR(42, 'rebase'))
 
       const body = getLastFetchBody()
-      expect((body.completionOptions as Record<string, unknown>).mergeStrategy).toBe(2)
+      expect(
+        (body.completionOptions as Record<string, unknown>).mergeStrategy,
+      ).toBe(2)
     })
 
     it('includes merge commit message from title', async () => {
       mockFetchResponse()
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.mergePR(42, 'merge', 'My Title'),
-      )
+      await Effect.runPromise(provider.mergePR(42, 'merge', 'My Title'))
 
       const body = getLastFetchBody()
       expect(
@@ -1271,9 +1223,7 @@ describe('createAzureProvider', () => {
     it('updates title', async () => {
       mockFetchResponse()
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.updatePRTitle(42, 'New Title'),
-      )
+      await Effect.runPromise(provider.updatePRTitle(42, 'New Title'))
 
       const body = getLastFetchBody()
       expect(body.title).toBe('New Title')
@@ -1284,9 +1234,7 @@ describe('createAzureProvider', () => {
     it('updates description', async () => {
       mockFetchResponse()
       const provider = createAzureProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.updatePRBody(42, 'New description'),
-      )
+      await Effect.runPromise(provider.updatePRBody(42, 'New description'))
 
       const body = getLastFetchBody()
       expect(body.description).toBe('New description')
@@ -1307,9 +1255,7 @@ describe('createAzureProvider', () => {
 
     it('fails when no reviewers provided', async () => {
       const provider = createAzureProvider(TEST_CONFIG)
-      const exit = await Effect.runPromiseExit(
-        provider.requestReReview(42, []),
-      )
+      const exit = await Effect.runPromiseExit(provider.requestReReview(42, []))
       expect(Exit.isFailure(exit)).toBe(true)
     })
   })

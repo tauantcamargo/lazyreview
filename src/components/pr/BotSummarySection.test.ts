@@ -10,11 +10,18 @@ import type { BotDetectableComment } from '../../utils/bot-detection'
  * - Author login is displayed
  */
 
-function makeBotComment(overrides?: Partial<BotDetectableComment>): BotDetectableComment {
+function makeBotComment(
+  overrides?: Partial<BotDetectableComment>,
+): BotDetectableComment {
   return {
     id: 1,
     body: '## AI Review Summary\n\nThis PR looks good.',
-    user: { login: 'github-actions[bot]', id: 100, avatar_url: '', html_url: '' },
+    user: {
+      login: 'github-actions[bot]',
+      id: 100,
+      avatar_url: '',
+      html_url: '',
+    },
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z',
     html_url: 'https://github.com/owner/repo/issues/42#issuecomment-1',

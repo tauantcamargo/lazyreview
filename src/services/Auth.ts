@@ -139,7 +139,10 @@ export function getDefaultHost(provider: Provider): string {
 /**
  * Check if a host is the default for a provider.
  */
-function isDefaultHost(provider: Provider, host: string | null | undefined): boolean {
+function isDefaultHost(
+  provider: Provider,
+  host: string | null | undefined,
+): boolean {
   if (!host) return true
   return host.toLowerCase() === DEFAULT_HOSTS[provider].toLowerCase()
 }
@@ -148,7 +151,10 @@ function isDefaultHost(provider: Provider, host: string | null | undefined): boo
 // File I/O helpers (per-provider token storage)
 // ---------------------------------------------------------------------------
 
-function getProviderTokenFile(provider: Provider, host?: string | null): string {
+function getProviderTokenFile(
+  provider: Provider,
+  host?: string | null,
+): string {
   if (host && !isDefaultHost(provider, host)) {
     return join(TOKENS_DIR, `${provider}-${host.toLowerCase()}.token`)
   }
@@ -282,7 +288,10 @@ export function getEnvVarName(provider: Provider): string {
   return meta.envVars[0] ?? `LAZYREVIEW_${provider.toUpperCase()}_TOKEN`
 }
 
-export function getProviderTokenFilePath(provider: Provider, host?: string | null): string {
+export function getProviderTokenFilePath(
+  provider: Provider,
+  host?: string | null,
+): string {
   return getProviderTokenFile(provider, host)
 }
 
@@ -362,7 +371,9 @@ export interface AuthService {
   readonly isAuthenticated: () => Effect.Effect<boolean, AuthError>
   readonly setToken: (token: string) => Effect.Effect<void, never>
   readonly getTokenInfo: () => Effect.Effect<TokenInfo, never>
-  readonly setPreferredSource: (source: TokenSource) => Effect.Effect<void, never>
+  readonly setPreferredSource: (
+    source: TokenSource,
+  ) => Effect.Effect<void, never>
   readonly getAvailableSources: () => Effect.Effect<TokenSource[], never>
   readonly clearManualToken: () => Effect.Effect<void, never>
 }
@@ -373,7 +384,9 @@ export class Auth extends Context.Tag('Auth')<Auth, AuthService>() {}
 // Generic token resolution for any provider
 // ---------------------------------------------------------------------------
 
-function resolveProviderToken(provider: Provider): Effect.Effect<string, AuthError> {
+function resolveProviderToken(
+  provider: Provider,
+): Effect.Effect<string, AuthError> {
   return Effect.gen(function* () {
     yield* Effect.promise(ensureInitialized)
     const state = getState()
@@ -384,7 +397,7 @@ function resolveProviderToken(provider: Provider): Effect.Effect<string, AuthErr
       const manualToken = state.sessionToken ?? state.savedToken
       if (manualToken) return manualToken
       return yield* Effect.fail(
-        new AuthError({ message: 'No manual token found', reason: 'no_token' })
+        new AuthError({ message: 'No manual token found', reason: 'no_token' }),
       )
     }
 
@@ -395,18 +408,22 @@ function resolveProviderToken(provider: Provider): Effect.Effect<string, AuthErr
         new AuthError({
           message: `${meta.envVars[0]} not set`,
           reason: 'no_token',
-        })
+        }),
       )
     }
 
     if (state.preferredSource === 'gh_cli') {
       const cliToken = yield* Effect.tryPromise({
         try: () => tryGetCliTokenForProvider(provider),
-        catch: () => new AuthError({ message: 'CLI failed', reason: 'no_token' }),
+        catch: () =>
+          new AuthError({ message: 'CLI failed', reason: 'no_token' }),
       })
       if (cliToken) return cliToken
       return yield* Effect.fail(
-        new AuthError({ message: 'CLI token not available', reason: 'no_token' })
+        new AuthError({
+          message: 'CLI token not available',
+          reason: 'no_token',
+        }),
       )
     }
 
@@ -472,7 +489,9 @@ function resolveToken(): Effect.Effect<string, AuthError> {
 // Generic token info resolution
 // ---------------------------------------------------------------------------
 
-function resolveProviderTokenInfo(provider: Provider): Effect.Effect<TokenInfo, never> {
+function resolveProviderTokenInfo(
+  provider: Provider,
+): Effect.Effect<TokenInfo, never> {
   return Effect.gen(function* () {
     yield* Effect.promise(ensureInitialized)
     const state = getState()
@@ -499,7 +518,9 @@ function resolveProviderTokenInfo(provider: Provider): Effect.Effect<TokenInfo, 
     }
 
     if (state.preferredSource === 'gh_cli') {
-      const cliToken = yield* Effect.promise(() => tryGetCliTokenForProvider(provider))
+      const cliToken = yield* Effect.promise(() =>
+        tryGetCliTokenForProvider(provider),
+      )
       if (cliToken) {
         return {
           source: 'gh_cli' as TokenSource,
@@ -513,27 +534,41 @@ function resolveProviderTokenInfo(provider: Provider): Effect.Effect<TokenInfo, 
     if (primaryEnvVar) {
       const primaryToken = process.env[primaryEnvVar]
       if (primaryToken) {
-        return { source: 'env' as TokenSource, maskedToken: maskToken(primaryToken) }
+        return {
+          source: 'env' as TokenSource,
+          maskedToken: maskToken(primaryToken),
+        }
       }
     }
 
     const manualToken = state.sessionToken ?? state.savedToken
     if (manualToken) {
-      return { source: 'manual' as TokenSource, maskedToken: maskToken(manualToken) }
+      return {
+        source: 'manual' as TokenSource,
+        maskedToken: maskToken(manualToken),
+      }
     }
 
     const secondaryEnvVar = meta.envVars[1]
     if (secondaryEnvVar) {
       const secondaryToken = process.env[secondaryEnvVar]
       if (secondaryToken) {
-        return { source: 'env' as TokenSource, maskedToken: maskToken(secondaryToken) }
+        return {
+          source: 'env' as TokenSource,
+          maskedToken: maskToken(secondaryToken),
+        }
       }
     }
 
     if (meta.cliCommand) {
-      const cliToken = yield* Effect.promise(() => tryGetCliTokenForProvider(provider))
+      const cliToken = yield* Effect.promise(() =>
+        tryGetCliTokenForProvider(provider),
+      )
       if (cliToken) {
-        return { source: 'gh_cli' as TokenSource, maskedToken: maskToken(cliToken) }
+        return {
+          source: 'gh_cli' as TokenSource,
+          maskedToken: maskToken(cliToken),
+        }
       }
     }
 
@@ -593,7 +628,11 @@ function getGitLabUser(token: string): Effect.Effect<User, AuthError> {
         throw new Error(`GitLab API returned ${response.status}`)
       }
 
-      const data = await response.json() as { username: string; avatar_url: string; id: number }
+      const data = (await response.json()) as {
+        username: string
+        avatar_url: string
+        id: number
+      }
       // Map GitLab user fields to our User schema
       return S.decodeUnknownSync(User)({
         login: data.username,
@@ -623,7 +662,11 @@ function getBitbucketUser(token: string): Effect.Effect<User, AuthError> {
         throw new Error(`Bitbucket API returned ${response.status}`)
       }
 
-      const data = await response.json() as { username: string; links?: { avatar?: { href?: string } }; account_id?: string }
+      const data = (await response.json()) as {
+        username: string
+        links?: { avatar?: { href?: string } }
+        account_id?: string
+      }
       // Map Bitbucket user fields to our User schema
       return S.decodeUnknownSync(User)({
         login: data.username,
@@ -655,7 +698,11 @@ function getGiteaUser(token: string): Effect.Effect<User, AuthError> {
         throw new Error(`Gitea API returned ${response.status}`)
       }
 
-      const data = await response.json() as { login: string; avatar_url?: string; id: number }
+      const data = (await response.json()) as {
+        login: string
+        avatar_url?: string
+        id: number
+      }
       return S.decodeUnknownSync(User)({
         login: data.login,
         avatar_url: data.avatar_url ?? '',
@@ -693,7 +740,7 @@ function getAzureUser(token: string): Effect.Effect<User, AuthError> {
         throw new Error(`Azure DevOps API returned ${response.status}`)
       }
 
-      const data = await response.json() as {
+      const data = (await response.json()) as {
         displayName: string
         emailAddress?: string
         id: string
@@ -713,7 +760,10 @@ function getAzureUser(token: string): Effect.Effect<User, AuthError> {
   })
 }
 
-function getProviderUser(provider: Provider, token: string): Effect.Effect<User, AuthError> {
+function getProviderUser(
+  provider: Provider,
+  token: string,
+): Effect.Effect<User, AuthError> {
   if (provider === 'github') return getGitHubUser(token)
   if (provider === 'gitlab') return getGitLabUser(token)
   if (provider === 'bitbucket') return getBitbucketUser(token)
@@ -722,7 +772,10 @@ function getProviderUser(provider: Provider, token: string): Effect.Effect<User,
   // Exhaustive check: all known providers handled above
   const _exhaustive: never = provider
   return Effect.fail(
-    new AuthError({ message: `Provider not yet supported`, reason: 'no_token' }),
+    new AuthError({
+      message: `Provider not yet supported`,
+      reason: 'no_token',
+    }),
   )
 }
 
@@ -753,7 +806,9 @@ export const AuthLive = Layer.succeed(
     setToken: (token: string) =>
       Effect.gen(function* () {
         if (getState().provider === 'github' && !isValidGitHubToken(token)) {
-          yield* Effect.logWarning('Token does not match known GitHub token formats')
+          yield* Effect.logWarning(
+            'Token does not match known GitHub token formats',
+          )
         }
         setState({
           sessionToken: token,
@@ -790,7 +845,9 @@ export const AuthLive = Layer.succeed(
 
         // Check CLI availability
         if (meta.cliCommand) {
-          const cliToken = yield* Effect.promise(() => tryGetCliTokenForProvider(state.provider))
+          const cliToken = yield* Effect.promise(() =>
+            tryGetCliTokenForProvider(state.provider),
+          )
           if (cliToken) {
             sources.push('gh_cli')
           }
@@ -805,7 +862,8 @@ export const AuthLive = Layer.succeed(
         setState({
           sessionToken: null,
           savedToken: null,
-          preferredSource: state.preferredSource === 'manual' ? null : state.preferredSource,
+          preferredSource:
+            state.preferredSource === 'manual' ? null : state.preferredSource,
         })
         yield* Effect.promise(deleteSavedToken)
       }),

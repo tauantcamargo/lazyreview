@@ -89,21 +89,21 @@ export function SuggestionModal({
     onSubmit('', suggestion)
   }, [suggestion, isSubmitting, onSubmit])
 
-  useInput(
-    (_input, key) => {
-      if (isSubmitting) return
+  useInput((_input, key) => {
+    if (isSubmitting) return
 
-      if (key.escape) {
-        onClose()
-      } else if (_input === 's' && key.ctrl) {
-        handleSubmit()
-      }
-    },
-  )
+    if (key.escape) {
+      onClose()
+    } else if (_input === 's' && key.ctrl) {
+      handleSubmit()
+    }
+  })
 
   const originalLines = originalCode.split('\n')
   const providerBadge = canSuggest ? 'native' : 'comment'
-  const providerBadgeColor = canSuggest ? theme.colors.success : theme.colors.warning
+  const providerBadgeColor = canSuggest
+    ? theme.colors.success
+    : theme.colors.warning
 
   return (
     <Modal>
@@ -182,9 +182,7 @@ export function SuggestionModal({
           <Text color={theme.colors.info}>Submitting suggestion...</Text>
         )}
 
-        {error && (
-          <Text color={theme.colors.error}>{error}</Text>
-        )}
+        {error && <Text color={theme.colors.error}>{error}</Text>}
       </Box>
     </Modal>
   )

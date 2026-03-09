@@ -29,9 +29,7 @@ interface AiSummarySectionProps {
 // ---------------------------------------------------------------------------
 
 function formatProviderHeader(providerName: string): string {
-  return providerName
-    ? `AI Summary (powered by ${providerName})`
-    : 'AI Summary'
+  return providerName ? `AI Summary (powered by ${providerName})` : 'AI Summary'
 }
 
 function getToggleHint(isExpanded: boolean): string {
@@ -85,10 +83,8 @@ export function AiSummarySection({
     isConfigured,
   })
 
-  const showContent =
-    isExpanded && (summary.length > 0 || isGenerating)
-  const showRegenerateHint =
-    isExpanded && summary.length > 0 && !isGenerating
+  const showContent = isExpanded && (summary.length > 0 || isGenerating)
+  const showRegenerateHint = isExpanded && summary.length > 0 && !isGenerating
 
   return (
     <Box

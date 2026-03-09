@@ -52,12 +52,20 @@ function TemplateRow({
       </Text>
       <Box width={16}>
         <Text color={fgColor} bold={isSelected}>
-          {renderHighlightedText(template.name, matchIndices, fgColor, warningColor)}
+          {renderHighlightedText(
+            template.name,
+            matchIndices,
+            fgColor,
+            warningColor,
+          )}
         </Text>
       </Box>
       {template.prefix !== undefined && template.prefix !== '' && (
         <Box width={14}>
-          <Text color={isSelected ? selectionFg : mutedColor} dimColor={!isSelected}>
+          <Text
+            color={isSelected ? selectionFg : mutedColor}
+            dimColor={!isSelected}
+          >
             {template.prefix}
           </Text>
         </Box>
@@ -168,9 +176,15 @@ export function TemplatePickerModal({
   const visibleCount = Math.min(MAX_VISIBLE_ITEMS, filteredTemplates.length)
   const scrollOffset = Math.max(
     0,
-    Math.min(selectedIndex - visibleCount + 1, filteredTemplates.length - visibleCount),
+    Math.min(
+      selectedIndex - visibleCount + 1,
+      filteredTemplates.length - visibleCount,
+    ),
   )
-  const visibleItems = filteredTemplates.slice(scrollOffset, scrollOffset + visibleCount)
+  const visibleItems = filteredTemplates.slice(
+    scrollOffset,
+    scrollOffset + visibleCount,
+  )
 
   useInput((input, key) => {
     if (key.escape) {
@@ -216,9 +230,7 @@ export function TemplatePickerModal({
           <Text color={theme.colors.accent} bold>
             Insert Template
           </Text>
-          <Text color={theme.colors.muted}>
-            {itemCountLabel} templates
-          </Text>
+          <Text color={theme.colors.muted}>{itemCountLabel} templates</Text>
         </Box>
 
         {/* Search input */}
@@ -262,7 +274,11 @@ export function TemplatePickerModal({
         {filteredTemplates.length > MAX_VISIBLE_ITEMS && (
           <Box paddingX={2}>
             <Text color={theme.colors.muted}>
-              {scrollOffset > 0 ? '...' : '   '} {selectedIndex + 1}/{filteredTemplates.length} {scrollOffset + visibleCount < filteredTemplates.length ? '...' : '   '}
+              {scrollOffset > 0 ? '...' : '   '} {selectedIndex + 1}/
+              {filteredTemplates.length}{' '}
+              {scrollOffset + visibleCount < filteredTemplates.length
+                ? '...'
+                : '   '}
             </Text>
           </Box>
         )}

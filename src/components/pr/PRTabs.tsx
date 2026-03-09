@@ -4,7 +4,14 @@ import { Tab, Tabs } from 'ink-tab'
 import { useTheme } from '../../theme/index'
 import { Divider } from '../common/Divider'
 
-export const PR_TAB_NAMES = ['Description', 'Conversations', 'Commits', 'Files', 'Checks', 'Timeline'] as const
+export const PR_TAB_NAMES = [
+  'Description',
+  'Conversations',
+  'Commits',
+  'Files',
+  'Checks',
+  'Timeline',
+] as const
 export type PRTabName = (typeof PR_TAB_NAMES)[number]
 
 /**
@@ -19,7 +26,10 @@ interface PRTabsProps {
   readonly onChange: (index: number) => void
 }
 
-export function PRTabs({ activeIndex, onChange }: PRTabsProps): React.ReactElement {
+export function PRTabs({
+  activeIndex,
+  onChange,
+}: PRTabsProps): React.ReactElement {
   const theme = useTheme()
 
   return (

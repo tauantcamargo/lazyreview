@@ -30,9 +30,7 @@ const IN_FLIGHT_TTL_MS = 24 * 60 * 60 * 1000
  * or failure). After the configurable window expires the entry is removed
  * so a subsequent call triggers a fresh execution.
  */
-export function createCoalescer<A>(
-  options?: CoalescerOptions,
-): Coalescer<A> {
+export function createCoalescer<A>(options?: CoalescerOptions): Coalescer<A> {
   const windowMs = options?.windowMs ?? DEFAULT_WINDOW_MS
   const cache = new Map<string, CacheEntry<A>>()
 

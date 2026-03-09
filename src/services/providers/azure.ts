@@ -11,10 +11,7 @@ import type {
   PRListResult,
   AddDiffCommentParams,
 } from './types'
-import {
-  azureFetchJson,
-  azureFetchAllPages,
-} from '../AzureApiHelpers'
+import { azureFetchJson, azureFetchAllPages } from '../AzureApiHelpers'
 import {
   AzurePullRequestSchema,
   AzureThreadSchema,
@@ -67,7 +64,12 @@ const AZURE_CAPABILITIES: ProviderCapabilities = {
   supportsCheckRuns: true,
   supportsLabels: false,
   supportsAssignees: false,
-  supportsMergeStrategies: ['noFastForward', 'squash', 'rebase', 'rebaseMerge'] as const,
+  supportsMergeStrategies: [
+    'noFastForward',
+    'squash',
+    'rebase',
+    'rebaseMerge',
+  ] as const,
   supportsStreaming: false,
   supportsBatchFetch: false,
   supportsWebhooks: false,
@@ -98,9 +100,9 @@ function mapProviderStateToAzureStatus(
 /**
  * Map normalized merge method to Azure DevOps completion options.
  */
-function mapMergeMethod(
-  method: 'merge' | 'squash' | 'rebase',
-): { readonly mergeStrategy: number } {
+function mapMergeMethod(method: 'merge' | 'squash' | 'rebase'): {
+  readonly mergeStrategy: number
+} {
   switch (method) {
     case 'merge':
       return { mergeStrategy: 1 } // noFastForward
@@ -155,9 +157,10 @@ export function encodeAzureThreadId(prId: number, threadId: number): string {
   return `${prId}:${threadId}`
 }
 
-export function decodeAzureThreadId(
-  encoded: string,
-): { readonly prId: number; readonly threadId: number } {
+export function decodeAzureThreadId(encoded: string): {
+  readonly prId: number
+  readonly threadId: number
+} {
   const separatorIndex = encoded.indexOf(':')
   if (separatorIndex === -1) {
     return { prId: 0, threadId: parseInt(encoded, 10) || 0 }
@@ -189,17 +192,14 @@ export function createAzureProvider(config: ProviderConfig): Provider {
   > =>
     cachedUserId != null && cachedUserName != null
       ? Effect.succeed({ id: cachedUserId, displayName: cachedUserName })
-      : Effect.map(
-          getConnectionData(baseUrl, token, owner),
-          (data) => {
-            cachedUserId = data.authenticatedUser.id
-            cachedUserName = data.authenticatedUser.providerDisplayName
-            return {
-              id: data.authenticatedUser.id,
-              displayName: data.authenticatedUser.providerDisplayName,
-            }
-          },
-        )
+      : Effect.map(getConnectionData(baseUrl, token, owner), (data) => {
+          cachedUserId = data.authenticatedUser.id
+          cachedUserName = data.authenticatedUser.providerDisplayName
+          return {
+            id: data.authenticatedUser.id,
+            displayName: data.authenticatedUser.providerDisplayName,
+          }
+        })
 
   /**
    * Build the PR HTML URL for this repo.
@@ -263,11 +263,7 @@ export function createAzureProvider(config: ProviderConfig): Provider {
         // Get iterations to find the latest
         const iterationsData = yield* azureFetchJson<{
           readonly value: readonly unknown[]
-        }>(
-          `${repoBase}/pullrequests/${number}/iterations`,
-          baseUrl,
-          token,
-        )
+        }>(`${repoBase}/pullrequests/${number}/iterations`, baseUrl, token)
 
         const iterations = parseIterations(iterationsData.value)
         if (iterations.length === 0) {
@@ -294,11 +290,7 @@ export function createAzureProvider(config: ProviderConfig): Provider {
       Effect.gen(function* () {
         const iterationsData = yield* azureFetchJson<{
           readonly value: readonly unknown[]
-        }>(
-          `${repoBase}/pullrequests/${number}/iterations`,
-          baseUrl,
-          token,
-        )
+        }>(`${repoBase}/pullrequests/${number}/iterations`, baseUrl, token)
 
         const iterations = parseIterations(iterationsData.value)
         if (iterations.length === 0) {
@@ -327,11 +319,7 @@ export function createAzureProvider(config: ProviderConfig): Provider {
       Effect.gen(function* () {
         const iterationsData = yield* azureFetchJson<{
           readonly value: readonly unknown[]
-        }>(
-          `${repoBase}/pullrequests/${number}/iterations`,
-          baseUrl,
-          token,
-        )
+        }>(`${repoBase}/pullrequests/${number}/iterations`, baseUrl, token)
 
         const iterations = parseIterations(iterationsData.value)
         if (iterations.length === 0) {
@@ -406,7 +394,8 @@ export function createAzureProvider(config: ProviderConfig): Provider {
           baseUrl,
           token,
         ),
-        (data) => parseCommits(data.value).map((c) => mapAzureCommitToCommit(c)),
+        (data) =>
+          parseCommits(data.value).map((c) => mapAzureCommitToCommit(c)),
       ),
 
     getPRChecks: (ref) =>
@@ -418,16 +407,11 @@ export function createAzureProvider(config: ProviderConfig): Provider {
 
         const buildsData = yield* azureFetchJson<{
           readonly value: readonly unknown[]
-        }>(
-          `/${org}/${project}/_apis/build/builds`,
-          baseUrl,
-          token,
-          {
-            branchName,
-            $top: '50',
-            queryOrder: 'finishTimeDescending',
-          },
-        )
+        }>(`/${org}/${project}/_apis/build/builds`, baseUrl, token, {
+          branchName,
+          $top: '50',
+          queryOrder: 'finishTimeDescending',
+        })
 
         const builds = parseBuilds(buildsData.value)
 
@@ -456,7 +440,9 @@ export function createAzureProvider(config: ProviderConfig): Provider {
                 !thread.isDeleted &&
                 thread.threadContext != null &&
                 thread.comments.some(
-                  (c) => c.commentType !== 'system' && c.commentType !== 'codeChange',
+                  (c) =>
+                    c.commentType !== 'system' &&
+                    c.commentType !== 'codeChange',
                 ),
             )
             .map(
@@ -479,24 +465,19 @@ export function createAzureProvider(config: ProviderConfig): Provider {
       Effect.map(
         azureFetchJson<{
           readonly changes: readonly unknown[]
-        }>(
-          `${repoBase}/commits/${sha}/changes`,
-          baseUrl,
-          token,
-        ),
+        }>(`${repoBase}/commits/${sha}/changes`, baseUrl, token),
         (data) => {
-          const changes = z
-            .array(AzureIterationChangeSchema)
-            .parse(
-              (data.changes ?? []).map((c: unknown) => {
-                const entry = c as Record<string, unknown>
-                return {
-                  changeType: entry.changeType,
-                  item: entry.item,
-                  originalPath: (entry as Record<string, unknown>).sourceServerItem,
-                }
-              }),
-            )
+          const changes = z.array(AzureIterationChangeSchema).parse(
+            (data.changes ?? []).map((c: unknown) => {
+              const entry = c as Record<string, unknown>
+              return {
+                changeType: entry.changeType,
+                item: entry.item,
+                originalPath: (entry as Record<string, unknown>)
+                  .sourceServerItem,
+              }
+            }),
+          )
           return changes.map(mapAzureChangeToFileChange)
         },
       ),
@@ -510,15 +491,10 @@ export function createAzureProvider(config: ProviderConfig): Provider {
 
         const data = yield* azureFetchJson<{
           readonly value: readonly unknown[]
-        }>(
-          `${repoBase}/pullrequests`,
-          baseUrl,
-          token,
-          {
-            'searchCriteria.status': azureStatus,
-            'searchCriteria.creatorId': user.id,
-          },
-        )
+        }>(`${repoBase}/pullrequests`, baseUrl, token, {
+          'searchCriteria.status': azureStatus,
+          'searchCriteria.creatorId': user.id,
+        })
 
         return parsePullRequests(data.value).map((pr) =>
           mapAzurePRToPullRequest(pr, baseUrl, org, project, repo),
@@ -532,15 +508,10 @@ export function createAzureProvider(config: ProviderConfig): Provider {
 
         const data = yield* azureFetchJson<{
           readonly value: readonly unknown[]
-        }>(
-          `${repoBase}/pullrequests`,
-          baseUrl,
-          token,
-          {
-            'searchCriteria.status': azureStatus,
-            'searchCriteria.reviewerId': user.id,
-          },
-        )
+        }>(`${repoBase}/pullrequests`, baseUrl, token, {
+          'searchCriteria.status': azureStatus,
+          'searchCriteria.reviewerId': user.id,
+        })
 
         return parsePullRequests(data.value).map((pr) =>
           mapAzurePRToPullRequest(pr, baseUrl, org, project, repo),
@@ -792,46 +763,61 @@ export function createAzureProvider(config: ProviderConfig): Provider {
 
     createPR: () =>
       Effect.fail(
-        new AzureError({ message: 'PR creation is not yet supported for Azure DevOps', status: 501 }),
+        new AzureError({
+          message: 'PR creation is not yet supported for Azure DevOps',
+          status: 501,
+        }),
       ),
 
     // -- Label operations (not supported for Azure DevOps) -------------------
 
     getLabels: () =>
       Effect.fail(
-        new AzureError({ message: 'Labels are not yet supported for Azure DevOps', status: 501 }),
+        new AzureError({
+          message: 'Labels are not yet supported for Azure DevOps',
+          status: 501,
+        }),
       ),
 
     setLabels: () =>
       Effect.fail(
-        new AzureError({ message: 'Labels are not yet supported for Azure DevOps', status: 501 }),
+        new AzureError({
+          message: 'Labels are not yet supported for Azure DevOps',
+          status: 501,
+        }),
       ),
 
     // -- Assignee operations (not supported for Azure DevOps) -----------------
 
     getCollaborators: () =>
       Effect.fail(
-        new AzureError({ message: 'Assignee management is not yet supported for Azure DevOps', status: 501 }),
+        new AzureError({
+          message: 'Assignee management is not yet supported for Azure DevOps',
+          status: 501,
+        }),
       ),
 
     updateAssignees: () =>
       Effect.fail(
-        new AzureError({ message: 'Assignee management is not yet supported for Azure DevOps', status: 501 }),
+        new AzureError({
+          message: 'Assignee management is not yet supported for Azure DevOps',
+          status: 501,
+        }),
       ),
 
     // -- Reaction operations (not supported for Azure DevOps) -----------------
 
     addReaction: () =>
       Effect.fail(
-        new AzureError({ message: 'Reactions are not supported for Azure DevOps', status: 501 }),
+        new AzureError({
+          message: 'Reactions are not supported for Azure DevOps',
+          status: 501,
+        }),
       ),
 
     // -- User info ----------------------------------------------------------
 
     getCurrentUser: () =>
-      Effect.map(
-        fetchCurrentUser(),
-        (user) => ({ login: user.displayName }),
-      ),
+      Effect.map(fetchCurrentUser(), (user) => ({ login: user.displayName })),
   }
 }

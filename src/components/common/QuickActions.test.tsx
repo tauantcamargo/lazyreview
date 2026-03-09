@@ -170,7 +170,10 @@ describe('QuickActions logic', () => {
     it('handles empty actions list gracefully', () => {
       const emptyActions: readonly QuickAction[] = []
       const selectedIndex = 0
-      const clampedIndex = Math.min(selectedIndex, Math.max(0, emptyActions.length - 1))
+      const clampedIndex = Math.min(
+        selectedIndex,
+        Math.max(0, emptyActions.length - 1),
+      )
       // With empty list, clamped index stays at 0 but no item exists
       expect(clampedIndex).toBe(0)
       expect(emptyActions[clampedIndex]).toBeUndefined()

@@ -38,7 +38,8 @@ function createMockResponse(
     statusText,
     headers: responseHeaders,
     json: () => Promise.resolve(body),
-    text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
+    text: () =>
+      Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
   } as unknown as Response
 }
 
@@ -59,9 +60,7 @@ afterEach(() => {
 
 describe('gitlabFetch', () => {
   it('sends PRIVATE-TOKEN header for personal access tokens', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse('OK'),
-    )
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse('OK'))
 
     await Effect.runPromise(gitlabFetch('/projects', BASE_URL, TOKEN))
 
@@ -88,9 +87,14 @@ describe('gitlabFetch', () => {
   })
 
   it('returns GitLabError on non-200 response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({ message: 'Not Found' }, { status: 404, statusText: 'Not Found' }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        createMockResponse(
+          { message: 'Not Found' },
+          { status: 404, statusText: 'Not Found' },
+        ),
+      )
 
     const result = await Effect.runPromiseExit(
       gitlabFetch('/projects/999', BASE_URL, TOKEN),
@@ -98,14 +102,16 @@ describe('gitlabFetch', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitLabError })
+      const error = result.cause as { _tag: string; error: GitLabError }
       expect(error.error).toBeInstanceOf(GitLabError)
       expect(error.error.status).toBe(404)
     }
   })
 
   it('returns NetworkError when fetch throws', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Connection refused'))
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValue(new Error('Connection refused'))
 
     const result = await Effect.runPromiseExit(
       gitlabFetch('/projects', BASE_URL, TOKEN),
@@ -113,16 +119,14 @@ describe('gitlabFetch', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: NetworkError })
+      const error = result.cause as { _tag: string; error: NetworkError }
       expect(error.error).toBeInstanceOf(NetworkError)
       expect(error.error.message).toContain('Connection refused')
     }
   })
 
   it('merges custom options with default headers', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse('OK'),
-    )
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse('OK'))
 
     await Effect.runPromise(
       gitlabFetch('/projects', BASE_URL, TOKEN, { method: 'POST' }),
@@ -140,9 +144,14 @@ describe('gitlabFetch', () => {
   })
 
   it('notifies token expiration on 401 response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({ message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        createMockResponse(
+          { message: 'Unauthorized' },
+          { status: 401, statusText: 'Unauthorized' },
+        ),
+      )
 
     const result = await Effect.runPromiseExit(
       gitlabFetch('/projects', BASE_URL, TOKEN),
@@ -150,7 +159,7 @@ describe('gitlabFetch', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitLabError })
+      const error = result.cause as { _tag: string; error: GitLabError }
       expect(error.error).toBeInstanceOf(GitLabError)
       expect(error.error.status).toBe(401)
     }
@@ -167,16 +176,25 @@ describe('gitlabFetchJson', () => {
     globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockData))
 
     const result = await Effect.runPromise(
-      gitlabFetchJson<{ id: number; name: string }>('/projects/1', BASE_URL, TOKEN),
+      gitlabFetchJson<{ id: number; name: string }>(
+        '/projects/1',
+        BASE_URL,
+        TOKEN,
+      ),
     )
 
     expect(result).toEqual({ id: 1, name: 'test-project' })
   })
 
   it('returns GitLabError on non-200 response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({ message: 'Forbidden' }, { status: 403, statusText: 'Forbidden' }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        createMockResponse(
+          { message: 'Forbidden' },
+          { status: 403, statusText: 'Forbidden' },
+        ),
+      )
 
     const result = await Effect.runPromiseExit(
       gitlabFetchJson('/projects/1', BASE_URL, TOKEN),
@@ -184,7 +202,7 @@ describe('gitlabFetchJson', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitLabError })
+      const error = result.cause as { _tag: string; error: GitLabError }
       expect(error.error).toBeInstanceOf(GitLabError)
       expect(error.error.status).toBe(403)
     }
@@ -199,15 +217,13 @@ describe('gitlabFetchJson', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: NetworkError })
+      const error = result.cause as { _tag: string; error: NetworkError }
       expect(error.error).toBeInstanceOf(NetworkError)
     }
   })
 
   it('passes custom options through to fetch', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({ id: 1 }),
-    )
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse({ id: 1 }))
 
     await Effect.runPromise(
       gitlabFetchJson('/projects/1', BASE_URL, TOKEN, { method: 'PUT' }),
@@ -249,7 +265,8 @@ describe('gitlabFetchAllPages', () => {
     const page1 = [{ id: 1 }]
     const page2 = [{ id: 2 }]
 
-    globalThis.fetch = vi.fn()
+    globalThis.fetch = vi
+      .fn()
       .mockResolvedValueOnce(
         createMockResponse(page1, {
           headers: {
@@ -286,7 +303,10 @@ describe('gitlabFetchAllPages', () => {
     )
 
     await Effect.runPromise(
-      gitlabFetchAllPages('/projects', BASE_URL, TOKEN, { state: 'opened', scope: 'all' }),
+      gitlabFetchAllPages('/projects', BASE_URL, TOKEN, {
+        state: 'opened',
+        scope: 'all',
+      }),
     )
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
@@ -301,18 +321,21 @@ describe('gitlabFetchAllPages', () => {
       }),
     )
 
-    await Effect.runPromise(
-      gitlabFetchAllPages('/projects', BASE_URL, TOKEN),
-    )
+    await Effect.runPromise(gitlabFetchAllPages('/projects', BASE_URL, TOKEN))
 
     const calledUrl = vi.mocked(globalThis.fetch).mock.calls[0][0] as string
     expect(calledUrl).toContain('per_page=100')
   })
 
   it('returns GitLabError when a page fails', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({ message: 'Server Error' }, { status: 500, statusText: 'Internal Server Error' }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        createMockResponse(
+          { message: 'Server Error' },
+          { status: 500, statusText: 'Internal Server Error' },
+        ),
+      )
 
     const result = await Effect.runPromiseExit(
       gitlabFetchAllPages('/projects', BASE_URL, TOKEN),
@@ -320,7 +343,7 @@ describe('gitlabFetchAllPages', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitLabError })
+      const error = result.cause as { _tag: string; error: GitLabError }
       expect(error.error).toBeInstanceOf(GitLabError)
       expect(error.error.status).toBe(500)
     }
@@ -335,7 +358,7 @@ describe('gitlabFetchAllPages', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: NetworkError })
+      const error = result.cause as { _tag: string; error: NetworkError }
       expect(error.error).toBeInstanceOf(NetworkError)
     }
   })
@@ -418,7 +441,10 @@ describe('mapGitLabError', () => {
 
   it('maps response with plain text body', () => {
     const error = mapGitLabError(
-      createMockResponse('', { status: 500, statusText: 'Internal Server Error' }),
+      createMockResponse('', {
+        status: 500,
+        statusText: 'Internal Server Error',
+      }),
       'Something went wrong',
     )
 
@@ -434,7 +460,10 @@ describe('mapGitLabError', () => {
       headers: { 'Retry-After': '60' },
     })
 
-    const error = mapGitLabError(response, JSON.stringify({ message: 'Rate limited' }))
+    const error = mapGitLabError(
+      response,
+      JSON.stringify({ message: 'Rate limited' }),
+    )
 
     expect(error.status).toBe(429)
     expect(error.retryAfterMs).toBe(60000)
@@ -452,7 +481,10 @@ describe('mapGitLabError', () => {
 
   it('handles 422 status', () => {
     const error = mapGitLabError(
-      createMockResponse('', { status: 422, statusText: 'Unprocessable Entity' }),
+      createMockResponse('', {
+        status: 422,
+        statusText: 'Unprocessable Entity',
+      }),
       JSON.stringify({ message: 'Validation failed' }),
     )
 
@@ -565,11 +597,14 @@ describe('buildGitLabUrl', () => {
 describe('429 rate limit handling', () => {
   it('attaches retryAfterMs to GitLabError for 429 responses', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({ message: 'Rate limited' }, {
-        status: 429,
-        statusText: 'Too Many Requests',
-        headers: { 'Retry-After': '30' },
-      }),
+      createMockResponse(
+        { message: 'Rate limited' },
+        {
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: { 'Retry-After': '30' },
+        },
+      ),
     )
 
     const result = await Effect.runPromiseExit(
@@ -578,7 +613,7 @@ describe('429 rate limit handling', () => {
 
     expect(result._tag).toBe('Failure')
     if (result._tag === 'Failure') {
-      const error = (result.cause as { _tag: string; error: GitLabError })
+      const error = result.cause as { _tag: string; error: GitLabError }
       expect(error.error).toBeInstanceOf(GitLabError)
       expect(error.error.status).toBe(429)
       expect(error.error.retryAfterMs).toBe(30000)
@@ -588,13 +623,16 @@ describe('429 rate limit handling', () => {
   it('uses RateLimit-Remaining header to update rate limit store', async () => {
     const { updateRateLimit } = await import('../hooks/useRateLimit')
     globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({ id: 1 }, {
-        headers: {
-          'ratelimit-remaining': '99',
-          'ratelimit-limit': '100',
-          'ratelimit-reset': '1700000000',
+      createMockResponse(
+        { id: 1 },
+        {
+          headers: {
+            'ratelimit-remaining': '99',
+            'ratelimit-limit': '100',
+            'ratelimit-reset': '1700000000',
+          },
         },
-      }),
+      ),
     )
 
     await Effect.runPromise(gitlabFetch('/projects', BASE_URL, TOKEN))
@@ -609,9 +647,7 @@ describe('429 rate limit handling', () => {
 
 describe('gitlabFetch mutation methods', () => {
   it('handles POST requests', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({ id: 1 }),
-    )
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse({ id: 1 }))
 
     await Effect.runPromise(
       gitlabFetchJson('/projects/1/merge_requests', BASE_URL, TOKEN, {
@@ -630,9 +666,7 @@ describe('gitlabFetch mutation methods', () => {
   })
 
   it('handles PUT requests', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse({ id: 1 }),
-    )
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse({ id: 1 }))
 
     await Effect.runPromise(
       gitlabFetchJson('/projects/1/merge_requests/1', BASE_URL, TOKEN, {
@@ -648,9 +682,9 @@ describe('gitlabFetch mutation methods', () => {
   })
 
   it('handles DELETE requests', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      createMockResponse(null, { status: 204 }),
-    )
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(createMockResponse(null, { status: 204 }))
 
     const response = await Effect.runPromise(
       gitlabFetch('/projects/1/merge_requests/1/notes/1', BASE_URL, TOKEN, {

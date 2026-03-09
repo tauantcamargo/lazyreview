@@ -153,7 +153,11 @@ function makeGitLabDiscussion(overrides: Record<string, unknown> = {}) {
 let provider: Provider
 let mockFetch: ReturnType<typeof vi.fn>
 
-function mockFetchResponse(body: unknown, status = 200, headers: Record<string, string> = {}) {
+function mockFetchResponse(
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+) {
   return Promise.resolve({
     ok: status >= 200 && status < 300,
     status,
@@ -257,9 +261,7 @@ describe('GitLab provider - listPRs', () => {
   it('should use perPage and page params', async () => {
     mockFetch.mockResolvedValueOnce(mockFetchResponse([]))
 
-    await Effect.runPromise(
-      provider.listPRs({ perPage: 10, page: 2 }),
-    )
+    await Effect.runPromise(provider.listPRs({ perPage: 10, page: 2 }))
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string
     expect(calledUrl).toContain('per_page=10')
@@ -299,7 +301,9 @@ describe('GitLab provider - getPR', () => {
     await Effect.runPromise(provider.getPR(42))
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string
-    expect(calledUrl).toContain(`/projects/${ENCODED_PROJECT}/merge_requests/42`)
+    expect(calledUrl).toContain(
+      `/projects/${ENCODED_PROJECT}/merge_requests/42`,
+    )
   })
 
   it('should use PRIVATE-TOKEN header', async () => {
@@ -526,11 +530,23 @@ describe('GitLab provider - getPRCommits', () => {
 
 describe('GitLab provider - getPRChecks', () => {
   it('should fetch pipeline jobs and map to CheckRunsResponse', async () => {
-    const pipelines = [{ id: 500, status: 'success', ref: 'main', sha: 'abc123', web_url: '' }]
+    const pipelines = [
+      { id: 500, status: 'success', ref: 'main', sha: 'abc123', web_url: '' },
+    ]
     const jobs = [
-      makeGitLabJob({ id: 301, name: 'lint', status: 'success', stage: 'lint' }),
+      makeGitLabJob({
+        id: 301,
+        name: 'lint',
+        status: 'success',
+        stage: 'lint',
+      }),
       makeGitLabJob({ id: 302, name: 'test', status: 'failed', stage: 'test' }),
-      makeGitLabJob({ id: 303, name: 'deploy', status: 'running', stage: 'deploy' }),
+      makeGitLabJob({
+        id: 303,
+        name: 'deploy',
+        status: 'running',
+        stage: 'deploy',
+      }),
     ]
 
     mockFetch
@@ -601,9 +617,7 @@ describe('GitLab provider - getReviewThreads', () => {
   })
 
   it('should filter out individual notes (non-threaded)', async () => {
-    const discussions = [
-      makeGitLabDiscussion({ individual_note: true }),
-    ]
+    const discussions = [makeGitLabDiscussion({ individual_note: true })]
 
     mockFetch.mockResolvedValueOnce(
       mockFetchResponse(discussions, 200, { 'x-next-page': '' }),

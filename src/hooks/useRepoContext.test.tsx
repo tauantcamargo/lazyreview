@@ -5,11 +5,11 @@ import { Text } from 'ink'
 import { RepoContextProvider, useRepoContext } from './useRepoContext'
 import type { RepoIdentifier } from './useRepoContext'
 
-const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+const delay = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 function TestConsumer(): React.ReactElement {
-  const { localRepo, browseRepo } =
-    useRepoContext()
+  const { localRepo, browseRepo } = useRepoContext()
   return (
     <Text>
       local:{localRepo ? `${localRepo.owner}/${localRepo.repo}` : 'null'}
@@ -18,7 +18,13 @@ function TestConsumer(): React.ReactElement {
   )
 }
 
-function TestSetBrowse({ owner, repo }: { readonly owner: string; readonly repo: string }): React.ReactElement {
+function TestSetBrowse({
+  owner,
+  repo,
+}: {
+  readonly owner: string
+  readonly repo: string
+}): React.ReactElement {
   const { localRepo, browseRepo, setBrowseRepo } = useRepoContext()
   useEffect(() => {
     setBrowseRepo(owner, repo)
@@ -32,7 +38,8 @@ function TestSetBrowse({ owner, repo }: { readonly owner: string; readonly repo:
 }
 
 function TestClearBrowse(): React.ReactElement {
-  const { localRepo, browseRepo, setBrowseRepo, clearBrowseRepo } = useRepoContext()
+  const { localRepo, browseRepo, setBrowseRepo, clearBrowseRepo } =
+    useRepoContext()
   useEffect(() => {
     setBrowseRepo('temp', 'repo')
     clearBrowseRepo()

@@ -16,7 +16,12 @@ import {
 
 describe('createOptimisticComment', () => {
   it('creates a Comment-shaped object with a negative temporary id', () => {
-    const comment = createOptimisticComment({ body: 'hello', path: 'src/foo.ts', line: 10, side: 'RIGHT' as const })
+    const comment = createOptimisticComment({
+      body: 'hello',
+      path: 'src/foo.ts',
+      line: 10,
+      side: 'RIGHT' as const,
+    })
     expect(comment.id).toBeLessThan(0)
     expect(comment.body).toBe('hello')
     expect(comment.path).toBe('src/foo.ts')
@@ -94,7 +99,10 @@ describe('createOptimisticReview', () => {
   })
 
   it('maps REQUEST_CHANGES event to CHANGES_REQUESTED state', () => {
-    const review = createOptimisticReview({ body: 'fix it', event: 'REQUEST_CHANGES' })
+    const review = createOptimisticReview({
+      body: 'fix it',
+      event: 'REQUEST_CHANGES',
+    })
     expect(review.state).toBe('CHANGES_REQUESTED')
   })
 
@@ -116,7 +124,14 @@ describe('createOptimisticReview', () => {
 
 describe('applyOptimisticComment', () => {
   const existing = [
-    { id: 1, body: 'first', user: OPTIMISTIC_USER, created_at: '2024-01-01', updated_at: '2024-01-01', html_url: '' },
+    {
+      id: 1,
+      body: 'first',
+      user: OPTIMISTIC_USER,
+      created_at: '2024-01-01',
+      updated_at: '2024-01-01',
+      html_url: '',
+    },
   ]
 
   it('appends the new comment to an existing array', () => {
@@ -147,7 +162,14 @@ describe('applyOptimisticComment', () => {
 
 describe('applyOptimisticIssueComment', () => {
   const existing = [
-    { id: 1, body: 'first', user: OPTIMISTIC_USER, created_at: '2024-01-01', updated_at: '2024-01-01', html_url: '' },
+    {
+      id: 1,
+      body: 'first',
+      user: OPTIMISTIC_USER,
+      created_at: '2024-01-01',
+      updated_at: '2024-01-01',
+      html_url: '',
+    },
   ]
 
   it('appends the new issue comment', () => {
@@ -170,7 +192,14 @@ describe('applyOptimisticIssueComment', () => {
 
 describe('applyOptimisticReview', () => {
   const existing = [
-    { id: 1, body: 'old review', state: 'COMMENTED' as const, user: OPTIMISTIC_USER, html_url: '', submitted_at: '2024-01-01' },
+    {
+      id: 1,
+      body: 'old review',
+      state: 'COMMENTED' as const,
+      user: OPTIMISTIC_USER,
+      html_url: '',
+      submitted_at: '2024-01-01',
+    },
   ]
 
   it('appends the new review', () => {
@@ -181,7 +210,10 @@ describe('applyOptimisticReview', () => {
   })
 
   it('handles undefined old data', () => {
-    const newReview = createOptimisticReview({ body: 'first', event: 'COMMENT' })
+    const newReview = createOptimisticReview({
+      body: 'first',
+      event: 'COMMENT',
+    })
     const result = applyOptimisticReview(undefined, newReview)
     expect(result).toHaveLength(1)
   })

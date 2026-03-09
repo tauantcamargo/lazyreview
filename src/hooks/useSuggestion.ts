@@ -4,7 +4,10 @@ import { Effect } from 'effect'
 import { CodeReviewApi } from '../services/GitHubApi'
 import { runEffect } from '../utils/effect'
 import { formatSuggestionForProvider } from '../models/suggestion'
-import type { SuggestionParams, AcceptSuggestionParams } from '../models/suggestion'
+import type {
+  SuggestionParams,
+  AcceptSuggestionParams,
+} from '../models/suggestion'
 import type { ProviderType } from '../services/providers/types'
 import type { ApiError } from '../services/CodeReviewApiTypes'
 
@@ -131,7 +134,13 @@ export function useSuggestion({
   })
 
   const acceptMutation = useMutation({
-    mutationFn: ({ commentId, prNumber }: { readonly commentId: number; readonly prNumber: number }) =>
+    mutationFn: ({
+      commentId,
+      prNumber,
+    }: {
+      readonly commentId: number
+      readonly prNumber: number
+    }) =>
       runEffect(
         Effect.gen(function* () {
           const api = yield* CodeReviewApi

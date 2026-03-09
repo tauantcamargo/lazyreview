@@ -218,7 +218,11 @@ describe('mapMergeRequestToPR', () => {
   it('uses diff_refs.base_sha for base.sha when available', () => {
     const pr = mapMergeRequestToPR({
       ...minimalMR,
-      diff_refs: { base_sha: 'basesha', head_sha: 'headsha', start_sha: 'start' },
+      diff_refs: {
+        base_sha: 'basesha',
+        head_sha: 'headsha',
+        start_sha: 'start',
+      },
     })
     expect(pr.base.sha).toBe('basesha')
   })
@@ -520,16 +524,11 @@ describe('mapCommit', () => {
       ...glCommit,
       web_url: 'https://gitlab.com/project/-/commit/abc123',
     })
-    expect(commit.html_url).toBe(
-      'https://gitlab.com/project/-/commit/abc123',
-    )
+    expect(commit.html_url).toBe('https://gitlab.com/project/-/commit/abc123')
   })
 
   it('constructs html_url from repoWebUrl when no web_url on commit', () => {
-    const commit = mapCommit(
-      glCommit,
-      'https://gitlab.com/group/project',
-    )
+    const commit = mapCommit(glCommit, 'https://gitlab.com/group/project')
     expect(commit.html_url).toBe(
       'https://gitlab.com/group/project/-/commit/abc123def456',
     )
@@ -649,11 +648,7 @@ describe('mapPipelineJobsToCheckRunsResponse', () => {
 
 describe('mapApprovalToReview', () => {
   it('creates an APPROVED review from user data', () => {
-    const review = mapApprovalToReview(
-      glUser,
-      '2026-01-17T09:00:00Z',
-      mrWebUrl,
-    )
+    const review = mapApprovalToReview(glUser, '2026-01-17T09:00:00Z', mrWebUrl)
     expect(review.state).toBe('APPROVED')
     expect(review.user.login).toBe('janedoe')
     expect(review.submitted_at).toBe('2026-01-17T09:00:00Z')

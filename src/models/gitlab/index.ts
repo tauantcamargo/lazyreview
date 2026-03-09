@@ -20,11 +20,7 @@ export {
   GitLabNoteSchema,
   GitLabDiscussionSchema,
 } from './note'
-export type {
-  GitLabNotePosition,
-  GitLabNote,
-  GitLabDiscussion,
-} from './note'
+export type { GitLabNotePosition, GitLabNote, GitLabDiscussion } from './note'
 
 export { GitLabDiffSchema } from './diff'
 export type { GitLabDiff } from './diff'

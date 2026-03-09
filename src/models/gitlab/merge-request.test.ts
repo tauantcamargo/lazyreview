@@ -105,9 +105,7 @@ describe('GitLabHeadPipelineSchema', () => {
     const result = GitLabHeadPipelineSchema.parse(validPipeline)
     expect(result.id).toBe(100)
     expect(result.status).toBe('success')
-    expect(result.web_url).toBe(
-      'https://gitlab.com/project/-/pipelines/100',
-    )
+    expect(result.web_url).toBe('https://gitlab.com/project/-/pipelines/100')
   })
 })
 

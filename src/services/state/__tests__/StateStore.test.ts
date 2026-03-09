@@ -223,7 +223,9 @@ describe('StateStore', () => {
     })
 
     it('should not throw when removing non-existent repo', () => {
-      expect(() => store.removeBookmarkedRepo('nonexistent', 'repo')).not.toThrow()
+      expect(() =>
+        store.removeBookmarkedRepo('nonexistent', 'repo'),
+      ).not.toThrow()
     })
   })
 
@@ -251,7 +253,9 @@ describe('StateStore', () => {
       // Both should exist but only one entry
       expect(store.getRecentRepos()).toHaveLength(1)
       // The timestamp should be updated (or at least not older)
-      expect(new Date(second).getTime()).toBeGreaterThanOrEqual(new Date(first).getTime())
+      expect(new Date(second).getTime()).toBeGreaterThanOrEqual(
+        new Date(first).getTime(),
+      )
     })
 
     it('should return repos ordered by most recent', () => {
@@ -560,13 +564,20 @@ describe('StateStore', () => {
     })
 
     it('should handle values with special characters', () => {
-      store.setKV('key', "value with 'quotes' and \"double quotes\"")
-      expect(store.getKV('key')).toBe("value with 'quotes' and \"double quotes\"")
+      store.setKV('key', 'value with \'quotes\' and "double quotes"')
+      expect(store.getKV('key')).toBe(
+        'value with \'quotes\' and "double quotes"',
+      )
     })
 
     it('should handle unicode in values', () => {
-      store.setPRNotes('key', 'Notes with unicode: \u2764\uFE0F \uD83D\uDE80 \u2705')
-      expect(store.getPRNotes('key')?.content).toBe('Notes with unicode: \u2764\uFE0F \uD83D\uDE80 \u2705')
+      store.setPRNotes(
+        'key',
+        'Notes with unicode: \u2764\uFE0F \uD83D\uDE80 \u2705',
+      )
+      expect(store.getPRNotes('key')?.content).toBe(
+        'Notes with unicode: \u2764\uFE0F \uD83D\uDE80 \u2705',
+      )
     })
 
     it('should handle empty string values', () => {

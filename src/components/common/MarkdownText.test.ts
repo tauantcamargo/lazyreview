@@ -237,9 +237,7 @@ describe('parseBlocks - task lists', () => {
   })
 
   it('separates task list from regular list', () => {
-    const blocks = parseBlocks(
-      '- [x] Task item\n\n- regular item',
-    )
+    const blocks = parseBlocks('- [x] Task item\n\n- regular item')
     expect(blocks).toHaveLength(2)
     expect(blocks[0]!.type).toBe('tasklist')
     expect(blocks[1]!.type).toBe('list')
@@ -349,7 +347,8 @@ describe('parseTable', () => {
 
 describe('parseBlocks - nested lists', () => {
   it('parses nested unordered list with indentation levels', () => {
-    const text = '- Top item\n  - Nested item\n  - Another nested\n- Back to top'
+    const text =
+      '- Top item\n  - Nested item\n  - Another nested\n- Back to top'
     const blocks = parseBlocks(text)
     expect(blocks).toHaveLength(1)
     expect(blocks[0]!.type).toBe('list')

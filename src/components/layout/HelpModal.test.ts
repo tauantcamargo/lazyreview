@@ -17,7 +17,9 @@ describe('buildShortcutGroups', () => {
     expect(moveDown).toBeDefined()
     expect(moveDown!.key).toBe('j / \u2193')
 
-    const toggleHelp = global!.items.find((s) => s.description === 'Toggle this help')
+    const toggleHelp = global!.items.find(
+      (s) => s.description === 'Toggle this help',
+    )
     expect(toggleHelp).toBeDefined()
     expect(toggleHelp!.key).toBe('?')
   })
@@ -50,7 +52,9 @@ describe('buildShortcutGroups', () => {
     const global = groups.find((g) => g.title === 'Global')
     expect(global).toBeDefined()
 
-    const toggleHelp = global!.items.find((s) => s.description === 'Toggle this help')
+    const toggleHelp = global!.items.find(
+      (s) => s.description === 'Toggle this help',
+    )
     expect(toggleHelp).toBeDefined()
     expect(toggleHelp!.key).toBe('h')
   })

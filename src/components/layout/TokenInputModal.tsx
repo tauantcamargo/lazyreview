@@ -4,7 +4,12 @@ import { PasswordInput } from '@inkjs/ui'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
-import { getAuthProvider, getEnvVarName, getProviderMeta, getProviderTokenFilePath } from '../../services/Auth'
+import {
+  getAuthProvider,
+  getEnvVarName,
+  getProviderMeta,
+  getProviderTokenFilePath,
+} from '../../services/Auth'
 
 interface TokenInputModalProps {
   readonly onClose: () => void
@@ -78,7 +83,10 @@ export function TokenInputModal({
           paddingX={1}
           width={50}
         >
-          <PasswordInput onChange={setValue} placeholder={meta.tokenPlaceholder} />
+          <PasswordInput
+            onChange={setValue}
+            placeholder={meta.tokenPlaceholder}
+          />
         </Box>
         <Box flexDirection="column">
           <Text color={theme.colors.muted} dimColor>
@@ -89,9 +97,7 @@ export function TokenInputModal({
           </Text>
         </Box>
         <Box flexDirection="column" marginTop={1}>
-          <Text color={theme.colors.info}>
-            Get a token at: {meta.tokenUrl}
-          </Text>
+          <Text color={theme.colors.info}>Get a token at: {meta.tokenUrl}</Text>
           <Text color={theme.colors.muted}>
             Required scopes: {meta.requiredScopes}
           </Text>

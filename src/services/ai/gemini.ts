@@ -33,9 +33,10 @@ function getEndpoint(config: AiServiceConfig): string {
  * Gemini uses 'user' and 'model' (not 'assistant').
  * System messages are passed via systemInstruction.
  */
-function buildGeminiContents(
-  messages: readonly AiMessage[],
-): readonly { readonly role: string; readonly parts: readonly { readonly text: string }[] }[] {
+function buildGeminiContents(messages: readonly AiMessage[]): readonly {
+  readonly role: string
+  readonly parts: readonly { readonly text: string }[]
+}[] {
   return messages
     .filter((m) => m.role !== 'system')
     .map((m) => ({
@@ -94,7 +95,10 @@ export function createGeminiService(config: AiServiceConfig): AiService {
   const complete = (
     messages: readonly AiMessage[],
     options?: AiRequestOptions,
-  ): Effect.Effect<AiResponse, AiError | AiNetworkError | AiRateLimitError | AiResponseError> => {
+  ): Effect.Effect<
+    AiResponse,
+    AiError | AiNetworkError | AiRateLimitError | AiResponseError
+  > => {
     const url = `${endpoint}/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`
     const body = buildRequestBody(config, messages, options)
 
@@ -176,20 +180,24 @@ export function createGeminiService(config: AiServiceConfig): AiService {
 
 function parseGeminiResponse(data: unknown, model: string): AiResponse {
   const obj = data as Record<string, unknown>
-  const candidates = obj['candidates'] as readonly {
-    readonly content?: {
-      readonly parts?: readonly { readonly text?: string }[]
-    }
-  }[] | undefined
+  const candidates = obj['candidates'] as
+    | readonly {
+        readonly content?: {
+          readonly parts?: readonly { readonly text?: string }[]
+        }
+      }[]
+    | undefined
 
   const textParts = (candidates?.[0]?.content?.parts ?? [])
     .filter((p) => typeof p.text === 'string')
     .map((p) => p.text as string)
 
-  const usageMeta = obj['usageMetadata'] as {
-    readonly promptTokenCount?: number
-    readonly candidatesTokenCount?: number
-  } | undefined
+  const usageMeta = obj['usageMetadata'] as
+    | {
+        readonly promptTokenCount?: number
+        readonly candidatesTokenCount?: number
+      }
+    | undefined
 
   return {
     content: textParts.join(''),

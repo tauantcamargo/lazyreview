@@ -38,7 +38,10 @@ export function PaginationBar({
   return (
     <Box paddingX={1} gap={1} alignItems="center">
       {/* prev arrow */}
-      <Text color={hasPrevPage ? theme.colors.accent : theme.colors.muted} bold={hasPrevPage}>
+      <Text
+        color={hasPrevPage ? theme.colors.accent : theme.colors.muted}
+        bold={hasPrevPage}
+      >
         {'‹'}
       </Text>
 
@@ -53,18 +56,25 @@ export function PaginationBar({
           {Array.from({ length: totalPages }, (_, i) => (
             <Text
               key={i}
-              color={i + 1 === currentPage ? theme.colors.accent : theme.colors.muted}
+              color={
+                i + 1 === currentPage ? theme.colors.accent : theme.colors.muted
+              }
             >
               {i + 1 === currentPage ? '●' : '○'}
             </Text>
           ))}
         </Box>
       ) : (
-        <Text color={theme.colors.muted}>{currentPage}/{totalPages}</Text>
+        <Text color={theme.colors.muted}>
+          {currentPage}/{totalPages}
+        </Text>
       )}
 
       {/* next arrow */}
-      <Text color={hasNextPage ? theme.colors.accent : theme.colors.muted} bold={hasNextPage}>
+      <Text
+        color={hasNextPage ? theme.colors.accent : theme.colors.muted}
+        bold={hasNextPage}
+      >
         {'›'}
       </Text>
     </Box>

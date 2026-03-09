@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  getItemIndex,
-  SIDEBAR_SECTIONS,
-} from './useSidebarSections'
+import { getItemIndex, SIDEBAR_SECTIONS } from './useSidebarSections'
 import type { NavigableEntry } from './useSidebarSections'
 
 describe('SIDEBAR_SECTIONS', () => {

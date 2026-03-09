@@ -143,7 +143,9 @@ export function LabelPickerModal({
           <Text color={theme.colors.accent} bold>
             Labels
           </Text>
-          <Text color={theme.colors.muted}>No labels available for this repository.</Text>
+          <Text color={theme.colors.muted}>
+            No labels available for this repository.
+          </Text>
           <Text color={theme.colors.muted} dimColor>
             Esc: close
           </Text>
@@ -168,23 +170,27 @@ export function LabelPickerModal({
           Labels
         </Text>
 
-        <Text color={theme.colors.muted}>
-          Toggle labels for this PR:
-        </Text>
+        <Text color={theme.colors.muted}>Toggle labels for this PR:</Text>
 
         <Box flexDirection="column">
           {repoLabels.map((label, index) => {
             const isChecked = selectedLabels.has(label.name)
             const isFocused = index === selectedIndex
             const labelColor = hexToInkColor(label.color)
-            const textOnLabel = isLightColor(label.color) ? '#000000' : '#ffffff'
+            const textOnLabel = isLightColor(label.color)
+              ? '#000000'
+              : '#ffffff'
 
             return (
               <Box key={label.name} gap={1}>
-                <Text color={isFocused ? theme.colors.accent : theme.colors.muted}>
+                <Text
+                  color={isFocused ? theme.colors.accent : theme.colors.muted}
+                >
                   {isFocused ? '>' : ' '}
                 </Text>
-                <Text color={isChecked ? theme.colors.accent : theme.colors.muted}>
+                <Text
+                  color={isChecked ? theme.colors.accent : theme.colors.muted}
+                >
                   [{isChecked ? 'x' : ' '}]
                 </Text>
                 <Text
@@ -206,7 +212,8 @@ export function LabelPickerModal({
 
         {hasChanges && (
           <Text color={theme.colors.info}>
-            {selectedLabels.size} label{selectedLabels.size !== 1 ? 's' : ''} selected
+            {selectedLabels.size} label{selectedLabels.size !== 1 ? 's' : ''}{' '}
+            selected
           </Text>
         )}
 
@@ -214,9 +221,7 @@ export function LabelPickerModal({
           <Text color={theme.colors.info}>Applying labels...</Text>
         )}
 
-        {error && (
-          <Text color={theme.colors.error}>{error}</Text>
-        )}
+        {error && <Text color={theme.colors.error}>{error}</Text>}
 
         <Text color={theme.colors.muted} dimColor>
           j/k: navigate | Space/Enter: toggle | Ctrl+S: apply | Esc: cancel

@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  GiteaIssueCommentSchema,
-  GiteaReviewCommentSchema,
-} from './comment'
+import { GiteaIssueCommentSchema, GiteaReviewCommentSchema } from './comment'
 
 // ---------------------------------------------------------------------------
 // Fixtures

@@ -120,19 +120,27 @@ describe('PRHeader', () => {
 
 describe('PRListItem helpers', () => {
   it('getStateBadge returns OPEN for open non-draft PR', () => {
-    expect(getStateBadge({ state: 'open', draft: false, merged: false })).toBe('OPEN')
+    expect(getStateBadge({ state: 'open', draft: false, merged: false })).toBe(
+      'OPEN',
+    )
   })
 
   it('getStateBadge returns DRFT for draft PR', () => {
-    expect(getStateBadge({ state: 'open', draft: true, merged: false })).toBe('DRFT')
+    expect(getStateBadge({ state: 'open', draft: true, merged: false })).toBe(
+      'DRFT',
+    )
   })
 
   it('getStateBadge returns MRGD for merged PR', () => {
-    expect(getStateBadge({ state: 'closed', draft: false, merged: true })).toBe('MRGD')
+    expect(getStateBadge({ state: 'closed', draft: false, merged: true })).toBe(
+      'MRGD',
+    )
   })
 
   it('getStateBadge returns CLSD for closed PR', () => {
-    expect(getStateBadge({ state: 'closed', draft: false, merged: false })).toBe('CLSD')
+    expect(
+      getStateBadge({ state: 'closed', draft: false, merged: false }),
+    ).toBe('CLSD')
   })
 
   it('formatDiffStats formats additions and deletions', () => {
@@ -147,9 +155,7 @@ describe('PRListItem helpers', () => {
 describe('Sidebar', () => {
   it('renders sidebar items in full mode', () => {
     const { lastFrame } = render(
-      themed(
-        <Sidebar selectedIndex={0} visible isActive={false} />,
-      ),
+      themed(<Sidebar selectedIndex={0} visible isActive={false} />),
     )
     expect(lastFrame()).toContain('Involved')
     expect(lastFrame()).toContain('Settings')
@@ -157,9 +163,7 @@ describe('Sidebar', () => {
 
   it('uses ▶ arrow for selected item', () => {
     const { lastFrame } = render(
-      themed(
-        <Sidebar selectedIndex={0} visible isActive={true} />,
-      ),
+      themed(<Sidebar selectedIndex={0} visible isActive={true} />),
     )
     expect(lastFrame()).toContain('▶')
   })
@@ -191,11 +195,7 @@ describe('TopBar', () => {
   it('renders › separator in breadcrumbs', () => {
     const { lastFrame } = render(
       themed(
-        <TopBar
-          username="alice"
-          provider="github"
-          screenName="Involved"
-        />,
+        <TopBar username="alice" provider="github" screenName="Involved" />,
       ),
     )
     expect(lastFrame()).toContain('›')
@@ -215,7 +215,8 @@ describe('TopBar', () => {
   })
 
   it('truncates PR title at 30 characters', () => {
-    const longTitle = 'This is a very long PR title that should be truncated properly'
+    const longTitle =
+      'This is a very long PR title that should be truncated properly'
     const { lastFrame } = render(
       themed(
         <TopBar
@@ -235,12 +236,7 @@ describe('TopBar', () => {
 
   it('shows provider badge in breadcrumbs', () => {
     const { lastFrame } = render(
-      themed(
-        <TopBar
-          username="alice"
-          provider="github"
-        />,
-      ),
+      themed(<TopBar username="alice" provider="github" />),
     )
     expect(lastFrame()).toContain('[GH]')
   })
@@ -268,7 +264,9 @@ describe('EmptyState', () => {
 
   it('renders title when provided', () => {
     const { lastFrame } = render(
-      themed(<EmptyState title="No Results" message="No PRs match your filter" />),
+      themed(
+        <EmptyState title="No Results" message="No PRs match your filter" />,
+      ),
     )
     expect(lastFrame()).toContain('No Results')
     expect(lastFrame()).toContain('No PRs match your filter')
@@ -276,7 +274,12 @@ describe('EmptyState', () => {
 
   it('renders actions when provided', () => {
     const { lastFrame } = render(
-      themed(<EmptyState message="Empty" actions={[{ key: 'r', label: 'refresh' }]} />),
+      themed(
+        <EmptyState
+          message="Empty"
+          actions={[{ key: 'r', label: 'refresh' }]}
+        />,
+      ),
     )
     expect(lastFrame()).toContain('r')
     expect(lastFrame()).toContain('refresh')
@@ -285,13 +288,17 @@ describe('EmptyState', () => {
 
 describe('LoadingIndicator', () => {
   it('renders loading message', () => {
-    const { lastFrame } = render(themed(<LoadingIndicator message="Loading..." />))
+    const { lastFrame } = render(
+      themed(<LoadingIndicator message="Loading..." />),
+    )
     expect(lastFrame()).toContain('Loading...')
   })
 
   it('renders subtitle when provided', () => {
     const { lastFrame } = render(
-      themed(<LoadingIndicator message="Loading" subtitle="Fetching 42 items..." />),
+      themed(
+        <LoadingIndicator message="Loading" subtitle="Fetching 42 items..." />,
+      ),
     )
     expect(lastFrame()).toContain('Loading')
     expect(lastFrame()).toContain('Fetching 42 items...')
@@ -308,7 +315,9 @@ describe('LoadingIndicator', () => {
 describe('ErrorWithRetry', () => {
   it('renders error message with icon', () => {
     const { lastFrame } = render(
-      themed(<ErrorWithRetry message="Something went wrong" onRetry={() => {}} />),
+      themed(
+        <ErrorWithRetry message="Something went wrong" onRetry={() => {}} />,
+      ),
     )
     expect(lastFrame()).toContain('Something went wrong')
     expect(lastFrame()).toContain('✗')
@@ -350,12 +359,16 @@ describe('Divider', () => {
   })
 
   it('renders title with left alignment', () => {
-    const { lastFrame } = render(themed(<Divider title="Left" titleAlign="left" />))
+    const { lastFrame } = render(
+      themed(<Divider title="Left" titleAlign="left" />),
+    )
     expect(lastFrame()).toContain('Left')
   })
 
   it('renders title with right alignment', () => {
-    const { lastFrame } = render(themed(<Divider title="Right" titleAlign="right" />))
+    const { lastFrame } = render(
+      themed(<Divider title="Right" titleAlign="right" />),
+    )
     expect(lastFrame()).toContain('Right')
   })
 })
@@ -363,7 +376,11 @@ describe('Divider', () => {
 describe('BorderedBox', () => {
   it('renders title and children', () => {
     const { lastFrame } = render(
-      themed(<BorderedBox title="My Box"><Text>Hello</Text></BorderedBox>),
+      themed(
+        <BorderedBox title="My Box">
+          <Text>Hello</Text>
+        </BorderedBox>,
+      ),
     )
     expect(lastFrame()).toContain('My Box')
     expect(lastFrame()).toContain('Hello')
@@ -521,7 +538,14 @@ describe('SettingRow', () => {
 
   it('renders description when provided and selected', () => {
     const { lastFrame } = render(
-      themed(<SettingRow label="Theme" value="tokyo-night" isSelected description="Color scheme for the UI" />),
+      themed(
+        <SettingRow
+          label="Theme"
+          value="tokyo-night"
+          isSelected
+          description="Color scheme for the UI"
+        />,
+      ),
     )
     expect(lastFrame()).toContain('Color scheme for the UI')
   })
@@ -534,7 +558,14 @@ describe('formatTabName', () => {
   })
 
   it('formats all PR tab names correctly', () => {
-    const names = ['Description', 'Conversations', 'Commits', 'Files', 'Checks', 'Timeline']
+    const names = [
+      'Description',
+      'Conversations',
+      'Commits',
+      'Files',
+      'Checks',
+      'Timeline',
+    ]
     names.forEach((name, i) => {
       expect(formatTabName(name, i)).toBe(`${i + 1}:${name}`)
     })
@@ -544,14 +575,22 @@ describe('formatTabName', () => {
 describe('MainPanel', () => {
   it('renders children', () => {
     const { lastFrame } = render(
-      themed(<MainPanel><Text>Content</Text></MainPanel>),
+      themed(
+        <MainPanel>
+          <Text>Content</Text>
+        </MainPanel>,
+      ),
     )
     expect(lastFrame()).toContain('Content')
   })
 
   it('uses double border when active', () => {
     const { lastFrame } = render(
-      themed(<MainPanel isActive><Text>Content</Text></MainPanel>),
+      themed(
+        <MainPanel isActive>
+          <Text>Content</Text>
+        </MainPanel>,
+      ),
     )
     // Double border uses ═ character
     expect(lastFrame()).toContain('═')
@@ -559,7 +598,11 @@ describe('MainPanel', () => {
 
   it('uses single border when inactive', () => {
     const { lastFrame } = render(
-      themed(<MainPanel isActive={false}><Text>Content</Text></MainPanel>),
+      themed(
+        <MainPanel isActive={false}>
+          <Text>Content</Text>
+        </MainPanel>,
+      ),
     )
     // Single border uses ─ character
     expect(lastFrame()).toContain('─')

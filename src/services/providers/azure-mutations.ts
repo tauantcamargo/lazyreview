@@ -1,6 +1,11 @@
 import { Effect } from 'effect'
 import type { AzureError, NetworkError } from '../../models/errors'
-import { mutateAzure, mutateAzureJson, fetchAzure, parseAzureOwner } from './azure-helpers'
+import {
+  mutateAzure,
+  mutateAzureJson,
+  fetchAzure,
+  parseAzureOwner,
+} from './azure-helpers'
 
 // ---------------------------------------------------------------------------
 // Azure DevOps API path builder
@@ -347,21 +352,19 @@ export function addReviewer(
  * Uses the Azure DevOps User Profile API:
  * GET https://app.vssps.visualstudio.com/_apis/profile/profiles/me
  */
-export function getCurrentUser(
-  token: string,
-): Effect.Effect<
-  { readonly displayName: string; readonly id: string; readonly emailAddress: string },
+export function getCurrentUser(token: string): Effect.Effect<
+  {
+    readonly displayName: string
+    readonly id: string
+    readonly emailAddress: string
+  },
   AzureError | NetworkError
 > {
   return fetchAzure<{
     readonly displayName: string
     readonly id: string
     readonly emailAddress: string
-  }>(
-    'https://app.vssps.visualstudio.com',
-    '/_apis/profile/profiles/me',
-    token,
-  )
+  }>('https://app.vssps.visualstudio.com', '/_apis/profile/profiles/me', token)
 }
 
 /**
@@ -373,7 +376,12 @@ export function getConnectionData(
   token: string,
   owner: string,
 ): Effect.Effect<
-  { readonly authenticatedUser: { readonly id: string; readonly providerDisplayName: string } },
+  {
+    readonly authenticatedUser: {
+      readonly id: string
+      readonly providerDisplayName: string
+    }
+  },
   AzureError | NetworkError
 > {
   const { org } = parseAzureOwner(owner)

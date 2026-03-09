@@ -30,7 +30,11 @@ function createTestStore() {
         listeners = listeners.filter((l) => l !== listener)
       }
     },
-    setMessage(msg: string, durationMs = 2000, type: StatusMessageType = 'info') {
+    setMessage(
+      msg: string,
+      durationMs = 2000,
+      type: StatusMessageType = 'info',
+    ) {
       if (timerId !== null) {
         clearTimeout(timerId)
       }

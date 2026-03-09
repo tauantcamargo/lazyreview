@@ -20,7 +20,12 @@ import {
   buildQueryString,
   fetchTimeline,
 } from './GitHubApiHelpers'
-import { validateOwner, validateRepo, validateNumber, validateRef } from '../utils/sanitize'
+import {
+  validateOwner,
+  validateRepo,
+  validateNumber,
+  validateRef,
+} from '../utils/sanitize'
 import type { BlameInfo } from '../models/blame'
 import type { GitHubError, NetworkError } from '../models/errors'
 
@@ -88,11 +93,12 @@ function fetchGitHubBlameData(
   token: string,
 ): Effect.Effect<readonly BlameInfo[], GitHubError | NetworkError> {
   return Effect.map(
-    graphqlGitHub<GraphQLBlameResponse>(
-      token,
-      BLAME_QUERY,
-      { owner, repo, ref, path },
-    ),
+    graphqlGitHub<GraphQLBlameResponse>(token, BLAME_QUERY, {
+      owner,
+      repo,
+      ref,
+      path,
+    }),
     (data) => {
       const obj = data.repository.object
       if (!obj) return []
@@ -119,7 +125,9 @@ function fetchGitHubBlameData(
   )
 }
 
-function buildStateQualifier(stateFilter: 'open' | 'closed' | 'all' = 'open'): string {
+function buildStateQualifier(
+  stateFilter: 'open' | 'closed' | 'all' = 'open',
+): string {
   switch (stateFilter) {
     case 'open':
       return 'is:open'
@@ -184,11 +192,7 @@ export const GitHubApiLive = Layer.effect(
           const token = yield* auth.getToken()
           const perPage = 100
           const url = `/repos/${owner}/${repo}/pulls/${number}/files?per_page=${perPage}&page=${page}`
-          return yield* fetchGitHubSinglePage(
-            url,
-            token,
-            FileChange,
-          )
+          return yield* fetchGitHubSinglePage(url, token, FileChange)
         }),
 
       getFileDiff: (owner, repo, number, filename) =>
@@ -270,7 +274,9 @@ export const GitHubApiLive = Layer.effect(
         Effect.gen(function* () {
           const token = yield* auth.getToken()
           const stateQ = buildStateQualifier(stateFilter)
-          const query = `is:pr ${stateQ} review-requested:@me`.replace(/\s+/g, ' ').trim()
+          const query = `is:pr ${stateQ} review-requested:@me`
+            .replace(/\s+/g, ' ')
+            .trim()
           return yield* fetchGitHubSearchPaginated(query, token)
         }),
 
@@ -278,7 +284,9 @@ export const GitHubApiLive = Layer.effect(
         Effect.gen(function* () {
           const token = yield* auth.getToken()
           const stateQ = buildStateQualifier(stateFilter)
-          const query = `is:pr ${stateQ} involves:@me`.replace(/\s+/g, ' ').trim()
+          const query = `is:pr ${stateQ} involves:@me`
+            .replace(/\s+/g, ' ')
+            .trim()
           return yield* fetchGitHubSearchPaginated(query, token)
         }),
 
@@ -323,7 +331,18 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      addDiffComment: (owner, repo, prNumber, body, commitId, path, line, side, startLine, startSide) =>
+      addDiffComment: (
+        owner,
+        repo,
+        prNumber,
+        body,
+        commitId,
+        path,
+        line,
+        side,
+        startLine,
+        startSide,
+      ) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -339,7 +358,9 @@ export const GitHubApiLive = Layer.effect(
               path,
               line,
               side,
-              ...(startLine != null ? { start_line: startLine, start_side: startSide ?? side } : {}),
+              ...(startLine != null
+                ? { start_line: startLine, start_side: startSide ?? side }
+                : {}),
             },
           )
         }),
@@ -393,7 +414,8 @@ export const GitHubApiLive = Layer.effect(
             }
           }
 
-          type ThreadNode = ThreadsResponse['repository']['pullRequest']['reviewThreads']['nodes'][number]
+          type ThreadNode =
+            ThreadsResponse['repository']['pullRequest']['reviewThreads']['nodes'][number]
           const allNodes: ThreadNode[] = []
           let cursor: string | null = null
           let hasNextPage = true
@@ -404,8 +426,9 @@ export const GitHubApiLive = Layer.effect(
               gqlQuery,
               { owner, repo, prNumber, cursor },
             )
-            const threads: ThreadsResponse['repository']['pullRequest']['reviewThreads'] | undefined =
-              data?.repository?.pullRequest?.reviewThreads
+            const threads:
+              | ThreadsResponse['repository']['pullRequest']['reviewThreads']
+              | undefined = data?.repository?.pullRequest?.reviewThreads
             if (!threads?.nodes) {
               break
             }
@@ -414,15 +437,13 @@ export const GitHubApiLive = Layer.effect(
             cursor = threads.pageInfo.endCursor
           }
 
-          return allNodes.map(
-            (thread) => ({
-              id: thread.id,
-              isResolved: thread.isResolved,
-              comments: thread.comments.nodes.map((c) => ({
-                databaseId: c.databaseId,
-              })),
-            }),
-          )
+          return allNodes.map((thread) => ({
+            id: thread.id,
+            isResolved: thread.isResolved,
+            comments: thread.comments.nodes.map((c) => ({
+              databaseId: c.databaseId,
+            })),
+          }))
         }),
 
       resolveThread: (threadId) =>
@@ -482,7 +503,14 @@ export const GitHubApiLive = Layer.effect(
           )
         }),
 
-      mergePR: (owner, repo, prNumber, mergeMethod, commitTitle, commitMessage) =>
+      mergePR: (
+        owner,
+        repo,
+        prNumber,
+        mergeMethod,
+        commitTitle,
+        commitMessage,
+      ) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -494,8 +522,12 @@ export const GitHubApiLive = Layer.effect(
             token,
             {
               merge_method: mergeMethod,
-              ...(commitTitle !== undefined ? { commit_title: commitTitle } : {}),
-              ...(commitMessage !== undefined ? { commit_message: commitMessage } : {}),
+              ...(commitTitle !== undefined
+                ? { commit_title: commitTitle }
+                : {}),
+              ...(commitMessage !== undefined
+                ? { commit_message: commitMessage }
+                : {}),
             },
           )
         }),
@@ -529,7 +561,18 @@ export const GitHubApiLive = Layer.effect(
           return { id: result.id }
         }),
 
-      addPendingReviewComment: (owner, repo, prNumber, reviewId, body, path, line, side, startLine, startSide) =>
+      addPendingReviewComment: (
+        owner,
+        repo,
+        prNumber,
+        reviewId,
+        body,
+        path,
+        line,
+        side,
+        startLine,
+        startSide,
+      ) =>
         Effect.gen(function* () {
           validateOwner(owner)
           validateRepo(repo)
@@ -545,7 +588,9 @@ export const GitHubApiLive = Layer.effect(
               path,
               line,
               side,
-              ...(startLine != null ? { start_line: startLine, start_side: startSide ?? side } : {}),
+              ...(startLine != null
+                ? { start_line: startLine, start_side: startSide ?? side }
+                : {}),
             },
           )
         }),
@@ -785,18 +830,16 @@ export const GitHubApiLive = Layer.effect(
           validateOwner(owner)
           validateRepo(repo)
           const token = yield* auth.getToken()
-          const result = yield* mutateGitHubJson<{ number: number; html_url: string }>(
-            'POST',
-            `/repos/${owner}/${repo}/pulls`,
-            token,
-            {
-              title,
-              body,
-              base: baseBranch,
-              head: headBranch,
-              ...(draft != null ? { draft } : {}),
-            },
-          )
+          const result = yield* mutateGitHubJson<{
+            number: number
+            html_url: string
+          }>('POST', `/repos/${owner}/${repo}/pulls`, token, {
+            title,
+            body,
+            base: baseBranch,
+            head: headBranch,
+            ...(draft != null ? { draft } : {}),
+          })
           return { number: result.number, html_url: result.html_url }
         }),
 

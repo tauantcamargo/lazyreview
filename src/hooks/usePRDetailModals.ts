@@ -2,7 +2,11 @@ import { useReviewActions } from './useReviewActions'
 import { useCommentActions } from './useCommentActions'
 import { usePRStateActions } from './usePRStateActions'
 
-export type { EditCommentContext, EditDescriptionContext, EditTitleContext } from './useCommentActions'
+export type {
+  EditCommentContext,
+  EditDescriptionContext,
+  EditTitleContext,
+} from './useCommentActions'
 
 interface UsePRDetailModalsOptions {
   readonly owner: string
@@ -24,8 +28,21 @@ export function usePRDetailModals({
   onCloseSuccess,
 }: UsePRDetailModalsOptions) {
   const review = useReviewActions({ owner, repo, prNumber, setStatusMessage })
-  const comments = useCommentActions({ owner, repo, prNumber, headSha, setStatusMessage })
-  const prState = usePRStateActions({ owner, repo, prNumber, setStatusMessage, onMergeSuccess, onCloseSuccess })
+  const comments = useCommentActions({
+    owner,
+    repo,
+    prNumber,
+    headSha,
+    setStatusMessage,
+  })
+  const prState = usePRStateActions({
+    owner,
+    repo,
+    prNumber,
+    setStatusMessage,
+    onMergeSuccess,
+    onCloseSuccess,
+  })
 
   const hasModal =
     review.showReviewModal ||

@@ -3,10 +3,20 @@ import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
-import { MultiLineInput, type InsertTextRequest } from '../common/MultiLineInput'
+import {
+  MultiLineInput,
+  type InsertTextRequest,
+} from '../common/MultiLineInput'
 import { TemplatePickerModal } from './TemplatePickerModal'
-import { DEFAULT_TEMPLATES, mergeTemplates, type CommentTemplate } from '../../models/comment-template'
-import { resolveTemplate, type TemplateVariables } from '../../utils/template-engine'
+import {
+  DEFAULT_TEMPLATES,
+  mergeTemplates,
+  type CommentTemplate,
+} from '../../models/comment-template'
+import {
+  resolveTemplate,
+  type TemplateVariables,
+} from '../../utils/template-engine'
 import { useConfig } from '../../hooks/useConfig'
 
 interface CommentModalProps {
@@ -35,7 +45,9 @@ export function CommentModal({
   const { config } = useConfig()
   const [body, setBody] = useState(defaultValue ?? '')
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
-  const [pendingInsert, setPendingInsert] = useState<InsertTextRequest | null>(null)
+  const [pendingInsert, setPendingInsert] = useState<InsertTextRequest | null>(
+    null,
+  )
 
   useEffect(() => {
     setInputActive(!showTemplatePicker)
@@ -52,7 +64,10 @@ export function CommentModal({
   const handleTemplateSelect = useCallback(
     (template: CommentTemplate) => {
       const resolved = resolveTemplate(template, templateVariables ?? {})
-      setPendingInsert({ text: resolved.text, cursorOffset: resolved.cursorOffset })
+      setPendingInsert({
+        text: resolved.text,
+        cursorOffset: resolved.cursorOffset,
+      })
       setShowTemplatePicker(false)
     },
     [templateVariables],
@@ -108,9 +123,7 @@ export function CommentModal({
           {title}
         </Text>
 
-        {context && (
-          <Text color={theme.colors.muted}>{context}</Text>
-        )}
+        {context && <Text color={theme.colors.muted}>{context}</Text>}
 
         <Box
           borderStyle="single"
@@ -139,7 +152,8 @@ export function CommentModal({
             </Text>
           )}
           <Text color={theme.colors.muted} dimColor>
-            Tab: indent | Enter: new line | Ctrl+S: submit | Ctrl+T: template | Esc: cancel
+            Tab: indent | Enter: new line | Ctrl+S: submit | Ctrl+T: template |
+            Esc: cancel
           </Text>
         </Box>
 
@@ -147,9 +161,7 @@ export function CommentModal({
           <Text color={theme.colors.info}>Posting comment...</Text>
         )}
 
-        {error && (
-          <Text color={theme.colors.error}>{error}</Text>
-        )}
+        {error && <Text color={theme.colors.error}>{error}</Text>}
       </Box>
     </Modal>
   )

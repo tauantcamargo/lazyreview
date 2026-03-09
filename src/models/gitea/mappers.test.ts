@@ -376,8 +376,22 @@ describe('mapGiteaReviewToReview', () => {
 describe('mapGiteaReviewsToReviews', () => {
   it('maps multiple reviews', () => {
     const reviews = mapGiteaReviewsToReviews([
-      { id: 10, user: giteaUser, body: '', state: 'APPROVED', html_url: '', commit_id: '' },
-      { id: 11, user: giteaUser, body: '', state: 'COMMENT', html_url: '', commit_id: '' },
+      {
+        id: 10,
+        user: giteaUser,
+        body: '',
+        state: 'APPROVED',
+        html_url: '',
+        commit_id: '',
+      },
+      {
+        id: 11,
+        user: giteaUser,
+        body: '',
+        state: 'COMMENT',
+        html_url: '',
+        commit_id: '',
+      },
     ])
     expect(reviews).toHaveLength(2)
     expect(reviews[0]?.state).toBe('APPROVED')

@@ -64,9 +64,11 @@ vi.mock('node:fs/promises', () => ({
     if (content !== undefined) return content
     throw new Error('ENOENT')
   }),
-  writeFile: vi.fn().mockImplementation(async (path: string, content: string) => {
-    savedFiles[path] = content
-  }),
+  writeFile: vi
+    .fn()
+    .mockImplementation(async (path: string, content: string) => {
+      savedFiles[path] = content
+    }),
   mkdir: vi.fn().mockResolvedValue(undefined),
   unlink: vi.fn().mockImplementation(async (path: string) => {
     deletedFiles.push(path)
@@ -1119,7 +1121,9 @@ describe('getUser', () => {
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
       const [url, options] = fetchMock.mock.calls[0]
       expect(url).toBe('https://api.github.com/user')
-      expect(options.headers.Authorization).toBe('Bearer ghp_user_test_12345678')
+      expect(options.headers.Authorization).toBe(
+        'Bearer ghp_user_test_12345678',
+      )
     })
 
     it('fails with AuthError on non-ok response', async () => {
@@ -1147,7 +1151,8 @@ describe('getUser', () => {
       mockFetch({
         username: 'gitlabuser',
         id: 67890,
-        avatar_url: 'https://gitlab.com/uploads/-/system/user/avatar/67890/avatar.png',
+        avatar_url:
+          'https://gitlab.com/uploads/-/system/user/avatar/67890/avatar.png',
       })
       const exit = await runAuthExit((auth) => auth.getUser())
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
@@ -1164,7 +1169,9 @@ describe('getUser', () => {
       mockFetch({ username: 'user', id: 1, avatar_url: '' })
       await runAuthExit((auth) => auth.getUser())
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
-      expect(fetchMock.mock.calls[0][0]).toBe('https://gitlab.example.com/api/v4/user')
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://gitlab.example.com/api/v4/user',
+      )
     })
 
     it('uses custom base URL with /api/v4 already included', async () => {
@@ -1172,7 +1179,9 @@ describe('getUser', () => {
       mockFetch({ username: 'user', id: 1, avatar_url: '' })
       await runAuthExit((auth) => auth.getUser())
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
-      expect(fetchMock.mock.calls[0][0]).toBe('https://gitlab.example.com/api/v4/user')
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://gitlab.example.com/api/v4/user',
+      )
     })
 
     it('fails with AuthError on non-ok response', async () => {
@@ -1199,7 +1208,9 @@ describe('getUser', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
       const [url, options] = fetchMock.mock.calls[0]
       expect(url).toBe('https://api.bitbucket.org/2.0/user')
-      expect(options.headers.Authorization).toBe('Bearer bb_user_test_1234567890')
+      expect(options.headers.Authorization).toBe(
+        'Bearer bb_user_test_1234567890',
+      )
       // Decode fails because html_url is missing in the User schema mapping
       expect(Exit.isFailure(exit)).toBe(true)
     })
@@ -1229,7 +1240,9 @@ describe('getUser', () => {
       const [url, options] = fetchMock.mock.calls[0]
       expect(url).toContain('vssps.visualstudio.com')
       expect(url).toContain('_apis/profile/profiles/me')
-      const encoded = Buffer.from(':azure_user_test_12345678').toString('base64')
+      const encoded = Buffer.from(':azure_user_test_12345678').toString(
+        'base64',
+      )
       expect(options.headers.Authorization).toBe(`Basic ${encoded}`)
       // Decode fails because html_url is missing in the User schema mapping
       expect(Exit.isFailure(exit)).toBe(true)
@@ -1259,7 +1272,9 @@ describe('getUser', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
       const [url, options] = fetchMock.mock.calls[0]
       expect(url).toBe('https://gitea.com/api/v1/user')
-      expect(options.headers.Authorization).toBe('token gitea_user_test_12345678')
+      expect(options.headers.Authorization).toBe(
+        'token gitea_user_test_12345678',
+      )
       // Decode fails because html_url is missing in the User schema mapping
       expect(Exit.isFailure(exit)).toBe(true)
     })
@@ -1269,7 +1284,9 @@ describe('getUser', () => {
       mockFetch({ login: 'user', id: 1, avatar_url: '' })
       await runAuthExit((auth) => auth.getUser())
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
-      expect(fetchMock.mock.calls[0][0]).toBe('https://gitea.mycompany.com/api/v1/user')
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://gitea.mycompany.com/api/v1/user',
+      )
     })
 
     it('uses custom base URL with /api/v1 already included', async () => {
@@ -1277,7 +1294,9 @@ describe('getUser', () => {
       mockFetch({ login: 'user', id: 1, avatar_url: '' })
       await runAuthExit((auth) => auth.getUser())
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
-      expect(fetchMock.mock.calls[0][0]).toBe('https://gitea.mycompany.com/api/v1/user')
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://gitea.mycompany.com/api/v1/user',
+      )
     })
 
     it('fails with AuthError on non-ok response', async () => {
@@ -1398,7 +1417,12 @@ describe('token file I/O', () => {
     it('migrates legacy GitHub token to provider-specific file', async () => {
       // Set up legacy token file (the old .token path)
       const homePath = require('node:os').homedir()
-      const legacyPath = require('node:path').join(homePath, '.config', 'lazyreview', '.token')
+      const legacyPath = require('node:path').join(
+        homePath,
+        '.config',
+        'lazyreview',
+        '.token',
+      )
       const providerPath = getProviderTokenFilePath('github')
 
       // Provider-specific file does not exist (stat will throw for it)
@@ -1415,7 +1439,12 @@ describe('token file I/O', () => {
     it('does not attempt legacy migration for non-github providers', async () => {
       setAuthProvider('gitlab')
       const homePath = require('node:os').homedir()
-      const legacyPath = require('node:path').join(homePath, '.config', 'lazyreview', '.token')
+      const legacyPath = require('node:path').join(
+        homePath,
+        '.config',
+        'lazyreview',
+        '.token',
+      )
       fileStats[legacyPath] = { mode: 0o100600 }
       fileContents[legacyPath] = 'ghp_legacy_not_for_gitlab_12345'
 
@@ -1437,7 +1466,12 @@ describe('token file I/O', () => {
       await runAuth((auth) => auth.setToken('ghp_to_delete_legacy_12345'))
       await runAuth((auth) => auth.clearManualToken())
       const homePath = require('node:os').homedir()
-      const legacyPath = require('node:path').join(homePath, '.config', 'lazyreview', '.token')
+      const legacyPath = require('node:path').join(
+        homePath,
+        '.config',
+        'lazyreview',
+        '.token',
+      )
       expect(deletedFiles).toContain(legacyPath)
     })
 
@@ -1447,7 +1481,12 @@ describe('token file I/O', () => {
       deletedFiles = []
       await runAuth((auth) => auth.clearManualToken())
       const homePath = require('node:os').homedir()
-      const legacyPath = require('node:path').join(homePath, '.config', 'lazyreview', '.token')
+      const legacyPath = require('node:path').join(
+        homePath,
+        '.config',
+        'lazyreview',
+        '.token',
+      )
       expect(deletedFiles).not.toContain(legacyPath)
       const providerPath = getProviderTokenFilePath('gitlab')
       expect(deletedFiles).toContain(providerPath)
@@ -1657,7 +1696,10 @@ describe('multi-instance token resolution', () => {
     it('saves token to host-specific file when host is set', async () => {
       setAuthHost('github.mycompany.com')
       await runAuth((auth) => auth.setToken('ghp_custom_host_token_12345'))
-      const hostPath = getProviderTokenFilePath('github', 'github.mycompany.com')
+      const hostPath = getProviderTokenFilePath(
+        'github',
+        'github.mycompany.com',
+      )
       expect(savedFiles[hostPath]).toBe('ghp_custom_host_token_12345')
     })
 
@@ -1669,7 +1711,10 @@ describe('multi-instance token resolution', () => {
 
     it('loads token from host-specific file', async () => {
       setAuthHost('github.mycompany.com')
-      const hostPath = getProviderTokenFilePath('github', 'github.mycompany.com')
+      const hostPath = getProviderTokenFilePath(
+        'github',
+        'github.mycompany.com',
+      )
       fileStats[hostPath] = { mode: 0o100600 }
       fileContents[hostPath] = 'ghp_host_saved_token_12345678'
 
@@ -1683,7 +1728,10 @@ describe('multi-instance token resolution', () => {
       await runAuth((auth) => auth.setToken('ghp_custom_host_token_12345'))
 
       // Verify it was saved to host-specific path
-      const hostPath = getProviderTokenFilePath('github', 'github.mycompany.com')
+      const hostPath = getProviderTokenFilePath(
+        'github',
+        'github.mycompany.com',
+      )
       expect(savedFiles[hostPath]).toBe('ghp_custom_host_token_12345')
 
       // Default path should not have been affected (for non-github it should not write legacy)
@@ -1697,7 +1745,10 @@ describe('multi-instance token resolution', () => {
       await runAuth((auth) => auth.setToken('ghp_to_clear_host_token_12'))
       deletedFiles = []
       await runAuth((auth) => auth.clearManualToken())
-      const hostPath = getProviderTokenFilePath('github', 'github.mycompany.com')
+      const hostPath = getProviderTokenFilePath(
+        'github',
+        'github.mycompany.com',
+      )
       expect(deletedFiles).toContain(hostPath)
     })
   })

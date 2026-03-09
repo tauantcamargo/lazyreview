@@ -7,10 +7,7 @@ export {
   type ReviewThread,
 } from './GitHubApiTypes'
 
-export {
-  CodeReviewApi,
-  type CodeReviewApiService,
-} from './CodeReviewApiTypes'
+export { CodeReviewApi, type CodeReviewApiService } from './CodeReviewApiTypes'
 
 export {
   fetchGitHub,

@@ -250,7 +250,8 @@ export function useReviewRequests(stateFilter: PRStateFilter = 'open') {
 export function useInvolvedPRs(stateFilter: PRStateFilter = 'open') {
   const refetchInterval = useRefreshInterval()
   const queryClient = useQueryClient()
-  const { involvedPlaceholder, currentUserLogin } = useSharedPRCache(stateFilter)
+  const { involvedPlaceholder, currentUserLogin } =
+    useSharedPRCache(stateFilter)
 
   const query = useQuery({
     queryKey: ['involved-prs', stateFilter],
@@ -268,7 +269,12 @@ export function useInvolvedPRs(stateFilter: PRStateFilter = 'open') {
   // Cross-populate: after involved data arrives, populate my-prs and review-requests caches
   useEffect(() => {
     if (query.data && query.isFetched && currentUserLogin) {
-      crossPopulateFromInvolved(queryClient, stateFilter, query.data, currentUserLogin)
+      crossPopulateFromInvolved(
+        queryClient,
+        stateFilter,
+        query.data,
+        currentUserLogin,
+      )
     }
   }, [query.data, query.isFetched, queryClient, stateFilter, currentUserLogin])
 

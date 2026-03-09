@@ -3,7 +3,11 @@ import { describe, it, expect, vi } from 'vitest'
 import { render } from 'ink-testing-library'
 import { ErrorBoundary } from './ErrorBoundary'
 
-function ThrowingChild({ shouldThrow }: { readonly shouldThrow: boolean }): React.ReactElement {
+function ThrowingChild({
+  shouldThrow,
+}: {
+  readonly shouldThrow: boolean
+}): React.ReactElement {
   if (shouldThrow) {
     throw new Error('Test error message')
   }

@@ -26,10 +26,7 @@ const CODE_KEYWORDS: readonly RegExp[] = [
 ]
 
 /** Characters that strongly suggest code. */
-const CODE_CHARS: readonly RegExp[] = [
-  /[{}]/,
-  /;\s*$/m,
-]
+const CODE_CHARS: readonly RegExp[] = [/[{}]/, /;\s*$/m]
 
 /**
  * Check if text has code-like characteristics.
@@ -142,11 +139,7 @@ const LANGUAGE_RULES: readonly LanguageRule[] = [
   },
   {
     language: 'go',
-    patterns: [
-      /\bfunc\s+\w+\s*\(/,
-      /\bpackage\s+\w+/,
-      /\bfmt\.\w+/,
-    ],
+    patterns: [/\bfunc\s+\w+\s*\(/, /\bpackage\s+\w+/, /\bfmt\.\w+/],
     minMatches: 1,
   },
   // Python before generic languages

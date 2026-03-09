@@ -11,7 +11,13 @@ import {
   getApiBaseUrl,
   buildConfiguredHosts,
 } from './git'
-import type { CheckoutResult, ParsedRemote, ParsedPRUrl, ProviderType, ConfiguredHosts } from './git'
+import type {
+  CheckoutResult,
+  ParsedRemote,
+  ParsedPRUrl,
+  ProviderType,
+  ConfiguredHosts,
+} from './git'
 
 // Mock child_process
 vi.mock('node:child_process', () => ({
@@ -124,11 +130,15 @@ describe('detectProvider', () => {
     }
 
     it('detects configured GHE host as github', () => {
-      expect(detectProvider('github.mycompany.com', configuredHosts)).toBe('github')
+      expect(detectProvider('github.mycompany.com', configuredHosts)).toBe(
+        'github',
+      )
     })
 
     it('detects configured GitLab host', () => {
-      expect(detectProvider('gitlab.internal.io', configuredHosts)).toBe('gitlab')
+      expect(detectProvider('gitlab.internal.io', configuredHosts)).toBe(
+        'gitlab',
+      )
     })
 
     it('detects configured Gitea host', () => {
@@ -136,7 +146,9 @@ describe('detectProvider', () => {
     })
 
     it('is case-insensitive for configured hosts', () => {
-      expect(detectProvider('GitHub.MyCompany.com', configuredHosts)).toBe('github')
+      expect(detectProvider('GitHub.MyCompany.com', configuredHosts)).toBe(
+        'github',
+      )
     })
 
     it('still returns unknown for unconfigured hosts', () => {
@@ -165,31 +177,45 @@ describe('getApiBaseUrl', () => {
   })
 
   it('returns GHE API URL for self-hosted GitHub', () => {
-    expect(getApiBaseUrl('github', 'github.acme.com')).toBe('https://github.acme.com/api/v3')
+    expect(getApiBaseUrl('github', 'github.acme.com')).toBe(
+      'https://github.acme.com/api/v3',
+    )
   })
 
   it('returns GitLab.com API URL', () => {
-    expect(getApiBaseUrl('gitlab', 'gitlab.com')).toBe('https://gitlab.com/api/v4')
+    expect(getApiBaseUrl('gitlab', 'gitlab.com')).toBe(
+      'https://gitlab.com/api/v4',
+    )
   })
 
   it('returns self-hosted GitLab API URL', () => {
-    expect(getApiBaseUrl('gitlab', 'gitlab.internal.io')).toBe('https://gitlab.internal.io/api/v4')
+    expect(getApiBaseUrl('gitlab', 'gitlab.internal.io')).toBe(
+      'https://gitlab.internal.io/api/v4',
+    )
   })
 
   it('returns Bitbucket API URL', () => {
-    expect(getApiBaseUrl('bitbucket', 'bitbucket.org')).toBe('https://api.bitbucket.org/2.0')
+    expect(getApiBaseUrl('bitbucket', 'bitbucket.org')).toBe(
+      'https://api.bitbucket.org/2.0',
+    )
   })
 
   it('returns Azure API URL', () => {
-    expect(getApiBaseUrl('azure', 'dev.azure.com')).toBe('https://dev.azure.com')
+    expect(getApiBaseUrl('azure', 'dev.azure.com')).toBe(
+      'https://dev.azure.com',
+    )
   })
 
   it('returns Gitea API URL', () => {
-    expect(getApiBaseUrl('gitea', 'gitea.example.com')).toBe('https://gitea.example.com/api/v1')
+    expect(getApiBaseUrl('gitea', 'gitea.example.com')).toBe(
+      'https://gitea.example.com/api/v1',
+    )
   })
 
   it('returns generic HTTPS URL for unknown provider', () => {
-    expect(getApiBaseUrl('unknown', 'git.example.com')).toBe('https://git.example.com')
+    expect(getApiBaseUrl('unknown', 'git.example.com')).toBe(
+      'https://git.example.com',
+    )
   })
 })
 
@@ -371,7 +397,9 @@ describe('parseGitRemote', () => {
 
   describe('Azure DevOps URLs', () => {
     it('parses SSH format', () => {
-      const result = parseGitRemote('git@ssh.dev.azure.com:v3/myorg/myproject/myrepo')
+      const result = parseGitRemote(
+        'git@ssh.dev.azure.com:v3/myorg/myproject/myrepo',
+      )
       expect(result).toEqual<ParsedRemote>({
         provider: 'azure',
         host: 'dev.azure.com',
@@ -382,7 +410,9 @@ describe('parseGitRemote', () => {
     })
 
     it('parses SSH format with .git suffix', () => {
-      const result = parseGitRemote('git@ssh.dev.azure.com:v3/myorg/myproject/myrepo.git')
+      const result = parseGitRemote(
+        'git@ssh.dev.azure.com:v3/myorg/myproject/myrepo.git',
+      )
       expect(result).toEqual<ParsedRemote>({
         provider: 'azure',
         host: 'dev.azure.com',
@@ -393,7 +423,9 @@ describe('parseGitRemote', () => {
     })
 
     it('parses modern HTTPS format', () => {
-      const result = parseGitRemote('https://dev.azure.com/myorg/myproject/_git/myrepo')
+      const result = parseGitRemote(
+        'https://dev.azure.com/myorg/myproject/_git/myrepo',
+      )
       expect(result).toEqual<ParsedRemote>({
         provider: 'azure',
         host: 'dev.azure.com',
@@ -404,7 +436,9 @@ describe('parseGitRemote', () => {
     })
 
     it('parses legacy visualstudio.com HTTPS format', () => {
-      const result = parseGitRemote('https://myorg.visualstudio.com/myproject/_git/myrepo')
+      const result = parseGitRemote(
+        'https://myorg.visualstudio.com/myproject/_git/myrepo',
+      )
       expect(result).toEqual<ParsedRemote>({
         provider: 'azure',
         host: 'myorg.visualstudio.com',
@@ -459,7 +493,10 @@ describe('parseGitRemote', () => {
     }
 
     it('parses GHE SSH URL with configuredHosts', () => {
-      const result = parseGitRemote('git@github.acme.com:owner/repo.git', gheHosts)
+      const result = parseGitRemote(
+        'git@github.acme.com:owner/repo.git',
+        gheHosts,
+      )
       expect(result).toEqual<ParsedRemote>({
         provider: 'github',
         host: 'github.acme.com',
@@ -470,7 +507,10 @@ describe('parseGitRemote', () => {
     })
 
     it('parses GHE HTTPS URL with configuredHosts', () => {
-      const result = parseGitRemote('https://github.acme.com/owner/repo.git', gheHosts)
+      const result = parseGitRemote(
+        'https://github.acme.com/owner/repo.git',
+        gheHosts,
+      )
       expect(result).toEqual<ParsedRemote>({
         provider: 'github',
         host: 'github.acme.com',
@@ -481,7 +521,10 @@ describe('parseGitRemote', () => {
     })
 
     it('parses self-hosted GitLab SSH URL with configuredHosts', () => {
-      const result = parseGitRemote('git@gitlab.internal.io:devops/infra.git', gheHosts)
+      const result = parseGitRemote(
+        'git@gitlab.internal.io:devops/infra.git',
+        gheHosts,
+      )
       expect(result).toEqual<ParsedRemote>({
         provider: 'gitlab',
         host: 'gitlab.internal.io',
@@ -492,7 +535,10 @@ describe('parseGitRemote', () => {
     })
 
     it('parses self-hosted Gitea SSH URL with configuredHosts', () => {
-      const result = parseGitRemote('git@gitea.corp.net:team/project.git', gheHosts)
+      const result = parseGitRemote(
+        'git@gitea.corp.net:team/project.git',
+        gheHosts,
+      )
       expect(result).toEqual<ParsedRemote>({
         provider: 'gitea',
         host: 'gitea.corp.net',
@@ -503,7 +549,10 @@ describe('parseGitRemote', () => {
     })
 
     it('still returns unknown provider when host not in configuredHosts', () => {
-      const result = parseGitRemote('git@git.random.com:owner/repo.git', gheHosts)
+      const result = parseGitRemote(
+        'git@git.random.com:owner/repo.git',
+        gheHosts,
+      )
       expect(result?.provider).toBe('unknown')
     })
 
@@ -590,9 +639,7 @@ describe('buildConfiguredHosts', () => {
       providers: {
         github: { hosts: ['git.example.com'] },
       },
-      hostMappings: [
-        { host: 'git.example.com', provider: 'gitea' },
-      ],
+      hostMappings: [{ host: 'git.example.com', provider: 'gitea' }],
     })
     expect(result['git.example.com']).toBe('gitea')
   })
@@ -614,9 +661,7 @@ describe('buildConfiguredHosts', () => {
         gitlab: { hosts: ['gl.corp.com'] },
       },
       gitlab: { hosts: ['gl.legacy.com'] },
-      hostMappings: [
-        { host: 'gitea.corp.com', provider: 'gitea' },
-      ],
+      hostMappings: [{ host: 'gitea.corp.com', provider: 'gitea' }],
     })
     expect(result).toEqual({
       'ghe.corp.com': 'github',
@@ -661,7 +706,9 @@ describe('parsePRUrl', () => {
     })
 
     it('parses GitHub PR URL with query parameters', () => {
-      const result = parsePRUrl('https://github.com/owner/repo/pull/42?diff=unified')
+      const result = parsePRUrl(
+        'https://github.com/owner/repo/pull/42?diff=unified',
+      )
       expect(result).toEqual<ParsedPRUrl>({
         provider: 'github',
         owner: 'owner',
@@ -671,7 +718,9 @@ describe('parsePRUrl', () => {
     })
 
     it('parses GitHub PR URL with hash fragment', () => {
-      const result = parsePRUrl('https://github.com/owner/repo/pull/42#discussion_r123')
+      const result = parsePRUrl(
+        'https://github.com/owner/repo/pull/42#discussion_r123',
+      )
       expect(result).toEqual<ParsedPRUrl>({
         provider: 'github',
         owner: 'owner',
@@ -693,7 +742,9 @@ describe('parsePRUrl', () => {
 
   describe('GitLab MR URLs', () => {
     it('parses a standard GitLab MR URL', () => {
-      const result = parsePRUrl('https://gitlab.com/owner/repo/-/merge_requests/42')
+      const result = parsePRUrl(
+        'https://gitlab.com/owner/repo/-/merge_requests/42',
+      )
       expect(result).toEqual<ParsedPRUrl>({
         provider: 'gitlab',
         owner: 'owner',
@@ -703,7 +754,9 @@ describe('parsePRUrl', () => {
     })
 
     it('parses GitLab MR URL with query parameters', () => {
-      const result = parsePRUrl('https://gitlab.com/owner/repo/-/merge_requests/42?tab=notes')
+      const result = parsePRUrl(
+        'https://gitlab.com/owner/repo/-/merge_requests/42?tab=notes',
+      )
       expect(result).toEqual<ParsedPRUrl>({
         provider: 'gitlab',
         owner: 'owner',
@@ -715,7 +768,9 @@ describe('parsePRUrl', () => {
 
   describe('Bitbucket PR URLs', () => {
     it('parses a standard Bitbucket PR URL', () => {
-      const result = parsePRUrl('https://bitbucket.org/owner/repo/pull-requests/42')
+      const result = parsePRUrl(
+        'https://bitbucket.org/owner/repo/pull-requests/42',
+      )
       expect(result).toEqual<ParsedPRUrl>({
         provider: 'bitbucket',
         owner: 'owner',
@@ -725,7 +780,9 @@ describe('parsePRUrl', () => {
     })
 
     it('parses Bitbucket PR URL with query parameters', () => {
-      const result = parsePRUrl('https://bitbucket.org/owner/repo/pull-requests/42?tab=diff')
+      const result = parsePRUrl(
+        'https://bitbucket.org/owner/repo/pull-requests/42?tab=diff',
+      )
       expect(result).toEqual<ParsedPRUrl>({
         provider: 'bitbucket',
         owner: 'owner',
@@ -737,7 +794,9 @@ describe('parsePRUrl', () => {
 
   describe('Azure DevOps PR URLs', () => {
     it('parses a standard Azure PR URL', () => {
-      const result = parsePRUrl('https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/42')
+      const result = parsePRUrl(
+        'https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/42',
+      )
       expect(result).toEqual<ParsedPRUrl>({
         provider: 'azure',
         owner: 'myorg/myproject',
@@ -769,7 +828,9 @@ describe('parsePRUrl', () => {
     })
 
     it('parses Gitea PR URL with query parameters', () => {
-      const result = parsePRUrl('https://gitea.example.com/owner/repo/pulls/42?tab=diff')
+      const result = parsePRUrl(
+        'https://gitea.example.com/owner/repo/pulls/42?tab=diff',
+      )
       expect(result).toEqual<ParsedPRUrl>({
         provider: 'gitea',
         owner: 'owner',
@@ -852,17 +913,23 @@ describe('parseGitHubPRUrl', () => {
   })
 
   it('parses a PR URL with query parameters', () => {
-    const result = parseGitHubPRUrl('https://github.com/owner/repo/pull/42?diff=unified')
+    const result = parseGitHubPRUrl(
+      'https://github.com/owner/repo/pull/42?diff=unified',
+    )
     expect(result).toEqual({ owner: 'owner', repo: 'repo', number: 42 })
   })
 
   it('parses a PR URL with hash fragment', () => {
-    const result = parseGitHubPRUrl('https://github.com/owner/repo/pull/42#discussion_r123')
+    const result = parseGitHubPRUrl(
+      'https://github.com/owner/repo/pull/42#discussion_r123',
+    )
     expect(result).toEqual({ owner: 'owner', repo: 'repo', number: 42 })
   })
 
   it('parses a PR URL with hyphenated owner and repo', () => {
-    const result = parseGitHubPRUrl('https://github.com/my-org/my-repo/pull/123')
+    const result = parseGitHubPRUrl(
+      'https://github.com/my-org/my-repo/pull/123',
+    )
     expect(result).toEqual({ owner: 'my-org', repo: 'my-repo', number: 123 })
   })
 
@@ -877,7 +944,9 @@ describe('parseGitHubPRUrl', () => {
   })
 
   it('returns null for non-GitHub URLs', () => {
-    expect(parseGitHubPRUrl('https://gitlab.com/owner/repo/merge_requests/42')).toBeNull()
+    expect(
+      parseGitHubPRUrl('https://gitlab.com/owner/repo/merge_requests/42'),
+    ).toBeNull()
   })
 
   it('returns null for malformed URLs', () => {
@@ -906,7 +975,9 @@ describe('parseGitHubPRUrl', () => {
 
 describe('extractRepoFromPRUrl', () => {
   it('extracts owner/repo from a GitHub PR URL', () => {
-    expect(extractRepoFromPRUrl('https://github.com/owner/repo/pull/42')).toBe('owner/repo')
+    expect(extractRepoFromPRUrl('https://github.com/owner/repo/pull/42')).toBe(
+      'owner/repo',
+    )
   })
 
   it('returns null for a repo URL without /pull/ path', () => {
@@ -922,23 +993,37 @@ describe('extractRepoFromPRUrl', () => {
   })
 
   it('extracts from URL with query parameters', () => {
-    expect(extractRepoFromPRUrl('https://github.com/owner/repo/pull/42?diff=unified')).toBe('owner/repo')
+    expect(
+      extractRepoFromPRUrl(
+        'https://github.com/owner/repo/pull/42?diff=unified',
+      ),
+    ).toBe('owner/repo')
   })
 
   it('returns null for a GitHub URL without /pull/', () => {
-    expect(extractRepoFromPRUrl('https://github.com/owner/repo/issues/5')).toBeNull()
+    expect(
+      extractRepoFromPRUrl('https://github.com/owner/repo/issues/5'),
+    ).toBeNull()
   })
 
   it('extracts from GitLab MR URL', () => {
-    expect(extractRepoFromPRUrl('https://gitlab.com/owner/repo/-/merge_requests/42')).toBe('owner/repo')
+    expect(
+      extractRepoFromPRUrl('https://gitlab.com/owner/repo/-/merge_requests/42'),
+    ).toBe('owner/repo')
   })
 
   it('extracts from Bitbucket PR URL', () => {
-    expect(extractRepoFromPRUrl('https://bitbucket.org/owner/repo/pull-requests/42')).toBe('owner/repo')
+    expect(
+      extractRepoFromPRUrl('https://bitbucket.org/owner/repo/pull-requests/42'),
+    ).toBe('owner/repo')
   })
 
   it('extracts from Azure DevOps PR URL', () => {
-    expect(extractRepoFromPRUrl('https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/42')).toBe('myorg/myproject/myrepo')
+    expect(
+      extractRepoFromPRUrl(
+        'https://dev.azure.com/myorg/myproject/_git/myrepo/pullrequest/42',
+      ),
+    ).toBe('myorg/myproject/myrepo')
   })
 })
 
@@ -985,7 +1070,8 @@ describe('checkoutPR', () => {
     const result = await checkoutPR(42)
     expect(result).toEqual<CheckoutResult>({
       success: false,
-      message: 'Working tree has uncommitted changes. Commit or stash them first.',
+      message:
+        'Working tree has uncommitted changes. Commit or stash them first.',
       branchName: 'pr-42',
     })
   })
@@ -995,9 +1081,9 @@ describe('checkoutPR', () => {
     // Call 2: git fetch origin pull/42/head:pr-42
     // Call 3: git checkout pr-42
     mockExecSequence([
-      { stdout: '' },    // status: clean
-      { stdout: '' },    // fetch: success
-      { stdout: '' },    // checkout: success
+      { stdout: '' }, // status: clean
+      { stdout: '' }, // fetch: success
+      { stdout: '' }, // checkout: success
     ])
 
     const result = await checkoutPR(42)
@@ -1015,7 +1101,9 @@ describe('checkoutPR', () => {
     // Call 4: git pull origin pull/42/head
     mockExecSequence([
       { stdout: '' },
-      { error: "fatal: couldn't find remote ref; branch 'pr-42' already exists" },
+      {
+        error: "fatal: couldn't find remote ref; branch 'pr-42' already exists",
+      },
       { stdout: '' },
       { stdout: '' },
     ])
@@ -1090,9 +1178,7 @@ describe('buildConfiguredHosts', () => {
         gitlab: { hosts: ['gitlab.mycompany.com'] },
       },
       gitlab: { hosts: ['gitlab.legacy.com'] },
-      hostMappings: [
-        { host: 'code.example.com', provider: 'gitea' },
-      ],
+      hostMappings: [{ host: 'code.example.com', provider: 'gitea' }],
     })
     expect(hosts['github.acme.com']).toBe('github')
     expect(hosts['gitlab.mycompany.com']).toBe('gitlab')
@@ -1105,9 +1191,7 @@ describe('buildConfiguredHosts', () => {
       providers: {
         gitlab: { hosts: ['git.example.com'] },
       },
-      hostMappings: [
-        { host: 'git.example.com', provider: 'gitea' },
-      ],
+      hostMappings: [{ host: 'git.example.com', provider: 'gitea' }],
     })
     expect(hosts['git.example.com']).toBe('gitea')
   })
@@ -1139,7 +1223,9 @@ describe('detectProvider with configuredHosts', () => {
   }
 
   it('detects self-hosted GitLab from configured hosts', () => {
-    expect(detectProvider('gitlab.mycompany.com', configuredHosts)).toBe('gitlab')
+    expect(detectProvider('gitlab.mycompany.com', configuredHosts)).toBe(
+      'gitlab',
+    )
   })
 
   it('detects self-hosted GitHub from configured hosts', () => {
@@ -1158,11 +1244,15 @@ describe('detectProvider with configuredHosts', () => {
   })
 
   it('configured hosts are case-insensitive', () => {
-    expect(detectProvider('GitLab.MyCompany.COM', configuredHosts)).toBe('gitlab')
+    expect(detectProvider('GitLab.MyCompany.COM', configuredHosts)).toBe(
+      'gitlab',
+    )
   })
 
   it('returns unknown for unconfigured hosts', () => {
-    expect(detectProvider('unknown.example.com', configuredHosts)).toBe('unknown')
+    expect(detectProvider('unknown.example.com', configuredHosts)).toBe(
+      'unknown',
+    )
   })
 })
 
@@ -1322,7 +1412,9 @@ describe('parseGitRemote with gitlab.com nested groups', () => {
   })
 
   it('parses HTTPS URL with nested groups on gitlab.com', () => {
-    const result = parseGitRemote('https://gitlab.com/group/subgroup/project.git')
+    const result = parseGitRemote(
+      'https://gitlab.com/group/subgroup/project.git',
+    )
     expect(result).toEqual<ParsedRemote>({
       provider: 'gitlab',
       host: 'gitlab.com',

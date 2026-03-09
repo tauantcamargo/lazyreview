@@ -4,10 +4,16 @@ import { PRListScreen } from './PRListScreen'
 import type { PullRequest } from '../models/pull-request'
 
 interface InvolvedScreenProps {
-  readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
+  readonly onSelect: (
+    pr: PullRequest,
+    list?: readonly PullRequest[],
+    index?: number,
+  ) => void
 }
 
-export function InvolvedScreen({ onSelect }: InvolvedScreenProps): React.ReactElement {
+export function InvolvedScreen({
+  onSelect,
+}: InvolvedScreenProps): React.ReactElement {
   const [stateFilter, setStateFilter] = useState<PRStateFilter>('open')
   const { data: prs = [], isLoading, error } = useInvolvedPRs(stateFilter)
 

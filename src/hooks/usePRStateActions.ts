@@ -76,7 +76,8 @@ export function usePRStateActions({
       { owner, repo, prNumber },
       {
         onSuccess: () => setStatusMessage('PR reopened'),
-        onError: (err) => setStatusMessage(`Error reopening PR: ${String(err)}`),
+        onError: (err) =>
+          setStatusMessage(`Error reopening PR: ${String(err)}`),
       },
     )
   }, [owner, repo, prNumber, reopenPR, setStatusMessage])

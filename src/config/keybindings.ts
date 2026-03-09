@@ -309,7 +309,10 @@ export function parseBinding(binding: string): {
   const ctrl = parts.includes('ctrl')
   const shift = parts.includes('shift')
   const meta = parts.includes('meta')
-  const key = parts.filter((p) => p !== 'ctrl' && p !== 'shift' && p !== 'meta').join('+') || ''
+  const key =
+    parts
+      .filter((p) => p !== 'ctrl' && p !== 'shift' && p !== 'meta')
+      .join('+') || ''
   return { ctrl, shift, meta, key }
 }
 

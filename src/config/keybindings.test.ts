@@ -366,15 +366,11 @@ describe('matchesAction', () => {
   } as const
 
   it('matches action with single binding', () => {
-    expect(
-      matchesAction('?', makeKey(), 'toggleHelp', bindings),
-    ).toBe(true)
+    expect(matchesAction('?', makeKey(), 'toggleHelp', bindings)).toBe(true)
   })
 
   it('matches action with first of array bindings', () => {
-    expect(
-      matchesAction('j', makeKey(), 'moveDown', bindings),
-    ).toBe(true)
+    expect(matchesAction('j', makeKey(), 'moveDown', bindings)).toBe(true)
   })
 
   it('matches action with second of array bindings', () => {
@@ -390,21 +386,17 @@ describe('matchesAction', () => {
   })
 
   it('matches action with modifier binding', () => {
-    expect(
-      matchesAction('c', makeKey({ ctrl: true }), 'quit', bindings),
-    ).toBe(true)
+    expect(matchesAction('c', makeKey({ ctrl: true }), 'quit', bindings)).toBe(
+      true,
+    )
   })
 
   it('returns false for non-matching input', () => {
-    expect(
-      matchesAction('x', makeKey(), 'moveDown', bindings),
-    ).toBe(false)
+    expect(matchesAction('x', makeKey(), 'moveDown', bindings)).toBe(false)
   })
 
   it('returns false for unknown action', () => {
-    expect(
-      matchesAction('j', makeKey(), 'unknown', bindings),
-    ).toBe(false)
+    expect(matchesAction('j', makeKey(), 'unknown', bindings)).toBe(false)
   })
 })
 
@@ -519,7 +511,9 @@ describe('filesTab panel resizing and dir collapse keybindings', () => {
 
   it('matches < for shrinkTreePanel', () => {
     const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
-    expect(matchesAction('<', makeKey(), 'shrinkTreePanel', filesTab)).toBe(true)
+    expect(matchesAction('<', makeKey(), 'shrinkTreePanel', filesTab)).toBe(
+      true,
+    )
   })
 
   it('matches > for growTreePanel', () => {
@@ -529,12 +523,21 @@ describe('filesTab panel resizing and dir collapse keybindings', () => {
 
   it('matches return for toggleDirCollapse', () => {
     const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
-    expect(matchesAction('', makeKey({ return: true }), 'toggleDirCollapse', filesTab)).toBe(true)
+    expect(
+      matchesAction(
+        '',
+        makeKey({ return: true }),
+        'toggleDirCollapse',
+        filesTab,
+      ),
+    ).toBe(true)
   })
 
   it('matches space for toggleDirCollapse', () => {
     const filesTab = DEFAULT_KEYBINDINGS['filesTab']!
-    expect(matchesAction(' ', makeKey(), 'toggleDirCollapse', filesTab)).toBe(true)
+    expect(matchesAction(' ', makeKey(), 'toggleDirCollapse', filesTab)).toBe(
+      true,
+    )
   })
 
   it('has nextHunk binding in filesTab context', () => {

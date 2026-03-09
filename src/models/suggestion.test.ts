@@ -88,18 +88,14 @@ describe('AcceptSuggestionParamsSchema', () => {
 
   it('rejects missing required fields', () => {
     expect(() => AcceptSuggestionParamsSchema.parse({})).toThrow()
-    expect(() =>
-      AcceptSuggestionParamsSchema.parse({ prNumber: 1 }),
-    ).toThrow()
+    expect(() => AcceptSuggestionParamsSchema.parse({ prNumber: 1 })).toThrow()
   })
 })
 
 describe('formatSuggestionBody', () => {
   it('wraps suggestion in code block with body', () => {
     const result = formatSuggestionBody('Please fix this', 'const x = 1')
-    expect(result).toBe(
-      'Please fix this\n\n```suggestion\nconst x = 1\n```',
-    )
+    expect(result).toBe('Please fix this\n\n```suggestion\nconst x = 1\n```')
   })
 
   it('returns only code block when body is empty', () => {

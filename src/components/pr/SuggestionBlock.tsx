@@ -1,7 +1,10 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
-import { parseSuggestionBlock, type ParsedSuggestion } from '../../models/suggestion'
+import {
+  parseSuggestionBlock,
+  type ParsedSuggestion,
+} from '../../models/suggestion'
 
 // ---------------------------------------------------------------------------
 // Pure extraction helper (re-exported for testing)
@@ -11,7 +14,9 @@ import { parseSuggestionBlock, type ParsedSuggestion } from '../../models/sugges
  * Extract a suggestion block from a comment body string.
  * Returns the parsed suggestion and comment text, or null if none found.
  */
-export function extractSuggestionFromBody(body: string): ParsedSuggestion | null {
+export function extractSuggestionFromBody(
+  body: string,
+): ParsedSuggestion | null {
   return parseSuggestionBlock(body)
 }
 

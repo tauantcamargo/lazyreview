@@ -21,11 +21,7 @@ export function computeCharCount(content: string): number {
 
 /** Build the keyboard hint text shown at the bottom of the modal. */
 export function getNotesHintText(hasExistingNote: boolean): string {
-  const parts = [
-    'Enter: new line',
-    'Ctrl+S: save',
-    'Esc: cancel',
-  ]
+  const parts = ['Enter: new line', 'Ctrl+S: save', 'Esc: cancel']
   if (hasExistingNote) {
     parts.push('Ctrl+D: delete')
   }
@@ -80,19 +76,17 @@ export function NotesModal({
     }
   }, [content, onSave])
 
-  useInput(
-    (_input, key) => {
-      if (!isOpen) return
+  useInput((_input, key) => {
+    if (!isOpen) return
 
-      if (key.escape) {
-        onClose()
-      } else if (_input === 's' && key.ctrl) {
-        handleSave()
-      } else if (_input === 'd' && key.ctrl && isEditing) {
-        onDelete()
-      }
-    },
-  )
+    if (key.escape) {
+      onClose()
+    } else if (_input === 's' && key.ctrl) {
+      handleSave()
+    } else if (_input === 'd' && key.ctrl && isEditing) {
+      onDelete()
+    }
+  })
 
   if (!isOpen) return null
 
@@ -117,9 +111,7 @@ export function NotesModal({
           <Text color={theme.colors.accent} bold>
             {title}
           </Text>
-          <Text color={theme.colors.muted}>
-            (private, local only)
-          </Text>
+          <Text color={theme.colors.muted}>(private, local only)</Text>
         </Box>
 
         {/* Editor */}

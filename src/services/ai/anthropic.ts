@@ -44,7 +44,10 @@ function buildHeaders(config: AiServiceConfig): Record<string, string> {
 function separateSystemPrompt(
   messages: readonly AiMessage[],
   options?: AiRequestOptions,
-): { readonly system: string | undefined; readonly messages: readonly AiMessage[] } {
+): {
+  readonly system: string | undefined
+  readonly messages: readonly AiMessage[]
+} {
   const systemMessages = messages.filter((m) => m.role === 'system')
   const nonSystemMessages = messages.filter((m) => m.role !== 'system')
 
@@ -68,7 +71,10 @@ function buildRequestBody(
   options?: AiRequestOptions,
   stream = false,
 ): Record<string, unknown> {
-  const { system, messages: filteredMessages } = separateSystemPrompt(messages, options)
+  const { system, messages: filteredMessages } = separateSystemPrompt(
+    messages,
+    options,
+  )
 
   const body: Record<string, unknown> = {
     model: config.model,
@@ -98,7 +104,10 @@ export function createAnthropicService(config: AiServiceConfig): AiService {
   const complete = (
     messages: readonly AiMessage[],
     options?: AiRequestOptions,
-  ): Effect.Effect<AiResponse, AiError | AiNetworkError | AiRateLimitError | AiResponseError> => {
+  ): Effect.Effect<
+    AiResponse,
+    AiError | AiNetworkError | AiRateLimitError | AiResponseError
+  > => {
     const url = `${endpoint}/v1/messages`
     const body = buildRequestBody(config, messages, options)
 
@@ -115,7 +124,9 @@ export function createAnthropicService(config: AiServiceConfig): AiService {
 
           if (response.status === 429) {
             const retryAfter = response.headers.get('retry-after')
-            const retryMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : undefined
+            const retryMs = retryAfter
+              ? parseInt(retryAfter, 10) * 1000
+              : undefined
             throw new AiRateLimitError({
               message: 'Anthropic rate limit exceeded',
               provider: 'anthropic',
@@ -183,12 +194,17 @@ export function createAnthropicService(config: AiServiceConfig): AiService {
 
 function parseAnthropicResponse(data: unknown): AiResponse {
   const obj = data as Record<string, unknown>
-  const content = obj['content'] as readonly { readonly type: string; readonly text?: string }[]
+  const content = obj['content'] as readonly {
+    readonly type: string
+    readonly text?: string
+  }[]
   const textParts = content
     .filter((block) => block.type === 'text' && typeof block.text === 'string')
     .map((block) => block.text as string)
 
-  const usage = obj['usage'] as { readonly input_tokens?: number; readonly output_tokens?: number } | undefined
+  const usage = obj['usage'] as
+    | { readonly input_tokens?: number; readonly output_tokens?: number }
+    | undefined
 
   return {
     content: textParts.join(''),
@@ -228,7 +244,10 @@ async function* streamAnthropicResponse(
         const parsed = JSON.parse(event.data) as {
           readonly delta?: { readonly type: string; readonly text?: string }
         }
-        if (parsed.delta?.type === 'text_delta' && typeof parsed.delta.text === 'string') {
+        if (
+          parsed.delta?.type === 'text_delta' &&
+          typeof parsed.delta.text === 'string'
+        ) {
           yield { text: parsed.delta.text, done: false }
         }
       } catch {

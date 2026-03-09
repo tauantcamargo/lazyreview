@@ -83,7 +83,7 @@ export function usePRNotes(key: string): {
   const snapshot = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
-    () => ({} as PRNotesData),
+    () => ({}) as PRNotesData,
   )
 
   const note = snapshot[key] !== undefined ? snapshot[key] : null

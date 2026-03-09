@@ -39,7 +39,10 @@ export function ThreeWayDiffView({
   const conflictRegions = useMemo(
     () =>
       chunks
-        .filter((c): c is Extract<ThreeWayChunk, { type: 'conflict' }> => c.type === 'conflict')
+        .filter(
+          (c): c is Extract<ThreeWayChunk, { type: 'conflict' }> =>
+            c.type === 'conflict',
+        )
         .map((c) => c.region),
     [chunks],
   )
@@ -82,7 +85,9 @@ export function ThreeWayDiffView({
           </Text>
         </Box>
         <Box paddingY={1}>
-          <Text color={theme.colors.muted}>No conflicts found in this file</Text>
+          <Text color={theme.colors.muted}>
+            No conflicts found in this file
+          </Text>
         </Box>
       </Box>
     )
@@ -103,9 +108,7 @@ export function ThreeWayDiffView({
         <Text color={theme.colors.warning} bold>
           Conflict {currentIndex + 1}/{conflictCount}
         </Text>
-        <Text color={theme.colors.muted}>
-          ]c/[c navigate | Esc back
-        </Text>
+        <Text color={theme.colors.muted}>]c/[c navigate | Esc back</Text>
       </Box>
 
       {/* Column headers */}
@@ -227,26 +230,15 @@ function ThreeWayChunkView({
               overflow="hidden"
               backgroundColor={theme.colors.diffAddHighlight}
             >
-              <Text
-                color={theme.colors.diffAdd}
-                wrap="truncate-end"
-              >
+              <Text color={theme.colors.diffAdd} wrap="truncate-end">
                 {oursLine ?? ''}
               </Text>
             </Box>
             <Box width={1} flexShrink={0}>
               <Text color={theme.colors.border}>|</Text>
             </Box>
-            <Box
-              flexGrow={1}
-              flexBasis={0}
-              minWidth={0}
-              overflow="hidden"
-            >
-              <Text
-                color={theme.colors.muted}
-                wrap="truncate-end"
-              >
+            <Box flexGrow={1} flexBasis={0} minWidth={0} overflow="hidden">
+              <Text color={theme.colors.muted} wrap="truncate-end">
                 {baseLine ?? ''}
               </Text>
             </Box>
@@ -260,10 +252,7 @@ function ThreeWayChunkView({
               overflow="hidden"
               backgroundColor={theme.colors.diffDelHighlight}
             >
-              <Text
-                color={theme.colors.diffDel}
-                wrap="truncate-end"
-              >
+              <Text color={theme.colors.diffDel} wrap="truncate-end">
                 {theirsLine ?? ''}
               </Text>
             </Box>

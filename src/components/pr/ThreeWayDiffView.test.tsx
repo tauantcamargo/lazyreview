@@ -221,6 +221,7 @@ describe('ThreeWayDiffView', () => {
     )
     await new Promise((resolve) => setTimeout(resolve, 10))
     stdin.write('\u001B')
+    await new Promise((r) => setImmediate(r))
     expect(onBack).toHaveBeenCalledOnce()
   })
 })

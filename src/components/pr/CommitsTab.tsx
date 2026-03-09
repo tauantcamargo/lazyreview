@@ -1,7 +1,10 @@
 import React, { useCallback, useState } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../../theme/index'
-import { useListNavigation, deriveScrollOffset } from '../../hooks/useListNavigation'
+import {
+  useListNavigation,
+  deriveScrollOffset,
+} from '../../hooks/useListNavigation'
 import { useCommitDiff } from '../../hooks/useGitHub'
 import { useCommitRange } from '../../hooks/useCommitRange'
 import { copyToClipboard } from '../../utils/terminal'
@@ -44,15 +47,14 @@ function CommitItem({
       : undefined
 
   return (
-    <Box
-      paddingX={1}
-      paddingY={0}
-      gap={1}
-      backgroundColor={bgColor}
-    >
+    <Box paddingX={1} paddingY={0} gap={1} backgroundColor={bgColor}>
       <Box width={10}>
-        <Text color={isInRange ? theme.colors.success : theme.colors.warning} bold={isFocus}>
-          {isInRange && !isFocus ? '\u2502 ' : ''}{shortSha}
+        <Text
+          color={isInRange ? theme.colors.success : theme.colors.warning}
+          bold={isFocus}
+        >
+          {isInRange && !isFocus ? '\u2502 ' : ''}
+          {shortSha}
         </Text>
       </Box>
       <Box flexGrow={1} flexShrink={1}>
@@ -109,7 +111,9 @@ export function CommitsTab({
   const theme = useTheme()
   const { setStatusMessage } = useStatusMessage()
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 10)
-  const [selectedCommitSha, setSelectedCommitSha] = useState<string | null>(null)
+  const [selectedCommitSha, setSelectedCommitSha] = useState<string | null>(
+    null,
+  )
 
   const commitRange = useCommitRange()
 
@@ -119,12 +123,10 @@ export function CommitsTab({
     isActive: isActive && selectedCommitSha === null,
   })
 
-  const { data: commitFiles = [], isLoading: commitDiffLoading } = useCommitDiff(
-    owner,
-    repo,
-    selectedCommitSha ?? '',
-    { enabled: selectedCommitSha !== null },
-  )
+  const { data: commitFiles = [], isLoading: commitDiffLoading } =
+    useCommitDiff(owner, repo, selectedCommitSha ?? '', {
+      enabled: selectedCommitSha !== null,
+    })
 
   const completeRangeSelection = useCallback(
     (endIdx: number) => {
@@ -149,7 +151,9 @@ export function CommitsTab({
           completeRangeSelection(selectedIndex)
         } else {
           commitRange.startSelection(selectedIndex, commits[selectedIndex].sha)
-          setStatusMessage('Range start set - move to end commit and press v or Enter')
+          setStatusMessage(
+            'Range start set - move to end commit and press v or Enter',
+          )
         }
       } else if (key.return && commits[selectedIndex]) {
         if (commitRange.isSelecting) {
@@ -175,8 +179,15 @@ export function CommitsTab({
     { isActive: isActive && selectedCommitSha === null },
   )
 
-  const scrollOffset = deriveScrollOffset(selectedIndex, viewportHeight, commits.length)
-  const visibleCommits = commits.slice(scrollOffset, scrollOffset + viewportHeight)
+  const scrollOffset = deriveScrollOffset(
+    selectedIndex,
+    viewportHeight,
+    commits.length,
+  )
+  const visibleCommits = commits.slice(
+    scrollOffset,
+    scrollOffset + viewportHeight,
+  )
 
   if (commits.length === 0) {
     return <EmptyState message="No commits found" />
@@ -210,9 +221,7 @@ export function CommitsTab({
           </Text>
         )}
         {commitRange.range && (
-          <Text color={theme.colors.info}>
-            [{commitRange.range.label}]
-          </Text>
+          <Text color={theme.colors.info}>[{commitRange.range.label}]</Text>
         )}
       </Box>
 

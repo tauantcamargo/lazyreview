@@ -28,7 +28,9 @@ const GitLabConfigSchema = S.Struct({
 })
 
 const GitHubConfigSchema = S.Struct({
-  hosts: S.optionalWith(S.Array(S.String), { default: () => [] as readonly string[] }),
+  hosts: S.optionalWith(S.Array(S.String), {
+    default: () => [] as readonly string[],
+  }),
 })
 
 const HostMappingSchema = S.Struct({
@@ -45,7 +47,9 @@ const HostMappingSchema = S.Struct({
 export type HostMapping = S.Schema.Type<typeof HostMappingSchema>
 
 const GitLabProviderConfigSchema = S.Struct({
-  hosts: S.optionalWith(S.Array(S.String), { default: () => [] as readonly string[] }),
+  hosts: S.optionalWith(S.Array(S.String), {
+    default: () => [] as readonly string[],
+  }),
 })
 
 const ProvidersConfigSchema = S.Struct({
@@ -109,7 +113,13 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
     default: () => false,
   }),
   keybindingOverrides: S.optional(
-    S.Record({ key: S.String, value: S.Record({ key: S.String, value: S.Union(S.String, S.Array(S.String)) }) }),
+    S.Record({
+      key: S.String,
+      value: S.Record({
+        key: S.String,
+        value: S.Union(S.String, S.Array(S.String)),
+      }),
+    }),
   ),
   notifications: S.optionalWith(S.Boolean, {
     default: () => true,
@@ -141,9 +151,12 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
   prefetchEnabled: S.optionalWith(S.Boolean, {
     default: () => true,
   }),
-  prefetchDelayMs: S.optionalWith(S.Number.pipe(S.int(), S.between(100, 5000)), {
-    default: () => 500,
-  }),
+  prefetchDelayMs: S.optionalWith(
+    S.Number.pipe(S.int(), S.between(100, 5000)),
+    {
+      default: () => 500,
+    },
+  ),
   commentTemplates: S.optionalWith(
     S.Array(
       S.Struct({
@@ -173,7 +186,14 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
         }),
       ),
     }),
-    { default: () => ({ members: [] as readonly { readonly username: string; readonly provider: string }[] }) },
+    {
+      default: () => ({
+        members: [] as readonly {
+          readonly username: string
+          readonly provider: string
+        }[],
+      }),
+    },
   ),
   aiProvider: S.optionalWith(S.String, { default: () => '' }),
   aiModel: S.optionalWith(S.String, { default: () => '' }),
@@ -253,9 +273,7 @@ export function buildHostMappings(
  * Convert a buildHostMappings result to the ConfiguredHosts record
  * expected by detectProvider / parseGitRemote in git.ts.
  */
-export function toConfiguredHosts(
-  config: AppConfig,
-): Record<string, Provider> {
+export function toConfiguredHosts(config: AppConfig): Record<string, Provider> {
   const map = buildHostMappings(config)
   const result: Record<string, Provider> = {}
   for (const [host, provider] of map) {
@@ -285,7 +303,13 @@ const DEFAULT_HOSTS: Readonly<Record<Provider, string>> = {
   gitea: 'gitea.com',
 }
 
-const ALL_PROVIDERS: readonly Provider[] = ['github', 'gitlab', 'bitbucket', 'azure', 'gitea']
+const ALL_PROVIDERS: readonly Provider[] = [
+  'github',
+  'gitlab',
+  'bitbucket',
+  'azure',
+  'gitea',
+]
 
 /**
  * Build a list of all configured provider instances from AppConfig.
@@ -297,11 +321,17 @@ const ALL_PROVIDERS: readonly Provider[] = ['github', 'gitlab', 'bitbucket', 'az
  *
  * De-duplicates by provider+host combination.
  */
-export function getConfiguredInstances(config: AppConfig): readonly ConfiguredInstance[] {
+export function getConfiguredInstances(
+  config: AppConfig,
+): readonly ConfiguredInstance[] {
   const seen = new Set<string>()
   const instances: ConfiguredInstance[] = []
 
-  function addInstance(provider: Provider, host: string, isDefault: boolean): void {
+  function addInstance(
+    provider: Provider,
+    host: string,
+    isDefault: boolean,
+  ): void {
     const key = `${provider}:${host.toLowerCase()}`
     if (seen.has(key)) return
     seen.add(key)
@@ -381,9 +411,10 @@ export function flattenV2ToAppConfig(v2: V2ConfigFile): AppConfig {
       github: { hosts: v2.providers.github.hosts },
       gitlab: { hosts: v2.providers.gitlab.hosts },
     },
-    keybindingOverrides: Object.keys(v2.keybindingOverrides).length > 0
-      ? v2.keybindingOverrides
-      : undefined,
+    keybindingOverrides:
+      Object.keys(v2.keybindingOverrides).length > 0
+        ? v2.keybindingOverrides
+        : undefined,
     recentRepos: v2.recentRepos,
     bookmarkedRepos: v2.bookmarkedRepos,
     commentTemplates: v2.commentTemplates,
@@ -425,7 +456,9 @@ export function appConfigToV2(config: AppConfig): V2ConfigFile {
  * Load a `.lazyreview.yaml` file from a repository root directory.
  * Returns the parsed YAML as a record, or empty object if not found.
  */
-export async function loadRepoConfig(repoRoot: string): Promise<Record<string, unknown>> {
+export async function loadRepoConfig(
+  repoRoot: string,
+): Promise<Record<string, unknown>> {
   const repoConfigPath = join(repoRoot, '.lazyreview.yaml')
   try {
     const content = await readFile(repoConfigPath, 'utf-8')
@@ -498,19 +531,27 @@ export const ConfigLive = Layer.succeed(
 
             // V1 config -- migrate, backup, and save as V2
             if (isV1Config(parsed)) {
-              const v2 = migrateV1Config((parsed ?? {}) as Record<string, unknown>)
+              const v2 = migrateV1Config(
+                (parsed ?? {}) as Record<string, unknown>,
+              )
 
               // Save backup (best-effort, don't fail if it errors)
               try {
                 const backupPath = configPath + '.v1.backup'
-                await writeFile(backupPath, content, { encoding: 'utf-8', mode: 0o600 })
+                await writeFile(backupPath, content, {
+                  encoding: 'utf-8',
+                  mode: 0o600,
+                })
               } catch {
                 // backup is best-effort
               }
 
               // Save migrated V2 config
               try {
-                await writeFile(configPath, stringify(v2), { encoding: 'utf-8', mode: 0o600 })
+                await writeFile(configPath, stringify(v2), {
+                  encoding: 'utf-8',
+                  mode: 0o600,
+                })
               } catch {
                 // save is best-effort during migration
               }
@@ -538,7 +579,10 @@ export const ConfigLive = Layer.succeed(
           await mkdir(dirname(configPath), { recursive: true, mode: 0o700 })
           // Save in V2 format
           const v2 = appConfigToV2(config)
-          await writeFile(configPath, stringify(v2), { encoding: 'utf-8', mode: 0o600 })
+          await writeFile(configPath, stringify(v2), {
+            encoding: 'utf-8',
+            mode: 0o600,
+          })
         },
         catch: (error) =>
           new ConfigError({

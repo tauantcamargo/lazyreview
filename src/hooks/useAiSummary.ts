@@ -20,7 +20,10 @@ export interface PRSummaryInput {
   readonly headSha: string
   readonly title: string
   readonly description: string
-  readonly commits: readonly { readonly message: string; readonly sha: string }[]
+  readonly commits: readonly {
+    readonly message: string
+    readonly sha: string
+  }[]
   readonly files: readonly {
     readonly filename: string
     readonly additions: number
@@ -123,9 +126,7 @@ async function* mockSummaryStream(): AsyncIterable<AiStreamChunk> {
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useAiSummary(
-  aiConfig?: AiConfig,
-): UseAiSummaryReturn {
+export function useAiSummary(aiConfig?: AiConfig): UseAiSummaryReturn {
   const [summary, setSummary] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)

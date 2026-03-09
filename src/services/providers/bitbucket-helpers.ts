@@ -40,9 +40,7 @@ function buildBitbucketError(
     status: response.status,
     url,
     retryAfterMs:
-      response.status === 429
-        ? parseRetryAfter(response.headers)
-        : undefined,
+      response.status === 429 ? parseRetryAfter(response.headers) : undefined,
   })
 }
 

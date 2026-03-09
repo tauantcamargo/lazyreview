@@ -25,18 +25,25 @@ interface MockMutation<TParams = unknown, TData = void> {
   lastParams: () => TParams | undefined
 }
 
-function createMockMutation<TParams = unknown, TData = void>(): MockMutation<TParams, TData> {
+function createMockMutation<TParams = unknown, TData = void>(): MockMutation<
+  TParams,
+  TData
+> {
   const mutateFn = vi.fn()
   return {
     mutate: mutateFn,
     isPending: false,
     lastCallbacks() {
       const calls = mutateFn.mock.calls
-      return calls.length > 0 ? (calls[calls.length - 1][1] as MutateCallbacks<TData>) : undefined
+      return calls.length > 0
+        ? (calls[calls.length - 1][1] as MutateCallbacks<TData>)
+        : undefined
     },
     lastParams() {
       const calls = mutateFn.mock.calls
-      return calls.length > 0 ? (calls[calls.length - 1][0] as TParams) : undefined
+      return calls.length > 0
+        ? (calls[calls.length - 1][0] as TParams)
+        : undefined
     },
   }
 }
@@ -89,7 +96,12 @@ vi.mock('./useGitHub', () => ({
 
 interface StateCapture {
   reviewId: number | null
-  pendingComments: readonly { body: string; path: string; line: number; side: string }[]
+  pendingComments: readonly {
+    body: string
+    path: string
+    line: number
+    side: string
+  }[]
   error: string | null
 }
 
@@ -107,10 +119,15 @@ const mockSetPendingComments = vi.fn((updater: unknown) => {
   if (typeof updater === 'function') {
     stateCapture = {
       ...stateCapture,
-      pendingComments: (updater as (prev: readonly unknown[]) => readonly unknown[])(stateCapture.pendingComments) as StateCapture['pendingComments'],
+      pendingComments: (
+        updater as (prev: readonly unknown[]) => readonly unknown[]
+      )(stateCapture.pendingComments) as StateCapture['pendingComments'],
     }
   } else {
-    stateCapture = { ...stateCapture, pendingComments: updater as StateCapture['pendingComments'] }
+    stateCapture = {
+      ...stateCapture,
+      pendingComments: updater as StateCapture['pendingComments'],
+    }
   }
 })
 const mockSetError = vi.fn((updater: string | null) => {
@@ -125,8 +142,10 @@ vi.mock('react', async () => {
     useState: (initial: unknown) => {
       const callIndex = useStateCalls++
       // Order: reviewId (0), pendingComments (1), error (2)
-      if (callIndex % 3 === 0) return [stateCapture.reviewId ?? initial, mockSetReviewId]
-      if (callIndex % 3 === 1) return [stateCapture.pendingComments ?? initial, mockSetPendingComments]
+      if (callIndex % 3 === 0)
+        return [stateCapture.reviewId ?? initial, mockSetReviewId]
+      if (callIndex % 3 === 1)
+        return [stateCapture.pendingComments ?? initial, mockSetPendingComments]
       return [stateCapture.error ?? initial, mockSetError]
     },
     useCallback: (fn: unknown) => fn,
@@ -226,7 +245,8 @@ describe('usePendingReview', () => {
       const { result } = createHook()
       result.startReview()
 
-      const callbacks = mockCreatePendingReview.mutate.mock.calls[0][1] as MutateCallbacks<{ id: number }>
+      const callbacks = mockCreatePendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks<{ id: number }>
       callbacks.onSuccess?.({ id: 123 })
 
       expect(mockSetReviewId).toHaveBeenCalledWith(123)
@@ -237,7 +257,8 @@ describe('usePendingReview', () => {
       const { result, setStatusMessage } = createHook()
       result.startReview()
 
-      const callbacks = mockCreatePendingReview.mutate.mock.calls[0][1] as MutateCallbacks<{ id: number }>
+      const callbacks = mockCreatePendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks<{ id: number }>
       callbacks.onSuccess?.({ id: 123 })
 
       expect(setStatusMessage).toHaveBeenCalledWith(
@@ -249,7 +270,8 @@ describe('usePendingReview', () => {
       const { result } = createHook()
       result.startReview()
 
-      const callbacks = mockCreatePendingReview.mutate.mock.calls[0][1] as MutateCallbacks<{ id: number }>
+      const callbacks = mockCreatePendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks<{ id: number }>
       callbacks.onError?.(new Error('API rate limit'))
 
       expect(mockSetError).toHaveBeenCalledWith('Error: API rate limit')
@@ -259,7 +281,8 @@ describe('usePendingReview', () => {
       const { result, setStatusMessage } = createHook()
       result.startReview()
 
-      const callbacks = mockCreatePendingReview.mutate.mock.calls[0][1] as MutateCallbacks<{ id: number }>
+      const callbacks = mockCreatePendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks<{ id: number }>
       callbacks.onError?.(new Error('API rate limit'))
 
       expect(setStatusMessage).toHaveBeenCalledWith(
@@ -309,12 +332,16 @@ describe('usePendingReview', () => {
       const { result } = createHook()
       result.addPendingComment(comment, 'Fix this')
 
-      const callbacks = mockAddPendingReviewComment.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockAddPendingReviewComment.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onSuccess?.()
 
       // Verify setPendingComments was called with an updater function
       expect(mockSetPendingComments).toHaveBeenCalled()
-      const lastCall = mockSetPendingComments.mock.calls[mockSetPendingComments.mock.calls.length - 1][0]
+      const lastCall =
+        mockSetPendingComments.mock.calls[
+          mockSetPendingComments.mock.calls.length - 1
+        ][0]
       if (typeof lastCall === 'function') {
         const newComments = lastCall([])
         expect(newComments).toHaveLength(1)
@@ -328,7 +355,8 @@ describe('usePendingReview', () => {
       const { result, setStatusMessage } = createHook()
       result.addPendingComment(comment, 'Fix this')
 
-      const callbacks = mockAddPendingReviewComment.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockAddPendingReviewComment.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onSuccess?.()
 
       expect(setStatusMessage).toHaveBeenCalledWith(
@@ -341,7 +369,8 @@ describe('usePendingReview', () => {
       const { result } = createHook()
       result.addPendingComment(comment, 'Fix this')
 
-      const callbacks = mockAddPendingReviewComment.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockAddPendingReviewComment.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onError?.(new Error('422 Unprocessable'))
 
       expect(mockSetError).toHaveBeenCalledWith('Error: 422 Unprocessable')
@@ -352,7 +381,8 @@ describe('usePendingReview', () => {
       const { result, setStatusMessage } = createHook()
       result.addPendingComment(comment, 'Fix this')
 
-      const callbacks = mockAddPendingReviewComment.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockAddPendingReviewComment.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onError?.(new Error('422 Unprocessable'))
 
       expect(setStatusMessage).toHaveBeenCalledWith(
@@ -409,7 +439,8 @@ describe('usePendingReview', () => {
       const { result } = createHook()
       result.submitReview('Done', 'COMMENT')
 
-      const callbacks = mockSubmitPendingReview.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockSubmitPendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onSuccess?.()
 
       expect(mockSetReviewId).toHaveBeenCalledWith(null)
@@ -421,7 +452,8 @@ describe('usePendingReview', () => {
       const { result, setStatusMessage } = createHook()
       result.submitReview('Done', 'APPROVE')
 
-      const callbacks = mockSubmitPendingReview.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockSubmitPendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onSuccess?.()
 
       expect(setStatusMessage).toHaveBeenCalledWith('Review submitted')
@@ -432,7 +464,8 @@ describe('usePendingReview', () => {
       const { result } = createHook()
       result.submitReview('Done', 'APPROVE')
 
-      const callbacks = mockSubmitPendingReview.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockSubmitPendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onError?.(new Error('Server error'))
 
       expect(mockSetError).toHaveBeenCalledWith('Error: Server error')
@@ -443,7 +476,8 @@ describe('usePendingReview', () => {
       const { result, setStatusMessage } = createHook()
       result.submitReview('Done', 'APPROVE')
 
-      const callbacks = mockSubmitPendingReview.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockSubmitPendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onError?.(new Error('Server error'))
 
       expect(setStatusMessage).toHaveBeenCalledWith(
@@ -489,7 +523,8 @@ describe('usePendingReview', () => {
       const { result } = createHook()
       result.discardReview()
 
-      const callbacks = mockDiscardPendingReview.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockDiscardPendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onSuccess?.()
 
       expect(mockSetReviewId).toHaveBeenCalledWith(null)
@@ -501,12 +536,11 @@ describe('usePendingReview', () => {
       const { result, setStatusMessage } = createHook()
       result.discardReview()
 
-      const callbacks = mockDiscardPendingReview.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockDiscardPendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onSuccess?.()
 
-      expect(setStatusMessage).toHaveBeenCalledWith(
-        'Pending review discarded',
-      )
+      expect(setStatusMessage).toHaveBeenCalledWith('Pending review discarded')
     })
 
     it('sets error on failure', () => {
@@ -514,7 +548,8 @@ describe('usePendingReview', () => {
       const { result } = createHook()
       result.discardReview()
 
-      const callbacks = mockDiscardPendingReview.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockDiscardPendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onError?.(new Error('Not found'))
 
       expect(mockSetError).toHaveBeenCalledWith('Error: Not found')
@@ -525,7 +560,8 @@ describe('usePendingReview', () => {
       const { result, setStatusMessage } = createHook()
       result.discardReview()
 
-      const callbacks = mockDiscardPendingReview.mutate.mock.calls[0][1] as MutateCallbacks
+      const callbacks = mockDiscardPendingReview.mutate.mock
+        .calls[0][1] as MutateCallbacks
       callbacks.onError?.(new Error('Not found'))
 
       expect(setStatusMessage).toHaveBeenCalledWith(

@@ -32,9 +32,7 @@ export const GiteaBranchRefSchema = z.object({
   label: z.string(),
   ref: z.string(),
   sha: z.string(),
-  repo: z
-    .object({ full_name: z.string() })
-    .optional(),
+  repo: z.object({ full_name: z.string() }).optional(),
 })
 
 export type GiteaBranchRef = z.infer<typeof GiteaBranchRefSchema>

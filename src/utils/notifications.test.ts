@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { escapeForAppleScript, buildAppleScript, sendNotification, type NotificationOptions } from './notifications'
+import {
+  escapeForAppleScript,
+  buildAppleScript,
+  sendNotification,
+  type NotificationOptions,
+} from './notifications'
 
 // Mock child_process
 vi.mock('node:child_process', () => ({
@@ -31,7 +36,9 @@ describe('escapeForAppleScript', () => {
 describe('buildAppleScript', () => {
   it('builds script without subtitle', () => {
     const result = buildAppleScript({ title: 'New PR', body: '#42: Fix bug' })
-    expect(result).toBe('display notification "#42: Fix bug" with title "New PR"')
+    expect(result).toBe(
+      'display notification "#42: Fix bug" with title "New PR"',
+    )
   })
 
   it('builds script with subtitle', () => {

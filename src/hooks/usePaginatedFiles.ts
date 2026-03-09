@@ -112,7 +112,11 @@ function usePaginatedPageQueries(
   prNumber: number,
   maxPage: number,
   enabled: boolean,
-): { readonly allFiles: readonly FileChange[]; readonly isLoading: boolean; readonly hasNextPage: boolean } {
+): {
+  readonly allFiles: readonly FileChange[]
+  readonly isLoading: boolean
+  readonly hasNextPage: boolean
+} {
   // Load each page individually
   const page1 = useQuery({
     queryKey: ['pr-files-page', owner, repo, prNumber, 1],
@@ -184,7 +188,7 @@ function usePaginatedPageQueries(
   const lastLoadedPage = pages.filter((p) => p.data != null).length
   const hasNextPage =
     lastLoadedPage > 0 && lastLoadedPage <= pages.length
-      ? pages[lastLoadedPage - 1]?.data?.hasNextPage ?? false
+      ? (pages[lastLoadedPage - 1]?.data?.hasNextPage ?? false)
       : false
 
   return { allFiles, isLoading, hasNextPage }

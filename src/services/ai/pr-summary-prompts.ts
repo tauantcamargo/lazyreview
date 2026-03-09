@@ -13,7 +13,10 @@ import type { AiMessage } from './types'
 export interface PRSummaryPromptParams {
   readonly title: string
   readonly description: string
-  readonly commits: readonly { readonly message: string; readonly sha: string }[]
+  readonly commits: readonly {
+    readonly message: string
+    readonly sha: string
+  }[]
   readonly files: readonly {
     readonly filename: string
     readonly additions: number

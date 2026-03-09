@@ -48,9 +48,7 @@ describe('GiteaCommitInfoSchema', () => {
   })
 
   it('rejects missing author', () => {
-    expect(() =>
-      GiteaCommitInfoSchema.parse({ message: 'test' }),
-    ).toThrow()
+    expect(() => GiteaCommitInfoSchema.parse({ message: 'test' })).toThrow()
   })
 
   it('rejects missing author.name', () => {

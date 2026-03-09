@@ -53,7 +53,11 @@ export function MultiLineInput({
     (newLines: readonly string[], newRow: number, newCol: number) => {
       if (shouldPushState(lastPushTimeRef.current)) {
         setUndoState((prev) =>
-          pushState(prev, { lines: newLines, cursorRow: newRow, cursorCol: newCol }),
+          pushState(prev, {
+            lines: newLines,
+            cursorRow: newRow,
+            cursorCol: newCol,
+          }),
         )
         lastPushTimeRef.current = Date.now()
       } else {
@@ -175,7 +179,8 @@ export function MultiLineInput({
       if (key.backspace || key.delete) {
         if (cursorCol > 0) {
           const currentLine = lines[cursorRow] ?? ''
-          const newLine = currentLine.slice(0, cursorCol - 1) + currentLine.slice(cursorCol)
+          const newLine =
+            currentLine.slice(0, cursorCol - 1) + currentLine.slice(cursorCol)
           const newLines = lines.map((l, i) => (i === cursorRow ? newLine : l))
           updateLines(newLines, cursorRow, cursorCol - 1)
         } else if (cursorRow > 0) {
@@ -251,7 +256,9 @@ export function MultiLineInput({
   return (
     <Box flexDirection="column" minHeight={displayHeight}>
       {isEmpty && !isActive && placeholder ? (
-        <Text color={theme.colors.muted} dimColor>{placeholder}</Text>
+        <Text color={theme.colors.muted} dimColor>
+          {placeholder}
+        </Text>
       ) : (
         lines.map((line, rowIndex) => {
           if (rowIndex === cursorRow && isActive) {

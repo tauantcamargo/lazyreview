@@ -138,10 +138,10 @@ export function runMigrations(db: Database): number {
     db.run('BEGIN TRANSACTION')
     try {
       db.run(migration.up)
-      db.run(
-        'INSERT INTO migrations (version, description) VALUES (?, ?)',
-        [migration.version, migration.description],
-      )
+      db.run('INSERT INTO migrations (version, description) VALUES (?, ?)', [
+        migration.version,
+        migration.description,
+      ])
       db.run('COMMIT')
       count += 1
     } catch (error) {

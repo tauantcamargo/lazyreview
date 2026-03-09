@@ -24,7 +24,8 @@ describe('ConflictBanner', () => {
     const state: ConflictState = {
       hasConflicts: true,
       mergeableState: 'dirty',
-      conflictMessage: 'This PR has merge conflicts that must be resolved locally',
+      conflictMessage:
+        'This PR has merge conflicts that must be resolved locally',
     }
     const { lastFrame } = render(themed(<ConflictBanner state={state} />))
     const frame = lastFrame() ?? ''
@@ -47,7 +48,8 @@ describe('ConflictBanner', () => {
     const state: ConflictState = {
       hasConflicts: false,
       mergeableState: 'blocked',
-      conflictMessage: 'Merging is blocked by branch protection rules or required reviews',
+      conflictMessage:
+        'Merging is blocked by branch protection rules or required reviews',
     }
     const { lastFrame } = render(themed(<ConflictBanner state={state} />))
     const frame = lastFrame() ?? ''
@@ -58,7 +60,8 @@ describe('ConflictBanner', () => {
     const state: ConflictState = {
       hasConflicts: false,
       mergeableState: 'behind',
-      conflictMessage: 'Branch is behind the base branch and needs to be updated',
+      conflictMessage:
+        'Branch is behind the base branch and needs to be updated',
     }
     const { lastFrame } = render(themed(<ConflictBanner state={state} />))
     const frame = lastFrame() ?? ''
@@ -80,7 +83,8 @@ describe('ConflictBanner', () => {
     const state: ConflictState = {
       hasConflicts: true,
       mergeableState: 'dirty',
-      conflictMessage: 'This PR has merge conflicts that must be resolved locally',
+      conflictMessage:
+        'This PR has merge conflicts that must be resolved locally',
     }
     const { lastFrame } = render(themed(<ConflictBanner state={state} />))
     const frame = lastFrame() ?? ''
@@ -91,7 +95,8 @@ describe('ConflictBanner', () => {
     const state: ConflictState = {
       hasConflicts: true,
       mergeableState: 'dirty',
-      conflictMessage: 'This PR has merge conflicts that must be resolved locally',
+      conflictMessage:
+        'This PR has merge conflicts that must be resolved locally',
     }
     const { lastFrame } = render(themed(<ConflictBanner state={state} />))
     const frame = lastFrame() ?? ''

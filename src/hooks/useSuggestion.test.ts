@@ -216,7 +216,13 @@ describe('useSuggestion', () => {
   })
 
   describe('provider type exposure', () => {
-    const providerTypes: readonly ProviderType[] = ['github', 'gitlab', 'bitbucket', 'azure', 'gitea']
+    const providerTypes: readonly ProviderType[] = [
+      'github',
+      'gitlab',
+      'bitbucket',
+      'azure',
+      'gitea',
+    ]
 
     it('returns correct providerType for all providers', () => {
       for (const type of providerTypes) {

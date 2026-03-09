@@ -65,9 +65,7 @@ describe('GiteaUserSchema', () => {
   })
 
   it('rejects non-number id', () => {
-    expect(() =>
-      GiteaUserSchema.parse({ id: 'abc', login: 'test' }),
-    ).toThrow()
+    expect(() => GiteaUserSchema.parse({ id: 'abc', login: 'test' })).toThrow()
   })
 })
 

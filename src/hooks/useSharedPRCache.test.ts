@@ -11,13 +11,15 @@ import type { PullRequest } from '../models/pull-request'
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makePR(overrides: Partial<{
-  readonly number: number
-  readonly login: string
-  readonly requested_reviewers: readonly { readonly login: string }[]
-  readonly state: 'open' | 'closed'
-  readonly updated_at: string
-}>): PullRequest {
+function makePR(
+  overrides: Partial<{
+    readonly number: number
+    readonly login: string
+    readonly requested_reviewers: readonly { readonly login: string }[]
+    readonly state: 'open' | 'closed'
+    readonly updated_at: string
+  }>,
+): PullRequest {
   const {
     number = 1,
     login = 'alice',
@@ -117,8 +119,16 @@ describe('filterMyPRs', () => {
 describe('filterReviewRequests', () => {
   it('returns PRs where the current user is a requested reviewer', () => {
     const prs = [
-      makePR({ number: 1, login: 'bob', requested_reviewers: [{ login: 'alice' }] }),
-      makePR({ number: 2, login: 'charlie', requested_reviewers: [{ login: 'dave' }] }),
+      makePR({
+        number: 1,
+        login: 'bob',
+        requested_reviewers: [{ login: 'alice' }],
+      }),
+      makePR({
+        number: 2,
+        login: 'charlie',
+        requested_reviewers: [{ login: 'dave' }],
+      }),
       makePR({
         number: 3,
         login: 'eve',
@@ -132,7 +142,11 @@ describe('filterReviewRequests', () => {
 
   it('returns empty array when no PRs have the user as reviewer', () => {
     const prs = [
-      makePR({ number: 1, login: 'bob', requested_reviewers: [{ login: 'charlie' }] }),
+      makePR({
+        number: 1,
+        login: 'bob',
+        requested_reviewers: [{ login: 'charlie' }],
+      }),
     ]
     const result = filterReviewRequests(prs, 'alice')
     expect(result).toHaveLength(0)
@@ -152,7 +166,11 @@ describe('filterReviewRequests', () => {
   it('does not include PRs authored by the user', () => {
     // Even if user is somehow in requested_reviewers, that's fine - just test the filter logic
     const prs = [
-      makePR({ number: 1, login: 'alice', requested_reviewers: [{ login: 'alice' }] }),
+      makePR({
+        number: 1,
+        login: 'alice',
+        requested_reviewers: [{ login: 'alice' }],
+      }),
     ]
     const result = filterReviewRequests(prs, 'alice')
     // Should include it since the filter is purely about requested_reviewers
@@ -161,7 +179,11 @@ describe('filterReviewRequests', () => {
 
   it('does not mutate the input array', () => {
     const prs = [
-      makePR({ number: 1, login: 'bob', requested_reviewers: [{ login: 'alice' }] }),
+      makePR({
+        number: 1,
+        login: 'bob',
+        requested_reviewers: [{ login: 'alice' }],
+      }),
     ]
     const original = [...prs]
     filterReviewRequests(prs, 'alice')
@@ -177,7 +199,10 @@ describe('deriveCacheData', () => {
   const now = Date.now()
 
   function makeQueryClient(
-    cache: Record<string, { readonly data: readonly PullRequest[]; readonly dataUpdatedAt: number }>,
+    cache: Record<
+      string,
+      { readonly data: readonly PullRequest[]; readonly dataUpdatedAt: number }
+    >,
   ) {
     return {
       getQueryData: vi.fn((key: readonly unknown[]) => {
@@ -201,8 +226,16 @@ describe('deriveCacheData', () => {
     it('derives myPRs from involved cache', () => {
       const involved = [
         makePR({ number: 1, login: 'alice' }),
-        makePR({ number: 2, login: 'bob', requested_reviewers: [{ login: 'alice' }] }),
-        makePR({ number: 3, login: 'alice', requested_reviewers: [{ login: 'bob' }] }),
+        makePR({
+          number: 2,
+          login: 'bob',
+          requested_reviewers: [{ login: 'alice' }],
+        }),
+        makePR({
+          number: 3,
+          login: 'alice',
+          requested_reviewers: [{ login: 'bob' }],
+        }),
       ]
       const client = makeQueryClient({
         'involved-prs:open': { data: involved, dataUpdatedAt: now },
@@ -216,8 +249,16 @@ describe('deriveCacheData', () => {
     it('derives reviewRequests from involved cache', () => {
       const involved = [
         makePR({ number: 1, login: 'alice' }),
-        makePR({ number: 2, login: 'bob', requested_reviewers: [{ login: 'alice' }] }),
-        makePR({ number: 3, login: 'charlie', requested_reviewers: [{ login: 'alice' }, { login: 'dave' }] }),
+        makePR({
+          number: 2,
+          login: 'bob',
+          requested_reviewers: [{ login: 'alice' }],
+        }),
+        makePR({
+          number: 3,
+          login: 'charlie',
+          requested_reviewers: [{ login: 'alice' }, { login: 'dave' }],
+        }),
       ]
       const client = makeQueryClient({
         'involved-prs:open': { data: involved, dataUpdatedAt: now },
@@ -225,7 +266,9 @@ describe('deriveCacheData', () => {
 
       const result = deriveCacheData(client as any, 'open', 'alice')
       expect(result.reviewRequestsPlaceholder).toHaveLength(2)
-      expect(result.reviewRequestsPlaceholder?.map((pr) => pr.number)).toEqual([2, 3])
+      expect(result.reviewRequestsPlaceholder?.map((pr) => pr.number)).toEqual([
+        2, 3,
+      ])
     })
 
     it('returns undefined placeholders when involved cache is stale', () => {
@@ -276,7 +319,11 @@ describe('deriveCacheData', () => {
   describe('when only review-requests is cached', () => {
     it('does not derive myPRs from review-requests alone', () => {
       const reviews = [
-        makePR({ number: 1, login: 'bob', requested_reviewers: [{ login: 'alice' }] }),
+        makePR({
+          number: 1,
+          login: 'bob',
+          requested_reviewers: [{ login: 'alice' }],
+        }),
       ]
       const client = makeQueryClient({
         'review-requests:open': { data: reviews, dataUpdatedAt: now },
@@ -294,8 +341,16 @@ describe('deriveCacheData', () => {
         makePR({ number: 3, login: 'alice' }),
       ]
       const reviews = [
-        makePR({ number: 2, login: 'bob', requested_reviewers: [{ login: 'alice' }] }),
-        makePR({ number: 3, login: 'alice', requested_reviewers: [{ login: 'bob' }] }),
+        makePR({
+          number: 2,
+          login: 'bob',
+          requested_reviewers: [{ login: 'alice' }],
+        }),
+        makePR({
+          number: 3,
+          login: 'alice',
+          requested_reviewers: [{ login: 'bob' }],
+        }),
       ]
       const client = makeQueryClient({
         'my-prs:open': { data: myPrs, dataUpdatedAt: now },
@@ -313,7 +368,11 @@ describe('deriveCacheData', () => {
       const staleTime = now - CACHE_STALENESS_MS - 1000
       const myPrs = [makePR({ number: 1, login: 'alice' })]
       const reviews = [
-        makePR({ number: 2, login: 'bob', requested_reviewers: [{ login: 'alice' }] }),
+        makePR({
+          number: 2,
+          login: 'bob',
+          requested_reviewers: [{ login: 'alice' }],
+        }),
       ]
       const client = makeQueryClient({
         'my-prs:open': { data: myPrs, dataUpdatedAt: staleTime },
@@ -328,7 +387,11 @@ describe('deriveCacheData', () => {
       const staleTime = now - CACHE_STALENESS_MS - 1000
       const myPrs = [makePR({ number: 1, login: 'alice' })]
       const reviews = [
-        makePR({ number: 2, login: 'bob', requested_reviewers: [{ login: 'alice' }] }),
+        makePR({
+          number: 2,
+          login: 'bob',
+          requested_reviewers: [{ login: 'alice' }],
+        }),
       ]
       const client = makeQueryClient({
         'my-prs:open': { data: myPrs, dataUpdatedAt: now },
@@ -385,7 +448,11 @@ describe('deriveCacheData', () => {
     it('provides cross-population data when involved query returns data', () => {
       const involved = [
         makePR({ number: 1, login: 'alice' }),
-        makePR({ number: 2, login: 'bob', requested_reviewers: [{ login: 'alice' }] }),
+        makePR({
+          number: 2,
+          login: 'bob',
+          requested_reviewers: [{ login: 'alice' }],
+        }),
       ]
       const client = makeQueryClient({
         'involved-prs:open': { data: involved, dataUpdatedAt: now },

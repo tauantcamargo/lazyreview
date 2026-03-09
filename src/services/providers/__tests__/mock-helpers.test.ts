@@ -65,7 +65,10 @@ describe('createMockReview', () => {
   })
 
   it('allows overrides', () => {
-    const review = createMockReview({ state: 'CHANGES_REQUESTED', body: 'Fix this' })
+    const review = createMockReview({
+      state: 'CHANGES_REQUESTED',
+      body: 'Fix this',
+    })
     expect(review.state).toBe('CHANGES_REQUESTED')
     expect(review.body).toBe('Fix this')
   })
@@ -109,7 +112,10 @@ describe('createMockFileChange', () => {
   })
 
   it('allows overrides', () => {
-    const file = createMockFileChange({ filename: 'README.md', status: 'added' })
+    const file = createMockFileChange({
+      filename: 'README.md',
+      status: 'added',
+    })
     expect(file.filename).toBe('README.md')
     expect(file.status).toBe('added')
   })

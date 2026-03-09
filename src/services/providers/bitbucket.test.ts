@@ -10,13 +10,15 @@ import type { ProviderConfig } from './types'
 
 const originalFetch = globalThis.fetch
 
-function mockFetchResponse(options: {
-  readonly ok?: boolean
-  readonly status?: number
-  readonly statusText?: string
-  readonly body?: unknown
-  readonly headers?: Record<string, string>
-} = {}): void {
+function mockFetchResponse(
+  options: {
+    readonly ok?: boolean
+    readonly status?: number
+    readonly statusText?: string
+    readonly body?: unknown
+    readonly headers?: Record<string, string>
+  } = {},
+): void {
   const {
     ok = true,
     status = 200,
@@ -241,7 +243,9 @@ describe('createBitbucketProvider', () => {
           message: 'feat: add feature',
           date: '2026-01-01T00:00:00+00:00',
           author: { raw: 'Test User <test@example.com>' },
-          links: { html: { href: 'https://bitbucket.org/ws/repo/commits/abc123' } },
+          links: {
+            html: { href: 'https://bitbucket.org/ws/repo/commits/abc123' },
+          },
         },
       ]
       mockFetchResponse({ body: { values: commits } })
@@ -262,7 +266,11 @@ describe('createBitbucketProvider', () => {
 
     it('getCurrentUser returns login from username', async () => {
       mockFetchResponse({
-        body: { username: 'alice', uuid: '{alice-uuid}', display_name: 'Alice' },
+        body: {
+          username: 'alice',
+          uuid: '{alice-uuid}',
+          display_name: 'Alice',
+        },
       })
       const provider = createBitbucketProvider(TEST_CONFIG)
       const result = await Effect.runPromise(provider.getCurrentUser())
@@ -294,8 +302,8 @@ describe('createBitbucketProvider', () => {
       // Should have made two calls: approve + comment
       const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
       expect(calls.length).toBe(2)
-      expect((calls[0][0] as string)).toContain('/approve')
-      expect((calls[1][0] as string)).toContain('/comments')
+      expect(calls[0][0] as string).toContain('/approve')
+      expect(calls[1][0] as string).toContain('/comments')
     })
 
     it('adds comment for REQUEST_CHANGES event', async () => {
@@ -410,9 +418,7 @@ describe('createBitbucketProvider', () => {
     it('posts reply with parent.id', async () => {
       mockFetchResponse()
       const provider = createBitbucketProvider(TEST_CONFIG)
-      await Effect.runPromise(
-        provider.replyToComment(42, 99, 'Thanks!'),
-      )
+      await Effect.runPromise(provider.replyToComment(42, 99, 'Thanks!'))
 
       const body = getLastFetchBody()
       expect(body.parent).toEqual({ id: 99 })
@@ -504,9 +510,7 @@ describe('createBitbucketProvider', () => {
 
     it('fails when no reviewers provided', async () => {
       const provider = createBitbucketProvider(TEST_CONFIG)
-      const exit = await Effect.runPromiseExit(
-        provider.requestReReview(42, []),
-      )
+      const exit = await Effect.runPromiseExit(provider.requestReReview(42, []))
       expect(Exit.isFailure(exit)).toBe(true)
     })
   })

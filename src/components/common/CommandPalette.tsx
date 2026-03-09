@@ -53,7 +53,12 @@ function ActionRow({
       </Text>
       <Box flexGrow={1}>
         <Text color={fgColor} bold={isSelected}>
-          {renderHighlightedText(action.description, matchIndices, fgColor, accentColor)}
+          {renderHighlightedText(
+            action.description,
+            matchIndices,
+            fgColor,
+            accentColor,
+          )}
         </Text>
       </Box>
       <Box width={12} justifyContent="flex-end">
@@ -161,9 +166,15 @@ export function CommandPalette({
   const visibleCount = Math.min(MAX_VISIBLE_ITEMS, filteredActions.length)
   const scrollOffset = Math.max(
     0,
-    Math.min(selectedIndex - visibleCount + 1, filteredActions.length - visibleCount),
+    Math.min(
+      selectedIndex - visibleCount + 1,
+      filteredActions.length - visibleCount,
+    ),
   )
-  const visibleItems = filteredActions.slice(scrollOffset, scrollOffset + visibleCount)
+  const visibleItems = filteredActions.slice(
+    scrollOffset,
+    scrollOffset + visibleCount,
+  )
 
   useInput((input, key) => {
     if (key.escape) {
@@ -181,9 +192,7 @@ export function CommandPalette({
 
     // Navigate with arrow keys (j/k would conflict with text input)
     if (key.downArrow) {
-      setSelectedIndex((prev) =>
-        Math.min(prev + 1, filteredActions.length - 1),
-      )
+      setSelectedIndex((prev) => Math.min(prev + 1, filteredActions.length - 1))
     } else if (key.upArrow) {
       setSelectedIndex((prev) => Math.max(prev - 1, 0))
     }
@@ -209,9 +218,7 @@ export function CommandPalette({
           <Text color={theme.colors.accent} bold>
             Command Palette
           </Text>
-          <Text color={theme.colors.muted}>
-            {itemCountLabel} actions
-          </Text>
+          <Text color={theme.colors.muted}>{itemCountLabel} actions</Text>
         </Box>
 
         {/* Search input */}
@@ -257,7 +264,11 @@ export function CommandPalette({
         {filteredActions.length > MAX_VISIBLE_ITEMS && (
           <Box paddingX={2}>
             <Text color={theme.colors.muted}>
-              {scrollOffset > 0 ? '...' : '   '} {selectedIndex + 1}/{filteredActions.length} {scrollOffset + visibleCount < filteredActions.length ? '...' : '   '}
+              {scrollOffset > 0 ? '...' : '   '} {selectedIndex + 1}/
+              {filteredActions.length}{' '}
+              {scrollOffset + visibleCount < filteredActions.length
+                ? '...'
+                : '   '}
             </Text>
           </Box>
         )}

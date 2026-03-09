@@ -58,9 +58,15 @@ export interface V2Defaults {
     readonly help: string
     readonly quit: string
   }
-  readonly hostMappings?: readonly { readonly host: string; readonly provider: string }[]
+  readonly hostMappings?: readonly {
+    readonly host: string
+    readonly provider: string
+  }[]
   readonly botUsernames?: readonly string[]
-  readonly reviewChecklist?: readonly { readonly label: string; readonly description?: string }[]
+  readonly reviewChecklist?: readonly {
+    readonly label: string
+    readonly description?: string
+  }[]
 }
 
 export interface V2CommentTemplate {
@@ -86,10 +92,20 @@ export interface V2ConfigFile {
   readonly ai: AiConfig
   readonly plugins: PluginConfig
   readonly keybindingOverrides: Readonly<Record<string, unknown>>
-  readonly recentRepos: readonly { readonly owner: string; readonly repo: string; readonly lastUsed: string }[]
-  readonly bookmarkedRepos: readonly { readonly owner: string; readonly repo: string }[]
+  readonly recentRepos: readonly {
+    readonly owner: string
+    readonly repo: string
+    readonly lastUsed: string
+  }[]
+  readonly bookmarkedRepos: readonly {
+    readonly owner: string
+    readonly repo: string
+  }[]
   readonly commentTemplates: readonly V2CommentTemplate[]
-  readonly reviewChecklist: readonly { readonly label: string; readonly description?: string }[]
+  readonly reviewChecklist: readonly {
+    readonly label: string
+    readonly description?: string
+  }[]
   readonly team: V2TeamConfig
 }
 
@@ -128,8 +144,14 @@ const DEFAULT_AI_CONFIG: AiConfig = {
 
 export function migrateV1Config(v1: Record<string, unknown>): V2ConfigFile {
   const v1Providers = (v1['providers'] ?? {}) as Record<string, unknown>
-  const githubProviderConfig = (v1Providers['github'] ?? {}) as Record<string, unknown>
-  const gitlabProviderConfig = (v1Providers['gitlab'] ?? {}) as Record<string, unknown>
+  const githubProviderConfig = (v1Providers['github'] ?? {}) as Record<
+    string,
+    unknown
+  >
+  const gitlabProviderConfig = (v1Providers['gitlab'] ?? {}) as Record<
+    string,
+    unknown
+  >
 
   const defaults: V2Defaults = {
     provider: (v1['provider'] as string) ?? 'github',
@@ -139,23 +161,51 @@ export function migrateV1Config(v1: Record<string, unknown>): V2ConfigFile {
     owner: (v1['defaultOwner'] as string) ?? '',
     repo: (v1['defaultRepo'] as string) ?? '',
     compactList: (v1['compactList'] as boolean) ?? false,
-    ...(v1['prefetchEnabled'] !== undefined ? { prefetchEnabled: v1['prefetchEnabled'] as boolean } : {}),
-    ...(v1['prefetchDelayMs'] !== undefined ? { prefetchDelayMs: v1['prefetchDelayMs'] as number } : {}),
-    ...(v1['hasOnboarded'] !== undefined ? { hasOnboarded: v1['hasOnboarded'] as boolean } : {}),
-    ...(v1['notifications'] !== undefined ? { notifications: v1['notifications'] as boolean } : {}),
-    ...(v1['notifyOnNewPR'] !== undefined ? { notifyOnNewPR: v1['notifyOnNewPR'] as boolean } : {}),
-    ...(v1['notifyOnUpdate'] !== undefined ? { notifyOnUpdate: v1['notifyOnUpdate'] as boolean } : {}),
-    ...(v1['notifyOnReviewRequest'] !== undefined ? { notifyOnReviewRequest: v1['notifyOnReviewRequest'] as boolean } : {}),
-    ...(v1['baseUrl'] !== undefined ? { baseUrl: v1['baseUrl'] as string } : {}),
-    ...(v1['gitlab'] !== undefined ? { gitlab: v1['gitlab'] as { host: string } } : {}),
-    ...(v1['keybindings'] !== undefined ? { keybindings: v1['keybindings'] as V2Defaults['keybindings'] } : {}),
-    ...(v1['hostMappings'] !== undefined ? { hostMappings: v1['hostMappings'] as V2Defaults['hostMappings'] } : {}),
-    ...(v1['botUsernames'] !== undefined ? { botUsernames: v1['botUsernames'] as readonly string[] } : {}),
+    ...(v1['prefetchEnabled'] !== undefined
+      ? { prefetchEnabled: v1['prefetchEnabled'] as boolean }
+      : {}),
+    ...(v1['prefetchDelayMs'] !== undefined
+      ? { prefetchDelayMs: v1['prefetchDelayMs'] as number }
+      : {}),
+    ...(v1['hasOnboarded'] !== undefined
+      ? { hasOnboarded: v1['hasOnboarded'] as boolean }
+      : {}),
+    ...(v1['notifications'] !== undefined
+      ? { notifications: v1['notifications'] as boolean }
+      : {}),
+    ...(v1['notifyOnNewPR'] !== undefined
+      ? { notifyOnNewPR: v1['notifyOnNewPR'] as boolean }
+      : {}),
+    ...(v1['notifyOnUpdate'] !== undefined
+      ? { notifyOnUpdate: v1['notifyOnUpdate'] as boolean }
+      : {}),
+    ...(v1['notifyOnReviewRequest'] !== undefined
+      ? { notifyOnReviewRequest: v1['notifyOnReviewRequest'] as boolean }
+      : {}),
+    ...(v1['baseUrl'] !== undefined
+      ? { baseUrl: v1['baseUrl'] as string }
+      : {}),
+    ...(v1['gitlab'] !== undefined
+      ? { gitlab: v1['gitlab'] as { host: string } }
+      : {}),
+    ...(v1['keybindings'] !== undefined
+      ? { keybindings: v1['keybindings'] as V2Defaults['keybindings'] }
+      : {}),
+    ...(v1['hostMappings'] !== undefined
+      ? { hostMappings: v1['hostMappings'] as V2Defaults['hostMappings'] }
+      : {}),
+    ...(v1['botUsernames'] !== undefined
+      ? { botUsernames: v1['botUsernames'] as readonly string[] }
+      : {}),
   }
 
   const providers: V2ProvidersConfig = {
-    github: { hosts: (githubProviderConfig['hosts'] as readonly string[]) ?? [] },
-    gitlab: { hosts: (gitlabProviderConfig['hosts'] as readonly string[]) ?? [] },
+    github: {
+      hosts: (githubProviderConfig['hosts'] as readonly string[]) ?? [],
+    },
+    gitlab: {
+      hosts: (gitlabProviderConfig['hosts'] as readonly string[]) ?? [],
+    },
     bitbucket: { hosts: [] },
     azure: { hosts: [] },
     gitea: { hosts: [] },
@@ -167,11 +217,15 @@ export function migrateV1Config(v1: Record<string, unknown>): V2ConfigFile {
     providers,
     ai: { ...DEFAULT_AI_CONFIG },
     plugins: {},
-    keybindingOverrides: (v1['keybindingOverrides'] as Record<string, unknown>) ?? {},
+    keybindingOverrides:
+      (v1['keybindingOverrides'] as Record<string, unknown>) ?? {},
     recentRepos: (v1['recentRepos'] as V2ConfigFile['recentRepos']) ?? [],
-    bookmarkedRepos: (v1['bookmarkedRepos'] as V2ConfigFile['bookmarkedRepos']) ?? [],
-    commentTemplates: (v1['commentTemplates'] as V2ConfigFile['commentTemplates']) ?? [],
-    reviewChecklist: (v1['reviewChecklist'] as V2ConfigFile['reviewChecklist']) ?? [],
+    bookmarkedRepos:
+      (v1['bookmarkedRepos'] as V2ConfigFile['bookmarkedRepos']) ?? [],
+    commentTemplates:
+      (v1['commentTemplates'] as V2ConfigFile['commentTemplates']) ?? [],
+    reviewChecklist:
+      (v1['reviewChecklist'] as V2ConfigFile['reviewChecklist']) ?? [],
     team: (v1['team'] as V2TeamConfig) ?? { members: [] },
   }
 }
@@ -209,7 +263,9 @@ export function mergeRepoConfig(
   }
 
   const repoDefaults = (repo['defaults'] ?? {}) as Partial<V2Defaults>
-  const repoProviders = (repo['providers'] ?? {}) as Partial<Record<string, { hosts?: readonly string[] }>>
+  const repoProviders = (repo['providers'] ?? {}) as Partial<
+    Record<string, { hosts?: readonly string[] }>
+  >
   const repoAi = (repo['ai'] ?? {}) as Partial<AiConfig>
 
   const mergedDefaults: V2Defaults = {
@@ -219,13 +275,21 @@ export function mergeRepoConfig(
 
   const mergedProviders: V2ProvidersConfig = {
     github: repoProviders['github']
-      ? { hosts: repoProviders['github'].hosts ?? global.providers.github.hosts }
+      ? {
+          hosts: repoProviders['github'].hosts ?? global.providers.github.hosts,
+        }
       : global.providers.github,
     gitlab: repoProviders['gitlab']
-      ? { hosts: repoProviders['gitlab'].hosts ?? global.providers.gitlab.hosts }
+      ? {
+          hosts: repoProviders['gitlab'].hosts ?? global.providers.gitlab.hosts,
+        }
       : global.providers.gitlab,
     bitbucket: repoProviders['bitbucket']
-      ? { hosts: repoProviders['bitbucket'].hosts ?? global.providers.bitbucket.hosts }
+      ? {
+          hosts:
+            repoProviders['bitbucket'].hosts ??
+            global.providers.bitbucket.hosts,
+        }
       : global.providers.bitbucket,
     azure: repoProviders['azure']
       ? { hosts: repoProviders['azure'].hosts ?? global.providers.azure.hosts }
@@ -241,16 +305,20 @@ export function mergeRepoConfig(
   }
 
   // commentTemplates: repo config can override or add templates
-  const repoTemplates = (repo['commentTemplates'] ?? []) as readonly V2CommentTemplate[]
-  const mergedTemplates = repoTemplates.length > 0
-    ? [...global.commentTemplates, ...repoTemplates]
-    : global.commentTemplates
+  const repoTemplates = (repo['commentTemplates'] ??
+    []) as readonly V2CommentTemplate[]
+  const mergedTemplates =
+    repoTemplates.length > 0
+      ? [...global.commentTemplates, ...repoTemplates]
+      : global.commentTemplates
 
   // reviewChecklist: repo config overrides global checklist entirely
-  const repoChecklist = (repo['reviewChecklist'] ?? []) as readonly { readonly label: string; readonly description?: string }[]
-  const mergedChecklist = repoChecklist.length > 0
-    ? repoChecklist
-    : global.reviewChecklist
+  const repoChecklist = (repo['reviewChecklist'] ?? []) as readonly {
+    readonly label: string
+    readonly description?: string
+  }[]
+  const mergedChecklist =
+    repoChecklist.length > 0 ? repoChecklist : global.reviewChecklist
 
   // team: repo config can override team entirely
   const repoTeam = (repo['team'] ?? null) as V2TeamConfig | null

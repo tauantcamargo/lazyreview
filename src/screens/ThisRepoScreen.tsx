@@ -8,13 +8,21 @@ import { useStatusMessage } from '../hooks/useStatusMessage'
 import { PRListScreen } from './PRListScreen'
 import { CreatePRModal } from '../components/pr/CreatePRModal'
 import { EmptyState } from '../components/common/EmptyState'
-import { getCurrentBranch, getDefaultBranch, hasRemoteTracking } from '../utils/git'
+import {
+  getCurrentBranch,
+  getDefaultBranch,
+  hasRemoteTracking,
+} from '../utils/git'
 import type { PullRequest } from '../models/pull-request'
 
 interface ThisRepoScreenProps {
   readonly owner: string | null
   readonly repo: string | null
-  readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
+  readonly onSelect: (
+    pr: PullRequest,
+    list?: readonly PullRequest[],
+    index?: number,
+  ) => void
 }
 
 interface BranchInfo {
@@ -23,7 +31,11 @@ interface BranchInfo {
   readonly hasTracking: boolean
 }
 
-export function ThisRepoScreen({ owner, repo, onSelect }: ThisRepoScreenProps): React.ReactElement {
+export function ThisRepoScreen({
+  owner,
+  repo,
+  onSelect,
+}: ThisRepoScreenProps): React.ReactElement {
   const [stateFilter, setStateFilter] = useState<PRStateFilter>('open')
   const [showCreatePR, setShowCreatePR] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -32,11 +44,18 @@ export function ThisRepoScreen({ owner, repo, onSelect }: ThisRepoScreenProps): 
   const { setStatusMessage } = useStatusMessage()
   const { matchesAction } = useKeybindings('prList')
 
-  const { data: prs = [], isLoading, error } = usePullRequests(
-    owner ?? '',
-    repo ?? '',
-    { state: stateFilter === 'all' ? 'all' : stateFilter === 'closed' ? 'closed' : 'open' },
-  )
+  const {
+    data: prs = [],
+    isLoading,
+    error,
+  } = usePullRequests(owner ?? '', repo ?? '', {
+    state:
+      stateFilter === 'all'
+        ? 'all'
+        : stateFilter === 'closed'
+          ? 'closed'
+          : 'open',
+  })
 
   const createPR = useCreatePullRequest()
 
@@ -126,7 +145,9 @@ export function ThisRepoScreen({ owner, repo, onSelect }: ThisRepoScreenProps): 
   )
 
   if (!owner || !repo) {
-    return <EmptyState message="Not in a git repository or remote not detected" />
+    return (
+      <EmptyState message="Not in a git repository or remote not detected" />
+    )
   }
 
   // Determine error state for create PR modal

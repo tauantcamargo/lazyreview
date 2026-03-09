@@ -89,7 +89,9 @@ describe('ErrorWithRetry', () => {
 describe('getProviderErrorHint', () => {
   // GitHub
   it('detects GitHub 401', () => {
-    const hint = getProviderErrorHint('GitHubError: 401 Unauthorized from api.github.com')
+    const hint = getProviderErrorHint(
+      'GitHubError: 401 Unauthorized from api.github.com',
+    )
     expect(hint).not.toBeNull()
     expect(hint?.suggestion).toContain('Token expired or invalid')
     expect(hint?.detail).toContain('github.com/settings/tokens')
@@ -143,7 +145,9 @@ describe('getProviderErrorHint', () => {
 
   // Azure DevOps
   it('detects Azure 401', () => {
-    const hint = getProviderErrorHint('AzureError: 401 Unauthorized from dev.azure.com')
+    const hint = getProviderErrorHint(
+      'AzureError: 401 Unauthorized from dev.azure.com',
+    )
     expect(hint).not.toBeNull()
     expect(hint?.suggestion).toContain('PAT expired')
     expect(hint?.detail).toContain('dev.azure.com')

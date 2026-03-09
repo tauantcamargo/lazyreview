@@ -125,7 +125,12 @@ describe('summarizeChecks', () => {
 
   it('counts pending for queued status', () => {
     const checks = [
-      makeCheckRun({ id: 1, name: 'build', status: 'queued', conclusion: null }),
+      makeCheckRun({
+        id: 1,
+        name: 'build',
+        status: 'queued',
+        conclusion: null,
+      }),
     ]
     const result = summarizeChecks(checks)
     expect(result.conclusion).toBe('pending')
@@ -135,7 +140,12 @@ describe('summarizeChecks', () => {
 
   it('counts pending for in_progress status', () => {
     const checks = [
-      makeCheckRun({ id: 1, name: 'deploy', status: 'in_progress', conclusion: null }),
+      makeCheckRun({
+        id: 1,
+        name: 'deploy',
+        status: 'in_progress',
+        conclusion: null,
+      }),
     ]
     const result = summarizeChecks(checks)
     expect(result.conclusion).toBe('pending')
@@ -145,7 +155,12 @@ describe('summarizeChecks', () => {
   it('failure takes priority over pending', () => {
     const checks = [
       makeCheckRun({ id: 1, name: 'build', conclusion: 'failure' }),
-      makeCheckRun({ id: 2, name: 'deploy', status: 'queued', conclusion: null }),
+      makeCheckRun({
+        id: 2,
+        name: 'deploy',
+        status: 'queued',
+        conclusion: null,
+      }),
     ]
     const result = summarizeChecks(checks)
     expect(result.conclusion).toBe('failure')
@@ -156,7 +171,12 @@ describe('summarizeChecks', () => {
   it('handles mixed passed and pending', () => {
     const checks = [
       makeCheckRun({ id: 1, name: 'build', conclusion: 'success' }),
-      makeCheckRun({ id: 2, name: 'deploy', status: 'in_progress', conclusion: null }),
+      makeCheckRun({
+        id: 2,
+        name: 'deploy',
+        status: 'in_progress',
+        conclusion: null,
+      }),
     ]
     const result = summarizeChecks(checks)
     expect(result.conclusion).toBe('pending')
@@ -200,7 +220,9 @@ describe('CheckRunRow icon/color logic', () => {
   function getIcon(run: CheckRun): string {
     return run.status !== 'completed'
       ? '●'
-      : run.conclusion === 'success' || run.conclusion === 'neutral' || run.conclusion === 'skipped'
+      : run.conclusion === 'success' ||
+          run.conclusion === 'neutral' ||
+          run.conclusion === 'skipped'
         ? '✓'
         : '✗'
   }
@@ -208,7 +230,9 @@ describe('CheckRunRow icon/color logic', () => {
   function getColorType(run: CheckRun): 'warning' | 'success' | 'error' {
     return run.status !== 'completed'
       ? 'warning'
-      : run.conclusion === 'success' || run.conclusion === 'neutral' || run.conclusion === 'skipped'
+      : run.conclusion === 'success' ||
+          run.conclusion === 'neutral' ||
+          run.conclusion === 'skipped'
         ? 'success'
         : 'error'
   }
@@ -293,7 +317,9 @@ describe('viewport calculation', () => {
 describe('summary color logic', () => {
   type SummaryConclusion = 'success' | 'failure' | 'pending' | 'neutral'
 
-  function getSummaryColorType(conclusion: SummaryConclusion): 'success' | 'error' | 'warning' {
+  function getSummaryColorType(
+    conclusion: SummaryConclusion,
+  ): 'success' | 'error' | 'warning' {
     return conclusion === 'success'
       ? 'success'
       : conclusion === 'failure'

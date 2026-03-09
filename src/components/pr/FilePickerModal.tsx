@@ -22,10 +22,14 @@ interface FilePickerModalProps {
  */
 function getStatusIcon(status: string): string {
   switch (status) {
-    case 'added': return 'A'
-    case 'removed': return 'D'
-    case 'renamed': return 'R'
-    default: return 'M'
+    case 'added':
+      return 'A'
+    case 'removed':
+      return 'D'
+    case 'renamed':
+      return 'R'
+    default:
+      return 'M'
   }
 }
 
@@ -34,12 +38,19 @@ function getStatusIcon(status: string): string {
  */
 function getStatusColor(
   status: string,
-  colors: { readonly diffAdd: string; readonly diffDel: string; readonly warning: string },
+  colors: {
+    readonly diffAdd: string
+    readonly diffDel: string
+    readonly warning: string
+  },
 ): string {
   switch (status) {
-    case 'added': return colors.diffAdd
-    case 'removed': return colors.diffDel
-    default: return colors.warning
+    case 'added':
+      return colors.diffAdd
+    case 'removed':
+      return colors.diffDel
+    default:
+      return colors.warning
   }
 }
 
@@ -208,13 +219,18 @@ export function FilePickerModal({
   }, [setInputActive])
 
   // Filter and sort files
-  const filteredFiles: readonly FuzzyFilterResult<FileChange>[] = useMemo(() => {
-    if (query.length === 0) {
-      const sorted = sortWithRecentFirst(files, recentlyViewed)
-      return sorted.map((item) => ({ item, score: 0, indices: [] as number[] }))
-    }
-    return fuzzyFilter(files, query, (f) => f.filename)
-  }, [files, query, recentlyViewed])
+  const filteredFiles: readonly FuzzyFilterResult<FileChange>[] =
+    useMemo(() => {
+      if (query.length === 0) {
+        const sorted = sortWithRecentFirst(files, recentlyViewed)
+        return sorted.map((item) => ({
+          item,
+          score: 0,
+          indices: [] as number[],
+        }))
+      }
+      return fuzzyFilter(files, query, (f) => f.filename)
+    }, [files, query, recentlyViewed])
 
   // Reset selection when query changes
   useEffect(() => {
@@ -254,9 +270,7 @@ export function FilePickerModal({
 
     // Navigate with arrow keys (j/k conflict with text input)
     if (key.downArrow) {
-      setSelectedIndex((prev) =>
-        Math.min(prev + 1, filteredFiles.length - 1),
-      )
+      setSelectedIndex((prev) => Math.min(prev + 1, filteredFiles.length - 1))
     } else if (key.upArrow) {
       setSelectedIndex((prev) => Math.max(prev - 1, 0))
     }
@@ -282,9 +296,7 @@ export function FilePickerModal({
           <Text color={theme.colors.accent} bold>
             Go to File
           </Text>
-          <Text color={theme.colors.muted}>
-            {itemCountLabel} files
-          </Text>
+          <Text color={theme.colors.muted}>{itemCountLabel} files</Text>
         </Box>
 
         {/* Search input */}
@@ -330,9 +342,11 @@ export function FilePickerModal({
         {filteredFiles.length > MAX_VISIBLE_ITEMS && (
           <Box paddingX={2}>
             <Text color={theme.colors.muted}>
-              {scrollOffset > 0 ? '...' : '   '}{' '}
-              {selectedIndex + 1}/{filteredFiles.length}{' '}
-              {scrollOffset + visibleCount < filteredFiles.length ? '...' : '   '}
+              {scrollOffset > 0 ? '...' : '   '} {selectedIndex + 1}/
+              {filteredFiles.length}{' '}
+              {scrollOffset + visibleCount < filteredFiles.length
+                ? '...'
+                : '   '}
             </Text>
           </Box>
         )}

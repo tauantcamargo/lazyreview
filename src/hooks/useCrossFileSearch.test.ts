@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { buildCrossFileMatches, countMatchedFiles, type CrossFileMatch } from './useCrossFileSearch'
+import {
+  buildCrossFileMatches,
+  countMatchedFiles,
+  type CrossFileMatch,
+} from './useCrossFileSearch'
 import type { FileChange } from '../models/file-change'
 
 function makeFile(filename: string, patch?: string): FileChange {
@@ -16,7 +20,12 @@ function makeFile(filename: string, patch?: string): FileChange {
 
 describe('buildCrossFileMatches', () => {
   it('returns empty array when query is empty', () => {
-    const files = [makeFile('src/foo.ts', '@@ -1,3 +1,3 @@\n context\n+added line\n-removed line')]
+    const files = [
+      makeFile(
+        'src/foo.ts',
+        '@@ -1,3 +1,3 @@\n context\n+added line\n-removed line',
+      ),
+    ]
     expect(buildCrossFileMatches(files, '')).toEqual([])
   })
 
@@ -30,7 +39,8 @@ describe('buildCrossFileMatches', () => {
   })
 
   it('finds matches in a single file', () => {
-    const patch = '@@ -1,3 +1,3 @@\n context line\n+added hello world\n-removed old code'
+    const patch =
+      '@@ -1,3 +1,3 @@\n context line\n+added hello world\n-removed old code'
     const files = [makeFile('src/app.ts', patch)]
     const matches = buildCrossFileMatches(files, 'hello')
     expect(matches).toHaveLength(1)
@@ -45,10 +55,7 @@ describe('buildCrossFileMatches', () => {
   it('finds matches across multiple files', () => {
     const patch1 = '@@ -1,2 +1,2 @@\n context\n+function hello() {'
     const patch2 = '@@ -1,2 +1,2 @@\n context\n+const hello = 42'
-    const files = [
-      makeFile('src/a.ts', patch1),
-      makeFile('src/b.ts', patch2),
-    ]
+    const files = [makeFile('src/a.ts', patch1), makeFile('src/b.ts', patch2)]
     const matches = buildCrossFileMatches(files, 'hello')
     expect(matches).toHaveLength(2)
     expect(matches[0]!.filename).toBe('src/a.ts')
@@ -88,7 +95,8 @@ describe('buildCrossFileMatches', () => {
   })
 
   it('finds multiple matches in the same file', () => {
-    const patch = '@@ -1,4 +1,4 @@\n first match target\n+second target here\n-third target gone\n more context'
+    const patch =
+      '@@ -1,4 +1,4 @@\n first match target\n+second target here\n-third target gone\n more context'
     const files = [makeFile('src/app.ts', patch)]
     const matches = buildCrossFileMatches(files, 'target')
     expect(matches).toHaveLength(3)

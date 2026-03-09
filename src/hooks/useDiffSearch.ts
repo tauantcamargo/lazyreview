@@ -1,6 +1,12 @@
 import { useState, useMemo, useCallback } from 'react'
-import { computeDiffSearchMatches, type DiffDisplayRow } from '../components/pr/DiffView'
-import { computeSbsSearchMatches, type SideBySideRow } from '../components/pr/SideBySideDiffView'
+import {
+  computeDiffSearchMatches,
+  type DiffDisplayRow,
+} from '../components/pr/DiffView'
+import {
+  computeSbsSearchMatches,
+  type SideBySideRow,
+} from '../components/pr/SideBySideDiffView'
 
 type DiffMode = 'unified' | 'side-by-side'
 

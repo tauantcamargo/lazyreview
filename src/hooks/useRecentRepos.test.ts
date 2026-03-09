@@ -8,7 +8,12 @@ import type { RecentRepo } from '../services/Config'
 
 describe('addRecentRepoToList', () => {
   it('adds a new repo to an empty list', () => {
-    const result = addRecentRepoToList([], 'facebook', 'react', '2026-01-01T00:00:00Z')
+    const result = addRecentRepoToList(
+      [],
+      'facebook',
+      'react',
+      '2026-01-01T00:00:00Z',
+    )
     expect(result).toHaveLength(1)
     expect(result[0]).toEqual({
       owner: 'facebook',
@@ -21,7 +26,12 @@ describe('addRecentRepoToList', () => {
     const existing: RecentRepo[] = [
       { owner: 'vercel', repo: 'next.js', lastUsed: '2026-01-01T00:00:00Z' },
     ]
-    const result = addRecentRepoToList(existing, 'facebook', 'react', '2026-01-02T00:00:00Z')
+    const result = addRecentRepoToList(
+      existing,
+      'facebook',
+      'react',
+      '2026-01-02T00:00:00Z',
+    )
     expect(result).toHaveLength(2)
     expect(result[0]?.owner).toBe('facebook')
     expect(result[1]?.owner).toBe('vercel')
@@ -32,7 +42,12 @@ describe('addRecentRepoToList', () => {
       { owner: 'facebook', repo: 'react', lastUsed: '2026-01-01T00:00:00Z' },
       { owner: 'vercel', repo: 'next.js', lastUsed: '2026-01-02T00:00:00Z' },
     ]
-    const result = addRecentRepoToList(existing, 'vercel', 'next.js', '2026-01-03T00:00:00Z')
+    const result = addRecentRepoToList(
+      existing,
+      'vercel',
+      'next.js',
+      '2026-01-03T00:00:00Z',
+    )
     expect(result).toHaveLength(2)
     expect(result[0]).toEqual({
       owner: 'vercel',
@@ -48,7 +63,12 @@ describe('addRecentRepoToList', () => {
       repo: `repo-${i}`,
       lastUsed: `2026-01-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
     }))
-    const result = addRecentRepoToList(existing, 'new-owner', 'new-repo', '2026-02-01T00:00:00Z')
+    const result = addRecentRepoToList(
+      existing,
+      'new-owner',
+      'new-repo',
+      '2026-02-01T00:00:00Z',
+    )
     expect(result).toHaveLength(10)
     expect(result[0]?.owner).toBe('new-owner')
     // The last of the original 10 should be dropped
@@ -62,7 +82,12 @@ describe('addRecentRepoToList', () => {
       lastUsed: `2026-01-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
     }))
     // Bump owner-5 to top
-    const result = addRecentRepoToList(existing, 'owner-5', 'repo-5', '2026-02-01T00:00:00Z')
+    const result = addRecentRepoToList(
+      existing,
+      'owner-5',
+      'repo-5',
+      '2026-02-01T00:00:00Z',
+    )
     expect(result).toHaveLength(10)
     expect(result[0]?.owner).toBe('owner-5')
     expect(result[0]?.lastUsed).toBe('2026-02-01T00:00:00Z')

@@ -118,7 +118,9 @@ describe('filterByRange', () => {
     // verify the today/yesterday boundary works.
     expect(result.length).toBeGreaterThanOrEqual(1)
     // The session at 2026-02-14T10:00 should always be included
-    expect(result.some((s) => s.timestamp === '2026-02-14T10:00:00.000Z')).toBe(true)
+    expect(result.some((s) => s.timestamp === '2026-02-14T10:00:00.000Z')).toBe(
+      true,
+    )
   })
 
   it('filters to current week for "week" range', () => {
@@ -132,14 +134,16 @@ describe('filterByRange', () => {
     const result = filterByRange(sessions, 'week', now)
     // Sessions from Monday onward should be included
     expect(result.length).toBeGreaterThanOrEqual(2)
-    expect(result.some((s) => s.timestamp === '2026-02-14T10:00:00.000Z')).toBe(true)
-    expect(result.some((s) => s.timestamp === '2026-02-11T10:00:00.000Z')).toBe(true)
+    expect(result.some((s) => s.timestamp === '2026-02-14T10:00:00.000Z')).toBe(
+      true,
+    )
+    expect(result.some((s) => s.timestamp === '2026-02-11T10:00:00.000Z')).toBe(
+      true,
+    )
   })
 
   it('returns empty array when no sessions match range', () => {
-    const sessions = [
-      makeSession({ timestamp: '2025-01-01T10:00:00.000Z' }),
-    ]
+    const sessions = [makeSession({ timestamp: '2025-01-01T10:00:00.000Z' })]
     const result = filterByRange(sessions, 'today', now)
     expect(result).toHaveLength(0)
   })
@@ -254,10 +258,20 @@ describe('serializeSessions / deserializeSessions', () => {
 
   it('filters out invalid entries in the array', () => {
     const json = JSON.stringify([
-      { prKey: 'a/b#1', durationMs: 100, timestamp: '2026-01-01', filesReviewed: 1 },
+      {
+        prKey: 'a/b#1',
+        durationMs: 100,
+        timestamp: '2026-01-01',
+        filesReviewed: 1,
+      },
       { broken: true },
       null,
-      { prKey: 'c/d#2', durationMs: 200, timestamp: '2026-01-02', filesReviewed: 3 },
+      {
+        prKey: 'c/d#2',
+        durationMs: 200,
+        timestamp: '2026-01-02',
+        filesReviewed: 3,
+      },
     ])
     const result = deserializeSessions(json)
     expect(result).toHaveLength(2)

@@ -23,9 +23,7 @@ describe('buildSideBySideRows', () => {
   })
 
   it('places header lines on the left only', () => {
-    const hunk = makeHunk([
-      { type: 'header', content: '@@ -1,3 +1,3 @@' },
-    ])
+    const hunk = makeHunk([{ type: 'header', content: '@@ -1,3 +1,3 @@' }])
     const rows = buildSideBySideRows([hunk])
     expect(rows).toHaveLength(1)
     expect(rows[0]!.type).toBe('header')
@@ -119,15 +117,17 @@ describe('buildSideBySideRows', () => {
       { type: 'add', content: 'new line', newLineNumber: 5 },
     ])
     const thread: DiffCommentThread = {
-      comments: [{
-        id: 1,
-        body: 'looks good',
-        user: { login: 'alice', avatar_url: '', id: 1 },
-        path: 'test.ts',
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:00Z',
-        html_url: 'https://example.com',
-      } as DiffCommentThread['comments'][number]],
+      comments: [
+        {
+          id: 1,
+          body: 'looks good',
+          user: { login: 'alice', avatar_url: '', id: 1 },
+          path: 'test.ts',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+          html_url: 'https://example.com',
+        } as DiffCommentThread['comments'][number],
+      ],
     }
     const commentsByLine = new Map<string, DiffCommentThread>([
       ['RIGHT:5', thread],
@@ -146,15 +146,17 @@ describe('buildSideBySideRows', () => {
       { type: 'del', content: 'old line', oldLineNumber: 3 },
     ])
     const thread: DiffCommentThread = {
-      comments: [{
-        id: 2,
-        body: 'why remove this?',
-        user: { login: 'bob', avatar_url: '', id: 2 },
-        path: 'test.ts',
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:00Z',
-        html_url: 'https://example.com',
-      } as DiffCommentThread['comments'][number]],
+      comments: [
+        {
+          id: 2,
+          body: 'why remove this?',
+          user: { login: 'bob', avatar_url: '', id: 2 },
+          path: 'test.ts',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+          html_url: 'https://example.com',
+        } as DiffCommentThread['comments'][number],
+      ],
     }
     const commentsByLine = new Map<string, DiffCommentThread>([
       ['LEFT:3', thread],
@@ -176,77 +178,122 @@ describe('buildSideBySideRows', () => {
 
 describe('computeSbsSearchMatches', () => {
   it('returns empty array for empty query', () => {
-    const rows = buildSideBySideRows([makeHunk([
-      { type: 'context', content: 'hello', oldLineNumber: 1, newLineNumber: 1 },
-    ])])
+    const rows = buildSideBySideRows([
+      makeHunk([
+        {
+          type: 'context',
+          content: 'hello',
+          oldLineNumber: 1,
+          newLineNumber: 1,
+        },
+      ]),
+    ])
     expect(computeSbsSearchMatches(rows, '')).toEqual([])
   })
 
   it('returns empty array when no rows match', () => {
-    const rows = buildSideBySideRows([makeHunk([
-      { type: 'context', content: 'hello world', oldLineNumber: 1, newLineNumber: 1 },
-    ])])
+    const rows = buildSideBySideRows([
+      makeHunk([
+        {
+          type: 'context',
+          content: 'hello world',
+          oldLineNumber: 1,
+          newLineNumber: 1,
+        },
+      ]),
+    ])
     expect(computeSbsSearchMatches(rows, 'xyz')).toEqual([])
   })
 
   it('matches case-insensitively on left side', () => {
-    const rows = buildSideBySideRows([makeHunk([
-      { type: 'del', content: 'Hello World', oldLineNumber: 1 },
-    ])])
+    const rows = buildSideBySideRows([
+      makeHunk([{ type: 'del', content: 'Hello World', oldLineNumber: 1 }]),
+    ])
     const matches = computeSbsSearchMatches(rows, 'hello')
     expect(matches).toEqual([0])
   })
 
   it('matches case-insensitively on right side', () => {
-    const rows = buildSideBySideRows([makeHunk([
-      { type: 'add', content: 'NEW FUNCTION', newLineNumber: 1 },
-    ])])
+    const rows = buildSideBySideRows([
+      makeHunk([{ type: 'add', content: 'NEW FUNCTION', newLineNumber: 1 }]),
+    ])
     const matches = computeSbsSearchMatches(rows, 'function')
     expect(matches).toEqual([0])
   })
 
   it('matches on either side of paired rows', () => {
-    const rows = buildSideBySideRows([makeHunk([
-      { type: 'del', content: 'old code', oldLineNumber: 1 },
-      { type: 'add', content: 'new stuff', newLineNumber: 1 },
-    ])])
+    const rows = buildSideBySideRows([
+      makeHunk([
+        { type: 'del', content: 'old code', oldLineNumber: 1 },
+        { type: 'add', content: 'new stuff', newLineNumber: 1 },
+      ]),
+    ])
     expect(computeSbsSearchMatches(rows, 'code')).toEqual([0])
     expect(computeSbsSearchMatches(rows, 'stuff')).toEqual([0])
   })
 
   it('skips header rows', () => {
-    const rows = buildSideBySideRows([makeHunk([
-      { type: 'header', content: '@@ contains search @@' },
-      { type: 'context', content: 'no match', oldLineNumber: 1, newLineNumber: 1 },
-    ])])
+    const rows = buildSideBySideRows([
+      makeHunk([
+        { type: 'header', content: '@@ contains search @@' },
+        {
+          type: 'context',
+          content: 'no match',
+          oldLineNumber: 1,
+          newLineNumber: 1,
+        },
+      ]),
+    ])
     expect(computeSbsSearchMatches(rows, 'contains')).toEqual([])
   })
 
   it('skips comment rows', () => {
     const thread: DiffCommentThread = {
-      comments: [{
-        id: 1,
-        body: 'searchable comment',
-        user: { login: 'alice', avatar_url: '', id: 1 },
-        path: 'test.ts',
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:00Z',
-        html_url: 'https://example.com',
-      } as DiffCommentThread['comments'][number]],
+      comments: [
+        {
+          id: 1,
+          body: 'searchable comment',
+          user: { login: 'alice', avatar_url: '', id: 1 },
+          path: 'test.ts',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+          html_url: 'https://example.com',
+        } as DiffCommentThread['comments'][number],
+      ],
     }
-    const commentsByLine = new Map<string, DiffCommentThread>([['RIGHT:1', thread]])
-    const rows = buildSideBySideRows([makeHunk([
-      { type: 'add', content: 'new line', newLineNumber: 1 },
-    ])], commentsByLine)
+    const commentsByLine = new Map<string, DiffCommentThread>([
+      ['RIGHT:1', thread],
+    ])
+    const rows = buildSideBySideRows(
+      [makeHunk([{ type: 'add', content: 'new line', newLineNumber: 1 }])],
+      commentsByLine,
+    )
     expect(computeSbsSearchMatches(rows, 'searchable')).toEqual([])
   })
 
   it('returns correct indices for multiple matches', () => {
-    const rows = buildSideBySideRows([makeHunk([
-      { type: 'context', content: 'alpha', oldLineNumber: 1, newLineNumber: 1 },
-      { type: 'context', content: 'beta', oldLineNumber: 2, newLineNumber: 2 },
-      { type: 'context', content: 'alpha again', oldLineNumber: 3, newLineNumber: 3 },
-    ])])
+    const rows = buildSideBySideRows([
+      makeHunk([
+        {
+          type: 'context',
+          content: 'alpha',
+          oldLineNumber: 1,
+          newLineNumber: 1,
+        },
+        {
+          type: 'context',
+          content: 'beta',
+          oldLineNumber: 2,
+          newLineNumber: 2,
+        },
+        {
+          type: 'context',
+          content: 'alpha again',
+          oldLineNumber: 3,
+          newLineNumber: 3,
+        },
+      ]),
+    ])
     const matches = computeSbsSearchMatches(rows, 'alpha')
     expect(matches).toEqual([0, 2])
   })

@@ -23,17 +23,34 @@ describe('themes', () => {
 
   it('every theme has all required color properties', () => {
     const requiredKeys: readonly (keyof ThemeColors)[] = [
-      'bg', 'text', 'accent', 'muted', 'border', 'primary', 'secondary',
-      'success', 'error', 'warning', 'info',
-      'diffAdd', 'diffDel', 'diffAddHighlight', 'diffDelHighlight',
-      'selection', 'listSelectedFg', 'listSelectedBg',
+      'bg',
+      'text',
+      'accent',
+      'muted',
+      'border',
+      'primary',
+      'secondary',
+      'success',
+      'error',
+      'warning',
+      'info',
+      'diffAdd',
+      'diffDel',
+      'diffAddHighlight',
+      'diffDelHighlight',
+      'selection',
+      'listSelectedFg',
+      'listSelectedBg',
     ]
 
     for (const name of allThemeNames) {
       const theme = themes[name]
       for (const key of requiredKeys) {
         expect(theme.colors[key], `${name} missing ${key}`).toBeDefined()
-        expect(typeof theme.colors[key], `${name}.${key} should be string`).toBe('string')
+        expect(
+          typeof theme.colors[key],
+          `${name}.${key} should be string`,
+        ).toBe('string')
       }
     }
   })

@@ -79,7 +79,9 @@ describe('createFileReviewStatusStore', () => {
     store.setStatus(prKey, 'src/foo.ts', 'approved')
     store.setStatus(prKey2, 'src/foo.ts', 'needs-changes')
     expect(store.getSnapshot().get(prKey)?.get('src/foo.ts')).toBe('approved')
-    expect(store.getSnapshot().get(prKey2)?.get('src/foo.ts')).toBe('needs-changes')
+    expect(store.getSnapshot().get(prKey2)?.get('src/foo.ts')).toBe(
+      'needs-changes',
+    )
   })
 
   it('notifies listeners on setStatus', () => {
@@ -244,9 +246,7 @@ describe('findNextUnreviewed', () => {
   })
 
   it('returns next unreviewed when current file is not in list', () => {
-    const statuses = new Map<string, FileReviewStatus>([
-      ['a.ts', 'approved'],
-    ])
+    const statuses = new Map<string, FileReviewStatus>([['a.ts', 'approved']])
     const result = findNextUnreviewed('z.ts', files, statuses)
     expect(result).toBe('b.ts')
   })

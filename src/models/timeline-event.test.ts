@@ -50,7 +50,13 @@ describe('TimelineEvent schemas', () => {
 
   describe('TimelineReviewEventSchema', () => {
     it('parses all valid review states', () => {
-      const states = ['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED', 'DISMISSED', 'PENDING'] as const
+      const states = [
+        'APPROVED',
+        'CHANGES_REQUESTED',
+        'COMMENTED',
+        'DISMISSED',
+        'PENDING',
+      ] as const
       for (const state of states) {
         const input = {
           type: 'review',
@@ -145,7 +151,13 @@ describe('TimelineEvent schemas', () => {
 
   describe('TimelineStatusCheckEventSchema', () => {
     it('parses all valid statuses', () => {
-      const statuses = ['pending', 'success', 'failure', 'error', 'cancelled'] as const
+      const statuses = [
+        'pending',
+        'success',
+        'failure',
+        'error',
+        'cancelled',
+      ] as const
       for (const status of statuses) {
         const input = {
           type: 'status-check',

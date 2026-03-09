@@ -15,15 +15,9 @@ export const AzureIterationSchema = z.object({
     .optional(),
   createdDate: z.string().optional(),
   updatedDate: z.string().optional(),
-  sourceRefCommit: z
-    .object({ commitId: z.string() })
-    .optional(),
-  targetRefCommit: z
-    .object({ commitId: z.string() })
-    .optional(),
-  commonRefCommit: z
-    .object({ commitId: z.string() })
-    .optional(),
+  sourceRefCommit: z.object({ commitId: z.string() }).optional(),
+  targetRefCommit: z.object({ commitId: z.string() }).optional(),
+  commonRefCommit: z.object({ commitId: z.string() }).optional(),
 })
 
 export type AzureIteration = z.infer<typeof AzureIterationSchema>
@@ -46,9 +40,7 @@ export const AzureIterationChangeSchema = z.object({
     })
     .optional(),
   originalPath: z.string().optional(),
-  changeType: z
-    .union([z.string(), z.number()])
-    .transform((v) => String(v)),
+  changeType: z.union([z.string(), z.number()]).transform((v) => String(v)),
 })
 
 export type AzureIterationChange = z.infer<typeof AzureIterationChangeSchema>

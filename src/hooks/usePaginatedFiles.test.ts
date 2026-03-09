@@ -86,11 +86,21 @@ describe('usePaginatedFiles', () => {
   describe('page merging logic', () => {
     it('merges files from multiple pages in order', () => {
       const page1Files = [
-        { filename: 'file1.ts', status: 'modified', additions: 1, deletions: 0 },
+        {
+          filename: 'file1.ts',
+          status: 'modified',
+          additions: 1,
+          deletions: 0,
+        },
         { filename: 'file2.ts', status: 'added', additions: 5, deletions: 0 },
       ]
       const page2Files = [
-        { filename: 'file3.ts', status: 'removed', additions: 0, deletions: 10 },
+        {
+          filename: 'file3.ts',
+          status: 'removed',
+          additions: 0,
+          deletions: 10,
+        },
       ]
 
       const allFiles = [...page1Files, ...page2Files]
@@ -101,7 +111,14 @@ describe('usePaginatedFiles', () => {
     })
 
     it('handles empty pages gracefully', () => {
-      const page1Files = [{ filename: 'file1.ts', status: 'modified', additions: 1, deletions: 0 }]
+      const page1Files = [
+        {
+          filename: 'file1.ts',
+          status: 'modified',
+          additions: 1,
+          deletions: 0,
+        },
+      ]
       const page2Files: typeof page1Files = []
 
       const allFiles = [...page1Files, ...page2Files]
@@ -119,7 +136,7 @@ describe('usePaginatedFiles', () => {
       const lastLoadedPage = pages.filter((p) => p.data != null).length
       const hasNextPage =
         lastLoadedPage > 0 && lastLoadedPage <= pages.length
-          ? pages[lastLoadedPage - 1]?.data?.hasNextPage ?? false
+          ? (pages[lastLoadedPage - 1]?.data?.hasNextPage ?? false)
           : false
 
       expect(hasNextPage).toBe(true)
@@ -134,21 +151,19 @@ describe('usePaginatedFiles', () => {
       const lastLoadedPage = pages.filter((p) => p.data != null).length
       const hasNextPage =
         lastLoadedPage > 0 && lastLoadedPage <= pages.length
-          ? pages[lastLoadedPage - 1]?.data?.hasNextPage ?? false
+          ? (pages[lastLoadedPage - 1]?.data?.hasNextPage ?? false)
           : false
 
       expect(hasNextPage).toBe(false)
     })
 
     it('hasNextPage is false when no pages loaded', () => {
-      const pages = [
-        { data: null, isLoading: true },
-      ]
+      const pages = [{ data: null, isLoading: true }]
 
       const lastLoadedPage = pages.filter((p) => p.data != null).length
       const hasNextPage =
         lastLoadedPage > 0 && lastLoadedPage <= pages.length
-          ? pages[lastLoadedPage - 1]?.data?.hasNextPage ?? false
+          ? (pages[lastLoadedPage - 1]?.data?.hasNextPage ?? false)
           : false
 
       expect(hasNextPage).toBe(false)
@@ -195,7 +210,8 @@ describe('usePaginatedFiles', () => {
       const repo = 'repo'
       const prNumber = 42
 
-      const enabled = enabledFlag && !needsPagination && !!owner && !!repo && !!prNumber
+      const enabled =
+        enabledFlag && !needsPagination && !!owner && !!repo && !!prNumber
       expect(enabled).toBe(true)
     })
 
@@ -206,7 +222,8 @@ describe('usePaginatedFiles', () => {
       const repo = 'repo'
       const prNumber = 42
 
-      const enabled = enabledFlag && !needsPagination && !!owner && !!repo && !!prNumber
+      const enabled =
+        enabledFlag && !needsPagination && !!owner && !!repo && !!prNumber
       expect(enabled).toBe(false)
     })
 
@@ -217,7 +234,8 @@ describe('usePaginatedFiles', () => {
       const repo = 'repo'
       const prNumber = 42
 
-      const enabled = enabledFlag && !needsPagination && !!owner && !!repo && !!prNumber
+      const enabled =
+        enabledFlag && !needsPagination && !!owner && !!repo && !!prNumber
       expect(enabled).toBe(false)
     })
 
@@ -228,7 +246,8 @@ describe('usePaginatedFiles', () => {
       const repo = 'repo'
       const prNumber = 42
 
-      const enabled = enabledFlag && !needsPagination && !!owner && !!repo && !!prNumber
+      const enabled =
+        enabledFlag && !needsPagination && !!owner && !!repo && !!prNumber
       expect(enabled).toBe(false)
     })
 

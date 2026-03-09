@@ -22,16 +22,66 @@ export type CommentTemplate = z.infer<typeof CommentTemplateSchema>
  * - `{{cursor}}` -- cursor position after insertion
  */
 export const DEFAULT_TEMPLATES: readonly CommentTemplate[] = [
-  { name: 'Nit', prefix: 'nit:', body: '{{cursor}}', description: 'Minor style or preference issue' },
-  { name: 'Blocking', prefix: 'blocking:', body: '{{cursor}}', description: 'Must be addressed before merge' },
-  { name: 'Question', prefix: 'question:', body: '{{cursor}}', description: 'Clarification needed' },
-  { name: 'Suggestion', prefix: 'suggestion:', body: 'Consider {{cursor}}', description: 'Alternative approach' },
-  { name: 'Praise', prefix: '', body: 'Nice! {{cursor}}', description: 'Positive feedback' },
-  { name: 'TODO', prefix: 'TODO:', body: '{{cursor}}', description: 'Follow-up task needed' },
-  { name: 'Security', prefix: 'security:', body: 'Potential security concern: {{cursor}}', description: 'Security-related feedback' },
-  { name: 'Performance', prefix: 'perf:', body: 'Performance consideration: {{cursor}}', description: 'Performance-related feedback' },
-  { name: 'Missing Tests', prefix: '', body: 'Missing test coverage for {{cursor}}', description: 'Tests needed' },
-  { name: 'Type Safety', prefix: '', body: 'Type safety concern: {{cursor}}', description: 'TypeScript type issue' },
+  {
+    name: 'Nit',
+    prefix: 'nit:',
+    body: '{{cursor}}',
+    description: 'Minor style or preference issue',
+  },
+  {
+    name: 'Blocking',
+    prefix: 'blocking:',
+    body: '{{cursor}}',
+    description: 'Must be addressed before merge',
+  },
+  {
+    name: 'Question',
+    prefix: 'question:',
+    body: '{{cursor}}',
+    description: 'Clarification needed',
+  },
+  {
+    name: 'Suggestion',
+    prefix: 'suggestion:',
+    body: 'Consider {{cursor}}',
+    description: 'Alternative approach',
+  },
+  {
+    name: 'Praise',
+    prefix: '',
+    body: 'Nice! {{cursor}}',
+    description: 'Positive feedback',
+  },
+  {
+    name: 'TODO',
+    prefix: 'TODO:',
+    body: '{{cursor}}',
+    description: 'Follow-up task needed',
+  },
+  {
+    name: 'Security',
+    prefix: 'security:',
+    body: 'Potential security concern: {{cursor}}',
+    description: 'Security-related feedback',
+  },
+  {
+    name: 'Performance',
+    prefix: 'perf:',
+    body: 'Performance consideration: {{cursor}}',
+    description: 'Performance-related feedback',
+  },
+  {
+    name: 'Missing Tests',
+    prefix: '',
+    body: 'Missing test coverage for {{cursor}}',
+    description: 'Tests needed',
+  },
+  {
+    name: 'Type Safety',
+    prefix: '',
+    body: 'Type safety concern: {{cursor}}',
+    description: 'TypeScript type issue',
+  },
 ] as const
 
 /**

@@ -64,9 +64,7 @@ describe('Gemini Adapter', () => {
   describe('complete', () => {
     it('should make request with API key in query param', async () => {
       mockFetchResponse({
-        candidates: [
-          { content: { parts: [{ text: 'Hello!' }] } },
-        ],
+        candidates: [{ content: { parts: [{ text: 'Hello!' }] } }],
         usageMetadata: {
           promptTokenCount: 10,
           candidatesTokenCount: 5,
@@ -86,9 +84,7 @@ describe('Gemini Adapter', () => {
 
     it('should map roles to Gemini format (user/model)', async () => {
       mockFetchResponse({
-        candidates: [
-          { content: { parts: [{ text: 'OK' }] } },
-        ],
+        candidates: [{ content: { parts: [{ text: 'OK' }] } }],
       })
 
       const messages: readonly AiMessage[] = [
@@ -113,9 +109,7 @@ describe('Gemini Adapter', () => {
 
     it('should pass system messages via systemInstruction', async () => {
       mockFetchResponse({
-        candidates: [
-          { content: { parts: [{ text: 'OK' }] } },
-        ],
+        candidates: [{ content: { parts: [{ text: 'OK' }] } }],
       })
 
       const messages: readonly AiMessage[] = [
@@ -141,9 +135,7 @@ describe('Gemini Adapter', () => {
 
     it('should merge systemPrompt option with system messages', async () => {
       mockFetchResponse({
-        candidates: [
-          { content: { parts: [{ text: 'OK' }] } },
-        ],
+        candidates: [{ content: { parts: [{ text: 'OK' }] } }],
       })
 
       const messages: readonly AiMessage[] = [
@@ -167,9 +159,7 @@ describe('Gemini Adapter', () => {
 
     it('should parse response with usage', async () => {
       mockFetchResponse({
-        candidates: [
-          { content: { parts: [{ text: 'Hello there!' }] } },
-        ],
+        candidates: [{ content: { parts: [{ text: 'Hello there!' }] } }],
         usageMetadata: {
           promptTokenCount: 15,
           candidatesTokenCount: 8,
@@ -189,9 +179,7 @@ describe('Gemini Adapter', () => {
 
     it('should pass generationConfig with maxTokens and temperature', async () => {
       mockFetchResponse({
-        candidates: [
-          { content: { parts: [{ text: 'OK' }] } },
-        ],
+        candidates: [{ content: { parts: [{ text: 'OK' }] } }],
       })
 
       const service = createGeminiService(mockConfig)
@@ -212,9 +200,7 @@ describe('Gemini Adapter', () => {
 
     it('should use custom endpoint', async () => {
       mockFetchResponse({
-        candidates: [
-          { content: { parts: [{ text: 'OK' }] } },
-        ],
+        candidates: [{ content: { parts: [{ text: 'OK' }] } }],
       })
 
       const service = createGeminiService({

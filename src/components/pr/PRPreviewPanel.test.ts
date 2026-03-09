@@ -15,13 +15,17 @@ describe('PRPreviewPanel constants', () => {
 
   it('preview width calculation for 200 column terminal', () => {
     const terminalWidth = 200
-    const previewWidth = Math.floor(terminalWidth * PREVIEW_PANEL_WIDTH_FRACTION)
+    const previewWidth = Math.floor(
+      terminalWidth * PREVIEW_PANEL_WIDTH_FRACTION,
+    )
     expect(previewWidth).toBe(80)
   })
 
   it('preview width calculation for 140 column terminal', () => {
     const terminalWidth = 140
-    const previewWidth = Math.floor(terminalWidth * PREVIEW_PANEL_WIDTH_FRACTION)
+    const previewWidth = Math.floor(
+      terminalWidth * PREVIEW_PANEL_WIDTH_FRACTION,
+    )
     expect(previewWidth).toBe(56)
   })
 

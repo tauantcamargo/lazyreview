@@ -89,7 +89,10 @@ describe('migrateV1Config', () => {
   })
 
   it('maps v1 defaultOwner/defaultRepo to defaults.owner/repo', () => {
-    const result = migrateV1Config({ defaultOwner: 'myorg', defaultRepo: 'myrepo' })
+    const result = migrateV1Config({
+      defaultOwner: 'myorg',
+      defaultRepo: 'myrepo',
+    })
     expect(result.defaults.owner).toBe('myorg')
     expect(result.defaults.repo).toBe('myrepo')
   })
@@ -214,7 +217,9 @@ describe('migrateV1Config', () => {
     const result = migrateV1Config({
       gitlab: { host: 'https://gitlab.example.com' },
     })
-    expect(result.defaults.gitlab).toEqual({ host: 'https://gitlab.example.com' })
+    expect(result.defaults.gitlab).toEqual({
+      host: 'https://gitlab.example.com',
+    })
   })
 })
 

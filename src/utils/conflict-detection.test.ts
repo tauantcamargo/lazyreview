@@ -4,7 +4,10 @@ import { detectConflictState } from './conflict-detection'
 function makePR(
   mergeable: boolean | null,
   mergeable_state: string | null,
-): { readonly mergeable: boolean | null; readonly mergeable_state: string | null } {
+): {
+  readonly mergeable: boolean | null
+  readonly mergeable_state: string | null
+} {
   return { mergeable, mergeable_state }
 }
 

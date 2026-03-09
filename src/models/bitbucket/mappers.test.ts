@@ -13,7 +13,11 @@ import {
   mapParticipantToReview,
   mapParticipantsToReviews,
 } from './mappers'
-import type { BitbucketUser, BitbucketParticipant, BitbucketPullRequest } from './pull-request'
+import type {
+  BitbucketUser,
+  BitbucketParticipant,
+  BitbucketPullRequest,
+} from './pull-request'
 import type { BitbucketComment } from './comment'
 import type { BitbucketDiffStat } from './diff'
 import type { BitbucketCommit } from './commit'
@@ -161,9 +165,7 @@ describe('mapBitbucketUser', () => {
 
   it('maps avatar href to avatar_url', () => {
     const user = mapBitbucketUser(bbUser)
-    expect(user.avatar_url).toBe(
-      'https://bitbucket.org/account/janedoe/avatar',
-    )
+    expect(user.avatar_url).toBe('https://bitbucket.org/account/janedoe/avatar')
   })
 
   it('defaults avatar_url to empty string when no links', () => {
@@ -387,52 +389,34 @@ describe('mapBitbucketCommentToComment', () => {
   })
 
   it('constructs html_url from PR URL and comment id', () => {
-    const comment = mapBitbucketCommentToComment(
-      inlineComment,
-      prHtmlUrl,
-    )
+    const comment = mapBitbucketCommentToComment(inlineComment, prHtmlUrl)
     expect(comment.html_url).toBe(`${prHtmlUrl}#comment-101`)
   })
 
   it('maps a general comment without inline', () => {
-    const comment = mapBitbucketCommentToComment(
-      generalComment,
-      prHtmlUrl,
-    )
+    const comment = mapBitbucketCommentToComment(generalComment, prHtmlUrl)
     expect(comment.path).toBeUndefined()
     expect(comment.line).toBeUndefined()
     expect(comment.side).toBeUndefined()
   })
 
   it('maps parent.id to in_reply_to_id', () => {
-    const comment = mapBitbucketCommentToComment(
-      replyComment,
-      prHtmlUrl,
-    )
+    const comment = mapBitbucketCommentToComment(replyComment, prHtmlUrl)
     expect(comment.in_reply_to_id).toBe(100)
   })
 
   it('sets in_reply_to_id to undefined when no parent', () => {
-    const comment = mapBitbucketCommentToComment(
-      generalComment,
-      prHtmlUrl,
-    )
+    const comment = mapBitbucketCommentToComment(generalComment, prHtmlUrl)
     expect(comment.in_reply_to_id).toBeUndefined()
   })
 
   it('sets node_id to string of comment id', () => {
-    const comment = mapBitbucketCommentToComment(
-      generalComment,
-      prHtmlUrl,
-    )
+    const comment = mapBitbucketCommentToComment(generalComment, prHtmlUrl)
     expect(comment.node_id).toBe('100')
   })
 
   it('maps timestamps', () => {
-    const comment = mapBitbucketCommentToComment(
-      generalComment,
-      prHtmlUrl,
-    )
+    const comment = mapBitbucketCommentToComment(generalComment, prHtmlUrl)
     expect(comment.created_at).toBe('2026-01-15T10:00:00Z')
     expect(comment.updated_at).toBe('2026-01-15T10:00:00Z')
   })
@@ -453,10 +437,7 @@ describe('mapBitbucketCommentsToComments', () => {
   })
 
   it('returns empty array for all deleted comments', () => {
-    const comments = mapBitbucketCommentsToComments(
-      [deletedComment],
-      prHtmlUrl,
-    )
+    const comments = mapBitbucketCommentsToComments([deletedComment], prHtmlUrl)
     expect(comments).toEqual([])
   })
 
@@ -472,10 +453,7 @@ describe('mapBitbucketCommentsToComments', () => {
 
 describe('mapBitbucketCommentToIssueComment', () => {
   it('maps a general comment to IssueComment', () => {
-    const ic = mapBitbucketCommentToIssueComment(
-      generalComment,
-      prHtmlUrl,
-    )
+    const ic = mapBitbucketCommentToIssueComment(generalComment, prHtmlUrl)
     expect(ic.id).toBe(100)
     expect(ic.body).toBe('This looks great!')
     expect(ic.user.login).toBe('janedoe')
@@ -501,10 +479,7 @@ describe('mapBitbucketCommentsToIssueComments', () => {
   })
 
   it('returns empty array when all comments are inline', () => {
-    const ics = mapBitbucketCommentsToIssueComments(
-      [inlineComment],
-      prHtmlUrl,
-    )
+    const ics = mapBitbucketCommentsToIssueComments([inlineComment], prHtmlUrl)
     expect(ics).toEqual([])
   })
 

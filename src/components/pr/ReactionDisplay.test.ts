@@ -10,7 +10,9 @@ function renderWithTheme(element: React.ReactElement) {
   return render(React.createElement(ThemeProvider, null, element))
 }
 
-function makeSummary(overrides: Partial<ReactionSummary> = {}): ReactionSummary {
+function makeSummary(
+  overrides: Partial<ReactionSummary> = {},
+): ReactionSummary {
   return {
     ...emptyReactionSummary(),
     ...overrides,
@@ -40,7 +42,12 @@ describe('ReactionDisplay', () => {
   it('displays multiple reactions', () => {
     const { lastFrame } = renderWithTheme(
       React.createElement(ReactionDisplay, {
-        reactions: makeSummary({ '+1': 2, heart: 1, rocket: 5, total_count: 8 }),
+        reactions: makeSummary({
+          '+1': 2,
+          heart: 1,
+          rocket: 5,
+          total_count: 8,
+        }),
       }),
     )
     const frame = lastFrame()

@@ -38,9 +38,20 @@ function isWordBoundary(target: string, index: number): boolean {
   const prev = target[index - 1]!
   const curr = target[index]!
   // After space or punctuation
-  if (prev === ' ' || prev === '-' || prev === '_' || prev === '/' || prev === '+') return true
+  if (
+    prev === ' ' ||
+    prev === '-' ||
+    prev === '_' ||
+    prev === '/' ||
+    prev === '+'
+  )
+    return true
   // camelCase transition
-  if (prev === prev.toLowerCase() && curr === curr.toUpperCase() && curr !== curr.toLowerCase()) {
+  if (
+    prev === prev.toLowerCase() &&
+    curr === curr.toUpperCase() &&
+    curr !== curr.toLowerCase()
+  ) {
     return true
   }
   return false
@@ -73,7 +84,11 @@ export function fuzzyMatch(query: string, target: string): FuzzyResult | null {
   let queryIndex = 0
   let lastMatchIndex = -2 // Initialize to impossible value so first match is not consecutive
 
-  for (let targetIndex = 0; targetIndex < targetLower.length && queryIndex < queryLower.length; targetIndex++) {
+  for (
+    let targetIndex = 0;
+    targetIndex < targetLower.length && queryIndex < queryLower.length;
+    targetIndex++
+  ) {
     if (targetLower[targetIndex] === queryLower[queryIndex]) {
       indices.push(targetIndex)
       score += BASE_MATCH_SCORE

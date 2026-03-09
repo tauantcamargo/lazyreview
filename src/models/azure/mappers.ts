@@ -6,7 +6,11 @@ import { Review } from '../review'
 import { FileChange } from '../file-change'
 import { Commit, CommitDetails, CommitAuthor } from '../commit'
 import { CheckRun, CheckRunsResponse } from '../check'
-import type { AzureIdentity, AzureReviewer, AzurePullRequest } from './pull-request'
+import type {
+  AzureIdentity,
+  AzureReviewer,
+  AzurePullRequest,
+} from './pull-request'
 import type { AzureThread, AzureComment as AzureCommentType } from './comment'
 import type { AzureIterationChange } from './diff'
 import type { AzureBuild } from './build'
@@ -77,9 +81,7 @@ export function mapAzureIdentity(identity: AzureIdentity): User {
  *  -5  = Waiting for author
  * -10  = Rejected
  */
-function mapReviewerVoteToState(
-  vote: number,
-): Review['state'] {
+function mapReviewerVoteToState(vote: number): Review['state'] {
   if (vote >= 10) return 'APPROVED'
   if (vote === 5) return 'APPROVED'
   if (vote <= -10) return 'CHANGES_REQUESTED'
@@ -131,16 +133,23 @@ export function mapAzurePRToPullRequest(
 ): PullRequest {
   const state: 'open' | 'closed' = azPR.status === 'active' ? 'open' : 'closed'
   const merged = azPR.status === 'completed'
-  const htmlUrl = buildPRHtmlUrl(baseUrl, org, project, repoName, azPR.pullRequestId)
+  const htmlUrl = buildPRHtmlUrl(
+    baseUrl,
+    org,
+    project,
+    repoName,
+    azPR.pullRequestId,
+  )
 
   // Map Azure labels to normalized labels
-  const labels = azPR.labels.map((label, index) =>
-    new Label({
-      id: hashString(label.id ?? String(index)),
-      name: label.name,
-      color: '',
-      description: null,
-    }),
+  const labels = azPR.labels.map(
+    (label, index) =>
+      new Label({
+        id: hashString(label.id ?? String(index)),
+        name: label.name,
+        color: '',
+        description: null,
+      }),
   )
 
   return new PullRequest({
@@ -177,14 +186,15 @@ export function mapAzurePRToPullRequest(
     review_comments: 0,
     requested_reviewers: azPR.reviewers
       .filter((r) => r.vote === 0)
-      .map((r) =>
-        new User({
-          login: r.uniqueName ?? r.displayName,
-          id: hashString(r.id),
-          avatar_url: r.imageUrl ?? '',
-          html_url: '',
-          type: 'User',
-        }),
+      .map(
+        (r) =>
+          new User({
+            login: r.uniqueName ?? r.displayName,
+            id: hashString(r.id),
+            avatar_url: r.imageUrl ?? '',
+            html_url: '',
+            type: 'User',
+          }),
       ),
     assignees: [],
     mergeable: null,
@@ -220,7 +230,10 @@ export function mapAzureCommentToComment(
 ): Comment {
   const threadContext = thread.threadContext
   const path = threadContext?.filePath
-  const line = threadContext?.rightFileStart?.line ?? threadContext?.leftFileStart?.line ?? undefined
+  const line =
+    threadContext?.rightFileStart?.line ??
+    threadContext?.leftFileStart?.line ??
+    undefined
   const side: 'LEFT' | 'RIGHT' | undefined = threadContext
     ? threadContext.rightFileStart != null
       ? 'RIGHT'
@@ -238,7 +251,8 @@ export function mapAzureCommentToComment(
     path,
     line,
     side,
-    in_reply_to_id: comment.parentCommentId > 0 ? comment.parentCommentId : undefined,
+    in_reply_to_id:
+      comment.parentCommentId > 0 ? comment.parentCommentId : undefined,
   })
 }
 
@@ -303,9 +317,7 @@ export function mapAzureThreadsToIssueComments(
 // Iteration Change -> FileChange
 // ---------------------------------------------------------------------------
 
-function mapChangeType(
-  changeType: string,
-): FileChange['status'] {
+function mapChangeType(changeType: string): FileChange['status'] {
   const lower = changeType.toLowerCase()
   if (lower === 'add' || lower === '1') return 'added'
   if (lower === 'delete' || lower === '16') return 'removed'
@@ -330,9 +342,9 @@ export function mapAzureChangeToFileChange(
     changes: 0,
     previous_filename:
       status === 'renamed' && change.originalPath
-        ? (change.originalPath.startsWith('/')
-            ? change.originalPath.slice(1)
-            : change.originalPath)
+        ? change.originalPath.startsWith('/')
+          ? change.originalPath.slice(1)
+          : change.originalPath
         : undefined,
   })
 }
@@ -364,9 +376,7 @@ export function mapAzureCommitToCommit(
 // Build -> CheckRun
 // ---------------------------------------------------------------------------
 
-function mapBuildStatus(
-  status: AzureBuild['status'],
-): CheckRun['status'] {
+function mapBuildStatus(status: AzureBuild['status']): CheckRun['status'] {
   switch (status) {
     case 'completed':
       return 'completed'
@@ -381,9 +391,7 @@ function mapBuildStatus(
   }
 }
 
-function mapBuildResult(
-  build: AzureBuild,
-): CheckRun['conclusion'] {
+function mapBuildResult(build: AzureBuild): CheckRun['conclusion'] {
   if (build.status !== 'completed' || !build.result) {
     return null
   }

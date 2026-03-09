@@ -21,9 +21,7 @@ export function addRecentRepoToList(
   repo: string,
   now: string,
 ): readonly RecentRepo[] {
-  const filtered = repos.filter(
-    (r) => !(r.owner === owner && r.repo === repo),
-  )
+  const filtered = repos.filter((r) => !(r.owner === owner && r.repo === repo))
   const updated: readonly RecentRepo[] = [
     { owner, repo, lastUsed: now },
     ...filtered,
@@ -43,8 +41,7 @@ export function sortByMostRecent(
   repos: readonly RecentRepo[],
 ): readonly RecentRepo[] {
   return [...repos].sort(
-    (a, b) =>
-      new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime(),
+    (a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime(),
   )
 }
 

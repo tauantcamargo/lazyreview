@@ -17,10 +17,7 @@ function makeLine(
   return { type, content, oldLineNumber, newLineNumber }
 }
 
-function makeLineRow(
-  line: DiffLine,
-  hunkIndex: number,
-): DiffDisplayRow {
+function makeLineRow(line: DiffLine, hunkIndex: number): DiffDisplayRow {
   return {
     type: 'line',
     line,
@@ -35,14 +32,16 @@ function makeCommentRow(): DiffDisplayRow {
   return {
     type: 'comment',
     thread: {
-      comments: [{
-        id: 1,
-        body: 'test',
-        user: { login: 'user', avatar_url: '' },
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-        html_url: '',
-      }],
+      comments: [
+        {
+          id: 1,
+          body: 'test',
+          user: { login: 'user', avatar_url: '' },
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-01T00:00:00Z',
+          html_url: '',
+        },
+      ],
     },
   } as DiffDisplayRow
 }

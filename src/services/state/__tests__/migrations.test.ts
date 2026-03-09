@@ -92,7 +92,9 @@ describe('migrations', () => {
 
     it('should record applied migrations in the migrations table', () => {
       runMigrations(db)
-      const results = db.exec('SELECT version, description FROM migrations ORDER BY version')
+      const results = db.exec(
+        'SELECT version, description FROM migrations ORDER BY version',
+      )
       expect(results.length).toBe(1)
       expect(results[0].values.length).toBe(migrations.length)
 
@@ -186,7 +188,11 @@ describe('migrations', () => {
         "INSERT INTO pr_read_state (key, last_seen_at, pr_updated_at) VALUES ('test', '2025-01-01', '2025-01-01')",
       )
       const results = db.exec('SELECT * FROM pr_read_state')
-      expect(results[0].columns).toEqual(['key', 'last_seen_at', 'pr_updated_at'])
+      expect(results[0].columns).toEqual([
+        'key',
+        'last_seen_at',
+        'pr_updated_at',
+      ])
     })
 
     it('should have correct viewed_files schema with composite key', () => {
@@ -221,11 +227,14 @@ describe('migrations', () => {
     })
 
     it('should have correct pr_notes schema', () => {
-      db.run(
-        "INSERT INTO pr_notes (key, content) VALUES ('pr:1', 'my notes')",
-      )
+      db.run("INSERT INTO pr_notes (key, content) VALUES ('pr:1', 'my notes')")
       const results = db.exec('SELECT * FROM pr_notes')
-      expect(results[0].columns).toEqual(['key', 'content', 'created_at', 'updated_at'])
+      expect(results[0].columns).toEqual([
+        'key',
+        'content',
+        'created_at',
+        'updated_at',
+      ])
     })
 
     it('should have correct review_checklists schema with composite key', () => {
@@ -255,9 +264,7 @@ describe('migrations', () => {
     })
 
     it('should have correct kv_store schema', () => {
-      db.run(
-        "INSERT INTO kv_store (key, value) VALUES ('setting', 'value')",
-      )
+      db.run("INSERT INTO kv_store (key, value) VALUES ('setting', 'value')")
       const results = db.exec('SELECT * FROM kv_store')
       expect(results[0].columns).toEqual(['key', 'value', 'updated_at'])
     })

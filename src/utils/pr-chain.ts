@@ -41,10 +41,7 @@ function deriveNodeStatus(pr: PullRequest): PRChainNodeStatus {
   if (pr.merged) {
     return 'merged'
   }
-  if (
-    pr.mergeable === false ||
-    pr.mergeable_state === 'dirty'
-  ) {
+  if (pr.mergeable === false || pr.mergeable_state === 'dirty') {
     return 'conflicts'
   }
   if (pr.draft) {
@@ -102,7 +99,11 @@ function walkUpChain(
   // Walk upward: find the PR whose head branch === current's base branch
   while (current.base.ref) {
     const parent = headRefMap.get(current.base.ref)
-    if (!parent || parent.number === current.number || seen.has(parent.number)) {
+    if (
+      !parent ||
+      parent.number === current.number ||
+      seen.has(parent.number)
+    ) {
       break
     }
     seen.add(parent.number)
@@ -229,9 +230,7 @@ export function detectPRChain(
  * - "waiting" (yellow) : at least one parent is still open/draft/approved
  * - "blocked" (red)    : at least one node has conflicts
  */
-export function computeChainStatus(
-  chain: readonly PRChainNode[],
-): ChainStatus {
+export function computeChainStatus(chain: readonly PRChainNode[]): ChainStatus {
   // Check for conflicts anywhere in the chain
   if (chain.some((node) => node.status === 'conflicts')) {
     return 'blocked'

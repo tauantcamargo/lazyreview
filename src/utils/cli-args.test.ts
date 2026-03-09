@@ -309,9 +309,7 @@ describe('parseCliArgs', () => {
     })
 
     it('handles repo URL without PR path (not a PR URL)', () => {
-      const result = parseCliArgs(
-        argv('https://github.com/owner/repo'),
-      )
+      const result = parseCliArgs(argv('https://github.com/owner/repo'))
       // This is not a recognized PR URL and not a valid owner/repo positional
       expect(result.directPR).toBeNull()
     })

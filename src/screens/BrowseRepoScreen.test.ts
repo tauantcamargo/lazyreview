@@ -103,7 +103,9 @@ describe('validateRepoInput', () => {
     })
 
     it('accepts GitLab nested group HTTPS URL', () => {
-      const result = validateRepoInput('https://gitlab.com/group/subgroup/project')
+      const result = validateRepoInput(
+        'https://gitlab.com/group/subgroup/project',
+      )
       expect(result.valid).toBe(true)
       expect(result.owner).toBe('group/subgroup')
       expect(result.repo).toBe('project')
@@ -131,7 +133,9 @@ describe('validateRepoInput', () => {
     })
 
     it('accepts Bitbucket HTTPS URL with .git suffix', () => {
-      const result = validateRepoInput('https://bitbucket.org/workspace/repo.git')
+      const result = validateRepoInput(
+        'https://bitbucket.org/workspace/repo.git',
+      )
       expect(result.valid).toBe(true)
       expect(result.owner).toBe('workspace')
       expect(result.repo).toBe('repo')
@@ -201,10 +205,9 @@ describe('parseRepoUrl', () => {
     })
 
     it('returns host for self-hosted GHE URL', () => {
-      const result = parseRepoUrl(
-        'https://github.mycompany.com/org/repo',
-        { 'github.mycompany.com': 'github' },
-      )
+      const result = parseRepoUrl('https://github.mycompany.com/org/repo', {
+        'github.mycompany.com': 'github',
+      })
       expect(result).not.toBeNull()
       expect(result!.host).toBe('github.mycompany.com')
       expect(result!.provider).toBe('github')
@@ -212,10 +215,9 @@ describe('parseRepoUrl', () => {
     })
 
     it('returns host for self-hosted GitLab URL', () => {
-      const result = parseRepoUrl(
-        'https://gitlab.internal.io/team/project',
-        { 'gitlab.internal.io': 'gitlab' },
-      )
+      const result = parseRepoUrl('https://gitlab.internal.io/team/project', {
+        'gitlab.internal.io': 'gitlab',
+      })
       expect(result).not.toBeNull()
       expect(result!.host).toBe('gitlab.internal.io')
       expect(result!.provider).toBe('gitlab')

@@ -21,9 +21,21 @@ const MERGE_METHODS: readonly {
   readonly label: string
   readonly description: string
 }[] = [
-  { method: 'merge', label: 'Merge Commit', description: 'All commits preserved' },
-  { method: 'squash', label: 'Squash and Merge', description: 'Combine into one commit' },
-  { method: 'rebase', label: 'Rebase and Merge', description: 'Linear history, no merge commit' },
+  {
+    method: 'merge',
+    label: 'Merge Commit',
+    description: 'All commits preserved',
+  },
+  {
+    method: 'squash',
+    label: 'Squash and Merge',
+    description: 'Combine into one commit',
+  },
+  {
+    method: 'rebase',
+    label: 'Rebase and Merge',
+    description: 'Linear history, no merge commit',
+  },
 ]
 
 type Step = 'select_method' | 'edit_title' | 'confirm'
@@ -80,7 +92,9 @@ export function MergeModal({
         if (key.escape) {
           onClose()
         } else if (input === 'j' || key.downArrow) {
-          setSelectedMethod((prev) => Math.min(prev + 1, MERGE_METHODS.length - 1))
+          setSelectedMethod((prev) =>
+            Math.min(prev + 1, MERGE_METHODS.length - 1),
+          )
         } else if (input === 'k' || key.upArrow) {
           setSelectedMethod((prev) => Math.max(prev - 1, 0))
         } else if (key.return && canMerge) {
@@ -134,7 +148,9 @@ export function MergeModal({
           <Box flexDirection="column" gap={0}>
             <Box gap={1}>
               <Text color={theme.colors.muted}>PR:</Text>
-              <Text color={theme.colors.text}>#{pr.number} {pr.title}</Text>
+              <Text color={theme.colors.text}>
+                #{pr.number} {pr.title}
+              </Text>
             </Box>
             <Box gap={1}>
               <Text color={theme.colors.muted}>Method:</Text>
@@ -156,13 +172,9 @@ export function MergeModal({
             This action cannot be undone.
           </Text>
 
-          {isSubmitting && (
-            <Text color={theme.colors.info}>Merging...</Text>
-          )}
+          {isSubmitting && <Text color={theme.colors.info}>Merging...</Text>}
 
-          {error && (
-            <Text color={theme.colors.error}>{error}</Text>
-          )}
+          {error && <Text color={theme.colors.error}>{error}</Text>}
 
           <Text color={theme.colors.muted} dimColor>
             y: confirm merge | Esc: back
@@ -188,7 +200,11 @@ export function MergeModal({
             Squash Commit Title
           </Text>
 
-          <Box borderStyle="single" borderColor={theme.colors.border} paddingX={1}>
+          <Box
+            borderStyle="single"
+            borderColor={theme.colors.border}
+            paddingX={1}
+          >
             <TextInput
               defaultValue={commitTitle}
               onChange={setCommitTitle}
@@ -220,11 +236,17 @@ export function MergeModal({
         </Text>
 
         {!canMerge && (
-          <Box flexDirection="column" borderStyle="single" borderColor={theme.colors.error} paddingX={1}>
+          <Box
+            flexDirection="column"
+            borderStyle="single"
+            borderColor={theme.colors.error}
+            paddingX={1}
+          >
             <Text color={theme.colors.error}>{mergeBlockReason}</Text>
             {conflictState.hasConflicts && (
               <Text color={theme.colors.muted} dimColor>
-                Tip: Pull the base branch and resolve conflicts locally, then push
+                Tip: Pull the base branch and resolve conflicts locally, then
+                push
               </Text>
             )}
           </Box>
@@ -243,15 +265,25 @@ export function MergeModal({
         <Box flexDirection="column">
           {MERGE_METHODS.map((m, index) => (
             <Box key={m.method} gap={1}>
-              <Text color={index === selectedMethod ? theme.colors.accent : theme.colors.muted}>
+              <Text
+                color={
+                  index === selectedMethod
+                    ? theme.colors.accent
+                    : theme.colors.muted
+                }
+              >
                 {index === selectedMethod ? '>' : ' '}
               </Text>
               <Text
                 bold={index === selectedMethod}
                 inverse={index === selectedMethod && canMerge}
-                color={canMerge
-                  ? (index === selectedMethod ? theme.colors.accent : theme.colors.text)
-                  : theme.colors.muted}
+                color={
+                  canMerge
+                    ? index === selectedMethod
+                      ? theme.colors.accent
+                      : theme.colors.text
+                    : theme.colors.muted
+                }
                 dimColor={!canMerge}
               >
                 {m.label}
@@ -263,12 +295,12 @@ export function MergeModal({
           ))}
         </Box>
 
-        {error && (
-          <Text color={theme.colors.error}>{error}</Text>
-        )}
+        {error && <Text color={theme.colors.error}>{error}</Text>}
 
         <Text color={theme.colors.muted} dimColor>
-          {canMerge ? 'j/k: navigate | Enter: select | Esc: cancel' : 'Esc: cancel'}
+          {canMerge
+            ? 'j/k: navigate | Enter: select | Esc: cancel'
+            : 'Esc: cancel'}
         </Text>
       </Box>
     </Modal>

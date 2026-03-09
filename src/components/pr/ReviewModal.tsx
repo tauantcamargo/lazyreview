@@ -3,10 +3,20 @@ import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../../theme/index'
 import { useInputFocus } from '../../hooks/useInputFocus'
 import { Modal } from '../common/Modal'
-import { MultiLineInput, type InsertTextRequest } from '../common/MultiLineInput'
+import {
+  MultiLineInput,
+  type InsertTextRequest,
+} from '../common/MultiLineInput'
 import { TemplatePickerModal } from './TemplatePickerModal'
-import { DEFAULT_TEMPLATES, mergeTemplates, type CommentTemplate } from '../../models/comment-template'
-import { resolveTemplate, type TemplateVariables } from '../../utils/template-engine'
+import {
+  DEFAULT_TEMPLATES,
+  mergeTemplates,
+  type CommentTemplate,
+} from '../../models/comment-template'
+import {
+  resolveTemplate,
+  type TemplateVariables,
+} from '../../utils/template-engine'
 import { useConfig } from '../../hooks/useConfig'
 import type { ReviewEvent } from '../../hooks/useGitHub'
 
@@ -45,7 +55,9 @@ export function ReviewModal({
   const [reviewEvent, setReviewEvent] = useState<ReviewEvent>('APPROVE')
   const [body, setBody] = useState('')
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
-  const [pendingInsert, setPendingInsert] = useState<InsertTextRequest | null>(null)
+  const [pendingInsert, setPendingInsert] = useState<InsertTextRequest | null>(
+    null,
+  )
 
   useEffect(() => {
     if (step === 'enter_body' && !showTemplatePicker) {
@@ -66,7 +78,10 @@ export function ReviewModal({
   const handleTemplateSelect = useCallback(
     (template: CommentTemplate) => {
       const resolved = resolveTemplate(template, templateVariables ?? {})
-      setPendingInsert({ text: resolved.text, cursorOffset: resolved.cursorOffset })
+      setPendingInsert({
+        text: resolved.text,
+        cursorOffset: resolved.cursorOffset,
+      })
       setShowTemplatePicker(false)
     },
     [templateVariables],
@@ -140,7 +155,13 @@ export function ReviewModal({
           <Box flexDirection="column">
             {REVIEW_TYPES.map((type, index) => (
               <Box key={type.event} gap={1}>
-                <Text color={index === selectedType ? theme.colors.accent : theme.colors.muted}>
+                <Text
+                  color={
+                    index === selectedType
+                      ? theme.colors.accent
+                      : theme.colors.muted
+                  }
+                >
                   {index === selectedType ? '>' : ' '}
                 </Text>
                 <Text
@@ -154,9 +175,7 @@ export function ReviewModal({
             ))}
           </Box>
 
-          {error && (
-            <Text color={theme.colors.error}>{error}</Text>
-          )}
+          {error && <Text color={theme.colors.error}>{error}</Text>}
 
           <Text color={theme.colors.muted} dimColor>
             j/k: navigate | Enter: select | Esc: cancel
@@ -185,7 +204,13 @@ export function ReviewModal({
             Submit Review
           </Text>
           <Text color={theme.colors.muted}>-</Text>
-          <Text color={selectedReviewType ? theme.colors[selectedReviewType.color] : theme.colors.text}>
+          <Text
+            color={
+              selectedReviewType
+                ? theme.colors[selectedReviewType.color]
+                : theme.colors.text
+            }
+          >
             {selectedReviewType?.label}
           </Text>
         </Box>
@@ -206,7 +231,9 @@ export function ReviewModal({
           <MultiLineInput
             placeholder="Review message... (Markdown supported)"
             onChange={setBody}
-            isActive={step === 'enter_body' && !isSubmitting && !showTemplatePicker}
+            isActive={
+              step === 'enter_body' && !isSubmitting && !showTemplatePicker
+            }
             minHeight={5}
             insertText={pendingInsert}
           />
@@ -216,9 +243,7 @@ export function ReviewModal({
           <Text color={theme.colors.info}>Submitting review...</Text>
         )}
 
-        {error && (
-          <Text color={theme.colors.error}>{error}</Text>
-        )}
+        {error && <Text color={theme.colors.error}>{error}</Text>}
 
         <Text color={theme.colors.muted} dimColor>
           Enter: new line | Ctrl+S: submit | Ctrl+T: template | Esc: back

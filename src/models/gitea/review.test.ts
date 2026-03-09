@@ -68,7 +68,13 @@ describe('GiteaReviewSchema', () => {
   })
 
   it('accepts all Gitea review states', () => {
-    const states = ['PENDING', 'APPROVED', 'REQUEST_CHANGES', 'COMMENT', 'REQUEST_REVIEW']
+    const states = [
+      'PENDING',
+      'APPROVED',
+      'REQUEST_CHANGES',
+      'COMMENT',
+      'REQUEST_REVIEW',
+    ]
     for (const state of states) {
       const result = GiteaReviewSchema.parse({ ...validReview, state })
       expect(result.state).toBe(state)

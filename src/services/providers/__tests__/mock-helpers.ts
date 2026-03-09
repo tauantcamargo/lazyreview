@@ -167,9 +167,7 @@ export function createMockReviewThread(
   }
 }
 
-export function createMockLabel(
-  overrides?: Partial<RepoLabel>,
-): RepoLabel {
+export function createMockLabel(overrides?: Partial<RepoLabel>): RepoLabel {
   return {
     id: 1,
     name: 'bug',
@@ -225,11 +223,11 @@ export function createMockProvider(
     capabilities: defaultCapabilities,
 
     // PR read operations
-    listPRs: () =>
-      Effect.succeed({ items: [mockPR] } as PRListResult),
+    listPRs: () => Effect.succeed({ items: [mockPR] } as PRListResult),
     getPR: () => Effect.succeed(mockPR),
     getPRFiles: () => Effect.succeed([mockFileChange]),
-    getPRFilesPage: () => Effect.succeed({ items: [mockFileChange], hasNextPage: false }),
+    getPRFilesPage: () =>
+      Effect.succeed({ items: [mockFileChange], hasNextPage: false }),
     getFileDiff: () => Effect.succeed(mockFileChange),
     getPRComments: () => Effect.succeed([mockComment]),
     getIssueComments: () => Effect.succeed([mockIssueComment]),
@@ -276,7 +274,11 @@ export function createMockProvider(
     markReadyForReview: () => Effect.succeed(undefined as void),
 
     // PR creation
-    createPR: () => Effect.succeed({ number: 42, html_url: 'https://github.com/owner/repo/pull/42' }),
+    createPR: () =>
+      Effect.succeed({
+        number: 42,
+        html_url: 'https://github.com/owner/repo/pull/42',
+      }),
 
     // Label operations
     getLabels: () => Effect.succeed([createMockLabel()]),
@@ -302,22 +304,26 @@ export function createMockProvider(
 export function createMockGitHubProvider(
   overrides?: Partial<Provider>,
 ): Provider {
-  return createMockProvider('github', {
-    supportsDraftPR: true,
-    supportsReviewThreads: true,
-    supportsGraphQL: true,
-    supportsReactions: true,
-    supportsCheckRuns: true,
-    supportsLabels: true,
-    supportsAssignees: true,
-    supportsMergeStrategies: ['merge', 'squash', 'rebase'],
-    supportsStreaming: false,
-    supportsBatchFetch: true,
-    supportsWebhooks: true,
-    supportsSuggestions: true,
-    supportsTimeline: true,
-    supportsBlame: true,
-  }, overrides)
+  return createMockProvider(
+    'github',
+    {
+      supportsDraftPR: true,
+      supportsReviewThreads: true,
+      supportsGraphQL: true,
+      supportsReactions: true,
+      supportsCheckRuns: true,
+      supportsLabels: true,
+      supportsAssignees: true,
+      supportsMergeStrategies: ['merge', 'squash', 'rebase'],
+      supportsStreaming: false,
+      supportsBatchFetch: true,
+      supportsWebhooks: true,
+      supportsSuggestions: true,
+      supportsTimeline: true,
+      supportsBlame: true,
+    },
+    overrides,
+  )
 }
 
 /**
@@ -326,22 +332,26 @@ export function createMockGitHubProvider(
 export function createMockGitLabProvider(
   overrides?: Partial<Provider>,
 ): Provider {
-  return createMockProvider('gitlab', {
-    supportsDraftPR: true,
-    supportsReviewThreads: true,
-    supportsGraphQL: true,
-    supportsReactions: true,
-    supportsCheckRuns: true,
-    supportsLabels: false,
-    supportsAssignees: false,
-    supportsMergeStrategies: ['merge', 'squash', 'rebase'],
-    supportsStreaming: false,
-    supportsBatchFetch: false,
-    supportsWebhooks: false,
-    supportsSuggestions: false,
-    supportsTimeline: false,
-    supportsBlame: false,
-  }, overrides)
+  return createMockProvider(
+    'gitlab',
+    {
+      supportsDraftPR: true,
+      supportsReviewThreads: true,
+      supportsGraphQL: true,
+      supportsReactions: true,
+      supportsCheckRuns: true,
+      supportsLabels: false,
+      supportsAssignees: false,
+      supportsMergeStrategies: ['merge', 'squash', 'rebase'],
+      supportsStreaming: false,
+      supportsBatchFetch: false,
+      supportsWebhooks: false,
+      supportsSuggestions: false,
+      supportsTimeline: false,
+      supportsBlame: false,
+    },
+    overrides,
+  )
 }
 
 /**
@@ -350,22 +360,26 @@ export function createMockGitLabProvider(
 export function createMockBitbucketProvider(
   overrides?: Partial<Provider>,
 ): Provider {
-  return createMockProvider('bitbucket', {
-    supportsDraftPR: false,
-    supportsReviewThreads: false,
-    supportsGraphQL: false,
-    supportsReactions: false,
-    supportsCheckRuns: true,
-    supportsLabels: false,
-    supportsAssignees: false,
-    supportsMergeStrategies: ['merge', 'squash', 'rebase'],
-    supportsStreaming: false,
-    supportsBatchFetch: false,
-    supportsWebhooks: false,
-    supportsSuggestions: false,
-    supportsTimeline: false,
-    supportsBlame: false,
-  }, overrides)
+  return createMockProvider(
+    'bitbucket',
+    {
+      supportsDraftPR: false,
+      supportsReviewThreads: false,
+      supportsGraphQL: false,
+      supportsReactions: false,
+      supportsCheckRuns: true,
+      supportsLabels: false,
+      supportsAssignees: false,
+      supportsMergeStrategies: ['merge', 'squash', 'rebase'],
+      supportsStreaming: false,
+      supportsBatchFetch: false,
+      supportsWebhooks: false,
+      supportsSuggestions: false,
+      supportsTimeline: false,
+      supportsBlame: false,
+    },
+    overrides,
+  )
 }
 
 /**
@@ -376,20 +390,24 @@ export function createMinimalMockProvider(
   type: Provider['type'] = 'bitbucket',
   overrides?: Partial<Provider>,
 ): Provider {
-  return createMockProvider(type, {
-    supportsDraftPR: false,
-    supportsReviewThreads: false,
-    supportsGraphQL: false,
-    supportsReactions: false,
-    supportsCheckRuns: false,
-    supportsLabels: false,
-    supportsAssignees: false,
-    supportsMergeStrategies: ['merge'],
-    supportsStreaming: false,
-    supportsBatchFetch: false,
-    supportsWebhooks: false,
-    supportsSuggestions: false,
-    supportsTimeline: false,
-    supportsBlame: false,
-  }, overrides)
+  return createMockProvider(
+    type,
+    {
+      supportsDraftPR: false,
+      supportsReviewThreads: false,
+      supportsGraphQL: false,
+      supportsReactions: false,
+      supportsCheckRuns: false,
+      supportsLabels: false,
+      supportsAssignees: false,
+      supportsMergeStrategies: ['merge'],
+      supportsStreaming: false,
+      supportsBatchFetch: false,
+      supportsWebhooks: false,
+      supportsSuggestions: false,
+      supportsTimeline: false,
+      supportsBlame: false,
+    },
+    overrides,
+  )
 }

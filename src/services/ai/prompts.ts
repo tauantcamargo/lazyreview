@@ -71,9 +71,10 @@ function buildUserContent(params: LineReviewPromptParams): string {
     parts.push(`PR Title: ${params.prTitle}`)
   }
   if (params.prDescription) {
-    const desc = params.prDescription.length > 500
-      ? `${params.prDescription.slice(0, 500)}...`
-      : params.prDescription
+    const desc =
+      params.prDescription.length > 500
+        ? `${params.prDescription.slice(0, 500)}...`
+        : params.prDescription
     parts.push(`PR Description: ${desc}`)
   }
 

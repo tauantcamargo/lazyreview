@@ -122,7 +122,9 @@ describe('AzureThreadContextSchema', () => {
 
   it('rejects missing filePath', () => {
     expect(() =>
-      AzureThreadContextSchema.parse({ rightFileStart: { line: 1, offset: 1 } }),
+      AzureThreadContextSchema.parse({
+        rightFileStart: { line: 1, offset: 1 },
+      }),
     ).toThrow()
   })
 })

@@ -73,10 +73,7 @@ describe('getExtensionBreakdown', () => {
   })
 
   it('handles files without extension', () => {
-    const files = [
-      makeFile('Makefile', 10, 5),
-      makeFile('Dockerfile', 3, 1),
-    ]
+    const files = [makeFile('Makefile', 10, 5), makeFile('Dockerfile', 3, 1)]
     const breakdown = getExtensionBreakdown(files)
     expect(breakdown).toEqual([{ ext: '(no ext)', count: 2 }])
   })
@@ -135,13 +132,9 @@ describe('getTopFilesByChanges', () => {
   })
 
   it('uses basename for filename', () => {
-    const files = [
-      makeFile('src/components/layout/TopBar.tsx', 50, 10),
-    ]
+    const files = [makeFile('src/components/layout/TopBar.tsx', 50, 10)]
     const top = getTopFilesByChanges(files, 3)
-    expect(top).toEqual([
-      { filename: 'TopBar.tsx', totalChanges: 60 },
-    ])
+    expect(top).toEqual([{ filename: 'TopBar.tsx', totalChanges: 60 }])
   })
 })
 

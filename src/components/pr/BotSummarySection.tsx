@@ -35,9 +35,7 @@ export function BotSummarySection({
         <Text color={theme.colors.info} bold>
           Bot Summary
         </Text>
-        <Text color={theme.colors.muted}>
-          by {comment.user.login}
-        </Text>
+        <Text color={theme.colors.muted}>by {comment.user.login}</Text>
         <Text color={theme.colors.muted} dimColor>
           {isExpanded ? '[B: collapse]' : '[B: expand]'}
         </Text>

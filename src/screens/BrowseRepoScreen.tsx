@@ -53,7 +53,11 @@ function parseRepoUrl(
   const trimmed = input.trim()
 
   // Try parsing as a git remote URL first
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('git@')) {
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('git@')
+  ) {
     const parsed = parseGitRemote(trimmed, configuredHosts)
     if (parsed) {
       return {
@@ -116,7 +120,12 @@ function validateRepoInput(
   }
 
   if (!trimmed.includes('/')) {
-    return { valid: false, owner: '', repo: '', error: 'Format: owner/repo or full URL' }
+    return {
+      valid: false,
+      owner: '',
+      repo: '',
+      error: 'Format: owner/repo or full URL',
+    }
   }
 
   const parts = trimmed.split('/')
@@ -131,9 +140,17 @@ function validateRepoInput(
   // The last segment is the repo, everything before is the owner/namespace
   if (remainingParts.length > 1) {
     const repo = remainingParts[remainingParts.length - 1]?.trim() ?? ''
-    const fullOwner = [owner, ...remainingParts.slice(0, -1).map((p) => p.trim())].join('/')
+    const fullOwner = [
+      owner,
+      ...remainingParts.slice(0, -1).map((p) => p.trim()),
+    ].join('/')
     if (!repo) {
-      return { valid: false, owner: '', repo: '', error: 'Repo cannot be empty' }
+      return {
+        valid: false,
+        owner: '',
+        repo: '',
+        error: 'Repo cannot be empty',
+      }
     }
     // For nested paths, validate each segment
     const allSegments = [fullOwner.split('/'), [repo]].flat()
@@ -148,7 +165,12 @@ function validateRepoInput(
           validateOwner(segment)
         }
       } catch {
-        return { valid: false, owner: '', repo: '', error: 'Invalid characters in path' }
+        return {
+          valid: false,
+          owner: '',
+          repo: '',
+          error: 'Invalid characters in path',
+        }
       }
     }
     return { valid: true, owner: fullOwner, repo, error: null }
@@ -162,13 +184,22 @@ function validateRepoInput(
     validateOwner(owner)
     validateRepo(repo)
   } catch {
-    return { valid: false, owner: '', repo: '', error: 'Invalid characters in owner/repo' }
+    return {
+      valid: false,
+      owner: '',
+      repo: '',
+      error: 'Invalid characters in owner/repo',
+    }
   }
   return { valid: true, owner, repo, error: null }
 }
 
 interface BrowseRepoScreenProps {
-  readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
+  readonly onSelect: (
+    pr: PullRequest,
+    list?: readonly PullRequest[],
+    index?: number,
+  ) => void
   readonly isActive?: boolean
 }
 
@@ -186,7 +217,11 @@ interface BrowsePickerProps {
   readonly configuredHosts?: ConfiguredHosts
 }
 
-function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerProps): React.ReactElement {
+function BrowsePicker({
+  onSelectRepo,
+  isActive,
+  configuredHosts,
+}: BrowsePickerProps): React.ReactElement {
   const theme = useTheme()
   const { setInputActive } = useInputFocus()
   const { recentRepos, removeRecentRepo } = useRecentRepos()
@@ -197,8 +232,12 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
   const [selectedIndex, setSelectedIndex] = useState(0)
 
   // Combined list: bookmarks first, then recent repos (excluding bookmarked ones)
-  const bookmarkSet = new Set(bookmarkedRepos.map((b) => `${b.owner}/${b.repo}`))
-  const filteredRecent = recentRepos.filter((r) => !bookmarkSet.has(`${r.owner}/${r.repo}`))
+  const bookmarkSet = new Set(
+    bookmarkedRepos.map((b) => `${b.owner}/${b.repo}`),
+  )
+  const filteredRecent = recentRepos.filter(
+    (r) => !bookmarkSet.has(`${r.owner}/${r.repo}`),
+  )
   const totalListItems = bookmarkedRepos.length + filteredRecent.length
 
   // Focus the input when panel becomes active, unfocus when it loses focus
@@ -250,7 +289,13 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
         onSelectRepo({ owner: recent.owner, repo: recent.repo })
       }
     }
-  }, [selectedIndex, bookmarkedRepos, filteredRecent, totalListItems, onSelectRepo])
+  }, [
+    selectedIndex,
+    bookmarkedRepos,
+    filteredRecent,
+    totalListItems,
+    onSelectRepo,
+  ])
 
   const handleRemoveFromList = useCallback(() => {
     // Only remove from recent repos, not bookmarks
@@ -264,7 +309,13 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
         }
       }
     }
-  }, [selectedIndex, bookmarkedRepos.length, filteredRecent, totalListItems, removeRecentRepo])
+  }, [
+    selectedIndex,
+    bookmarkedRepos.length,
+    filteredRecent,
+    totalListItems,
+    removeRecentRepo,
+  ])
 
   useInput(
     (input, key) => {
@@ -304,7 +355,9 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
           <Text color={theme.colors.secondary}>repo path or URL:</Text>
           <Box
             borderStyle="single"
-            borderColor={isInputFocused ? theme.colors.accent : theme.colors.border}
+            borderColor={
+              isInputFocused ? theme.colors.accent : theme.colors.border
+            }
             paddingX={1}
             width={40}
           >
@@ -335,7 +388,9 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
                 <Text
                   color={isSelected ? theme.colors.accent : theme.colors.text}
                   bold={isSelected}
-                  backgroundColor={isSelected ? theme.colors.selection : undefined}
+                  backgroundColor={
+                    isSelected ? theme.colors.selection : undefined
+                  }
                 >
                   {isSelected ? '▶ ' : '  '}
                   {bookmark.owner}/{bookmark.repo}
@@ -357,7 +412,9 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
                 <Text
                   color={isSelected ? theme.colors.accent : theme.colors.text}
                   bold={isSelected}
-                  backgroundColor={isSelected ? theme.colors.selection : undefined}
+                  backgroundColor={
+                    isSelected ? theme.colors.selection : undefined
+                  }
                 >
                   {isSelected ? '▶ ' : '  '}
                   {repo.owner}/{repo.repo}
@@ -374,7 +431,8 @@ function BrowsePicker({ onSelectRepo, isActive, configuredHosts }: BrowsePickerP
       {totalListItems === 0 && (
         <Box marginTop={1} paddingX={1}>
           <Text color={theme.colors.muted}>
-            No recent or bookmarked repos. Enter owner/repo above to get started.
+            No recent or bookmarked repos. Enter owner/repo above to get
+            started.
           </Text>
         </Box>
       )}
@@ -394,13 +452,31 @@ interface BrowseListProps {
   readonly owner: string
   readonly repo: string
   readonly onBack: () => void
-  readonly onSelect: (pr: PullRequest, list?: readonly PullRequest[], index?: number) => void
+  readonly onSelect: (
+    pr: PullRequest,
+    list?: readonly PullRequest[],
+    index?: number,
+  ) => void
 }
 
-function BrowseList({ owner, repo, onBack, onSelect }: BrowseListProps): React.ReactElement {
+function BrowseList({
+  owner,
+  repo,
+  onBack,
+  onSelect,
+}: BrowseListProps): React.ReactElement {
   const [stateFilter, setStateFilter] = useState<PRStateFilter>('open')
-  const { data: prs = [], isLoading, error } = usePullRequests(owner, repo, {
-    state: stateFilter === 'all' ? 'all' : stateFilter === 'closed' ? 'closed' : 'open',
+  const {
+    data: prs = [],
+    isLoading,
+    error,
+  } = usePullRequests(owner, repo, {
+    state:
+      stateFilter === 'all'
+        ? 'all'
+        : stateFilter === 'closed'
+          ? 'closed'
+          : 'open',
   })
 
   useEffect(() => {
@@ -438,12 +514,17 @@ function BrowseList({ owner, repo, onBack, onSelect }: BrowseListProps): React.R
  * Convert a ProviderType (from git.ts, includes 'unknown') to Provider (from Config.ts).
  * Returns undefined for unknown providers.
  */
-function toProvider(providerType: ProviderType | undefined): Provider | undefined {
+function toProvider(
+  providerType: ProviderType | undefined,
+): Provider | undefined {
   if (!providerType || providerType === 'unknown') return undefined
   return providerType
 }
 
-export function BrowseRepoScreen({ onSelect, isActive = true }: BrowseRepoScreenProps): React.ReactElement {
+export function BrowseRepoScreen({
+  onSelect,
+  isActive = true,
+}: BrowseRepoScreenProps): React.ReactElement {
   const { setBrowseRepo, clearBrowseRepo } = useRepoContext()
   const { addRecentRepo } = useRecentRepos()
   const { config } = useConfig()

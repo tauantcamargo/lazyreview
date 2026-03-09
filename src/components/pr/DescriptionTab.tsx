@@ -151,10 +151,7 @@ export function DescriptionTab({
     1,
     (stdout?.rows ?? 24) - PR_DETAIL_CONTENT_HEIGHT_RESERVED,
   )
-  const viewportHeight = Math.max(
-    1,
-    contentHeight - DESCRIPTION_HEADER_LINES,
-  )
+  const viewportHeight = Math.max(1, contentHeight - DESCRIPTION_HEADER_LINES)
 
   const botComment = useMemo(
     () => findMostRecentBotComment(issueComments ?? [], botUsernames),
@@ -166,15 +163,9 @@ export function DescriptionTab({
     [pr, allPRs],
   )
 
-  const prChain = useMemo(
-    () => detectPRChain(pr, allPRs ?? []),
-    [pr, allPRs],
-  )
+  const prChain = useMemo(() => detectPRChain(pr, allPRs ?? []), [pr, allPRs])
 
-  const chainStatus = useMemo(
-    () => computeChainStatus(prChain),
-    [prChain],
-  )
+  const chainStatus = useMemo(() => computeChainStatus(prChain), [prChain])
 
   const sections = [
     ...(prChain.length > 1
@@ -212,7 +203,9 @@ export function DescriptionTab({
           />,
         ]
       : []),
-    ...(reviewChecklistState && reviewChecklistState.items.length > 0 && onToggleChecklistItem
+    ...(reviewChecklistState &&
+    reviewChecklistState.items.length > 0 &&
+    onToggleChecklistItem
       ? [
           <ReviewChecklist
             key="review-checklist"

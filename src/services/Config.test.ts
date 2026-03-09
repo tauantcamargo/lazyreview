@@ -87,9 +87,7 @@ describe('AppConfig schema', () => {
   })
 
   it('rejects non-integer pageSize', () => {
-    expect(() =>
-      S.decodeUnknownSync(AppConfig)({ pageSize: 30.5 }),
-    ).toThrow()
+    expect(() => S.decodeUnknownSync(AppConfig)({ pageSize: 30.5 })).toThrow()
   })
 
   it('rejects non-integer refreshInterval', () => {
@@ -99,9 +97,7 @@ describe('AppConfig schema', () => {
   })
 
   it('rejects negative pageSize', () => {
-    expect(() =>
-      S.decodeUnknownSync(AppConfig)({ pageSize: -1 }),
-    ).toThrow()
+    expect(() => S.decodeUnknownSync(AppConfig)({ pageSize: -1 })).toThrow()
   })
 
   it('rejects negative refreshInterval', () => {
@@ -213,7 +209,12 @@ describe('AppConfig schema', () => {
   })
 
   it('handles all themes as string values', () => {
-    for (const theme of ['tokyo-night', 'dracula', 'catppuccin-mocha', 'gruvbox']) {
+    for (const theme of [
+      'tokyo-night',
+      'dracula',
+      'catppuccin-mocha',
+      'gruvbox',
+    ]) {
       const config = S.decodeUnknownSync(AppConfig)({ theme })
       expect(config.theme).toBe(theme)
     }
@@ -239,7 +240,10 @@ describe('AppConfig schema', () => {
         prList: { filterPRs: ['/', 'f'] },
       },
     })
-    expect(config.keybindingOverrides?.['prList']?.['filterPRs']).toEqual(['/', 'f'])
+    expect(config.keybindingOverrides?.['prList']?.['filterPRs']).toEqual([
+      '/',
+      'f',
+    ])
   })
 
   it('accepts keybindingOverrides for multiple contexts', () => {
@@ -264,7 +268,10 @@ describe('AppConfig schema', () => {
     const encoded = S.encodeSync(AppConfig)(config)
     const decoded = S.decodeUnknownSync(AppConfig)(encoded)
     expect(decoded.keybindingOverrides?.['global']?.['toggleHelp']).toBe('h')
-    expect(decoded.keybindingOverrides?.['global']?.['moveDown']).toEqual(['j', 'ctrl+n'])
+    expect(decoded.keybindingOverrides?.['global']?.['moveDown']).toEqual([
+      'j',
+      'ctrl+n',
+    ])
   })
 
   it('config with gitlab round-trips through encode/decode', () => {
@@ -293,7 +300,10 @@ describe('AppConfig schema', () => {
         github: { hosts: ['github.acme.com', 'ghe.corp.net'] },
       },
     })
-    expect(config.providers?.github?.hosts).toEqual(['github.acme.com', 'ghe.corp.net'])
+    expect(config.providers?.github?.hosts).toEqual([
+      'github.acme.com',
+      'ghe.corp.net',
+    ])
   })
 
   it('accepts providers.gitlab.hosts array', () => {
@@ -339,9 +349,7 @@ describe('AppConfig schema', () => {
         github: { hosts: ['ghe.corp.com'] },
         gitlab: { hosts: ['gl.internal.io'] },
       },
-      hostMappings: [
-        { host: 'gitea.corp.com', provider: 'gitea' as const },
-      ],
+      hostMappings: [{ host: 'gitea.corp.com', provider: 'gitea' as const }],
     }
     const config = S.decodeUnknownSync(AppConfig)(input)
     const encoded = S.encodeSync(AppConfig)(config)
@@ -404,9 +412,7 @@ describe('buildHostMappings', () => {
         github: { hosts: ['ghe.corp.com'] },
         gitlab: { hosts: ['gl.corp.com'] },
       },
-      hostMappings: [
-        { host: 'gitea.corp.com', provider: 'gitea' },
-      ],
+      hostMappings: [{ host: 'gitea.corp.com', provider: 'gitea' }],
     })
     const result = buildHostMappings(config)
     expect(result.size).toBe(3)
@@ -503,19 +509,21 @@ describe('getConfiguredInstances', () => {
     const gitlabInstances = instances.filter((i) => i.provider === 'gitlab')
     expect(gitlabInstances.length).toBe(2)
     expect(gitlabInstances.some((i) => i.host === 'gitlab.com')).toBe(true)
-    expect(gitlabInstances.some((i) => i.host === 'gitlab.internal.io')).toBe(true)
+    expect(gitlabInstances.some((i) => i.host === 'gitlab.internal.io')).toBe(
+      true,
+    )
   })
 
   it('includes instances from hostMappings', () => {
     const config = S.decodeUnknownSync(AppConfig)({
-      hostMappings: [
-        { host: 'gitea.mycompany.com', provider: 'gitea' },
-      ],
+      hostMappings: [{ host: 'gitea.mycompany.com', provider: 'gitea' }],
     })
     const instances = getConfiguredInstances(config)
     const giteaInstances = instances.filter((i) => i.provider === 'gitea')
     expect(giteaInstances.length).toBe(2) // default + custom
-    expect(giteaInstances.some((i) => i.host === 'gitea.mycompany.com')).toBe(true)
+    expect(giteaInstances.some((i) => i.host === 'gitea.mycompany.com')).toBe(
+      true,
+    )
   })
 
   it('does not duplicate default hosts', () => {
@@ -527,7 +535,9 @@ describe('getConfiguredInstances', () => {
     const instances = getConfiguredInstances(config)
     const githubInstances = instances.filter((i) => i.provider === 'github')
     // github.com should appear only once
-    const defaultInstances = githubInstances.filter((i) => i.host === 'github.com')
+    const defaultInstances = githubInstances.filter(
+      (i) => i.host === 'github.com',
+    )
     expect(defaultInstances.length).toBe(1)
     expect(defaultInstances[0]?.isDefault).toBe(true)
   })
@@ -538,9 +548,7 @@ describe('getConfiguredInstances', () => {
         github: { hosts: ['github.acme.com'] },
         gitlab: { hosts: ['gitlab.acme.com'] },
       },
-      hostMappings: [
-        { host: 'gitea.acme.com', provider: 'gitea' },
-      ],
+      hostMappings: [{ host: 'gitea.acme.com', provider: 'gitea' }],
     })
     const instances = getConfiguredInstances(config)
     // Should have defaults for all provider types + 3 custom
@@ -698,7 +706,9 @@ describe('flattenV2ToAppConfig', () => {
       },
     }
     const config = flattenV2ToAppConfig(v2)
-    expect(config.hostMappings).toEqual([{ host: 'gt.corp.com', provider: 'gitea' }])
+    expect(config.hostMappings).toEqual([
+      { host: 'gt.corp.com', provider: 'gitea' },
+    ])
   })
 
   it('preserves botUsernames from defaults', () => {
@@ -783,8 +793,12 @@ describe('appConfigToV2', () => {
     expect(restored.pageSize).toBe(original.pageSize)
     expect(restored.refreshInterval).toBe(original.refreshInterval)
     expect(restored.compactList).toBe(original.compactList)
-    expect(restored.providers?.github?.hosts).toEqual(original.providers?.github?.hosts)
-    expect(restored.providers?.gitlab?.hosts).toEqual(original.providers?.gitlab?.hosts)
+    expect(restored.providers?.github?.hosts).toEqual(
+      original.providers?.github?.hosts,
+    )
+    expect(restored.providers?.gitlab?.hosts).toEqual(
+      original.providers?.gitlab?.hosts,
+    )
   })
 
   it('initializes empty ai config section', () => {
@@ -868,8 +882,6 @@ describe('AppConfig AI fields', () => {
   })
 
   it('rejects invalid AI temperature', () => {
-    expect(() =>
-      S.decodeUnknownSync(AppConfig)({ aiTemperature: 3 }),
-    ).toThrow()
+    expect(() => S.decodeUnknownSync(AppConfig)({ aiTemperature: 3 })).toThrow()
   })
 })

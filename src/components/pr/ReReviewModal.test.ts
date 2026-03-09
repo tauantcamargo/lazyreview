@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { buildReviewerList } from './ReReviewModal'
 import type { Review } from '../../models/review'
 
-function makeReview(login: string, state: string, submitted_at: string): Review {
+function makeReview(
+  login: string,
+  state: string,
+  submitted_at: string,
+): Review {
   return {
     id: Math.floor(Math.random() * 10000),
     user: { login, avatar_url: '' },
@@ -31,17 +35,13 @@ describe('buildReviewerList', () => {
   })
 
   it('filters out PENDING reviews', () => {
-    const reviews = [
-      makeReview('bob', 'PENDING', '2025-01-01T00:00:00Z'),
-    ]
+    const reviews = [makeReview('bob', 'PENDING', '2025-01-01T00:00:00Z')]
     const result = buildReviewerList(reviews, [])
     expect(result).toEqual([])
   })
 
   it('adds requested reviewers who have not reviewed', () => {
-    const reviews = [
-      makeReview('alice', 'APPROVED', '2025-01-01T00:00:00Z'),
-    ]
+    const reviews = [makeReview('alice', 'APPROVED', '2025-01-01T00:00:00Z')]
     const requested = [{ login: 'bob' }]
     const result = buildReviewerList(reviews, requested)
     expect(result).toHaveLength(2)

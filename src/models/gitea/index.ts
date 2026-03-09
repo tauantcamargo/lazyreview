@@ -15,14 +15,8 @@ export type {
   GiteaPullRequest,
 } from './pull-request'
 
-export {
-  GiteaIssueCommentSchema,
-  GiteaReviewCommentSchema,
-} from './comment'
-export type {
-  GiteaIssueComment,
-  GiteaReviewComment,
-} from './comment'
+export { GiteaIssueCommentSchema, GiteaReviewCommentSchema } from './comment'
+export type { GiteaIssueComment, GiteaReviewComment } from './comment'
 
 export { GiteaReviewSchema } from './review'
 export type { GiteaReview } from './review'

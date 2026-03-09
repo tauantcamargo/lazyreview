@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import type { AiAnnotation, AiAnnotationSeverity } from '../../services/ai/review-prompts'
+import type {
+  AiAnnotation,
+  AiAnnotationSeverity,
+} from '../../services/ai/review-prompts'
 
 // ---------------------------------------------------------------------------
 // AiAnnotationGutter - Pure logic tests

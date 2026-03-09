@@ -72,10 +72,7 @@ export function parseGitLabRetryAfter(headers: Headers): number | undefined {
  * - `{ message: string }` (most common)
  * - `{ error: string }` (OAuth errors)
  */
-export function mapGitLabError(
-  response: Response,
-  body: string,
-): GitLabError {
+export function mapGitLabError(response: Response, body: string): GitLabError {
   if (response.status === 401) {
     notifyTokenExpired()
   }

@@ -82,9 +82,9 @@ describe('isSummaryConfigured', () => {
   })
 
   it('returns false when apiKey is empty', () => {
-    expect(
-      isSummaryConfigured({ ...configuredAiConfig, apiKey: '' }),
-    ).toBe(false)
+    expect(isSummaryConfigured({ ...configuredAiConfig, apiKey: '' })).toBe(
+      false,
+    )
   })
 
   it('returns true when both provider and apiKey are set', () => {

@@ -58,7 +58,9 @@ describe('computeVisibleSlice', () => {
       expect(result.startIndex).toBe(85)
       expect(result.endIndex).toBe(100)
       expect(result.visibleItems.length).toBe(15)
-      expect(result.visibleItems[result.visibleItems.length - 1]).toBe('item-99')
+      expect(result.visibleItems[result.visibleItems.length - 1]).toBe(
+        'item-99',
+      )
     })
   })
 

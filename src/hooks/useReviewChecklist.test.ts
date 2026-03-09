@@ -36,8 +36,9 @@ const mockSetChecklistState = vi.fn((updater: unknown) => {
   } else {
     stateCapture = {
       ...stateCapture,
-      checklistState:
-        updater as import('../models/review-checklist').ChecklistState | null,
+      checklistState: updater as
+        | import('../models/review-checklist').ChecklistState
+        | null,
     }
   }
 })
@@ -180,7 +181,9 @@ describe('useReviewChecklist', () => {
       expect(typeof updater).toBe('function')
 
       // Apply updater to get new state
-      const newState = (updater as (prev: typeof initialState) => typeof initialState)(initialState)
+      const newState = (
+        updater as (prev: typeof initialState) => typeof initialState
+      )(initialState)
       expect(newState.items[0]!.checked).toBe(false)
       expect(newState.items[1]!.checked).toBe(true)
       expect(newState.items[2]!.checked).toBe(false)
@@ -200,7 +203,9 @@ describe('useReviewChecklist', () => {
 
       result!.toggleItem(0)
       const updater = mockSetChecklistState.mock.calls[0]![0]
-      const newState = (updater as (prev: typeof initialState) => typeof initialState)(initialState)
+      const newState = (
+        updater as (prev: typeof initialState) => typeof initialState
+      )(initialState)
       expect(newState.items[0]!.label).toBe('Tests pass')
       expect(newState.items[0]!.description).toBe('Run pnpm test')
       expect(newState.items[0]!.checked).toBe(true)

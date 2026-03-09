@@ -17,13 +17,7 @@ export const AzureBuildSchema = z.object({
     'postponed',
   ]),
   result: z
-    .enum([
-      'canceled',
-      'failed',
-      'none',
-      'partiallySucceeded',
-      'succeeded',
-    ])
+    .enum(['canceled', 'failed', 'none', 'partiallySucceeded', 'succeeded'])
     .nullable()
     .optional(),
   definition: z

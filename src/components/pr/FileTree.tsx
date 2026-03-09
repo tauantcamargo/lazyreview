@@ -14,7 +14,13 @@ export interface DirNode {
 }
 
 export type DisplayRow =
-  | { indent: number; type: 'dir'; name: string; dirPath: string; isCollapsed: boolean }
+  | {
+      indent: number
+      type: 'dir'
+      name: string
+      dirPath: string
+      isCollapsed: boolean
+    }
   | {
       indent: number
       type: 'file'
@@ -195,9 +201,7 @@ export function FileItem({
 
   return (
     <Box paddingX={0} gap={1} width="100%" flexWrap="nowrap" minWidth={0}>
-      <Text color={reviewDisplay.color}>
-        {reviewDisplay.icon}
-      </Text>
+      <Text color={reviewDisplay.color}>{reviewDisplay.icon}</Text>
       <Text color={statusColor} bold>
         {statusIcon}
       </Text>
@@ -220,4 +224,3 @@ export function FileItem({
     </Box>
   )
 }
-

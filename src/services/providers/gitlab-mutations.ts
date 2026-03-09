@@ -1,6 +1,11 @@
 import { Effect } from 'effect'
 import type { GitHubError, NetworkError } from '../../models/errors'
-import { encodeProjectPath, mutateGitLab, mutateGitLabJson, fetchGitLab } from './gitlab-helpers'
+import {
+  encodeProjectPath,
+  mutateGitLab,
+  mutateGitLabJson,
+  fetchGitLab,
+} from './gitlab-helpers'
 
 // ---------------------------------------------------------------------------
 // Diff position for inline comments
@@ -489,9 +494,5 @@ export function getCurrentUser(
   baseUrl: string,
   token: string,
 ): Effect.Effect<{ readonly username: string }, GitHubError | NetworkError> {
-  return fetchGitLab<{ readonly username: string }>(
-    baseUrl,
-    '/user',
-    token,
-  )
+  return fetchGitLab<{ readonly username: string }>(baseUrl, '/user', token)
 }

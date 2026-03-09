@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { buildGiteaUrl, parseGiteaRetryAfter, mapGiteaError } from './GiteaApiHelpers'
+import {
+  buildGiteaUrl,
+  parseGiteaRetryAfter,
+  mapGiteaError,
+} from './GiteaApiHelpers'
 
 // Mock dependencies that the module imports
 vi.mock('../hooks/useRateLimit', () => ({
@@ -18,7 +22,10 @@ vi.mock('../hooks/useTokenExpired', () => ({
 
 describe('buildGiteaUrl', () => {
   it('builds a URL without params', () => {
-    const url = buildGiteaUrl('https://gitea.example.com/api/v1', '/repos/owner/repo/pulls')
+    const url = buildGiteaUrl(
+      'https://gitea.example.com/api/v1',
+      '/repos/owner/repo/pulls',
+    )
     expect(url).toBe('https://gitea.example.com/api/v1/repos/owner/repo/pulls')
   })
 
@@ -82,7 +89,11 @@ describe('mapGiteaError', () => {
   it('extracts message from JSON response', () => {
     const response = new Response('', { status: 404, statusText: 'Not Found' })
     const body = JSON.stringify({ message: 'repo not found' })
-    const error = mapGiteaError(response, body, 'https://gitea.example.com/api/v1/repos/owner/repo')
+    const error = mapGiteaError(
+      response,
+      body,
+      'https://gitea.example.com/api/v1/repos/owner/repo',
+    )
 
     expect(error.message).toBe('Resource not found')
     expect(error.detail).toBe('repo not found')
@@ -91,7 +102,10 @@ describe('mapGiteaError', () => {
   })
 
   it('uses raw body for non-JSON responses', () => {
-    const response = new Response('', { status: 500, statusText: 'Internal Server Error' })
+    const response = new Response('', {
+      status: 500,
+      statusText: 'Internal Server Error',
+    })
     const body = 'something went wrong'
     const error = mapGiteaError(response, body)
 
@@ -114,7 +128,10 @@ describe('mapGiteaError', () => {
   })
 
   it('handles 401 responses', () => {
-    const response = new Response('', { status: 401, statusText: 'Unauthorized' })
+    const response = new Response('', {
+      status: 401,
+      statusText: 'Unauthorized',
+    })
     const error = mapGiteaError(response, '{}')
 
     expect(error.message).toBe('Authentication failed')
@@ -123,7 +140,10 @@ describe('mapGiteaError', () => {
 
   it('handles 403 responses', () => {
     const response = new Response('', { status: 403, statusText: 'Forbidden' })
-    const error = mapGiteaError(response, JSON.stringify({ message: 'access denied' }))
+    const error = mapGiteaError(
+      response,
+      JSON.stringify({ message: 'access denied' }),
+    )
 
     expect(error.message).toBe('Permission denied')
     expect(error.detail).toBe('access denied')

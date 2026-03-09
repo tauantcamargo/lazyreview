@@ -65,10 +65,7 @@ export function parseAzureRetryAfter(headers: Headers): number | undefined {
  * - `{ $id: string, message: string }`
  * - `{ value: { Message: string } }`
  */
-export function mapAzureError(
-  response: Response,
-  body: string,
-): AzureError {
+export function mapAzureError(response: Response, body: string): AzureError {
   if (response.status === 401 || response.status === 203) {
     notifyTokenExpired()
   }
@@ -77,11 +74,7 @@ export function mapAzureError(
   try {
     const parsed = JSON.parse(body)
     if (typeof parsed === 'object' && parsed !== null) {
-      detail =
-        parsed.message ??
-        parsed.Message ??
-        parsed.value?.Message ??
-        body
+      detail = parsed.message ?? parsed.Message ?? parsed.value?.Message ?? body
     }
   } catch {
     // body is not JSON, use as-is

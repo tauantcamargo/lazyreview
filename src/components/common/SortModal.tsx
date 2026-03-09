@@ -52,7 +52,12 @@ export function SortModal({
   const items = useMemo(
     () =>
       SORT_OPTIONS.map((option) => ({
-        label: formatSortLabel(option.key, option.label, currentSort, sortDirection),
+        label: formatSortLabel(
+          option.key,
+          option.label,
+          currentSort,
+          sortDirection,
+        ),
         value: option.key,
       })),
     [currentSort, sortDirection],

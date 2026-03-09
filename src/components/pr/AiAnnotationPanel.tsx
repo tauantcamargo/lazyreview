@@ -9,7 +9,10 @@
 import React from 'react'
 import { Box, Text, useInput } from 'ink'
 import { useTheme } from '../../theme/index'
-import type { AiAnnotation, AiAnnotationSeverity } from '../../services/ai/review-prompts'
+import type {
+  AiAnnotation,
+  AiAnnotationSeverity,
+} from '../../services/ai/review-prompts'
 
 // ---------------------------------------------------------------------------
 // Types

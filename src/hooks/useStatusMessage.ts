@@ -11,7 +11,11 @@ interface StatusState {
 
 interface StatusMessageStore {
   readonly subscribe: (listener: Listener) => () => void
-  readonly setMessage: (msg: string, durationMs?: number, type?: StatusMessageType) => void
+  readonly setMessage: (
+    msg: string,
+    durationMs?: number,
+    type?: StatusMessageType,
+  ) => void
   readonly getSnapshot: () => StatusState
 }
 
@@ -33,7 +37,11 @@ function createStatusMessageStore(): StatusMessageStore {
         listeners = listeners.filter((l) => l !== listener)
       }
     },
-    setMessage(msg: string, durationMs = 2000, type: StatusMessageType = 'info') {
+    setMessage(
+      msg: string,
+      durationMs = 2000,
+      type: StatusMessageType = 'info',
+    ) {
       if (timerId !== null) {
         clearTimeout(timerId)
       }
@@ -56,7 +64,11 @@ const store = createStatusMessageStore()
 export function useStatusMessage(): {
   readonly message: string | null
   readonly messageType: StatusMessageType
-  readonly setStatusMessage: (msg: string, durationMsOrType?: number | StatusMessageType, type?: StatusMessageType) => void
+  readonly setStatusMessage: (
+    msg: string,
+    durationMsOrType?: number | StatusMessageType,
+    type?: StatusMessageType,
+  ) => void
 } {
   const state = useSyncExternalStore(
     store.subscribe,
@@ -65,7 +77,11 @@ export function useStatusMessage(): {
   )
 
   const setStatusMessage = useCallback(
-    (msg: string, durationMsOrType?: number | StatusMessageType, type?: StatusMessageType) => {
+    (
+      msg: string,
+      durationMsOrType?: number | StatusMessageType,
+      type?: StatusMessageType,
+    ) => {
       // Support both call signatures:
       // setStatusMessage('msg', 2000, 'success')
       // setStatusMessage('msg', 'success')
@@ -78,5 +94,9 @@ export function useStatusMessage(): {
     [],
   )
 
-  return { message: state.message, messageType: state.type, setStatusMessage } as const
+  return {
+    message: state.message,
+    messageType: state.type,
+    setStatusMessage,
+  } as const
 }

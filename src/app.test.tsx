@@ -97,9 +97,7 @@ function TestAppShell({
                 provider="github"
               />
               <Sidebar selectedIndex={0} visible={true} isActive={true} />
-              <MainPanel isActive={false}>
-                {children}
-              </MainPanel>
+              <MainPanel isActive={false}>{children}</MainPanel>
               <StatusBar />
               {!authenticated && (
                 <TokenInputModal

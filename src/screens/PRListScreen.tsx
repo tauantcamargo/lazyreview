@@ -246,11 +246,17 @@ export function PRListScreen({
           const selected = selectedIndices
             .map((i) => pageItems[i])
             .filter((pr): pr is PullRequest => pr !== undefined)
-          const openPRs = selected.filter((pr) => pr.state === 'open' && !pr.merged)
+          const openPRs = selected.filter(
+            (pr) => pr.state === 'open' && !pr.merged,
+          )
           for (const pr of openPRs) {
             const parsed = parseGitHubPRUrl(pr.html_url)
             if (parsed) {
-              closePR.mutate({ owner: parsed.owner, repo: parsed.repo, prNumber: pr.number })
+              closePR.mutate({
+                owner: parsed.owner,
+                repo: parsed.repo,
+                prNumber: pr.number,
+              })
             }
           }
           setStatusMessage(`Closing ${openPRs.length} PR(s)...`)

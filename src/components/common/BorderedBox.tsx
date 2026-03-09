@@ -22,7 +22,8 @@ export function BorderedBox({
   children,
 }: BorderedBoxProps): React.ReactElement {
   const theme = useTheme()
-  const borderColor = statusColor ?? (isActive ? theme.colors.accent : theme.colors.border)
+  const borderColor =
+    statusColor ?? (isActive ? theme.colors.accent : theme.colors.border)
 
   return (
     <Box
@@ -33,7 +34,11 @@ export function BorderedBox({
       borderColor={borderColor}
     >
       <Box paddingX={1} flexDirection="column">
-        <Text bold={isActive} color={borderColor} dimColor={!isActive && !statusColor}>
+        <Text
+          bold={isActive}
+          color={borderColor}
+          dimColor={!isActive && !statusColor}
+        >
           {title}
         </Text>
         {subtitle && (

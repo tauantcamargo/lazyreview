@@ -92,7 +92,8 @@ describe('buildPRSummaryPrompt', () => {
   it('user message includes diff sample when provided', () => {
     const messages = buildPRSummaryPrompt({
       ...baseParams,
-      diffSample: 'diff --git a/src/auth/oauth.ts\n+const handler = async () => {}',
+      diffSample:
+        'diff --git a/src/auth/oauth.ts\n+const handler = async () => {}',
     })
     const user = messages[1]!.content
     expect(user).toContain('diff --git a/src/auth/oauth.ts')

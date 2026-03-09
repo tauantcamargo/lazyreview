@@ -10,7 +10,10 @@ import type { RepoLabel } from '../models/label'
 import type { User } from '../models/user'
 import type { ReactionType } from '../models/reaction'
 import type { TimelineEvent } from '../models/timeline-event'
-import type { SuggestionParams, AcceptSuggestionParams } from '../models/suggestion'
+import type {
+  SuggestionParams,
+  AcceptSuggestionParams,
+} from '../models/suggestion'
 import type { BlameInfo } from '../models/blame'
 import type { PRFilesPage } from './providers/types'
 import type {
@@ -321,7 +324,10 @@ export interface CodeReviewApiService {
     baseBranch: string,
     headBranch: string,
     draft?: boolean,
-  ) => Effect.Effect<{ readonly number: number; readonly html_url: string }, ApiError>
+  ) => Effect.Effect<
+    { readonly number: number; readonly html_url: string },
+    ApiError
+  >
 
   // -- Assignee operations --------------------------------------------------
 
@@ -349,7 +355,10 @@ export interface CodeReviewApiService {
 
   // -- User info ------------------------------------------------------------
 
-  readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>
+  readonly getCurrentUser: () => Effect.Effect<
+    { readonly login: string },
+    ApiError
+  >
 
   // -- V2 optional methods (providers may or may not implement these) -------
 

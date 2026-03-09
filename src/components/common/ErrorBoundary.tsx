@@ -6,7 +6,10 @@ interface ErrorFallbackProps {
   readonly onRetry: () => void
 }
 
-function ErrorFallback({ error, onRetry }: ErrorFallbackProps): React.ReactElement {
+function ErrorFallback({
+  error,
+  onRetry,
+}: ErrorFallbackProps): React.ReactElement {
   const { exit } = useApp()
 
   useInput((input) => {
@@ -46,7 +49,10 @@ interface ErrorBoundaryState {
   readonly error: Error | null
 }
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { error: null }
@@ -62,7 +68,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   render(): React.ReactNode {
     if (this.state.error) {
-      return <ErrorFallback error={this.state.error} onRetry={this.handleRetry} />
+      return (
+        <ErrorFallback error={this.state.error} onRetry={this.handleRetry} />
+      )
     }
     return this.props.children
   }

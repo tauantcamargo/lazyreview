@@ -89,18 +89,11 @@ export function TopBar({
   const label = connectionLabel(connectionStatus)
 
   return (
-    <Box
-      height={1}
-      width="100%"
-      justifyContent="space-between"
-      paddingX={1}
-    >
+    <Box height={1} width="100%" justifyContent="space-between" paddingX={1}>
       <Box gap={0}>
         {breadcrumbs.map((segment, i) => (
           <React.Fragment key={i}>
-            {i > 0 && (
-              <Text color={theme.colors.border}> {'›'} </Text>
-            )}
+            {i > 0 && <Text color={theme.colors.border}> {'›'} </Text>}
             <Text
               color={i === 0 ? theme.colors.accent : theme.colors.text}
               bold={i === 0}

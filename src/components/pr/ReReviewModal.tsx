@@ -17,7 +17,10 @@ interface ReReviewModalProps {
   readonly error: string | null
 }
 
-function getStatusColor(status: string, theme: ReturnType<typeof useTheme>): string {
+function getStatusColor(
+  status: string,
+  theme: ReturnType<typeof useTheme>,
+): string {
   switch (status) {
     case 'APPROVED':
       return theme.colors.success
@@ -154,10 +157,14 @@ export function ReReviewModal({
 
             return (
               <Box key={reviewer.login} gap={1}>
-                <Text color={isFocused ? theme.colors.accent : theme.colors.muted}>
+                <Text
+                  color={isFocused ? theme.colors.accent : theme.colors.muted}
+                >
                   {isFocused ? '>' : ' '}
                 </Text>
-                <Text color={isSelected ? theme.colors.accent : theme.colors.muted}>
+                <Text
+                  color={isSelected ? theme.colors.accent : theme.colors.muted}
+                >
                   [{isSelected ? 'x' : ' '}]
                 </Text>
                 <Text
@@ -185,9 +192,7 @@ export function ReReviewModal({
           <Text color={theme.colors.info}>Requesting re-review...</Text>
         )}
 
-        {error && (
-          <Text color={theme.colors.error}>{error}</Text>
-        )}
+        {error && <Text color={theme.colors.error}>{error}</Text>}
 
         <Text color={theme.colors.muted} dimColor>
           j/k: navigate | Enter: toggle | Ctrl+S: submit | Esc: cancel

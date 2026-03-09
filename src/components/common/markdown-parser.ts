@@ -134,10 +134,7 @@ export function parseBlocks(text: string): readonly ParsedBlock[] {
     // Task list (must be checked before regular unordered list)
     if (/^\s*[-*+]\s\[[ xX]]\s/.test(line)) {
       const taskLines: string[] = []
-      while (
-        i < lines.length &&
-        /^\s*[-*+]\s\[[ xX]]\s/.test(lines[i]!)
-      ) {
+      while (i < lines.length && /^\s*[-*+]\s\[[ xX]]\s/.test(lines[i]!)) {
         taskLines.push(lines[i]!.replace(/^\s*[-*+]\s/, ''))
         i++
       }

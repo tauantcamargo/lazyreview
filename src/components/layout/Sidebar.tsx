@@ -183,11 +183,14 @@ function renderIconOnly(
             <Box key={label} paddingX={0} marginLeft={1}>
               <Text
                 color={isSelected ? theme.colors.accent : theme.colors.text}
-                backgroundColor={isSelected ? theme.colors.selection : undefined}
+                backgroundColor={
+                  isSelected ? theme.colors.selection : undefined
+                }
                 bold={isSelected}
                 dimColor={!isActive && !isSelected}
               >
-                {icon}{abbrev}
+                {icon}
+                {abbrev}
               </Text>
               {count !== null && count > 0 && (
                 <Text color={theme.colors.muted} dimColor={!isActive}>

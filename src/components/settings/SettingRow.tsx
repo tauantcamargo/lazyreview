@@ -59,7 +59,11 @@ export function SettingRow({
   )
 }
 
-export function TokenSourceLabel({ source }: { readonly source: TokenSource }): React.ReactElement {
+export function TokenSourceLabel({
+  source,
+}: {
+  readonly source: TokenSource
+}): React.ReactElement {
   const theme = useTheme()
 
   const labels: Record<TokenSource, { text: string; color: string }> = {

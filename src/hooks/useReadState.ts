@@ -133,8 +133,7 @@ export function createReadStateStore(): ReadStateStore {
       const entry = data[htmlUrl]
       if (!entry) return true
       return (
-        new Date(prUpdatedAt).getTime() >
-        new Date(entry.prUpdatedAt).getTime()
+        new Date(prUpdatedAt).getTime() > new Date(entry.prUpdatedAt).getTime()
       )
     },
   }

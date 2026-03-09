@@ -69,7 +69,11 @@ afterEach(() => {
 })
 
 // Helper to extract the URL and body from the last fetch call
-function getLastFetchCall(): { url: string; method: string; body: Record<string, unknown> } {
+function getLastFetchCall(): {
+  url: string
+  method: string
+  body: Record<string, unknown>
+} {
   const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
   const lastCall = calls[calls.length - 1]
   const url = lastCall[0] as string
@@ -258,9 +262,7 @@ describe('editNote', () => {
 describe('deleteNote', () => {
   it('sends DELETE to note endpoint', async () => {
     mockFetchResponse()
-    await Effect.runPromise(
-      deleteNote(BASE_URL, TOKEN, OWNER, REPO, 10, 99),
-    )
+    await Effect.runPromise(deleteNote(BASE_URL, TOKEN, OWNER, REPO, 10, 99))
 
     const { url, method } = getLastFetchCall()
     expect(method).toBe('DELETE')
@@ -277,9 +279,7 @@ describe('deleteNote', () => {
 describe('mergeMR', () => {
   it('sends PUT to merge endpoint for merge method', async () => {
     mockFetchResponse()
-    await Effect.runPromise(
-      mergeMR(BASE_URL, TOKEN, OWNER, REPO, 42, 'merge'),
-    )
+    await Effect.runPromise(mergeMR(BASE_URL, TOKEN, OWNER, REPO, 42, 'merge'))
 
     const { url, method, body } = getLastFetchCall()
     expect(method).toBe('PUT')
@@ -291,9 +291,7 @@ describe('mergeMR', () => {
 
   it('sets squash=true for squash method', async () => {
     mockFetchResponse()
-    await Effect.runPromise(
-      mergeMR(BASE_URL, TOKEN, OWNER, REPO, 42, 'squash'),
-    )
+    await Effect.runPromise(mergeMR(BASE_URL, TOKEN, OWNER, REPO, 42, 'squash'))
 
     const { body } = getLastFetchCall()
     expect(body.squash).toBe(true)
@@ -302,7 +300,16 @@ describe('mergeMR', () => {
   it('includes squash_commit_message for squash with title', async () => {
     mockFetchResponse()
     await Effect.runPromise(
-      mergeMR(BASE_URL, TOKEN, OWNER, REPO, 42, 'squash', 'My Title', 'My Body'),
+      mergeMR(
+        BASE_URL,
+        TOKEN,
+        OWNER,
+        REPO,
+        42,
+        'squash',
+        'My Title',
+        'My Body',
+      ),
     )
 
     const { body } = getLastFetchCall()
@@ -323,7 +330,16 @@ describe('mergeMR', () => {
   it('includes merge_commit_message for merge with title', async () => {
     mockFetchResponse()
     await Effect.runPromise(
-      mergeMR(BASE_URL, TOKEN, OWNER, REPO, 42, 'merge', 'Merge Title', 'Merge Body'),
+      mergeMR(
+        BASE_URL,
+        TOKEN,
+        OWNER,
+        REPO,
+        42,
+        'merge',
+        'Merge Title',
+        'Merge Body',
+      ),
     )
 
     const { body } = getLastFetchCall()
@@ -333,9 +349,7 @@ describe('mergeMR', () => {
 
   it('handles rebase method with squash=false', async () => {
     mockFetchResponse()
-    await Effect.runPromise(
-      mergeMR(BASE_URL, TOKEN, OWNER, REPO, 42, 'rebase'),
-    )
+    await Effect.runPromise(mergeMR(BASE_URL, TOKEN, OWNER, REPO, 42, 'rebase'))
 
     const { body } = getLastFetchCall()
     expect(body.squash).toBe(false)
@@ -353,9 +367,7 @@ describe('closeMR', () => {
 
     const { url, method, body } = getLastFetchCall()
     expect(method).toBe('PUT')
-    expect(url).toBe(
-      `${BASE_URL}/projects/${ENCODED_PATH}/merge_requests/42`,
-    )
+    expect(url).toBe(`${BASE_URL}/projects/${ENCODED_PATH}/merge_requests/42`)
     expect(body).toEqual({ state_event: 'close' })
   })
 })
@@ -367,9 +379,7 @@ describe('reopenMR', () => {
 
     const { url, method, body } = getLastFetchCall()
     expect(method).toBe('PUT')
-    expect(url).toBe(
-      `${BASE_URL}/projects/${ENCODED_PATH}/merge_requests/42`,
-    )
+    expect(url).toBe(`${BASE_URL}/projects/${ENCODED_PATH}/merge_requests/42`)
     expect(body).toEqual({ state_event: 'reopen' })
   })
 })
@@ -505,9 +515,7 @@ describe('requestReview', () => {
 describe('getCurrentUser', () => {
   it('sends GET to /user endpoint', async () => {
     mockFetchResponse({ body: { username: 'alice', id: 1 } })
-    const result = await Effect.runPromise(
-      getCurrentUser(BASE_URL, TOKEN),
-    )
+    const result = await Effect.runPromise(getCurrentUser(BASE_URL, TOKEN))
 
     expect(result.username).toBe('alice')
     expect(globalThis.fetch).toHaveBeenCalledWith(

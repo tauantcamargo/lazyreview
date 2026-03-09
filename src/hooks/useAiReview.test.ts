@@ -88,9 +88,7 @@ describe('AI config validation', () => {
   })
 
   it('returns false when apiKey is empty', () => {
-    expect(
-      isAiConfigured({ ...configuredAiConfig, apiKey: '' }),
-    ).toBe(false)
+    expect(isAiConfigured({ ...configuredAiConfig, apiKey: '' })).toBe(false)
   })
 
   it('returns true when both provider and apiKey are set', () => {
@@ -98,9 +96,9 @@ describe('AI config validation', () => {
   })
 
   it('returns false when provider is empty but apiKey is set', () => {
-    expect(
-      isAiConfigured({ ...unconfiguredAiConfig, apiKey: 'key' }),
-    ).toBe(false)
+    expect(isAiConfigured({ ...unconfiguredAiConfig, apiKey: 'key' })).toBe(
+      false,
+    )
   })
 })
 

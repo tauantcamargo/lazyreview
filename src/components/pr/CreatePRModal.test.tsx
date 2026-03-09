@@ -228,8 +228,12 @@ describe('CreatePRModal data logic', () => {
     it('draft toggle display text', () => {
       const draftOn = true
       const draftOff = false
-      expect(draftOn ? '[x] Draft PR' : '[ ] Ready for review').toBe('[x] Draft PR')
-      expect(draftOff ? '[x] Draft PR' : '[ ] Ready for review').toBe('[ ] Ready for review')
+      expect(draftOn ? '[x] Draft PR' : '[ ] Ready for review').toBe(
+        '[x] Draft PR',
+      )
+      expect(draftOff ? '[x] Draft PR' : '[ ] Ready for review').toBe(
+        '[ ] Ready for review',
+      )
     })
   })
 

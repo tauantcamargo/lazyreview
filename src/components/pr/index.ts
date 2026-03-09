@@ -21,7 +21,12 @@ export { TimelineItemView } from './TimelineItemView'
 export type { TimelineItem } from './TimelineItemView'
 export { ReviewSummary } from './ReviewSummary'
 export { CommitsTab } from './CommitsTab'
-export { TimelineTab, getEventIcon, getEventDescription, getEventColorKey } from './TimelineTab'
+export {
+  TimelineTab,
+  getEventIcon,
+  getEventDescription,
+  getEventColorKey,
+} from './TimelineTab'
 export { CheckStatusIcon } from './CheckStatusIcon'
 export { CheckStatusSummary } from './CheckStatusSummary'
 export { ReviewModal } from './ReviewModal'

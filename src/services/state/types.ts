@@ -136,12 +136,19 @@ export interface StateStore {
 
   // Diff bookmarks
   readonly getDiffBookmarks: (key: string) => readonly StoredDiffBookmark[]
-  readonly setDiffBookmark: (key: string, bookmark: Omit<StoredDiffBookmark, 'key' | 'createdAt'>) => void
+  readonly setDiffBookmark: (
+    key: string,
+    bookmark: Omit<StoredDiffBookmark, 'key' | 'createdAt'>,
+  ) => void
   readonly removeDiffBookmark: (key: string, register: string) => void
 
   // Review checklists
   readonly getChecklistState: (key: string) => readonly StoredChecklistItem[]
-  readonly setChecklistItem: (key: string, item: string, checked: boolean) => void
+  readonly setChecklistItem: (
+    key: string,
+    item: string,
+    checked: boolean,
+  ) => void
 
   // Key-value store
   readonly getKV: (key: string) => string | undefined

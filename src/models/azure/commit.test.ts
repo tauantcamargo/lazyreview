@@ -56,9 +56,7 @@ describe('AzureCommitSchema', () => {
   })
 
   it('rejects missing author', () => {
-    expect(() =>
-      AzureCommitSchema.parse({ commitId: 'abc123' }),
-    ).toThrow()
+    expect(() => AzureCommitSchema.parse({ commitId: 'abc123' })).toThrow()
   })
 })
 

@@ -73,6 +73,8 @@ export function resolveTemplate(
     return { text: fullText, cursorOffset: fullText.length }
   }
 
-  const text = fullText.slice(0, cursorIndex) + fullText.slice(cursorIndex + CURSOR_PLACEHOLDER.length)
+  const text =
+    fullText.slice(0, cursorIndex) +
+    fullText.slice(cursorIndex + CURSOR_PLACEHOLDER.length)
   return { text, cursorOffset: cursorIndex }
 }

@@ -1,10 +1,21 @@
 import { describe, it, expect } from 'vitest'
-import type { Provider, ProviderConfig, ProviderCapabilities, ProviderType } from './types'
+import type {
+  Provider,
+  ProviderConfig,
+  ProviderCapabilities,
+  ProviderType,
+} from './types'
 import { getDefaultBaseUrl } from './types'
 
 describe('ProviderType', () => {
   it('accepts all supported provider types', () => {
-    const types: ProviderType[] = ['github', 'gitlab', 'bitbucket', 'azure', 'gitea']
+    const types: ProviderType[] = [
+      'github',
+      'gitlab',
+      'bitbucket',
+      'azure',
+      'gitea',
+    ]
     expect(types).toHaveLength(5)
   })
 })
@@ -26,7 +37,13 @@ describe('ProviderConfig', () => {
   })
 
   it('supports all provider types', () => {
-    const types: ProviderType[] = ['github', 'gitlab', 'bitbucket', 'azure', 'gitea']
+    const types: ProviderType[] = [
+      'github',
+      'gitlab',
+      'bitbucket',
+      'azure',
+      'gitea',
+    ]
     for (const type of types) {
       const config: ProviderConfig = {
         type,

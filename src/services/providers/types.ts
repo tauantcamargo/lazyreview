@@ -10,7 +10,10 @@ import type { RepoLabel } from '../../models/label'
 import type { User } from '../../models/user'
 import type { ReactionType } from '../../models/reaction'
 import type { TimelineEvent } from '../../models/timeline-event'
-import type { SuggestionParams, AcceptSuggestionParams } from '../../models/suggestion'
+import type {
+  SuggestionParams,
+  AcceptSuggestionParams,
+} from '../../models/suggestion'
 import type { BlameInfo } from '../../models/blame'
 import type { ApiError, ReviewThread } from '../CodeReviewApiTypes'
 
@@ -121,23 +124,53 @@ export interface Provider {
   readonly capabilities: ProviderCapabilities
 
   // PR read operations
-  readonly listPRs: (params: ListPRsParams) => Effect.Effect<PRListResult, ApiError>
+  readonly listPRs: (
+    params: ListPRsParams,
+  ) => Effect.Effect<PRListResult, ApiError>
   readonly getPR: (number: number) => Effect.Effect<PullRequest, ApiError>
-  readonly getPRFiles: (number: number) => Effect.Effect<readonly FileChange[], ApiError>
-  readonly getPRFilesPage: (number: number, page: number) => Effect.Effect<PRFilesPage, ApiError>
-  readonly getFileDiff: (number: number, filename: string) => Effect.Effect<FileChange | null, ApiError>
-  readonly getPRComments: (number: number) => Effect.Effect<readonly Comment[], ApiError>
-  readonly getIssueComments: (issueNumber: number) => Effect.Effect<readonly IssueComment[], ApiError>
-  readonly getPRReviews: (number: number) => Effect.Effect<readonly Review[], ApiError>
-  readonly getPRCommits: (number: number) => Effect.Effect<readonly Commit[], ApiError>
-  readonly getPRChecks: (ref: string) => Effect.Effect<CheckRunsResponse, ApiError>
-  readonly getReviewThreads: (prNumber: number) => Effect.Effect<readonly ReviewThread[], ApiError>
-  readonly getCommitDiff: (sha: string) => Effect.Effect<readonly FileChange[], ApiError>
+  readonly getPRFiles: (
+    number: number,
+  ) => Effect.Effect<readonly FileChange[], ApiError>
+  readonly getPRFilesPage: (
+    number: number,
+    page: number,
+  ) => Effect.Effect<PRFilesPage, ApiError>
+  readonly getFileDiff: (
+    number: number,
+    filename: string,
+  ) => Effect.Effect<FileChange | null, ApiError>
+  readonly getPRComments: (
+    number: number,
+  ) => Effect.Effect<readonly Comment[], ApiError>
+  readonly getIssueComments: (
+    issueNumber: number,
+  ) => Effect.Effect<readonly IssueComment[], ApiError>
+  readonly getPRReviews: (
+    number: number,
+  ) => Effect.Effect<readonly Review[], ApiError>
+  readonly getPRCommits: (
+    number: number,
+  ) => Effect.Effect<readonly Commit[], ApiError>
+  readonly getPRChecks: (
+    ref: string,
+  ) => Effect.Effect<CheckRunsResponse, ApiError>
+  readonly getReviewThreads: (
+    prNumber: number,
+  ) => Effect.Effect<readonly ReviewThread[], ApiError>
+  readonly getCommitDiff: (
+    sha: string,
+  ) => Effect.Effect<readonly FileChange[], ApiError>
 
   // User-scoped PR queries
-  readonly getMyPRs: (stateFilter?: 'open' | 'closed' | 'all') => Effect.Effect<readonly PullRequest[], ApiError>
-  readonly getReviewRequests: (stateFilter?: 'open' | 'closed' | 'all') => Effect.Effect<readonly PullRequest[], ApiError>
-  readonly getInvolvedPRs: (stateFilter?: 'open' | 'closed' | 'all') => Effect.Effect<readonly PullRequest[], ApiError>
+  readonly getMyPRs: (
+    stateFilter?: 'open' | 'closed' | 'all',
+  ) => Effect.Effect<readonly PullRequest[], ApiError>
+  readonly getReviewRequests: (
+    stateFilter?: 'open' | 'closed' | 'all',
+  ) => Effect.Effect<readonly PullRequest[], ApiError>
+  readonly getInvolvedPRs: (
+    stateFilter?: 'open' | 'closed' | 'all',
+  ) => Effect.Effect<readonly PullRequest[], ApiError>
 
   // Review mutations
   readonly submitReview: (
@@ -145,23 +178,47 @@ export interface Provider {
     body: string,
     event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
   ) => Effect.Effect<void, ApiError>
-  readonly createPendingReview: (prNumber: number) => Effect.Effect<{ readonly id: number }, ApiError>
-  readonly addPendingReviewComment: (params: AddPendingReviewCommentParams) => Effect.Effect<void, ApiError>
+  readonly createPendingReview: (
+    prNumber: number,
+  ) => Effect.Effect<{ readonly id: number }, ApiError>
+  readonly addPendingReviewComment: (
+    params: AddPendingReviewCommentParams,
+  ) => Effect.Effect<void, ApiError>
   readonly submitPendingReview: (
     prNumber: number,
     reviewId: number,
     body: string,
     event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
   ) => Effect.Effect<void, ApiError>
-  readonly discardPendingReview: (prNumber: number, reviewId: number) => Effect.Effect<void, ApiError>
+  readonly discardPendingReview: (
+    prNumber: number,
+    reviewId: number,
+  ) => Effect.Effect<void, ApiError>
 
   // Comment mutations
-  readonly addComment: (issueNumber: number, body: string) => Effect.Effect<void, ApiError>
-  readonly addDiffComment: (params: AddDiffCommentParams) => Effect.Effect<void, ApiError>
-  readonly replyToComment: (prNumber: number, commentId: number, body: string) => Effect.Effect<void, ApiError>
-  readonly editIssueComment: (commentId: number, body: string) => Effect.Effect<void, ApiError>
-  readonly editReviewComment: (commentId: number, body: string) => Effect.Effect<void, ApiError>
-  readonly deleteReviewComment: (commentId: number) => Effect.Effect<void, ApiError>
+  readonly addComment: (
+    issueNumber: number,
+    body: string,
+  ) => Effect.Effect<void, ApiError>
+  readonly addDiffComment: (
+    params: AddDiffCommentParams,
+  ) => Effect.Effect<void, ApiError>
+  readonly replyToComment: (
+    prNumber: number,
+    commentId: number,
+    body: string,
+  ) => Effect.Effect<void, ApiError>
+  readonly editIssueComment: (
+    commentId: number,
+    body: string,
+  ) => Effect.Effect<void, ApiError>
+  readonly editReviewComment: (
+    commentId: number,
+    body: string,
+  ) => Effect.Effect<void, ApiError>
+  readonly deleteReviewComment: (
+    commentId: number,
+  ) => Effect.Effect<void, ApiError>
 
   // PR state mutations
   readonly mergePR: (
@@ -172,9 +229,18 @@ export interface Provider {
   ) => Effect.Effect<void, ApiError>
   readonly closePR: (prNumber: number) => Effect.Effect<void, ApiError>
   readonly reopenPR: (prNumber: number) => Effect.Effect<void, ApiError>
-  readonly updatePRTitle: (prNumber: number, title: string) => Effect.Effect<void, ApiError>
-  readonly updatePRBody: (prNumber: number, body: string) => Effect.Effect<void, ApiError>
-  readonly requestReReview: (prNumber: number, reviewers: readonly string[]) => Effect.Effect<void, ApiError>
+  readonly updatePRTitle: (
+    prNumber: number,
+    title: string,
+  ) => Effect.Effect<void, ApiError>
+  readonly updatePRBody: (
+    prNumber: number,
+    body: string,
+  ) => Effect.Effect<void, ApiError>
+  readonly requestReReview: (
+    prNumber: number,
+    reviewers: readonly string[],
+  ) => Effect.Effect<void, ApiError>
 
   // Thread operations (requires supportsReviewThreads capability)
   readonly resolveThread: (threadId: string) => Effect.Effect<void, ApiError>
@@ -182,15 +248,23 @@ export interface Provider {
 
   // Draft operations (requires supportsDraftPR capability)
   readonly convertToDraft: (prNodeId: string) => Effect.Effect<void, ApiError>
-  readonly markReadyForReview: (prNodeId: string) => Effect.Effect<void, ApiError>
+  readonly markReadyForReview: (
+    prNodeId: string,
+  ) => Effect.Effect<void, ApiError>
 
   // Label operations (requires supportsLabels capability)
   readonly getLabels: () => Effect.Effect<readonly RepoLabel[], ApiError>
-  readonly setLabels: (prNumber: number, labels: readonly string[]) => Effect.Effect<void, ApiError>
+  readonly setLabels: (
+    prNumber: number,
+    labels: readonly string[],
+  ) => Effect.Effect<void, ApiError>
 
   // Assignee operations (requires supportsAssignees capability)
   readonly getCollaborators: () => Effect.Effect<readonly User[], ApiError>
-  readonly updateAssignees: (prNumber: number, assignees: readonly string[]) => Effect.Effect<void, ApiError>
+  readonly updateAssignees: (
+    prNumber: number,
+    assignees: readonly string[],
+  ) => Effect.Effect<void, ApiError>
 
   // Reaction operations (requires supportsReactions capability)
   readonly addReaction: (
@@ -200,10 +274,15 @@ export interface Provider {
   ) => Effect.Effect<void, ApiError>
 
   // PR creation
-  readonly createPR: (params: CreatePRParams) => Effect.Effect<CreatePRResult, ApiError>
+  readonly createPR: (
+    params: CreatePRParams,
+  ) => Effect.Effect<CreatePRResult, ApiError>
 
   // User info
-  readonly getCurrentUser: () => Effect.Effect<{ readonly login: string }, ApiError>
+  readonly getCurrentUser: () => Effect.Effect<
+    { readonly login: string },
+    ApiError
+  >
 
   // V2 optional methods — providers may implement these for enhanced functionality.
   // The ProviderV1Adapter supplies default implementations for any that are missing.

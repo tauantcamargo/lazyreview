@@ -71,27 +71,21 @@ describe('AssigneePickerModal helpers', () => {
     })
 
     it('returns false when same assignees', () => {
-      expect(
-        hasChanges(['alice', 'bob'], new Set(['alice', 'bob'])),
-      ).toBe(false)
+      expect(hasChanges(['alice', 'bob'], new Set(['alice', 'bob']))).toBe(
+        false,
+      )
     })
 
     it('returns true when assignee added', () => {
-      expect(
-        hasChanges(['alice'], new Set(['alice', 'bob'])),
-      ).toBe(true)
+      expect(hasChanges(['alice'], new Set(['alice', 'bob']))).toBe(true)
     })
 
     it('returns true when assignee removed', () => {
-      expect(
-        hasChanges(['alice', 'bob'], new Set(['alice'])),
-      ).toBe(true)
+      expect(hasChanges(['alice', 'bob'], new Set(['alice']))).toBe(true)
     })
 
     it('returns true when different assignees same count', () => {
-      expect(
-        hasChanges(['alice'], new Set(['bob'])),
-      ).toBe(true)
+      expect(hasChanges(['alice'], new Set(['bob']))).toBe(true)
     })
 
     it('returns true when going from empty to selected', () => {
@@ -107,9 +101,9 @@ describe('AssigneePickerModal helpers', () => {
     })
 
     it('handles order independence', () => {
-      expect(
-        hasChanges(['bob', 'alice'], new Set(['alice', 'bob'])),
-      ).toBe(false)
+      expect(hasChanges(['bob', 'alice'], new Set(['alice', 'bob']))).toBe(
+        false,
+      )
     })
   })
 })
@@ -134,10 +128,7 @@ describe('AssigneePickerModal data', () => {
   })
 
   it('computes current assignees from PR data', () => {
-    const prAssignees = [
-      makeUser('alice'),
-      makeUser('bob'),
-    ]
+    const prAssignees = [makeUser('alice'), makeUser('bob')]
     const currentAssigneeLogins = prAssignees.map((a) => a.login)
     expect(currentAssigneeLogins).toEqual(['alice', 'bob'])
   })

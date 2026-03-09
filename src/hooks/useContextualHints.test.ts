@@ -276,7 +276,11 @@ describe('getContextualHints', () => {
       isOwnComment: false,
       hasPath: false,
     }
-    const hints = getContextualHints('detail', 'pr-detail-conversations', context)
+    const hints = getContextualHints(
+      'detail',
+      'pr-detail-conversations',
+      context,
+    )
     // Review items don't support reply/edit/resolve
     expect(hints).not.toContain('r:reply')
     expect(hints).not.toContain('e:edit')
@@ -295,7 +299,11 @@ describe('getContextualHints', () => {
       isOwnComment: true,
       hasPath: true,
     }
-    const hints = getContextualHints('detail', 'pr-detail-conversations', context)
+    const hints = getContextualHints(
+      'detail',
+      'pr-detail-conversations',
+      context,
+    )
     expect(hints).toContain('r:reply')
     expect(hints).toContain('e:edit')
     expect(hints).toContain('x:resolve')
@@ -359,7 +367,11 @@ describe('getContextualHints', () => {
   })
 
   it('falls back to static hints when no selection context', () => {
-    const hints = getContextualHints('detail', 'pr-detail-description', undefined)
+    const hints = getContextualHints(
+      'detail',
+      'pr-detail-description',
+      undefined,
+    )
     // Should include all hints, same as before
     expect(hints).toContain('R:review')
     expect(hints).toContain('m:merge')
@@ -376,7 +388,12 @@ describe('getContextualHints', () => {
       hasPath: true,
     }
     const overrides = { conversations: { reply: 'R' } }
-    const hints = getContextualHints('detail', 'pr-detail-conversations', context, overrides)
+    const hints = getContextualHints(
+      'detail',
+      'pr-detail-conversations',
+      context,
+      overrides,
+    )
     expect(hints).toContain('R:reply')
     expect(hints).not.toContain('r:reply')
   })

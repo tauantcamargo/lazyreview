@@ -14,7 +14,11 @@ function formatLineRange(ctx: {
   readonly startLine?: number
   readonly endLine?: number
 }): string {
-  if (ctx.startLine != null && ctx.endLine != null && ctx.startLine !== ctx.endLine) {
+  if (
+    ctx.startLine != null &&
+    ctx.endLine != null &&
+    ctx.startLine !== ctx.endLine
+  ) {
     return `L${ctx.startLine}-L${ctx.endLine}`
   }
   if (ctx.startLine != null) {
@@ -26,7 +30,10 @@ function formatLineRange(ctx: {
 function truncateCode(code: string, maxLines: number): string {
   const lines = code.split('\n')
   if (lines.length <= maxLines) return code
-  return lines.slice(0, maxLines).join('\n') + `\n... (${lines.length - maxLines} more lines)`
+  return (
+    lines.slice(0, maxLines).join('\n') +
+    `\n... (${lines.length - maxLines} more lines)`
+  )
 }
 
 describe('AiReviewModal logic', () => {
@@ -56,7 +63,9 @@ describe('AiReviewModal logic', () => {
     })
 
     it('handles large line numbers', () => {
-      expect(formatLineRange({ startLine: 1000, endLine: 2000 })).toBe('L1000-L2000')
+      expect(formatLineRange({ startLine: 1000, endLine: 2000 })).toBe(
+        'L1000-L2000',
+      )
     })
   })
 
@@ -139,10 +148,11 @@ describe('AiReviewModal logic', () => {
   // -------------------------------------------------------------------------
 
   describe('provider info formatting', () => {
-    function formatProviderInfo(providerName: string, modelName: string): string {
-      return modelName
-        ? `${providerName} (${modelName})`
-        : providerName
+    function formatProviderInfo(
+      providerName: string,
+      modelName: string,
+    ): string {
+      return modelName ? `${providerName} (${modelName})` : providerName
     }
 
     it('shows provider and model when both present', () => {
@@ -154,7 +164,9 @@ describe('AiReviewModal logic', () => {
     })
 
     it('handles anthropic provider', () => {
-      expect(formatProviderInfo('Anthropic', 'claude-3-opus')).toBe('Anthropic (claude-3-opus)')
+      expect(formatProviderInfo('Anthropic', 'claude-3-opus')).toBe(
+        'Anthropic (claude-3-opus)',
+      )
     })
   })
 

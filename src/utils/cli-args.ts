@@ -119,11 +119,23 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
 
   // Check for help/version first
   if (userArgs.includes('--help') || userArgs.includes('-h')) {
-    return { command: 'help', owner: null, repo: null, directPR: null, provider: null }
+    return {
+      command: 'help',
+      owner: null,
+      repo: null,
+      directPR: null,
+      provider: null,
+    }
   }
 
   if (userArgs.includes('--version') || userArgs.includes('-v')) {
-    return { command: 'version', owner: null, repo: null, directPR: null, provider: null }
+    return {
+      command: 'version',
+      owner: null,
+      repo: null,
+      directPR: null,
+      provider: null,
+    }
   }
 
   // Check for --pr / -p flag
@@ -187,5 +199,11 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
   }
 
   // Default: launch TUI
-  return { command: 'run', owner: null, repo: null, directPR: null, provider: null }
+  return {
+    command: 'run',
+    owner: null,
+    repo: null,
+    directPR: null,
+    provider: null,
+  }
 }

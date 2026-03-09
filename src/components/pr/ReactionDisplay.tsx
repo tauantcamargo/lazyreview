@@ -2,7 +2,11 @@ import React from 'react'
 import { Box, Text } from 'ink'
 import { useTheme } from '../../theme/index'
 import type { ReactionSummary } from '../../models/reaction'
-import { REACTION_LABELS, REACTION_TYPES, type ReactionType } from '../../models/reaction'
+import {
+  REACTION_LABELS,
+  REACTION_TYPES,
+  type ReactionType,
+} from '../../models/reaction'
 
 interface ReactionDisplayProps {
   readonly reactions: ReactionSummary

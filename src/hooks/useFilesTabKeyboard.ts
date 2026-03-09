@@ -9,7 +9,10 @@ import type { FileChange } from '../models/file-change'
 import type { InlineCommentContext } from '../models/inline-comment'
 import type { ReactionContext } from './useReactionActions'
 import type { DiffSearchActions } from './useDiffSearch'
-import type { CrossFileSearchState, CrossFileSearchActions } from './useCrossFileSearch'
+import type {
+  CrossFileSearchState,
+  CrossFileSearchActions,
+} from './useCrossFileSearch'
 import type { VisualSelectActions, VisualSelectState } from './useVisualSelect'
 import {
   findNextHunkStart,
@@ -167,7 +170,12 @@ function extractVisualSelection(
   let endLine: number | undefined
 
   for (let i = selMin; i <= selMax; i++) {
-    const lineInfo = getFocusedLine(effectiveDiffMode, i, allRows, sideBySideRows)
+    const lineInfo = getFocusedLine(
+      effectiveDiffMode,
+      i,
+      allRows,
+      sideBySideRows,
+    )
     if (lineInfo && lineInfo.line.type !== 'header') {
       lines.push(lineInfo.line.content)
       lineTypes.add(lineInfo.line.type)
@@ -198,10 +206,18 @@ function extractSingleLineWithContext(
   filename: string,
   contextLines: number,
 ): AiReviewLineContext | undefined {
-  const focusedInfo = getFocusedLine(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+  const focusedInfo = getFocusedLine(
+    effectiveDiffMode,
+    diffSelectedLine,
+    allRows,
+    sideBySideRows,
+  )
   if (!focusedInfo || focusedInfo.line.type === 'header') return undefined
 
-  const rowCount = effectiveDiffMode === 'side-by-side' ? sideBySideRows.length : allRows.length
+  const rowCount =
+    effectiveDiffMode === 'side-by-side'
+      ? sideBySideRows.length
+      : allRows.length
   const startIdx = Math.max(0, diffSelectedLine - contextLines)
   const endIdx = Math.min(rowCount - 1, diffSelectedLine + contextLines)
 
@@ -211,7 +227,12 @@ function extractSingleLineWithContext(
   let endLine: number | undefined
 
   for (let i = startIdx; i <= endIdx; i++) {
-    const lineInfo = getFocusedLine(effectiveDiffMode, i, allRows, sideBySideRows)
+    const lineInfo = getFocusedLine(
+      effectiveDiffMode,
+      i,
+      allRows,
+      sideBySideRows,
+    )
     if (lineInfo && lineInfo.line.type !== 'header') {
       lines.push(lineInfo.line.content)
       lineTypes.add(lineInfo.line.type)
@@ -281,7 +302,12 @@ function extractVisualSuggestion(
   let endSide: 'LEFT' | 'RIGHT' = 'RIGHT'
 
   for (let i = selMin; i <= selMax; i++) {
-    const lineInfo = getFocusedLine(effectiveDiffMode, i, allRows, sideBySideRows)
+    const lineInfo = getFocusedLine(
+      effectiveDiffMode,
+      i,
+      allRows,
+      sideBySideRows,
+    )
     if (lineInfo && lineInfo.line.type !== 'header') {
       lines.push(lineInfo.line.content)
       const lineNum = lineInfo.newLineNumber ?? lineInfo.oldLineNumber
@@ -311,10 +337,16 @@ function extractSingleLineSuggestion(
   sideBySideRows: readonly SideBySideRow[],
   filename: string,
 ): SuggestionLineContext | undefined {
-  const lineInfo = getFocusedLine(effectiveDiffMode, diffSelectedLine, allRows, sideBySideRows)
+  const lineInfo = getFocusedLine(
+    effectiveDiffMode,
+    diffSelectedLine,
+    allRows,
+    sideBySideRows,
+  )
   if (!lineInfo || lineInfo.line.type === 'header') return undefined
 
-  const side = lineInfo.line.type === 'del' ? ('LEFT' as const) : ('RIGHT' as const)
+  const side =
+    lineInfo.line.type === 'del' ? ('LEFT' as const) : ('RIGHT' as const)
   const line = side === 'LEFT' ? lineInfo.oldLineNumber : lineInfo.newLineNumber
   if (line == null) return undefined
 
@@ -329,9 +361,13 @@ function extractSingleLineSuggestion(
 interface UseFilesTabKeyboardOptions {
   readonly isActive: boolean
   readonly focusPanel: FocusPanel
-  readonly setFocusPanel: (panel: FocusPanel | ((prev: FocusPanel) => FocusPanel)) => void
+  readonly setFocusPanel: (
+    panel: FocusPanel | ((prev: FocusPanel) => FocusPanel),
+  ) => void
   readonly effectiveDiffMode: DiffMode
-  readonly setDiffMode: (mode: DiffMode | ((prev: DiffMode) => DiffMode)) => void
+  readonly setDiffMode: (
+    mode: DiffMode | ((prev: DiffMode) => DiffMode),
+  ) => void
 
   // Filter state
   readonly isFiltering: boolean
@@ -357,7 +393,9 @@ interface UseFilesTabKeyboardOptions {
   readonly diffSelectedLine: number
   readonly setDiffSelectedLine: (index: number) => void
   readonly maxDiffScrollX: number
-  readonly setDiffScrollOffsetX: (fn: number | ((prev: number) => number)) => void
+  readonly setDiffScrollOffsetX: (
+    fn: number | ((prev: number) => number),
+  ) => void
 
   // Row data
   readonly allRows: readonly DiffDisplayRow[]
@@ -381,7 +419,11 @@ interface UseFilesTabKeyboardOptions {
   // Directory collapse/expand
   readonly displayRows?: readonly DisplayRow[]
   readonly collapsedDirs?: ReadonlySet<string>
-  readonly setCollapsedDirs?: (fn: ReadonlySet<string> | ((prev: ReadonlySet<string>) => ReadonlySet<string>)) => void
+  readonly setCollapsedDirs?: (
+    fn:
+      | ReadonlySet<string>
+      | ((prev: ReadonlySet<string>) => ReadonlySet<string>),
+  ) => void
 
   // Go-to-line
   readonly isGoToLine?: boolean
@@ -391,7 +433,11 @@ interface UseFilesTabKeyboardOptions {
 
   // Hunk folding
   readonly foldedHunks?: ReadonlySet<number>
-  readonly setFoldedHunks?: (fn: ReadonlySet<number> | ((prev: ReadonlySet<number>) => ReadonlySet<number>)) => void
+  readonly setFoldedHunks?: (
+    fn:
+      | ReadonlySet<number>
+      | ((prev: ReadonlySet<number>) => ReadonlySet<number>),
+  ) => void
   readonly foldedRows?: readonly FoldableRow[]
 
   // File picker
@@ -612,7 +658,7 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
 
       // I or Ctrl+a: AI review of selected line(s)
       if (
-        ((input === 'I') || (input === 'a' && key.ctrl)) &&
+        (input === 'I' || (input === 'a' && key.ctrl)) &&
         opts.focusPanel === 'diff' &&
         opts.onAiReview &&
         opts.selectedFile
@@ -625,7 +671,10 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
       if (key.tab) {
         opts.visual.clearVisual()
         opts.setFocusPanel((prev) => (prev === 'tree' ? 'diff' : 'tree'))
-      } else if (opts.focusPanel === 'diff' && (key.leftArrow || key.rightArrow)) {
+      } else if (
+        opts.focusPanel === 'diff' &&
+        (key.leftArrow || key.rightArrow)
+      ) {
         // Horizontal scroll in diff
         const step = key.shift ? 16 : 4
         opts.setDiffScrollOffsetX((prev: number) =>
@@ -663,34 +712,76 @@ export function useFilesTabKeyboard(opts: UseFilesTabKeyboardOptions): void {
         opts.visual.toggleVisual(opts.diffSelectedLine)
       } else if (input === 'r' && opts.focusPanel === 'diff' && opts.onReply) {
         handleReply(opts)
-      } else if (input === 'x' && opts.focusPanel === 'diff' && opts.onToggleResolve) {
+      } else if (
+        input === 'x' &&
+        opts.focusPanel === 'diff' &&
+        opts.onToggleResolve
+      ) {
         handleToggleResolve(opts)
-      } else if (input === 'e' && opts.focusPanel === 'diff' && opts.onEditComment && opts.currentUser) {
+      } else if (
+        input === 'e' &&
+        opts.focusPanel === 'diff' &&
+        opts.onEditComment &&
+        opts.currentUser
+      ) {
         handleEditComment(opts)
-      } else if (input === 'c' && opts.focusPanel === 'diff' && opts.onInlineComment && opts.selectedFile) {
+      } else if (
+        input === 'c' &&
+        opts.focusPanel === 'diff' &&
+        opts.onInlineComment &&
+        opts.selectedFile
+      ) {
         handleInlineComment(opts)
-      } else if (input === '+' && opts.focusPanel === 'diff' && opts.onAddReaction) {
+      } else if (
+        input === '+' &&
+        opts.focusPanel === 'diff' &&
+        opts.onAddReaction
+      ) {
         handleAddReaction(opts)
       } else if (input === '}' && opts.focusPanel === 'diff') {
         handleNextHunk(opts)
       } else if (input === '{' && opts.focusPanel === 'diff') {
         handlePrevHunk(opts)
-      } else if (input === ':' && opts.focusPanel === 'diff' && opts.setIsGoToLine) {
+      } else if (
+        input === ':' &&
+        opts.focusPanel === 'diff' &&
+        opts.setIsGoToLine
+      ) {
         opts.setIsGoToLine(true)
         opts.setInputActive(true)
-      } else if (input === 'z' && opts.focusPanel === 'diff' && opts.setFoldedHunks && opts.foldedRows) {
+      } else if (
+        input === 'z' &&
+        opts.focusPanel === 'diff' &&
+        opts.setFoldedHunks &&
+        opts.foldedRows
+      ) {
         handleToggleHunkFold(opts)
       } else if (input === '<' && opts.setTreePanelPct) {
         opts.setTreePanelPct((prev: number) => Math.max(15, prev - 5))
       } else if (input === '>' && opts.setTreePanelPct) {
         opts.setTreePanelPct((prev: number) => Math.min(50, prev + 5))
-      } else if (input === 'a' && opts.focusPanel === 'tree' && opts.onApproveFile) {
+      } else if (
+        input === 'a' &&
+        opts.focusPanel === 'tree' &&
+        opts.onApproveFile
+      ) {
         opts.onApproveFile()
-      } else if (input === 'x' && opts.focusPanel === 'tree' && opts.onRejectFile) {
+      } else if (
+        input === 'x' &&
+        opts.focusPanel === 'tree' &&
+        opts.onRejectFile
+      ) {
         opts.onRejectFile()
-      } else if (input === 's' && opts.focusPanel === 'tree' && opts.onSkipFile) {
+      } else if (
+        input === 's' &&
+        opts.focusPanel === 'tree' &&
+        opts.onSkipFile
+      ) {
         opts.onSkipFile()
-      } else if ((input === ']' || input === '[') && opts.focusPanel === 'tree') {
+      } else if (
+        (input === ']' || input === '[') &&
+        opts.focusPanel === 'tree'
+      ) {
         pendingBracketRef.current = input as ']' | '['
       } else if (
         (key.return || input === ' ') &&
@@ -771,7 +862,12 @@ function handleInlineComment(opts: UseFilesTabKeyboardOptions): void {
 }
 
 function handleVisualInlineComment(opts: UseFilesTabKeyboardOptions): void {
-  if (opts.visual.visualStart == null || !opts.onInlineComment || !opts.selectedFile) return
+  if (
+    opts.visual.visualStart == null ||
+    !opts.onInlineComment ||
+    !opts.selectedFile
+  )
+    return
 
   const selMin = Math.min(opts.visual.visualStart, opts.diffSelectedLine)
   const selMax = Math.max(opts.visual.visualStart, opts.diffSelectedLine)
@@ -800,9 +896,7 @@ function handleVisualInlineComment(opts: UseFilesTabKeyboardOptions): void {
     const endLine =
       endSide === 'LEFT' ? endInfo.oldLineNumber : endInfo.newLineNumber
     const startLine =
-      startSide === 'LEFT'
-        ? startInfo.oldLineNumber
-        : startInfo.newLineNumber
+      startSide === 'LEFT' ? startInfo.oldLineNumber : startInfo.newLineNumber
     if (endLine != null && startLine != null) {
       opts.onInlineComment({
         path: opts.selectedFile.filename,

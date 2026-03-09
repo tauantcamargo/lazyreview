@@ -47,7 +47,9 @@ describe('TopBar', () => {
 
   it('renders breadcrumb with screen name', () => {
     const { lastFrame } = render(
-      themed(<TopBar username="alice" provider="github" screenName="For Review" />),
+      themed(
+        <TopBar username="alice" provider="github" screenName="For Review" />,
+      ),
     )
     const frame = lastFrame() ?? ''
     expect(frame).toContain('LazyReview')
@@ -101,7 +103,13 @@ describe('TopBar', () => {
 
   it('shows rate-limited connection status', () => {
     const { lastFrame } = render(
-      themed(<TopBar username="alice" provider="github" connectionStatus="rate-limited" />),
+      themed(
+        <TopBar
+          username="alice"
+          provider="github"
+          connectionStatus="rate-limited"
+        />,
+      ),
     )
     const frame = lastFrame() ?? ''
     expect(frame).toContain('rate limited')
@@ -109,7 +117,9 @@ describe('TopBar', () => {
 
   it('shows error connection status', () => {
     const { lastFrame } = render(
-      themed(<TopBar username="alice" provider="github" connectionStatus="error" />),
+      themed(
+        <TopBar username="alice" provider="github" connectionStatus="error" />,
+      ),
     )
     const frame = lastFrame() ?? ''
     expect(frame).toContain('disconnected')
@@ -145,22 +155,35 @@ describe('TopBar', () => {
 })
 
 describe('providerBadge', () => {
-  it('returns [GH] for github', () => expect(providerBadge('github')).toBe('[GH]'))
-  it('returns [GL] for gitlab', () => expect(providerBadge('gitlab')).toBe('[GL]'))
-  it('returns [BB] for bitbucket', () => expect(providerBadge('bitbucket')).toBe('[BB]'))
-  it('returns [AZ] for azure', () => expect(providerBadge('azure')).toBe('[AZ]'))
-  it('returns [GT] for gitea', () => expect(providerBadge('gitea')).toBe('[GT]'))
-  it('returns empty string for unknown provider', () => expect(providerBadge('custom')).toBe(''))
-  it('returns empty string for undefined', () => expect(providerBadge(undefined)).toBe(''))
+  it('returns [GH] for github', () =>
+    expect(providerBadge('github')).toBe('[GH]'))
+  it('returns [GL] for gitlab', () =>
+    expect(providerBadge('gitlab')).toBe('[GL]'))
+  it('returns [BB] for bitbucket', () =>
+    expect(providerBadge('bitbucket')).toBe('[BB]'))
+  it('returns [AZ] for azure', () =>
+    expect(providerBadge('azure')).toBe('[AZ]'))
+  it('returns [GT] for gitea', () =>
+    expect(providerBadge('gitea')).toBe('[GT]'))
+  it('returns empty string for unknown provider', () =>
+    expect(providerBadge('custom')).toBe(''))
+  it('returns empty string for undefined', () =>
+    expect(providerBadge(undefined)).toBe(''))
 })
 
 describe('providerColor', () => {
-  it('returns white for github', () => expect(providerColor('github')).toBe('white'))
-  it('returns orange for gitlab', () => expect(providerColor('gitlab')).toBe('#FC6D26'))
-  it('returns blue for bitbucket', () => expect(providerColor('bitbucket')).toBe('#0052CC'))
-  it('returns cyan for azure', () => expect(providerColor('azure')).toBe('cyan'))
-  it('returns green for gitea', () => expect(providerColor('gitea')).toBe('green'))
-  it('returns white for unknown', () => expect(providerColor('unknown')).toBe('white'))
+  it('returns white for github', () =>
+    expect(providerColor('github')).toBe('white'))
+  it('returns orange for gitlab', () =>
+    expect(providerColor('gitlab')).toBe('#FC6D26'))
+  it('returns blue for bitbucket', () =>
+    expect(providerColor('bitbucket')).toBe('#0052CC'))
+  it('returns cyan for azure', () =>
+    expect(providerColor('azure')).toBe('cyan'))
+  it('returns green for gitea', () =>
+    expect(providerColor('gitea')).toBe('green'))
+  it('returns white for unknown', () =>
+    expect(providerColor('unknown')).toBe('white'))
 })
 
 describe('Sidebar', () => {
@@ -202,7 +225,14 @@ describe('Sidebar', () => {
       browse: null,
     }
     const { lastFrame } = render(
-      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} counts={counts} />),
+      themed(
+        <Sidebar
+          selectedIndex={0}
+          visible={true}
+          isActive={true}
+          counts={counts}
+        />,
+      ),
     )
     const frame = lastFrame() ?? ''
     expect(frame).toContain('·· 5')
@@ -221,7 +251,14 @@ describe('Sidebar', () => {
       browse: null,
     }
     const { lastFrame } = render(
-      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} counts={counts} />),
+      themed(
+        <Sidebar
+          selectedIndex={0}
+          visible={true}
+          isActive={true}
+          counts={counts}
+        />,
+      ),
     )
     const frame = lastFrame() ?? ''
     expect(frame).toContain('2 new')
@@ -237,7 +274,14 @@ describe('Sidebar', () => {
       browse: null,
     }
     const { lastFrame } = render(
-      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} counts={counts} />),
+      themed(
+        <Sidebar
+          selectedIndex={0}
+          visible={true}
+          isActive={true}
+          counts={counts}
+        />,
+      ),
     )
     const frame = lastFrame() ?? ''
     expect(frame).not.toContain('(0)')
@@ -254,7 +298,14 @@ describe('Sidebar', () => {
       browse: null,
     }
     const { lastFrame } = render(
-      themed(<Sidebar selectedIndex={5} visible={true} isActive={true} counts={counts} />),
+      themed(
+        <Sidebar
+          selectedIndex={5}
+          visible={true}
+          isActive={true}
+          counts={counts}
+        />,
+      ),
     )
     const frame = lastFrame() ?? ''
     // Settings line should not have a count number next to it
@@ -379,7 +430,14 @@ describe('cycleSidebarMode', () => {
 describe('Sidebar icon-only mode', () => {
   it('renders abbreviated labels in icon-only mode', () => {
     const { lastFrame } = render(
-      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} mode="icon-only" />),
+      themed(
+        <Sidebar
+          selectedIndex={0}
+          visible={true}
+          isActive={true}
+          mode="icon-only"
+        />,
+      ),
     )
     const frame = lastFrame() ?? ''
     // Should show abbreviated single-char labels, NOT full labels
@@ -391,14 +449,29 @@ describe('Sidebar icon-only mode', () => {
 
   it('returns null when mode is hidden', () => {
     const { lastFrame } = render(
-      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} mode="hidden" />),
+      themed(
+        <Sidebar
+          selectedIndex={0}
+          visible={true}
+          isActive={true}
+          mode="hidden"
+        />,
+      ),
     )
     expect(lastFrame()).toBe('')
   })
 
   it('renders full sidebar with custom width', () => {
     const { lastFrame } = render(
-      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} mode="full" width={28} />),
+      themed(
+        <Sidebar
+          selectedIndex={0}
+          visible={true}
+          isActive={true}
+          mode="full"
+          width={28}
+        />,
+      ),
     )
     const frame = lastFrame() ?? ''
     expect(frame).toContain('Navigation')
@@ -407,7 +480,14 @@ describe('Sidebar icon-only mode', () => {
 
   it('shows icons in icon-only mode', () => {
     const { lastFrame } = render(
-      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} mode="icon-only" />),
+      themed(
+        <Sidebar
+          selectedIndex={0}
+          visible={true}
+          isActive={true}
+          mode="icon-only"
+        />,
+      ),
     )
     const frame = lastFrame() ?? ''
     // Should show sidebar icons
@@ -425,7 +505,15 @@ describe('Sidebar icon-only mode', () => {
       browse: null,
     }
     const { lastFrame } = render(
-      themed(<Sidebar selectedIndex={0} visible={true} isActive={true} mode="icon-only" counts={counts} />),
+      themed(
+        <Sidebar
+          selectedIndex={0}
+          visible={true}
+          isActive={true}
+          mode="icon-only"
+          counts={counts}
+        />,
+      ),
     )
     const frame = lastFrame() ?? ''
     expect(frame).toContain('5')
@@ -455,7 +543,9 @@ describe('StatusBar', () => {
   })
 
   it('renders list panel hints', () => {
-    const { lastFrame } = render(themedWithQuery(<StatusBar activePanel="list" />))
+    const { lastFrame } = render(
+      themedWithQuery(<StatusBar activePanel="list" />),
+    )
     const frame = lastFrame() ?? ''
     expect(frame).toContain('Enter:detail')
   })

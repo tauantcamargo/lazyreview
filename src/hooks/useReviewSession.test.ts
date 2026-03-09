@@ -52,8 +52,12 @@ function createMockStateStore(): StateStore {
     getChecklistState: vi.fn().mockReturnValue([]),
     setChecklistItem: vi.fn(),
     getKV: vi.fn((key: string) => kvStore.get(key)),
-    setKV: vi.fn((key: string, value: string) => { kvStore.set(key, value) }),
-    deleteKV: vi.fn((key: string) => { kvStore.delete(key) }),
+    setKV: vi.fn((key: string, value: string) => {
+      kvStore.set(key, value)
+    }),
+    deleteKV: vi.fn((key: string) => {
+      kvStore.delete(key)
+    }),
   }
 }
 

@@ -40,12 +40,7 @@ export function ReviewSummary({
   const total = latestByUser.size
 
   return (
-    <Box
-      flexDirection="column"
-      paddingX={1}
-      paddingY={0}
-      marginBottom={1}
-    >
+    <Box flexDirection="column" paddingX={1} paddingY={0} marginBottom={1}>
       <Box flexDirection="row" gap={1}>
         <Text color={theme.colors.muted} bold>
           Reviews:

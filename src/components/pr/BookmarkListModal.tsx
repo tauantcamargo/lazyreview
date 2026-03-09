@@ -118,9 +118,7 @@ export function BookmarkListModal({
 
       // Navigate with j/k or arrow keys
       if (input === 'j' || key.downArrow) {
-        setSelectedIndex((prev) =>
-          Math.min(prev + 1, bookmarks.length - 1),
-        )
+        setSelectedIndex((prev) => Math.min(prev + 1, bookmarks.length - 1))
         return
       }
       if (input === 'k' || key.upArrow) {

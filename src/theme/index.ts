@@ -7,8 +7,17 @@ import { resolveTheme } from './custom-themes'
 
 export type { Theme, ThemeColors, ThemeName, BuiltInThemeName } from './types'
 export { BUILT_IN_THEME_NAMES } from './types'
-export type { CustomThemeFile, ValidationResult, LoadResult } from './custom-themes'
-export { loadCustomThemes, validateThemeColors, parseCustomThemeFile, resolveTheme } from './custom-themes'
+export type {
+  CustomThemeFile,
+  ValidationResult,
+  LoadResult,
+} from './custom-themes'
+export {
+  loadCustomThemes,
+  validateThemeColors,
+  parseCustomThemeFile,
+  resolveTheme,
+} from './custom-themes'
 export { themes, defaultTheme } from './themes'
 
 const ThemeContext = createContext<Theme>(defaultTheme)
@@ -40,7 +49,9 @@ let customThemeRegistry: readonly CustomThemeFile[] = []
  * Set the loaded custom themes into the registry.
  * Called once at startup after loadCustomThemes().
  */
-export function setCustomThemes(customThemes: readonly CustomThemeFile[]): void {
+export function setCustomThemes(
+  customThemes: readonly CustomThemeFile[],
+): void {
   customThemeRegistry = customThemes
 }
 

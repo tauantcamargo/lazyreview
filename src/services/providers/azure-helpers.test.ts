@@ -204,9 +204,7 @@ describe('mutateAzure', () => {
 
   it('supports DELETE method without body', async () => {
     mockFetchResponse()
-    await Effect.runPromise(
-      mutateAzure('DELETE', BASE_URL, '/test', TOKEN),
-    )
+    await Effect.runPromise(mutateAzure('DELETE', BASE_URL, '/test', TOKEN))
 
     const options = (globalThis.fetch as ReturnType<typeof vi.fn>).mock
       .calls[0][1] as { method: string; body?: string }

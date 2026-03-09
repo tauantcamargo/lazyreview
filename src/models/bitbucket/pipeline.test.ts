@@ -51,9 +51,7 @@ describe('BitbucketPipelineStepResultSchema', () => {
   })
 
   it('rejects missing name', () => {
-    expect(() =>
-      BitbucketPipelineStepResultSchema.parse({}),
-    ).toThrow()
+    expect(() => BitbucketPipelineStepResultSchema.parse({})).toThrow()
   })
 })
 

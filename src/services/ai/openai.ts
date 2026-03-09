@@ -83,7 +83,10 @@ export function createOpenAiService(
   const complete = (
     messages: readonly AiMessage[],
     options?: AiRequestOptions,
-  ): Effect.Effect<AiResponse, AiError | AiNetworkError | AiRateLimitError | AiResponseError> => {
+  ): Effect.Effect<
+    AiResponse,
+    AiError | AiNetworkError | AiRateLimitError | AiResponseError
+  > => {
     const url = `${endpoint}/v1/chat/completions`
     const body = buildRequestBody(config, messages, options)
 
@@ -100,7 +103,9 @@ export function createOpenAiService(
 
           if (response.status === 429) {
             const retryAfter = response.headers.get('retry-after')
-            const retryMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : undefined
+            const retryMs = retryAfter
+              ? parseInt(retryAfter, 10) * 1000
+              : undefined
             throw new AiRateLimitError({
               message: `${providerLabel} rate limit exceeded`,
               provider: config.provider,
@@ -149,7 +154,13 @@ export function createOpenAiService(
         return {
           async next(): Promise<IteratorResult<AiStreamChunk>> {
             if (iterator === null) {
-              iterator = streamOpenAiResponse(url, headers, body, config.provider, providerLabel)
+              iterator = streamOpenAiResponse(
+                url,
+                headers,
+                body,
+                config.provider,
+                providerLabel,
+              )
             }
             return iterator.next()
           },
@@ -173,16 +184,19 @@ function parseOpenAiResponse(data: unknown): AiResponse {
   }[]
   const content = choices[0]?.message?.content ?? ''
 
-  const usage = obj['usage'] as {
-    readonly prompt_tokens?: number
-    readonly completion_tokens?: number
-  } | undefined
+  const usage = obj['usage'] as
+    | {
+        readonly prompt_tokens?: number
+        readonly completion_tokens?: number
+      }
+    | undefined
 
   return {
     content,
     model: (obj['model'] as string) ?? '',
     usage:
-      usage?.prompt_tokens !== undefined && usage?.completion_tokens !== undefined
+      usage?.prompt_tokens !== undefined &&
+      usage?.completion_tokens !== undefined
         ? {
             inputTokens: usage.prompt_tokens,
             outputTokens: usage.completion_tokens,

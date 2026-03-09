@@ -21,7 +21,15 @@ describe('FileChange schema', () => {
   })
 
   it('decodes all valid statuses', () => {
-    const statuses = ['added', 'removed', 'modified', 'renamed', 'copied', 'changed', 'unchanged'] as const
+    const statuses = [
+      'added',
+      'removed',
+      'modified',
+      'renamed',
+      'copied',
+      'changed',
+      'unchanged',
+    ] as const
     for (const status of statuses) {
       const result = decode({
         sha: 'abc',

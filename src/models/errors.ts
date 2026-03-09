@@ -10,7 +10,11 @@ export class GitHubError extends Data.TaggedError('GitHubError')<{
 
 export class AuthError extends Data.TaggedError('AuthError')<{
   readonly message: string
-  readonly reason: 'no_token' | 'invalid_token' | 'expired_token' | 'save_failed'
+  readonly reason:
+    | 'no_token'
+    | 'invalid_token'
+    | 'expired_token'
+    | 'save_failed'
 }> {}
 
 export class GitLabError extends Data.TaggedError('GitLabError')<{
@@ -81,4 +85,15 @@ export type ProviderError =
   | StreamError
   | TimelineError
 
-export type AppError = GitHubError | GitLabError | BitbucketError | AzureError | GiteaError | AuthError | ConfigError | NetworkError | StreamError | TimelineError | StateError
+export type AppError =
+  | GitHubError
+  | GitLabError
+  | BitbucketError
+  | AzureError
+  | GiteaError
+  | AuthError
+  | ConfigError
+  | NetworkError
+  | StreamError
+  | TimelineError
+  | StateError

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { getFocusedCommentThread, getFocusedLine, extractAiReviewLines, extractSuggestionContext } from './useFilesTabKeyboard'
+import {
+  getFocusedCommentThread,
+  getFocusedLine,
+  extractAiReviewLines,
+  extractSuggestionContext,
+} from './useFilesTabKeyboard'
 import type { DiffDisplayRow } from '../components/pr/DiffView'
 import type { SideBySideRow } from '../components/pr/SideBySideDiffView'
 import type { DiffCommentThread } from '../components/pr/DiffComment'
@@ -16,7 +21,10 @@ function makeComment(id: number, body = 'comment'): Comment {
   } as unknown as Comment
 }
 
-function makeThread(comments: Comment[], overrides: Partial<DiffCommentThread> = {}): DiffCommentThread {
+function makeThread(
+  comments: Comment[],
+  overrides: Partial<DiffCommentThread> = {},
+): DiffCommentThread {
   return {
     comments,
     ...overrides,
@@ -113,7 +121,10 @@ describe('getFocusedLine', () => {
 // Helper builders for extractAiReviewLines tests
 // ---------------------------------------------------------------------------
 
-function makeAddLineRow(lineNum: number, content = '+added line'): DiffDisplayRow {
+function makeAddLineRow(
+  lineNum: number,
+  content = '+added line',
+): DiffDisplayRow {
   return {
     type: 'line',
     line: { type: 'add', content },
@@ -122,7 +133,10 @@ function makeAddLineRow(lineNum: number, content = '+added line'): DiffDisplayRo
   } as DiffDisplayRow
 }
 
-function makeDelLineRow(lineNum: number, content = '-removed line'): DiffDisplayRow {
+function makeDelLineRow(
+  lineNum: number,
+  content = '-removed line',
+): DiffDisplayRow {
   return {
     type: 'line',
     line: { type: 'del', content },
@@ -131,7 +145,10 @@ function makeDelLineRow(lineNum: number, content = '-removed line'): DiffDisplay
   } as DiffDisplayRow
 }
 
-function makeContextLineRow(lineNum: number, content = ' context line'): DiffDisplayRow {
+function makeContextLineRow(
+  lineNum: number,
+  content = ' context line',
+): DiffDisplayRow {
   return {
     type: 'line',
     line: { type: 'context', content },
@@ -161,7 +178,13 @@ describe('extractAiReviewLines', () => {
       ]
 
       const result = extractAiReviewLines(
-        'unified', 2, rows, [], 'src/test.ts', null, 2,
+        'unified',
+        2,
+        rows,
+        [],
+        'src/test.ts',
+        null,
+        2,
       )
 
       expect(result).toBeDefined()
@@ -181,7 +204,13 @@ describe('extractAiReviewLines', () => {
       ]
 
       const result = extractAiReviewLines(
-        'unified', 0, rows, [], 'src/test.ts', null, 2,
+        'unified',
+        0,
+        rows,
+        [],
+        'src/test.ts',
+        null,
+        2,
       )
 
       expect(result).toBeDefined()
@@ -198,7 +227,13 @@ describe('extractAiReviewLines', () => {
       ]
 
       const result = extractAiReviewLines(
-        'unified', 2, rows, [], 'src/test.ts', null, 2,
+        'unified',
+        2,
+        rows,
+        [],
+        'src/test.ts',
+        null,
+        2,
       )
 
       expect(result).toBeDefined()
@@ -210,7 +245,13 @@ describe('extractAiReviewLines', () => {
       const rows: DiffDisplayRow[] = [makeHeaderRow()]
 
       const result = extractAiReviewLines(
-        'unified', 0, rows, [], 'src/test.ts', null, 5,
+        'unified',
+        0,
+        rows,
+        [],
+        'src/test.ts',
+        null,
+        5,
       )
 
       expect(result).toBeUndefined()
@@ -221,7 +262,13 @@ describe('extractAiReviewLines', () => {
       const rows: DiffDisplayRow[] = [makeCommentRow(thread)]
 
       const result = extractAiReviewLines(
-        'unified', 0, rows, [], 'src/test.ts', null, 5,
+        'unified',
+        0,
+        rows,
+        [],
+        'src/test.ts',
+        null,
+        5,
       )
 
       expect(result).toBeUndefined()
@@ -233,7 +280,12 @@ describe('extractAiReviewLines', () => {
       )
 
       const result = extractAiReviewLines(
-        'unified', 7, rows, [], 'src/test.ts', null,
+        'unified',
+        7,
+        rows,
+        [],
+        'src/test.ts',
+        null,
       )
 
       expect(result).toBeDefined()
@@ -257,7 +309,12 @@ describe('extractAiReviewLines', () => {
 
       // Visual select from index 1 to 3
       const result = extractAiReviewLines(
-        'unified', 3, rows, [], 'src/test.ts', 1,
+        'unified',
+        3,
+        rows,
+        [],
+        'src/test.ts',
+        1,
       )
 
       expect(result).toBeDefined()
@@ -279,7 +336,12 @@ describe('extractAiReviewLines', () => {
 
       // Visual start at 2, cursor at 0 (reversed)
       const result = extractAiReviewLines(
-        'unified', 0, rows, [], 'src/test.ts', 2,
+        'unified',
+        0,
+        rows,
+        [],
+        'src/test.ts',
+        2,
       )
 
       expect(result).toBeDefined()
@@ -291,12 +353,15 @@ describe('extractAiReviewLines', () => {
     })
 
     it('handles single-line visual selection', () => {
-      const rows: DiffDisplayRow[] = [
-        makeAddLineRow(5, 'single line'),
-      ]
+      const rows: DiffDisplayRow[] = [makeAddLineRow(5, 'single line')]
 
       const result = extractAiReviewLines(
-        'unified', 0, rows, [], 'src/test.ts', 0,
+        'unified',
+        0,
+        rows,
+        [],
+        'src/test.ts',
+        0,
       )
 
       expect(result).toBeDefined()
@@ -313,7 +378,12 @@ describe('extractAiReviewLines', () => {
       ]
 
       const result = extractAiReviewLines(
-        'unified', 2, rows, [], 'src/test.ts', 0,
+        'unified',
+        2,
+        rows,
+        [],
+        'src/test.ts',
+        0,
       )
 
       expect(result).toBeDefined()
@@ -324,13 +394,15 @@ describe('extractAiReviewLines', () => {
 
     it('returns undefined when visual selection contains only headers/comments', () => {
       const thread = makeThread([makeComment(1)])
-      const rows: DiffDisplayRow[] = [
-        makeHeaderRow(),
-        makeCommentRow(thread),
-      ]
+      const rows: DiffDisplayRow[] = [makeHeaderRow(), makeCommentRow(thread)]
 
       const result = extractAiReviewLines(
-        'unified', 1, rows, [], 'src/test.ts', 0,
+        'unified',
+        1,
+        rows,
+        [],
+        'src/test.ts',
+        0,
       )
 
       expect(result).toBeUndefined()
@@ -342,7 +414,12 @@ describe('extractAiReviewLines', () => {
       const rows: DiffDisplayRow[] = [makeAddLineRow(1, 'added')]
 
       const result = extractAiReviewLines(
-        'unified', 0, rows, [], 'src/test.ts', 0,
+        'unified',
+        0,
+        rows,
+        [],
+        'src/test.ts',
+        0,
       )
 
       expect(result?.lineTypes.has('add')).toBe(true)
@@ -352,7 +429,12 @@ describe('extractAiReviewLines', () => {
       const rows: DiffDisplayRow[] = [makeDelLineRow(1, 'deleted')]
 
       const result = extractAiReviewLines(
-        'unified', 0, rows, [], 'src/test.ts', 0,
+        'unified',
+        0,
+        rows,
+        [],
+        'src/test.ts',
+        0,
       )
 
       expect(result?.lineTypes.has('del')).toBe(true)
@@ -362,7 +444,12 @@ describe('extractAiReviewLines', () => {
       const rows: DiffDisplayRow[] = [makeContextLineRow(1, 'context')]
 
       const result = extractAiReviewLines(
-        'unified', 0, rows, [], 'src/test.ts', 0,
+        'unified',
+        0,
+        rows,
+        [],
+        'src/test.ts',
+        0,
       )
 
       expect(result?.lineTypes.has('context')).toBe(true)
@@ -376,7 +463,12 @@ describe('extractAiReviewLines', () => {
       ]
 
       const result = extractAiReviewLines(
-        'unified', 2, rows, [], 'src/test.ts', 0,
+        'unified',
+        2,
+        rows,
+        [],
+        'src/test.ts',
+        0,
       )
 
       expect(result?.lineTypes.has('add')).toBe(true)
@@ -388,7 +480,13 @@ describe('extractAiReviewLines', () => {
   describe('empty and edge cases', () => {
     it('returns undefined for empty rows', () => {
       const result = extractAiReviewLines(
-        'unified', 0, [], [], 'src/test.ts', null, 5,
+        'unified',
+        0,
+        [],
+        [],
+        'src/test.ts',
+        null,
+        5,
       )
 
       expect(result).toBeUndefined()
@@ -398,7 +496,13 @@ describe('extractAiReviewLines', () => {
       const rows: DiffDisplayRow[] = [makeAddLineRow(1)]
 
       const result = extractAiReviewLines(
-        'unified', 10, rows, [], 'src/test.ts', null, 5,
+        'unified',
+        10,
+        rows,
+        [],
+        'src/test.ts',
+        null,
+        5,
       )
 
       expect(result).toBeUndefined()
@@ -408,7 +512,13 @@ describe('extractAiReviewLines', () => {
       const rows: DiffDisplayRow[] = [makeAddLineRow(1, 'code')]
 
       const result = extractAiReviewLines(
-        'unified', 0, rows, [], 'src/components/App.tsx', null, 0,
+        'unified',
+        0,
+        rows,
+        [],
+        'src/components/App.tsx',
+        null,
+        0,
       )
 
       expect(result?.filename).toBe('src/components/App.tsx')
@@ -425,7 +535,14 @@ describe('extractSuggestionContext', () => {
     it('extracts a single add line', () => {
       const rows: DiffDisplayRow[] = [makeAddLineRow(5, 'const x = 0')]
 
-      const result = extractSuggestionContext('unified', 0, rows, [], 'src/index.ts', null)
+      const result = extractSuggestionContext(
+        'unified',
+        0,
+        rows,
+        [],
+        'src/index.ts',
+        null,
+      )
 
       expect(result).toBeDefined()
       expect(result?.originalCode).toBe('const x = 0')
@@ -438,7 +555,14 @@ describe('extractSuggestionContext', () => {
     it('extracts a single del line', () => {
       const rows: DiffDisplayRow[] = [makeDelLineRow(3, 'old code')]
 
-      const result = extractSuggestionContext('unified', 0, rows, [], 'src/old.ts', null)
+      const result = extractSuggestionContext(
+        'unified',
+        0,
+        rows,
+        [],
+        'src/old.ts',
+        null,
+      )
 
       expect(result).toBeDefined()
       expect(result?.originalCode).toBe('old code')
@@ -449,7 +573,14 @@ describe('extractSuggestionContext', () => {
     it('extracts a context line', () => {
       const rows: DiffDisplayRow[] = [makeContextLineRow(7, 'unchanged')]
 
-      const result = extractSuggestionContext('unified', 0, rows, [], 'src/file.ts', null)
+      const result = extractSuggestionContext(
+        'unified',
+        0,
+        rows,
+        [],
+        'src/file.ts',
+        null,
+      )
 
       expect(result).toBeDefined()
       expect(result?.originalCode).toBe('unchanged')
@@ -460,13 +591,27 @@ describe('extractSuggestionContext', () => {
     it('returns undefined for header row', () => {
       const rows: DiffDisplayRow[] = [makeHeaderRow()]
 
-      const result = extractSuggestionContext('unified', 0, rows, [], 'src/file.ts', null)
+      const result = extractSuggestionContext(
+        'unified',
+        0,
+        rows,
+        [],
+        'src/file.ts',
+        null,
+      )
 
       expect(result).toBeUndefined()
     })
 
     it('returns undefined for out-of-bounds index', () => {
-      const result = extractSuggestionContext('unified', 10, [], [], 'src/file.ts', null)
+      const result = extractSuggestionContext(
+        'unified',
+        10,
+        [],
+        [],
+        'src/file.ts',
+        null,
+      )
 
       expect(result).toBeUndefined()
     })
@@ -475,7 +620,14 @@ describe('extractSuggestionContext', () => {
       const thread = makeThread([makeComment(1)])
       const rows: DiffDisplayRow[] = [makeCommentRow(thread)]
 
-      const result = extractSuggestionContext('unified', 0, rows, [], 'src/file.ts', null)
+      const result = extractSuggestionContext(
+        'unified',
+        0,
+        rows,
+        [],
+        'src/file.ts',
+        null,
+      )
 
       expect(result).toBeUndefined()
     })
@@ -489,7 +641,14 @@ describe('extractSuggestionContext', () => {
         makeAddLineRow(3, 'line C'),
       ]
 
-      const result = extractSuggestionContext('unified', 2, rows, [], 'src/test.ts', 0)
+      const result = extractSuggestionContext(
+        'unified',
+        2,
+        rows,
+        [],
+        'src/test.ts',
+        0,
+      )
 
       expect(result).toBeDefined()
       expect(result?.originalCode).toBe('line A\nline B\nline C')
@@ -506,7 +665,14 @@ describe('extractSuggestionContext', () => {
       ]
 
       // visualStart=1, cursor=0 (reversed)
-      const result = extractSuggestionContext('unified', 0, rows, [], 'src/test.ts', 1)
+      const result = extractSuggestionContext(
+        'unified',
+        0,
+        rows,
+        [],
+        'src/test.ts',
+        1,
+      )
 
       expect(result).toBeDefined()
       expect(result?.originalCode).toBe('first\nsecond')
@@ -521,7 +687,14 @@ describe('extractSuggestionContext', () => {
         makeAddLineRow(10, 'after'),
       ]
 
-      const result = extractSuggestionContext('unified', 2, rows, [], 'src/test.ts', 0)
+      const result = extractSuggestionContext(
+        'unified',
+        2,
+        rows,
+        [],
+        'src/test.ts',
+        0,
+      )
 
       expect(result).toBeDefined()
       expect(result?.originalCode).toBe('before\nafter')
@@ -532,7 +705,14 @@ describe('extractSuggestionContext', () => {
     it('returns undefined when visual selection contains only headers', () => {
       const rows: DiffDisplayRow[] = [makeHeaderRow(), makeHeaderRow()]
 
-      const result = extractSuggestionContext('unified', 1, rows, [], 'src/test.ts', 0)
+      const result = extractSuggestionContext(
+        'unified',
+        1,
+        rows,
+        [],
+        'src/test.ts',
+        0,
+      )
 
       expect(result).toBeUndefined()
     })
@@ -543,7 +723,14 @@ describe('extractSuggestionContext', () => {
         makeDelLineRow(2, 'deleted'),
       ]
 
-      const result = extractSuggestionContext('unified', 1, rows, [], 'src/test.ts', 0)
+      const result = extractSuggestionContext(
+        'unified',
+        1,
+        rows,
+        [],
+        'src/test.ts',
+        0,
+      )
 
       expect(result).toBeDefined()
       expect(result?.side).toBe('LEFT') // last line is del
@@ -552,7 +739,14 @@ describe('extractSuggestionContext', () => {
     it('handles single-line visual selection', () => {
       const rows: DiffDisplayRow[] = [makeAddLineRow(5, 'only line')]
 
-      const result = extractSuggestionContext('unified', 0, rows, [], 'src/test.ts', 0)
+      const result = extractSuggestionContext(
+        'unified',
+        0,
+        rows,
+        [],
+        'src/test.ts',
+        0,
+      )
 
       expect(result).toBeDefined()
       expect(result?.originalCode).toBe('only line')
@@ -567,7 +761,14 @@ describe('extractSuggestionContext', () => {
         makeAddLineRow(3, 'added'),
       ]
 
-      const result = extractSuggestionContext('unified', 2, rows, [], 'src/test.ts', 0)
+      const result = extractSuggestionContext(
+        'unified',
+        2,
+        rows,
+        [],
+        'src/test.ts',
+        0,
+      )
 
       expect(result).toBeDefined()
       expect(result?.originalCode).toBe('context\nremoved\nadded')
@@ -581,7 +782,14 @@ describe('extractSuggestionContext', () => {
     it('uses the provided filename', () => {
       const rows: DiffDisplayRow[] = [makeAddLineRow(1, 'code')]
 
-      const result = extractSuggestionContext('unified', 0, rows, [], 'src/components/App.tsx', null)
+      const result = extractSuggestionContext(
+        'unified',
+        0,
+        rows,
+        [],
+        'src/components/App.tsx',
+        null,
+      )
 
       expect(result?.path).toBe('src/components/App.tsx')
     })

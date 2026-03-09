@@ -11,9 +11,7 @@ import { describe, it, expect } from 'vitest'
 // Replicate the pure functions from AiSummarySection for testing
 
 function formatProviderHeader(providerName: string): string {
-  return providerName
-    ? `AI Summary (powered by ${providerName})`
-    : 'AI Summary'
+  return providerName ? `AI Summary (powered by ${providerName})` : 'AI Summary'
 }
 
 function getToggleHint(isExpanded: boolean): string {

@@ -70,11 +70,7 @@ describe('PRChainView', () => {
     ])
     const { lastFrame } = render(
       themed(
-        <PRChainView
-          chain={chain}
-          chainStatus="ready"
-          isActive={false}
-        />,
+        <PRChainView chain={chain} chainStatus="ready" isActive={false} />,
       ),
     )
     const frame = lastFrame() ?? ''
@@ -89,11 +85,7 @@ describe('PRChainView', () => {
     ])
     const { lastFrame } = render(
       themed(
-        <PRChainView
-          chain={chain}
-          chainStatus="ready"
-          isActive={false}
-        />,
+        <PRChainView chain={chain} chainStatus="ready" isActive={false} />,
       ),
     )
     const frame = lastFrame() ?? ''
@@ -107,11 +99,7 @@ describe('PRChainView', () => {
     ])
     const { lastFrame } = render(
       themed(
-        <PRChainView
-          chain={chain}
-          chainStatus="waiting"
-          isActive={false}
-        />,
+        <PRChainView chain={chain} chainStatus="waiting" isActive={false} />,
       ),
     )
     const frame = lastFrame() ?? ''
@@ -120,16 +108,17 @@ describe('PRChainView', () => {
 
   it('renders chain status indicator for blocked', () => {
     const chain = makeChain([
-      { number: 1, title: 'Conflicted', status: 'conflicts', isCurrentlyViewing: false },
+      {
+        number: 1,
+        title: 'Conflicted',
+        status: 'conflicts',
+        isCurrentlyViewing: false,
+      },
       { number: 2, title: 'Current', status: 'open', isCurrentlyViewing: true },
     ])
     const { lastFrame } = render(
       themed(
-        <PRChainView
-          chain={chain}
-          chainStatus="blocked"
-          isActive={false}
-        />,
+        <PRChainView chain={chain} chainStatus="blocked" isActive={false} />,
       ),
     )
     const frame = lastFrame() ?? ''
@@ -138,9 +127,19 @@ describe('PRChainView', () => {
 
   it('renders PR numbers in expanded view', () => {
     const chain = makeChain([
-      { number: 10, title: 'First', status: 'merged', isCurrentlyViewing: false },
+      {
+        number: 10,
+        title: 'First',
+        status: 'merged',
+        isCurrentlyViewing: false,
+      },
       { number: 20, title: 'Second', status: 'open', isCurrentlyViewing: true },
-      { number: 30, title: 'Third', status: 'draft', isCurrentlyViewing: false },
+      {
+        number: 30,
+        title: 'Third',
+        status: 'draft',
+        isCurrentlyViewing: false,
+      },
     ])
     const { lastFrame } = render(
       themed(
@@ -160,7 +159,12 @@ describe('PRChainView', () => {
 
   it('shows arrow connectors between chain nodes when expanded', () => {
     const chain = makeChain([
-      { number: 1, title: 'First', status: 'merged', isCurrentlyViewing: false },
+      {
+        number: 1,
+        title: 'First',
+        status: 'merged',
+        isCurrentlyViewing: false,
+      },
       { number: 2, title: 'Second', status: 'open', isCurrentlyViewing: true },
     ])
     const { lastFrame } = render(
@@ -184,11 +188,7 @@ describe('PRChainView', () => {
     ])
     const { lastFrame } = render(
       themed(
-        <PRChainView
-          chain={chain}
-          chainStatus="ready"
-          isActive={false}
-        />,
+        <PRChainView chain={chain} chainStatus="ready" isActive={false} />,
       ),
     )
     const frame = lastFrame() ?? ''
@@ -198,7 +198,12 @@ describe('PRChainView', () => {
 
   it('renders status labels for each node when expanded', () => {
     const chain = makeChain([
-      { number: 1, title: 'First', status: 'merged', isCurrentlyViewing: false },
+      {
+        number: 1,
+        title: 'First',
+        status: 'merged',
+        isCurrentlyViewing: false,
+      },
       { number: 2, title: 'Second', status: 'open', isCurrentlyViewing: true },
       { number: 3, title: 'Third', status: 'draft', isCurrentlyViewing: false },
     ])
@@ -220,7 +225,12 @@ describe('PRChainView', () => {
 
   it('marks the currently viewed PR visually', () => {
     const chain = makeChain([
-      { number: 1, title: 'Parent', status: 'merged', isCurrentlyViewing: false },
+      {
+        number: 1,
+        title: 'Parent',
+        status: 'merged',
+        isCurrentlyViewing: false,
+      },
       { number: 2, title: 'Current', status: 'open', isCurrentlyViewing: true },
     ])
     const { lastFrame } = render(
@@ -241,7 +251,12 @@ describe('PRChainView', () => {
   it('calls onNavigateToPR when provided', () => {
     const onNav = vi.fn()
     const chain = makeChain([
-      { number: 1, title: 'Parent', status: 'merged', isCurrentlyViewing: false },
+      {
+        number: 1,
+        title: 'Parent',
+        status: 'merged',
+        isCurrentlyViewing: false,
+      },
       { number: 2, title: 'Current', status: 'open', isCurrentlyViewing: true },
     ])
     // We just verify it renders without errors when callback is provided
@@ -261,16 +276,17 @@ describe('PRChainView', () => {
 
   it('renders collapsed by default', () => {
     const chain = makeChain([
-      { number: 1, title: 'First', status: 'merged', isCurrentlyViewing: false },
+      {
+        number: 1,
+        title: 'First',
+        status: 'merged',
+        isCurrentlyViewing: false,
+      },
       { number: 2, title: 'Second', status: 'open', isCurrentlyViewing: true },
     ])
     const { lastFrame } = render(
       themed(
-        <PRChainView
-          chain={chain}
-          chainStatus="ready"
-          isActive={false}
-        />,
+        <PRChainView chain={chain} chainStatus="ready" isActive={false} />,
       ),
     )
     const frame = lastFrame() ?? ''

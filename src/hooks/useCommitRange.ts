@@ -87,11 +87,18 @@ export function createCommitRangeStore(): CommitRangeStore {
     },
 
     endSelection: (index: number, sha: string) => {
-      if (!state.isSelecting || state.startIndex === null || startSha === null) {
+      if (
+        !state.isSelecting ||
+        state.startIndex === null ||
+        startSha === null
+      ) {
         return
       }
 
-      const { startIndex, endIndex } = computeRangeIndices(state.startIndex, index)
+      const { startIndex, endIndex } = computeRangeIndices(
+        state.startIndex,
+        index,
+      )
 
       // Map SHAs to normalized order
       const normalizedStartSha = state.startIndex <= index ? startSha : sha

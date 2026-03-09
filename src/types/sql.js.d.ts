@@ -24,7 +24,10 @@ declare module 'sql.js' {
 
   export interface Database {
     run(sql: string, params?: BindParams | ReadonlyArray<SqlValue>): Database
-    exec(sql: string, params?: BindParams | ReadonlyArray<SqlValue>): readonly QueryExecResult[]
+    exec(
+      sql: string,
+      params?: BindParams | ReadonlyArray<SqlValue>,
+    ): readonly QueryExecResult[]
     prepare(sql: string): Statement
     export(): Uint8Array
     close(): void
@@ -35,5 +38,7 @@ declare module 'sql.js' {
     readonly locateFile?: (filename: string) => string
   }
 
-  export default function initSqlJs(options?: InitSqlJsOptions): Promise<SqlJsStatic>
+  export default function initSqlJs(
+    options?: InitSqlJsOptions,
+  ): Promise<SqlJsStatic>
 }

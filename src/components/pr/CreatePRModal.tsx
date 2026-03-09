@@ -156,7 +156,9 @@ export function CreatePRModal({
             {supportsDraft && (
               <Box gap={1}>
                 <Text color={theme.colors.muted}>Draft:</Text>
-                <Text color={draft ? theme.colors.warning : theme.colors.success}>
+                <Text
+                  color={draft ? theme.colors.warning : theme.colors.success}
+                >
                   {draft ? 'Yes' : 'No'}
                 </Text>
               </Box>
@@ -175,9 +177,7 @@ export function CreatePRModal({
             <Text color={theme.colors.info}>Creating PR...</Text>
           )}
 
-          {error && (
-            <Text color={theme.colors.error}>{error}</Text>
-          )}
+          {error && <Text color={theme.colors.error}>{error}</Text>}
 
           <Text color={theme.colors.muted} dimColor>
             y: create PR | Esc: back
@@ -205,12 +205,20 @@ export function CreatePRModal({
 
           <Box flexDirection="column">
             <Box gap={1}>
-              <Text color={optionIndex === 0 ? theme.colors.accent : theme.colors.muted}>
+              <Text
+                color={
+                  optionIndex === 0 ? theme.colors.accent : theme.colors.muted
+                }
+              >
                 {optionIndex === 0 ? '>' : ' '}
               </Text>
               <Text color={theme.colors.muted}>Base branch:</Text>
               {editingBase ? (
-                <Box borderStyle="single" borderColor={theme.colors.border} paddingX={1}>
+                <Box
+                  borderStyle="single"
+                  borderColor={theme.colors.border}
+                  paddingX={1}
+                >
                   <TextInput
                     defaultValue={baseBranch}
                     onChange={setBaseBranch}
@@ -226,11 +234,18 @@ export function CreatePRModal({
 
             {supportsDraft && (
               <Box gap={1}>
-                <Text color={optionIndex === 1 ? theme.colors.accent : theme.colors.muted}>
+                <Text
+                  color={
+                    optionIndex === 1 ? theme.colors.accent : theme.colors.muted
+                  }
+                >
                   {optionIndex === 1 ? '>' : ' '}
                 </Text>
                 <Text color={theme.colors.muted}>Draft:</Text>
-                <Text color={draft ? theme.colors.warning : theme.colors.success} bold={optionIndex === 1}>
+                <Text
+                  color={draft ? theme.colors.warning : theme.colors.success}
+                  bold={optionIndex === 1}
+                >
                   {draft ? '[x] Draft PR' : '[ ] Ready for review'}
                 </Text>
               </Box>
@@ -239,18 +254,20 @@ export function CreatePRModal({
 
           <Box flexDirection="column" gap={0}>
             <Box gap={1}>
-              <Text color={theme.colors.muted} dimColor>Head:</Text>
+              <Text color={theme.colors.muted} dimColor>
+                Head:
+              </Text>
               <Text color={theme.colors.accent}>{headBranch}</Text>
             </Box>
             <Box gap={1}>
-              <Text color={theme.colors.muted} dimColor>Title:</Text>
+              <Text color={theme.colors.muted} dimColor>
+                Title:
+              </Text>
               <Text color={theme.colors.text}>{title}</Text>
             </Box>
           </Box>
 
-          {error && (
-            <Text color={theme.colors.error}>{error}</Text>
-          )}
+          {error && <Text color={theme.colors.error}>{error}</Text>}
 
           <Text color={theme.colors.muted} dimColor>
             {editingBase
@@ -278,7 +295,11 @@ export function CreatePRModal({
             PR Description (optional)
           </Text>
 
-          <Box borderStyle="single" borderColor={theme.colors.border} paddingX={1}>
+          <Box
+            borderStyle="single"
+            borderColor={theme.colors.border}
+            paddingX={1}
+          >
             <MultiLineInput
               placeholder="Enter a description for your PR..."
               defaultValue={body}
@@ -290,11 +311,15 @@ export function CreatePRModal({
 
           <Box flexDirection="column" gap={0}>
             <Box gap={1}>
-              <Text color={theme.colors.muted} dimColor>Title:</Text>
+              <Text color={theme.colors.muted} dimColor>
+                Title:
+              </Text>
               <Text color={theme.colors.text}>{title}</Text>
             </Box>
             <Box gap={1}>
-              <Text color={theme.colors.muted} dimColor>Branch:</Text>
+              <Text color={theme.colors.muted} dimColor>
+                Branch:
+              </Text>
               <Text color={theme.colors.accent}>{headBranch}</Text>
               <Text color={theme.colors.muted}>{'->'}</Text>
               <Text color={theme.colors.text}>{baseBranch}</Text>
@@ -338,7 +363,11 @@ export function CreatePRModal({
 
         <Box flexDirection="column">
           <Text color={theme.colors.muted}>Title:</Text>
-          <Box borderStyle="single" borderColor={theme.colors.border} paddingX={1}>
+          <Box
+            borderStyle="single"
+            borderColor={theme.colors.border}
+            paddingX={1}
+          >
             <TextInput
               defaultValue={title}
               onChange={setTitle}
@@ -347,9 +376,7 @@ export function CreatePRModal({
           </Box>
         </Box>
 
-        {error && (
-          <Text color={theme.colors.error}>{error}</Text>
-        )}
+        {error && <Text color={theme.colors.error}>{error}</Text>}
 
         <Text color={theme.colors.muted} dimColor>
           Enter: continue | Esc: cancel

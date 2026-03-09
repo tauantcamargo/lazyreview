@@ -54,9 +54,9 @@ export function AssigneePickerModal({
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const [selectedAssignees, setSelectedAssignees] = useState<ReadonlySet<string>>(
-    () => new Set(currentAssignees),
-  )
+  const [selectedAssignees, setSelectedAssignees] = useState<
+    ReadonlySet<string>
+  >(() => new Set(currentAssignees))
 
   const filteredCollaborators = useMemo(
     () => filterCollaborators(collaborators, searchQuery),
@@ -170,7 +170,9 @@ export function AssigneePickerModal({
           <Text color={theme.colors.accent} bold>
             Assignees
           </Text>
-          <Text color={theme.colors.muted}>No collaborators available for this repository.</Text>
+          <Text color={theme.colors.muted}>
+            No collaborators available for this repository.
+          </Text>
           <Text color={theme.colors.muted} dimColor>
             Esc: close
           </Text>
@@ -195,9 +197,7 @@ export function AssigneePickerModal({
           Assignees
         </Text>
 
-        <Text color={theme.colors.muted}>
-          Toggle assignees for this PR:
-        </Text>
+        <Text color={theme.colors.muted}>Toggle assignees for this PR:</Text>
 
         {isSearching && (
           <Box>
@@ -221,10 +221,14 @@ export function AssigneePickerModal({
 
             return (
               <Box key={user.login} gap={1}>
-                <Text color={isFocused ? theme.colors.accent : theme.colors.muted}>
+                <Text
+                  color={isFocused ? theme.colors.accent : theme.colors.muted}
+                >
                   {isFocused ? '>' : ' '}
                 </Text>
-                <Text color={isChecked ? theme.colors.accent : theme.colors.muted}>
+                <Text
+                  color={isChecked ? theme.colors.accent : theme.colors.muted}
+                >
                   [{isChecked ? 'x' : ' '}]
                 </Text>
                 <Text
@@ -244,12 +248,15 @@ export function AssigneePickerModal({
         </Box>
 
         {filteredCollaborators.length === 0 && searchQuery && (
-          <Text color={theme.colors.muted}>No collaborators match &quot;{searchQuery}&quot;</Text>
+          <Text color={theme.colors.muted}>
+            No collaborators match &quot;{searchQuery}&quot;
+          </Text>
         )}
 
         {changed && (
           <Text color={theme.colors.info}>
-            {selectedAssignees.size} assignee{selectedAssignees.size !== 1 ? 's' : ''} selected
+            {selectedAssignees.size} assignee
+            {selectedAssignees.size !== 1 ? 's' : ''} selected
           </Text>
         )}
 
@@ -257,12 +264,11 @@ export function AssigneePickerModal({
           <Text color={theme.colors.info}>Updating assignees...</Text>
         )}
 
-        {error && (
-          <Text color={theme.colors.error}>{error}</Text>
-        )}
+        {error && <Text color={theme.colors.error}>{error}</Text>}
 
         <Text color={theme.colors.muted} dimColor>
-          j/k: navigate | Space/Enter: toggle | /: search | Ctrl+S: apply | Esc: cancel
+          j/k: navigate | Space/Enter: toggle | /: search | Ctrl+S: apply | Esc:
+          cancel
         </Text>
       </Box>
     </Modal>

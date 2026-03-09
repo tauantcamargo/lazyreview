@@ -106,7 +106,10 @@ describe('TeamDashboardScreen', () => {
       { username: 'bob' },
     ]
     const prs = [
-      makePR({ user: makeUser('alice'), requested_reviewers: [makeUser('bob')] }),
+      makePR({
+        user: makeUser('alice'),
+        requested_reviewers: [makeUser('bob')],
+      }),
       makePR({ user: makeUser('alice') }),
     ]
     const { lastFrame } = render(
@@ -215,6 +218,7 @@ describe('TeamDashboardScreen', () => {
     )
     await new Promise((resolve) => setTimeout(resolve, 10))
     stdin.write('\x1B')
+    await new Promise((r) => setImmediate(r))
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 

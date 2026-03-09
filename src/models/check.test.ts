@@ -55,11 +55,22 @@ describe('CheckRun schema', () => {
 
   it('decodes all valid conclusions', () => {
     const conclusions = [
-      'success', 'failure', 'neutral', 'cancelled',
-      'skipped', 'timed_out', 'action_required', 'stale',
+      'success',
+      'failure',
+      'neutral',
+      'cancelled',
+      'skipped',
+      'timed_out',
+      'action_required',
+      'stale',
     ] as const
     for (const conclusion of conclusions) {
-      const result = decode({ id: 1, name: 'ci', status: 'completed', conclusion })
+      const result = decode({
+        id: 1,
+        name: 'ci',
+        status: 'completed',
+        conclusion,
+      })
       expect(result.conclusion).toBe(conclusion)
     }
   })
@@ -94,9 +105,27 @@ describe('summarizeChecks', () => {
 
   it('returns success when all checks pass', () => {
     const checks = [
-      { id: 1, name: 'build', status: 'completed' as const, conclusion: 'success' as const, html_url: null },
-      { id: 2, name: 'lint', status: 'completed' as const, conclusion: 'neutral' as const, html_url: null },
-      { id: 3, name: 'skip', status: 'completed' as const, conclusion: 'skipped' as const, html_url: null },
+      {
+        id: 1,
+        name: 'build',
+        status: 'completed' as const,
+        conclusion: 'success' as const,
+        html_url: null,
+      },
+      {
+        id: 2,
+        name: 'lint',
+        status: 'completed' as const,
+        conclusion: 'neutral' as const,
+        html_url: null,
+      },
+      {
+        id: 3,
+        name: 'skip',
+        status: 'completed' as const,
+        conclusion: 'skipped' as const,
+        html_url: null,
+      },
     ]
     const result = summarizeChecks(checks)
     expect(result.conclusion).toBe('success')
@@ -107,8 +136,20 @@ describe('summarizeChecks', () => {
 
   it('returns failure when any check fails', () => {
     const checks = [
-      { id: 1, name: 'build', status: 'completed' as const, conclusion: 'success' as const, html_url: null },
-      { id: 2, name: 'test', status: 'completed' as const, conclusion: 'failure' as const, html_url: null },
+      {
+        id: 1,
+        name: 'build',
+        status: 'completed' as const,
+        conclusion: 'success' as const,
+        html_url: null,
+      },
+      {
+        id: 2,
+        name: 'test',
+        status: 'completed' as const,
+        conclusion: 'failure' as const,
+        html_url: null,
+      },
     ]
     const result = summarizeChecks(checks)
     expect(result.conclusion).toBe('failure')
@@ -118,8 +159,20 @@ describe('summarizeChecks', () => {
 
   it('returns pending when any check is in progress', () => {
     const checks = [
-      { id: 1, name: 'build', status: 'completed' as const, conclusion: 'success' as const, html_url: null },
-      { id: 2, name: 'deploy', status: 'in_progress' as const, conclusion: null, html_url: null },
+      {
+        id: 1,
+        name: 'build',
+        status: 'completed' as const,
+        conclusion: 'success' as const,
+        html_url: null,
+      },
+      {
+        id: 2,
+        name: 'deploy',
+        status: 'in_progress' as const,
+        conclusion: null,
+        html_url: null,
+      },
     ]
     const result = summarizeChecks(checks)
     expect(result.conclusion).toBe('pending')
@@ -128,8 +181,20 @@ describe('summarizeChecks', () => {
 
   it('failure takes priority over pending', () => {
     const checks = [
-      { id: 1, name: 'build', status: 'completed' as const, conclusion: 'failure' as const, html_url: null },
-      { id: 2, name: 'deploy', status: 'queued' as const, conclusion: null, html_url: null },
+      {
+        id: 1,
+        name: 'build',
+        status: 'completed' as const,
+        conclusion: 'failure' as const,
+        html_url: null,
+      },
+      {
+        id: 2,
+        name: 'deploy',
+        status: 'queued' as const,
+        conclusion: null,
+        html_url: null,
+      },
     ]
     const result = summarizeChecks(checks)
     expect(result.conclusion).toBe('failure')

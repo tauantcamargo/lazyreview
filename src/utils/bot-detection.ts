@@ -9,9 +9,7 @@
  * Default patterns for detecting bot accounts.
  * A username ending with `[bot]` is the standard GitHub convention.
  */
-export const DEFAULT_BOT_PATTERNS: readonly string[] = Object.freeze([
-  '[bot]',
-])
+export const DEFAULT_BOT_PATTERNS: readonly string[] = Object.freeze(['[bot]'])
 
 /**
  * Minimal comment shape required for bot detection.
@@ -49,9 +47,7 @@ export function isBotUser(
   // Check custom bot usernames (case-insensitive)
   if (customBotUsernames && customBotUsernames.length > 0) {
     const lowerUsername = username.toLowerCase()
-    return customBotUsernames.some(
-      (bot) => bot.toLowerCase() === lowerUsername,
-    )
+    return customBotUsernames.some((bot) => bot.toLowerCase() === lowerUsername)
   }
 
   return false

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { clampConflictIndex, nextConflictIndex, prevConflictIndex } from './useConflictNavigation'
+import {
+  clampConflictIndex,
+  nextConflictIndex,
+  prevConflictIndex,
+} from './useConflictNavigation'
 
 describe('nextConflictIndex', () => {
   it('advances to next index', () => {

@@ -30,8 +30,12 @@ export class PullRequest extends S.Class<PullRequest>('PullRequest')({
   merged_at: S.optionalWith(S.NullOr(S.String), { default: () => null }),
   closed_at: S.optionalWith(S.NullOr(S.String), { default: () => null }),
   html_url: S.String,
-  head: S.optionalWith(BranchRef, { default: () => new BranchRef({ ref: '', sha: '' }) }),
-  base: S.optionalWith(BranchRef, { default: () => new BranchRef({ ref: '', sha: '' }) }),
+  head: S.optionalWith(BranchRef, {
+    default: () => new BranchRef({ ref: '', sha: '' }),
+  }),
+  base: S.optionalWith(BranchRef, {
+    default: () => new BranchRef({ ref: '', sha: '' }),
+  }),
   additions: S.optionalWith(S.Number, { default: () => 0 }),
   deletions: S.optionalWith(S.Number, { default: () => 0 }),
   changed_files: S.optionalWith(S.Number, { default: () => 0 }),

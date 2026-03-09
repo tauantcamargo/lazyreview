@@ -17,7 +17,10 @@ import { describe, it, expect, vi } from 'vitest'
 
 import type { PullRequest } from '../../models/pull-request'
 import type { Review } from '../../models/review'
-import { findMostRecentBotComment, type BotDetectableComment } from '../../utils/bot-detection'
+import {
+  findMostRecentBotComment,
+  type BotDetectableComment,
+} from '../../utils/bot-detection'
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -50,7 +53,11 @@ function makePR(overrides?: Partial<Record<string, unknown>>): PullRequest {
   } as unknown as PullRequest
 }
 
-function makeReview(login: string, state: string, submitted_at: string): Review {
+function makeReview(
+  login: string,
+  state: string,
+  submitted_at: string,
+): Review {
   return {
     id: Math.floor(Math.random() * 10000),
     user: { login, avatar_url: '', id: 1, html_url: '' },
@@ -83,7 +90,9 @@ function makeIssueComment(
 describe('DescriptionTab', () => {
   describe('PR info rendering data', () => {
     it('provides author login from pr.user', () => {
-      const pr = makePR({ user: { login: 'octocat', avatar_url: '', id: 1, html_url: '' } })
+      const pr = makePR({
+        user: { login: 'octocat', avatar_url: '', id: 1, html_url: '' },
+      })
       expect(pr.user.login).toBe('octocat')
     })
 
@@ -94,7 +103,9 @@ describe('DescriptionTab', () => {
           { login: 'bob', avatar_url: '', id: 3, html_url: '' },
         ],
       })
-      expect(pr.requested_reviewers.map((r: { login: string }) => r.login)).toEqual(['alice', 'bob'])
+      expect(
+        pr.requested_reviewers.map((r: { login: string }) => r.login),
+      ).toEqual(['alice', 'bob'])
     })
 
     it('provides labels with color', () => {
@@ -159,7 +170,9 @@ describe('DescriptionTab', () => {
         onEditDescription({ body: pr.body ?? '' })
       }
 
-      expect(onEditDescription).toHaveBeenCalledWith({ body: 'Current description' })
+      expect(onEditDescription).toHaveBeenCalledWith({
+        body: 'Current description',
+      })
     })
 
     it('does not call onEditDescription when not provided', () => {
@@ -266,7 +279,11 @@ describe('DescriptionTab', () => {
     it('finds bot comment from issue comments', () => {
       const issueComments = [
         makeIssueComment('alice', 'LGTM', '2025-01-01T00:00:00Z'),
-        makeIssueComment('github-actions[bot]', '## Summary\nLooks good', '2025-01-02T00:00:00Z'),
+        makeIssueComment(
+          'github-actions[bot]',
+          '## Summary\nLooks good',
+          '2025-01-02T00:00:00Z',
+        ),
         makeIssueComment('bob', 'Nice work', '2025-01-03T00:00:00Z'),
       ]
 
@@ -288,7 +305,11 @@ describe('DescriptionTab', () => {
 
     it('uses custom bot usernames from config', () => {
       const issueComments = [
-        makeIssueComment('coderabbitai', 'AI Review: looks good', '2025-01-01T00:00:00Z'),
+        makeIssueComment(
+          'coderabbitai',
+          'AI Review: looks good',
+          '2025-01-01T00:00:00Z',
+        ),
       ]
       const botUsernames = ['coderabbitai']
 
@@ -303,7 +324,8 @@ describe('DescriptionTab', () => {
     })
 
     it('handles undefined issue comments (defaults to no bot summary)', () => {
-      const issueComments: readonly BotDetectableComment[] | undefined = undefined
+      const issueComments: readonly BotDetectableComment[] | undefined =
+        undefined
       const botComment = findMostRecentBotComment(issueComments ?? [])
       expect(botComment).toBeNull()
     })
@@ -315,8 +337,14 @@ describe('DescriptionTab', () => {
       const DESCRIPTION_HEADER_LINES = 2
       const terminalRows = 40
 
-      const contentHeight = Math.max(1, terminalRows - PR_DETAIL_CONTENT_HEIGHT_RESERVED)
-      const viewportHeight = Math.max(1, contentHeight - DESCRIPTION_HEADER_LINES)
+      const contentHeight = Math.max(
+        1,
+        terminalRows - PR_DETAIL_CONTENT_HEIGHT_RESERVED,
+      )
+      const viewportHeight = Math.max(
+        1,
+        contentHeight - DESCRIPTION_HEADER_LINES,
+      )
 
       expect(contentHeight).toBe(22)
       expect(viewportHeight).toBe(20)
@@ -327,8 +355,14 @@ describe('DescriptionTab', () => {
       const DESCRIPTION_HEADER_LINES = 2
       const terminalRows = 10
 
-      const contentHeight = Math.max(1, terminalRows - PR_DETAIL_CONTENT_HEIGHT_RESERVED)
-      const viewportHeight = Math.max(1, contentHeight - DESCRIPTION_HEADER_LINES)
+      const contentHeight = Math.max(
+        1,
+        terminalRows - PR_DETAIL_CONTENT_HEIGHT_RESERVED,
+      )
+      const viewportHeight = Math.max(
+        1,
+        contentHeight - DESCRIPTION_HEADER_LINES,
+      )
 
       expect(contentHeight).toBe(1)
       expect(viewportHeight).toBe(1)

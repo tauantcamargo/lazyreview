@@ -21,13 +21,23 @@ export function getProviderErrorHint(message: string): ErrorHint | null {
 
   // GitHub errors
   if (lower.includes('github') || lower.includes('api.github.com')) {
-    if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('bad credentials')) {
+    if (
+      lower.includes('401') ||
+      lower.includes('unauthorized') ||
+      lower.includes('bad credentials')
+    ) {
       return {
-        suggestion: "Token expired or invalid. Press 'S' to open Settings and update your token.",
-        detail: 'Create a new token at github.com/settings/tokens with repo scope.',
+        suggestion:
+          "Token expired or invalid. Press 'S' to open Settings and update your token.",
+        detail:
+          'Create a new token at github.com/settings/tokens with repo scope.',
       }
     }
-    if (lower.includes('403') || lower.includes('forbidden') || lower.includes('rate limit')) {
+    if (
+      lower.includes('403') ||
+      lower.includes('forbidden') ||
+      lower.includes('rate limit')
+    ) {
       return {
         suggestion: 'API rate limit exceeded or insufficient permissions.',
         detail: "Ensure your token has 'repo' scope. Rate limits reset hourly.",
@@ -35,7 +45,8 @@ export function getProviderErrorHint(message: string): ErrorHint | null {
     }
     if (lower.includes('404') || lower.includes('not found')) {
       return {
-        suggestion: 'Repository not found. Check the owner/repo name or token permissions.',
+        suggestion:
+          'Repository not found. Check the owner/repo name or token permissions.',
       }
     }
   }
@@ -44,8 +55,10 @@ export function getProviderErrorHint(message: string): ErrorHint | null {
   if (lower.includes('gitlab')) {
     if (lower.includes('401') || lower.includes('unauthorized')) {
       return {
-        suggestion: "GitLab token expired or invalid. Press 'S' to update your token.",
-        detail: "Create a new token at gitlab.com/-/user_settings/personal_access_tokens with 'api' scope.",
+        suggestion:
+          "GitLab token expired or invalid. Press 'S' to update your token.",
+        detail:
+          "Create a new token at gitlab.com/-/user_settings/personal_access_tokens with 'api' scope.",
       }
     }
     if (lower.includes('403') || lower.includes('forbidden')) {
@@ -60,13 +73,16 @@ export function getProviderErrorHint(message: string): ErrorHint | null {
   if (lower.includes('bitbucket')) {
     if (lower.includes('401') || lower.includes('unauthorized')) {
       return {
-        suggestion: "App password invalid. Press 'S' to update your credentials.",
-        detail: 'Create a new app password at bitbucket.org/account/settings/app-passwords with Repository and Pull Request permissions.',
+        suggestion:
+          "App password invalid. Press 'S' to update your credentials.",
+        detail:
+          'Create a new app password at bitbucket.org/account/settings/app-passwords with Repository and Pull Request permissions.',
       }
     }
     if (lower.includes('403') || lower.includes('forbidden')) {
       return {
-        suggestion: 'Permission denied. Ensure your app password has Repository and Pull Request read permissions.',
+        suggestion:
+          'Permission denied. Ensure your app password has Repository and Pull Request read permissions.',
       }
     }
   }
@@ -81,7 +97,8 @@ export function getProviderErrorHint(message: string): ErrorHint | null {
     }
     if (lower.includes('403') || lower.includes('forbidden')) {
       return {
-        suggestion: "Insufficient permissions. Ensure your PAT has 'Code (Read)' scope.",
+        suggestion:
+          "Insufficient permissions. Ensure your PAT has 'Code (Read)' scope.",
       }
     }
   }
@@ -91,12 +108,14 @@ export function getProviderErrorHint(message: string): ErrorHint | null {
     if (lower.includes('401') || lower.includes('unauthorized')) {
       return {
         suggestion: "Token expired or invalid. Press 'S' to update your token.",
-        detail: 'Create a new token in your Gitea instance under Settings > Applications.',
+        detail:
+          'Create a new token in your Gitea instance under Settings > Applications.',
       }
     }
     if (lower.includes('403') || lower.includes('forbidden')) {
       return {
-        suggestion: 'Permission denied. Ensure your token has repository read permissions.',
+        suggestion:
+          'Permission denied. Ensure your token has repository read permissions.',
       }
     }
   }
@@ -104,12 +123,14 @@ export function getProviderErrorHint(message: string): ErrorHint | null {
   // Generic auth failures
   if (lower.includes('401') || lower.includes('unauthorized')) {
     return {
-      suggestion: "Authentication failed. Press 'S' to open Settings and update your token.",
+      suggestion:
+        "Authentication failed. Press 'S' to open Settings and update your token.",
     }
   }
   if (lower.includes('403') || lower.includes('forbidden')) {
     return {
-      suggestion: 'Permission denied. Check your token scopes and repository access.',
+      suggestion:
+        'Permission denied. Check your token scopes and repository access.',
     }
   }
 
@@ -152,23 +173,31 @@ export function ErrorWithRetry({
       borderColor={theme.colors.error}
     >
       <Box gap={1}>
-        <Text color={theme.colors.error} bold>✗</Text>
+        <Text color={theme.colors.error} bold>
+          ✗
+        </Text>
         <Text color={theme.colors.error}>{message}</Text>
       </Box>
       {hint && (
         <Box flexDirection="column" paddingLeft={2} gap={0}>
           <Text color={theme.colors.warning}>{hint.suggestion}</Text>
           {hint.detail && (
-            <Text color={theme.colors.muted} dimColor>{hint.detail}</Text>
+            <Text color={theme.colors.muted} dimColor>
+              {hint.detail}
+            </Text>
           )}
         </Box>
       )}
       <Box paddingLeft={2} gap={1}>
         <Text color={theme.colors.muted}>Press</Text>
-        <Text color={theme.colors.accent} bold>r</Text>
+        <Text color={theme.colors.accent} bold>
+          r
+        </Text>
         <Text color={theme.colors.muted}>to retry</Text>
         <Text color={theme.colors.muted}>·</Text>
-        <Text color={theme.colors.accent} bold>?</Text>
+        <Text color={theme.colors.accent} bold>
+          ?
+        </Text>
         <Text color={theme.colors.muted}>for help</Text>
       </Box>
     </Box>

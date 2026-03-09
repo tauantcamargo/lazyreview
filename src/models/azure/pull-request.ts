@@ -89,16 +89,9 @@ export const AzurePullRequestSchema = z.object({
   mergeStatus: z.string().optional(),
   isDraft: z.boolean().optional().default(false),
   mergeId: z.string().optional(),
-  lastMergeSourceCommit: z
-    .object({ commitId: z.string() })
-    .optional(),
-  lastMergeTargetCommit: z
-    .object({ commitId: z.string() })
-    .optional(),
-  lastMergeCommit: z
-    .object({ commitId: z.string() })
-    .nullable()
-    .optional(),
+  lastMergeSourceCommit: z.object({ commitId: z.string() }).optional(),
+  lastMergeTargetCommit: z.object({ commitId: z.string() }).optional(),
+  lastMergeCommit: z.object({ commitId: z.string() }).nullable().optional(),
   reviewers: z.array(AzureReviewerSchema).default([]),
   labels: z
     .array(

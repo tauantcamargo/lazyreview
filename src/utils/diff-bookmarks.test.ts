@@ -61,7 +61,13 @@ describe('isValidRegister', () => {
 describe('setBookmark', () => {
   it('sets a bookmark in an empty state', () => {
     const state = createBookmarkState()
-    const next = setBookmark(state, 'a', 'src/index.ts', 42, 'github:owner/repo#1')
+    const next = setBookmark(
+      state,
+      'a',
+      'src/index.ts',
+      42,
+      'github:owner/repo#1',
+    )
     const bookmark = getBookmark(next, 'a')
     expect(bookmark).not.toBeNull()
     expect(bookmark?.register).toBe('a')

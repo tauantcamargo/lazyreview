@@ -32,9 +32,36 @@ function makePR(overrides: Partial<Record<string, unknown>> = {}): PullRequest {
 }
 
 const testItems: readonly PullRequest[] = [
-  makePR({ id: 1, number: 1, title: 'Fix login bug', user: { login: 'alice', avatar_url: '' }, html_url: 'https://github.com/org/frontend/pull/1', labels: [{ id: 1, name: 'bug', color: 'ff0000', description: null }], updated_at: '2025-01-03T00:00:00Z' }),
-  makePR({ id: 2, number: 2, title: 'Add dashboard', user: { login: 'bob', avatar_url: '' }, html_url: 'https://github.com/org/frontend/pull/2', labels: [{ id: 2, name: 'feature', color: '00ff00', description: null }], updated_at: '2025-01-04T00:00:00Z' }),
-  makePR({ id: 3, number: 3, title: 'Refactor API', user: { login: 'alice', avatar_url: '' }, html_url: 'https://github.com/org/backend/pull/3', labels: [{ id: 1, name: 'bug', color: 'ff0000', description: null }, { id: 3, name: 'refactor', color: '0000ff', description: null }], updated_at: '2025-01-05T00:00:00Z' }),
+  makePR({
+    id: 1,
+    number: 1,
+    title: 'Fix login bug',
+    user: { login: 'alice', avatar_url: '' },
+    html_url: 'https://github.com/org/frontend/pull/1',
+    labels: [{ id: 1, name: 'bug', color: 'ff0000', description: null }],
+    updated_at: '2025-01-03T00:00:00Z',
+  }),
+  makePR({
+    id: 2,
+    number: 2,
+    title: 'Add dashboard',
+    user: { login: 'bob', avatar_url: '' },
+    html_url: 'https://github.com/org/frontend/pull/2',
+    labels: [{ id: 2, name: 'feature', color: '00ff00', description: null }],
+    updated_at: '2025-01-04T00:00:00Z',
+  }),
+  makePR({
+    id: 3,
+    number: 3,
+    title: 'Refactor API',
+    user: { login: 'alice', avatar_url: '' },
+    html_url: 'https://github.com/org/backend/pull/3',
+    labels: [
+      { id: 1, name: 'bug', color: 'ff0000', description: null },
+      { id: 3, name: 'refactor', color: '0000ff', description: null },
+    ],
+    updated_at: '2025-01-05T00:00:00Z',
+  }),
 ]
 
 function FilterTestComponent({
@@ -65,9 +92,18 @@ function FilterTestComponent({
       <Text>repos:{hooks.availableRepos.join(',')}</Text>
       <Text>authors:{hooks.availableAuthors.join(',')}</Text>
       <Text>labels:{hooks.availableLabels.join(',')}</Text>
-      <Text>repoFacets:{hooks.repoFacets.map((f) => `${f.value}(${f.count})`).join(',')}</Text>
-      <Text>authorFacets:{hooks.authorFacets.map((f) => `${f.value}(${f.count})`).join(',')}</Text>
-      <Text>labelFacets:{hooks.labelFacets.map((f) => `${f.value}(${f.count})`).join(',')}</Text>
+      <Text>
+        repoFacets:
+        {hooks.repoFacets.map((f) => `${f.value}(${f.count})`).join(',')}
+      </Text>
+      <Text>
+        authorFacets:
+        {hooks.authorFacets.map((f) => `${f.value}(${f.count})`).join(',')}
+      </Text>
+      <Text>
+        labelFacets:
+        {hooks.labelFacets.map((f) => `${f.value}(${f.count})`).join(',')}
+      </Text>
     </Box>
   )
 }
@@ -83,9 +119,7 @@ function delay(ms = 50): Promise<void> {
 
 describe('useFilter hook', () => {
   it('returns all items with no filters', () => {
-    const { lastFrame } = render(
-      <FilterTestComponent items={testItems} />,
-    )
+    const { lastFrame } = render(<FilterTestComponent items={testItems} />)
     expect(extractValue(lastFrame(), 'filtered')).toBe('3')
     expect(extractValue(lastFrame(), 'active')).toBe('no')
   })
@@ -197,27 +231,21 @@ describe('useFilter hook', () => {
   })
 
   it('computes available repos', () => {
-    const { lastFrame } = render(
-      <FilterTestComponent items={testItems} />,
-    )
+    const { lastFrame } = render(<FilterTestComponent items={testItems} />)
     const repos = extractValue(lastFrame(), 'repos')
     expect(repos).toContain('org/backend')
     expect(repos).toContain('org/frontend')
   })
 
   it('computes available authors', () => {
-    const { lastFrame } = render(
-      <FilterTestComponent items={testItems} />,
-    )
+    const { lastFrame } = render(<FilterTestComponent items={testItems} />)
     const authors = extractValue(lastFrame(), 'authors')
     expect(authors).toContain('alice')
     expect(authors).toContain('bob')
   })
 
   it('computes available labels', () => {
-    const { lastFrame } = render(
-      <FilterTestComponent items={testItems} />,
-    )
+    const { lastFrame } = render(<FilterTestComponent items={testItems} />)
     const labels = extractValue(lastFrame(), 'labels')
     expect(labels).toContain('bug')
     expect(labels).toContain('feature')
@@ -225,27 +253,21 @@ describe('useFilter hook', () => {
   })
 
   it('computes repo facets with counts', () => {
-    const { lastFrame } = render(
-      <FilterTestComponent items={testItems} />,
-    )
+    const { lastFrame } = render(<FilterTestComponent items={testItems} />)
     const facets = extractValue(lastFrame(), 'repoFacets')
     expect(facets).toContain('org/frontend(2)')
     expect(facets).toContain('org/backend(1)')
   })
 
   it('computes author facets with counts', () => {
-    const { lastFrame } = render(
-      <FilterTestComponent items={testItems} />,
-    )
+    const { lastFrame } = render(<FilterTestComponent items={testItems} />)
     const facets = extractValue(lastFrame(), 'authorFacets')
     expect(facets).toContain('alice(2)')
     expect(facets).toContain('bob(1)')
   })
 
   it('computes label facets with counts', () => {
-    const { lastFrame } = render(
-      <FilterTestComponent items={testItems} />,
-    )
+    const { lastFrame } = render(<FilterTestComponent items={testItems} />)
     const facets = extractValue(lastFrame(), 'labelFacets')
     expect(facets).toContain('bug(2)')
     expect(facets).toContain('feature(1)')
@@ -253,9 +275,7 @@ describe('useFilter hook', () => {
   })
 
   it('hasActiveFilters is false with default state', () => {
-    const { lastFrame } = render(
-      <FilterTestComponent items={testItems} />,
-    )
+    const { lastFrame } = render(<FilterTestComponent items={testItems} />)
     expect(extractValue(lastFrame(), 'active')).toBe('no')
   })
 
@@ -293,9 +313,7 @@ describe('useFilter hook', () => {
   })
 
   it('returns empty arrays for empty items', () => {
-    const { lastFrame } = render(
-      <FilterTestComponent items={[]} />,
-    )
+    const { lastFrame } = render(<FilterTestComponent items={[]} />)
     expect(extractValue(lastFrame(), 'filtered')).toBe('0')
     expect(extractValue(lastFrame(), 'repos')).toBe('')
     expect(extractValue(lastFrame(), 'authors')).toBe('')

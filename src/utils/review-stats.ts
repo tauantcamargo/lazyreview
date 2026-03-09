@@ -41,7 +41,9 @@ const EMPTY_STATS: ReviewStats = {
  * Aggregate a list of review sessions into summary statistics.
  * Returns zero-stats for an empty list.
  */
-export function aggregateStats(sessions: readonly ReviewSession[]): ReviewStats {
+export function aggregateStats(
+  sessions: readonly ReviewSession[],
+): ReviewStats {
   if (sessions.length === 0) {
     return EMPTY_STATS
   }

@@ -1,6 +1,10 @@
 import { Effect } from 'effect'
 import type { BitbucketError, NetworkError } from '../../models/errors'
-import { mutateBitbucket, mutateBitbucketJson, fetchBitbucket } from './bitbucket-helpers'
+import {
+  mutateBitbucket,
+  mutateBitbucketJson,
+  fetchBitbucket,
+} from './bitbucket-helpers'
 
 // ---------------------------------------------------------------------------
 // Approve / Unapprove PR
@@ -190,9 +194,7 @@ export function deleteComment(
  * - squash -> squash
  * - rebase -> fast_forward (closest equivalent)
  */
-function mapMergeStrategy(
-  method: 'merge' | 'squash' | 'rebase',
-): string {
+function mapMergeStrategy(method: 'merge' | 'squash' | 'rebase'): string {
   switch (method) {
     case 'merge':
       return 'merge_commit'
@@ -344,7 +346,11 @@ export function getCurrentUser(
   baseUrl: string,
   token: string,
 ): Effect.Effect<
-  { readonly username: string; readonly uuid: string; readonly display_name: string },
+  {
+    readonly username: string
+    readonly uuid: string
+    readonly display_name: string
+  },
   BitbucketError | NetworkError
 > {
   return fetchBitbucket<{

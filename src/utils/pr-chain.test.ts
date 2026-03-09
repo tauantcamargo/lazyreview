@@ -318,7 +318,11 @@ describe('findCurrentInChain', () => {
   it('returns the index of the currently viewed PR', () => {
     const currentPR = makePR({ number: 2 })
     const chain: readonly PRChainNode[] = [
-      { pr: makePR({ number: 1 }), status: 'merged', isCurrentlyViewing: false },
+      {
+        pr: makePR({ number: 1 }),
+        status: 'merged',
+        isCurrentlyViewing: false,
+      },
       { pr: currentPR, status: 'open', isCurrentlyViewing: true },
       { pr: makePR({ number: 3 }), status: 'draft', isCurrentlyViewing: false },
     ]

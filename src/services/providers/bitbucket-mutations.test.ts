@@ -413,9 +413,7 @@ describe('getCurrentUser', () => {
         display_name: 'Alice',
       },
     })
-    const result = await Effect.runPromise(
-      getCurrentUser(BASE_URL, TOKEN),
-    )
+    const result = await Effect.runPromise(getCurrentUser(BASE_URL, TOKEN))
 
     expect(result.username).toBe('alice')
     expect(result.uuid).toBe('{alice-uuid}')

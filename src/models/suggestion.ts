@@ -28,13 +28,20 @@ export const AcceptSuggestionParamsSchema = z.object({
   commitMessage: z.string().optional(),
 })
 
-export type AcceptSuggestionParams = z.infer<typeof AcceptSuggestionParamsSchema>
+export type AcceptSuggestionParams = z.infer<
+  typeof AcceptSuggestionParamsSchema
+>
 
 // ---------------------------------------------------------------------------
 // Provider type for format selection (avoids circular import)
 // ---------------------------------------------------------------------------
 
-type SuggestionProviderType = 'github' | 'gitlab' | 'bitbucket' | 'azure' | 'gitea'
+type SuggestionProviderType =
+  | 'github'
+  | 'gitlab'
+  | 'bitbucket'
+  | 'azure'
+  | 'gitea'
 
 // ---------------------------------------------------------------------------
 // GitHub suggestion formatting
@@ -44,19 +51,10 @@ type SuggestionProviderType = 'github' | 'gitlab' | 'bitbucket' | 'azure' | 'git
  * Wraps a code suggestion in GitHub-compatible markdown syntax.
  * GitHub uses triple-backtick suggestion blocks.
  */
-export function formatSuggestionBody(
-  body: string,
-  suggestion: string,
-): string {
-  const suggestionBlock = [
-    '```suggestion',
-    suggestion,
-    '```',
-  ].join('\n')
+export function formatSuggestionBody(body: string, suggestion: string): string {
+  const suggestionBlock = ['```suggestion', suggestion, '```'].join('\n')
 
-  return body.length > 0
-    ? `${body}\n\n${suggestionBlock}`
-    : suggestionBlock
+  return body.length > 0 ? `${body}\n\n${suggestionBlock}` : suggestionBlock
 }
 
 // ---------------------------------------------------------------------------
@@ -71,15 +69,9 @@ export function formatGitLabSuggestionBody(
   body: string,
   suggestion: string,
 ): string {
-  const suggestionBlock = [
-    '```suggestion:-0+0',
-    suggestion,
-    '```',
-  ].join('\n')
+  const suggestionBlock = ['```suggestion:-0+0', suggestion, '```'].join('\n')
 
-  return body.length > 0
-    ? `${body}\n\n${suggestionBlock}`
-    : suggestionBlock
+  return body.length > 0 ? `${body}\n\n${suggestionBlock}` : suggestionBlock
 }
 
 // ---------------------------------------------------------------------------
@@ -94,17 +86,11 @@ export function formatFallbackSuggestionBody(
   body: string,
   suggestion: string,
 ): string {
-  const codeBlock = [
-    '```',
-    suggestion,
-    '```',
-  ].join('\n')
+  const codeBlock = ['```', suggestion, '```'].join('\n')
 
   const suggestionSection = `**Suggested change:**\n${codeBlock}`
 
-  return body.length > 0
-    ? `${body}\n\n${suggestionSection}`
-    : suggestionSection
+  return body.length > 0 ? `${body}\n\n${suggestionSection}` : suggestionSection
 }
 
 // ---------------------------------------------------------------------------

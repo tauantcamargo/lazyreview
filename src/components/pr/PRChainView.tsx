@@ -157,11 +157,10 @@ export function PRChainView({
             return (
               <Box key={node.pr.number} flexDirection="row">
                 <Text color={color}>
-                  {icon}#{node.pr.number}{marker}
+                  {icon}#{node.pr.number}
+                  {marker}
                 </Text>
-                {!isLast && (
-                  <Text color={theme.colors.muted}>{' -> '}</Text>
-                )}
+                {!isLast && <Text color={theme.colors.muted}>{' -> '}</Text>}
               </Box>
             )
           })}
@@ -181,16 +180,18 @@ export function PRChainView({
             return (
               <Box key={node.pr.number} flexDirection="column">
                 <Box flexDirection="row" gap={1}>
-                  <Text color={isSelected ? theme.colors.accent : theme.colors.muted}>
+                  <Text
+                    color={
+                      isSelected ? theme.colors.accent : theme.colors.muted
+                    }
+                  >
                     {isSelected ? '>' : ' '}
                   </Text>
                   <Text color={color}>{icon}</Text>
                   <Text color={theme.colors.secondary} bold>
                     #{node.pr.number}
                   </Text>
-                  <Text color={theme.colors.text}>
-                    {node.pr.title}
-                  </Text>
+                  <Text color={theme.colors.text}>{node.pr.title}</Text>
                   <Text color={color}>[{node.status}]</Text>
                   <Text color={theme.colors.accent}>{marker}</Text>
                 </Box>

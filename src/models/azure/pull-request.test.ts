@@ -185,7 +185,13 @@ describe('AzurePullRequestSchema', () => {
   })
 
   it('parses all valid statuses', () => {
-    const statuses = ['active', 'abandoned', 'completed', 'all', 'notSet'] as const
+    const statuses = [
+      'active',
+      'abandoned',
+      'completed',
+      'all',
+      'notSet',
+    ] as const
     for (const status of statuses) {
       const result = AzurePullRequestSchema.parse({ ...minimalPR, status })
       expect(result.status).toBe(status)

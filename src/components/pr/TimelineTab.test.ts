@@ -120,7 +120,9 @@ describe('getEventIcon', () => {
   })
 
   it('returns changes requested icon for changes_requested reviews', () => {
-    expect(getEventIcon(makeReviewEvent({ state: 'CHANGES_REQUESTED' }))).toBe('x')
+    expect(getEventIcon(makeReviewEvent({ state: 'CHANGES_REQUESTED' }))).toBe(
+      'x',
+    )
   })
 
   it('returns commented icon for commented reviews', () => {
@@ -148,15 +150,21 @@ describe('getEventIcon', () => {
   })
 
   it('returns success icon for successful status checks', () => {
-    expect(getEventIcon(makeStatusCheckEvent({ status: 'success' }))).toBe('[ok]')
+    expect(getEventIcon(makeStatusCheckEvent({ status: 'success' }))).toBe(
+      '[ok]',
+    )
   })
 
   it('returns failure icon for failed status checks', () => {
-    expect(getEventIcon(makeStatusCheckEvent({ status: 'failure' }))).toBe('[!!]')
+    expect(getEventIcon(makeStatusCheckEvent({ status: 'failure' }))).toBe(
+      '[!!]',
+    )
   })
 
   it('returns pending icon for pending status checks', () => {
-    expect(getEventIcon(makeStatusCheckEvent({ status: 'pending' }))).toBe('[..]')
+    expect(getEventIcon(makeStatusCheckEvent({ status: 'pending' }))).toBe(
+      '[..]',
+    )
   })
 
   it('returns error icon for error status checks', () => {
@@ -164,7 +172,9 @@ describe('getEventIcon', () => {
   })
 
   it('returns cancelled icon for cancelled status checks', () => {
-    expect(getEventIcon(makeStatusCheckEvent({ status: 'cancelled' }))).toBe('[--]')
+    expect(getEventIcon(makeStatusCheckEvent({ status: 'cancelled' }))).toBe(
+      '[--]',
+    )
   })
 
   it('returns force-push icon for force-push events', () => {
@@ -178,49 +188,69 @@ describe('getEventIcon', () => {
 
 describe('getEventDescription', () => {
   it('describes commit event with short SHA and message', () => {
-    const event = makeCommitEvent({ sha: 'abc1234567890', message: 'feat: add new feature' })
+    const event = makeCommitEvent({
+      sha: 'abc1234567890',
+      message: 'feat: add new feature',
+    })
     const desc = getEventDescription(event)
     expect(desc).toContain('abc1234')
     expect(desc).toContain('feat: add new feature')
   })
 
   it('truncates long commit messages to first line', () => {
-    const event = makeCommitEvent({ message: 'first line\nsecond line\nthird line' })
+    const event = makeCommitEvent({
+      message: 'first line\nsecond line\nthird line',
+    })
     const desc = getEventDescription(event)
     expect(desc).toContain('first line')
     expect(desc).not.toContain('second line')
   })
 
   it('describes approved review', () => {
-    const event = makeReviewEvent({ state: 'APPROVED', author: { login: 'bob' } })
+    const event = makeReviewEvent({
+      state: 'APPROVED',
+      author: { login: 'bob' },
+    })
     const desc = getEventDescription(event)
     expect(desc).toContain('bob')
     expect(desc).toContain('approved')
   })
 
   it('describes changes_requested review', () => {
-    const event = makeReviewEvent({ state: 'CHANGES_REQUESTED', author: { login: 'bob' } })
+    const event = makeReviewEvent({
+      state: 'CHANGES_REQUESTED',
+      author: { login: 'bob' },
+    })
     const desc = getEventDescription(event)
     expect(desc).toContain('bob')
     expect(desc).toContain('requested changes')
   })
 
   it('describes commented review', () => {
-    const event = makeReviewEvent({ state: 'COMMENTED', author: { login: 'bob' } })
+    const event = makeReviewEvent({
+      state: 'COMMENTED',
+      author: { login: 'bob' },
+    })
     const desc = getEventDescription(event)
     expect(desc).toContain('bob')
     expect(desc).toContain('reviewed')
   })
 
   it('describes dismissed review', () => {
-    const event = makeReviewEvent({ state: 'DISMISSED', author: { login: 'bob' } })
+    const event = makeReviewEvent({
+      state: 'DISMISSED',
+      author: { login: 'bob' },
+    })
     const desc = getEventDescription(event)
     expect(desc).toContain('bob')
     expect(desc).toContain('dismissed')
   })
 
   it('describes comment event', () => {
-    const event = makeCommentEvent({ author: { login: 'carol' }, body: 'Nice work!' })
+    const event = makeCommentEvent({
+      author: { login: 'carol' },
+      body: 'Nice work!',
+    })
     const desc = getEventDescription(event)
     expect(desc).toContain('carol')
     expect(desc).toContain('commented')
@@ -313,7 +343,10 @@ describe('getEventDescription', () => {
   })
 
   it('describes cancelled status check', () => {
-    const event = makeStatusCheckEvent({ name: 'CI Build', status: 'cancelled' })
+    const event = makeStatusCheckEvent({
+      name: 'CI Build',
+      status: 'cancelled',
+    })
     const desc = getEventDescription(event)
     expect(desc).toContain('CI Build')
     expect(desc).toContain('cancelled')
@@ -343,19 +376,27 @@ describe('getEventColorKey', () => {
   })
 
   it('returns success for approved reviews', () => {
-    expect(getEventColorKey(makeReviewEvent({ state: 'APPROVED' }))).toBe('success')
+    expect(getEventColorKey(makeReviewEvent({ state: 'APPROVED' }))).toBe(
+      'success',
+    )
   })
 
   it('returns error for changes_requested reviews', () => {
-    expect(getEventColorKey(makeReviewEvent({ state: 'CHANGES_REQUESTED' }))).toBe('error')
+    expect(
+      getEventColorKey(makeReviewEvent({ state: 'CHANGES_REQUESTED' })),
+    ).toBe('error')
   })
 
   it('returns info for commented reviews', () => {
-    expect(getEventColorKey(makeReviewEvent({ state: 'COMMENTED' }))).toBe('info')
+    expect(getEventColorKey(makeReviewEvent({ state: 'COMMENTED' }))).toBe(
+      'info',
+    )
   })
 
   it('returns muted for dismissed reviews', () => {
-    expect(getEventColorKey(makeReviewEvent({ state: 'DISMISSED' }))).toBe('muted')
+    expect(getEventColorKey(makeReviewEvent({ state: 'DISMISSED' }))).toBe(
+      'muted',
+    )
   })
 
   it('returns info for comment events', () => {
@@ -371,15 +412,21 @@ describe('getEventColorKey', () => {
   })
 
   it('returns success for successful status checks', () => {
-    expect(getEventColorKey(makeStatusCheckEvent({ status: 'success' }))).toBe('success')
+    expect(getEventColorKey(makeStatusCheckEvent({ status: 'success' }))).toBe(
+      'success',
+    )
   })
 
   it('returns error for failed status checks', () => {
-    expect(getEventColorKey(makeStatusCheckEvent({ status: 'failure' }))).toBe('error')
+    expect(getEventColorKey(makeStatusCheckEvent({ status: 'failure' }))).toBe(
+      'error',
+    )
   })
 
   it('returns warning for pending status checks', () => {
-    expect(getEventColorKey(makeStatusCheckEvent({ status: 'pending' }))).toBe('warning')
+    expect(getEventColorKey(makeStatusCheckEvent({ status: 'pending' }))).toBe(
+      'warning',
+    )
   })
 
   it('returns error for force-push events', () => {
@@ -420,32 +467,44 @@ describe('getEventActor', () => {
   // actor extraction for each event type.
 
   it('uses author.login for commit events', () => {
-    const desc = getEventDescription(makeCommitEvent({ author: { login: 'alice' } }))
+    const desc = getEventDescription(
+      makeCommitEvent({ author: { login: 'alice' } }),
+    )
     expect(desc).toContain('alice')
   })
 
   it('uses author.login for review events', () => {
-    const desc = getEventDescription(makeReviewEvent({ author: { login: 'bob' } }))
+    const desc = getEventDescription(
+      makeReviewEvent({ author: { login: 'bob' } }),
+    )
     expect(desc).toContain('bob')
   })
 
   it('uses author.login for comment events', () => {
-    const desc = getEventDescription(makeCommentEvent({ author: { login: 'carol' } }))
+    const desc = getEventDescription(
+      makeCommentEvent({ author: { login: 'carol' } }),
+    )
     expect(desc).toContain('carol')
   })
 
   it('uses actor.login for label-change events', () => {
-    const desc = getEventDescription(makeLabelChangeEvent({ actor: { login: 'dave' } }))
+    const desc = getEventDescription(
+      makeLabelChangeEvent({ actor: { login: 'dave' } }),
+    )
     expect(desc).toContain('dave')
   })
 
   it('uses actor.login for assignee-change events', () => {
-    const desc = getEventDescription(makeAssigneeChangeEvent({ actor: { login: 'frank' } }))
+    const desc = getEventDescription(
+      makeAssigneeChangeEvent({ actor: { login: 'frank' } }),
+    )
     expect(desc).toContain('frank')
   })
 
   it('uses actor.login for force-push events', () => {
-    const desc = getEventDescription(makeForcePushEvent({ actor: { login: 'grace' } }))
+    const desc = getEventDescription(
+      makeForcePushEvent({ actor: { login: 'grace' } }),
+    )
     expect(desc).toContain('grace')
   })
 })

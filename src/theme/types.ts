@@ -30,7 +30,13 @@ export interface ThemeColors {
 /**
  * Built-in theme names as a string literal union for type safety.
  */
-export type BuiltInThemeName = 'tokyo-night' | 'dracula' | 'catppuccin-mocha' | 'gruvbox' | 'high-contrast' | 'github-light'
+export type BuiltInThemeName =
+  | 'tokyo-night'
+  | 'dracula'
+  | 'catppuccin-mocha'
+  | 'gruvbox'
+  | 'high-contrast'
+  | 'github-light'
 
 /**
  * All built-in theme names as a readonly array for iteration.

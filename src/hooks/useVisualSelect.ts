@@ -13,12 +13,9 @@ export interface VisualSelectActions {
 export function useVisualSelect(): VisualSelectState & VisualSelectActions {
   const [visualStart, setVisualStart] = useState<number | null>(null)
 
-  const toggleVisual = useCallback(
-    (currentLine: number) => {
-      setVisualStart((prev) => (prev != null ? null : currentLine))
-    },
-    [],
-  )
+  const toggleVisual = useCallback((currentLine: number) => {
+    setVisualStart((prev) => (prev != null ? null : currentLine))
+  }, [])
 
   const clearVisual = useCallback(() => {
     setVisualStart(null)
