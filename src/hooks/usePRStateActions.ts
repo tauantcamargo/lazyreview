@@ -13,6 +13,7 @@ interface UsePRStateActionsOptions {
   readonly setStatusMessage: (msg: string) => void
   readonly onMergeSuccess: () => void
   readonly onCloseSuccess?: () => void
+  readonly provider?: string
 }
 
 export function usePRStateActions({
@@ -22,6 +23,7 @@ export function usePRStateActions({
   setStatusMessage,
   onMergeSuccess,
   onCloseSuccess,
+  provider,
 }: UsePRStateActionsOptions) {
   const [showMergeModal, setShowMergeModal] = useState(false)
   const [mergeError, setMergeError] = useState<string | null>(null)
@@ -35,7 +37,7 @@ export function usePRStateActions({
     (mergeMethod: MergeMethod, commitTitle?: string) => {
       setMergeError(null)
       mergePR.mutate(
-        { owner, repo, prNumber, mergeMethod, commitTitle },
+        { owner, repo, prNumber, provider, mergeMethod, commitTitle },
         {
           onSuccess: () => {
             setShowMergeModal(false)
@@ -46,7 +48,15 @@ export function usePRStateActions({
         },
       )
     },
-    [owner, repo, prNumber, mergePR, setStatusMessage, onMergeSuccess],
+    [
+      owner,
+      repo,
+      prNumber,
+      provider,
+      mergePR,
+      setStatusMessage,
+      onMergeSuccess,
+    ],
   )
 
   const openMergeModal = useCallback(() => {
@@ -56,7 +66,7 @@ export function usePRStateActions({
 
   const handleClosePR = useCallback(() => {
     closePR.mutate(
-      { owner, repo, prNumber },
+      { owner, repo, prNumber, provider },
       {
         onSuccess: () => {
           setShowCloseConfirm(false)
@@ -69,18 +79,26 @@ export function usePRStateActions({
         },
       },
     )
-  }, [owner, repo, prNumber, closePR, setStatusMessage, onCloseSuccess])
+  }, [
+    owner,
+    repo,
+    prNumber,
+    provider,
+    closePR,
+    setStatusMessage,
+    onCloseSuccess,
+  ])
 
   const handleReopenPR = useCallback(() => {
     reopenPR.mutate(
-      { owner, repo, prNumber },
+      { owner, repo, prNumber, provider },
       {
         onSuccess: () => setStatusMessage('PR reopened'),
         onError: (err) =>
           setStatusMessage(`Error reopening PR: ${String(err)}`),
       },
     )
-  }, [owner, repo, prNumber, reopenPR, setStatusMessage])
+  }, [owner, repo, prNumber, provider, reopenPR, setStatusMessage])
 
   return {
     showMergeModal,

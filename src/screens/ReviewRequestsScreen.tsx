@@ -9,10 +9,12 @@ interface ReviewRequestsScreenProps {
     list?: readonly PullRequest[],
     index?: number,
   ) => void
+  readonly isActive?: boolean
 }
 
 export function ReviewRequestsScreen({
   onSelect,
+  isActive = true,
 }: ReviewRequestsScreenProps): React.ReactElement {
   const [stateFilter, setStateFilter] = useState<PRStateFilter>('open')
   const { data: prs = [], isLoading, error } = useReviewRequests(stateFilter)
@@ -29,6 +31,7 @@ export function ReviewRequestsScreen({
       stateFilter={stateFilter}
       onStateChange={setStateFilter}
       onSelect={onSelect}
+      isActive={isActive}
     />
   )
 }

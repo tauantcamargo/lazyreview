@@ -31,6 +31,7 @@ interface UseCommentActionsOptions {
   readonly prNumber: number
   readonly headSha: string
   readonly setStatusMessage: (msg: string) => void
+  readonly provider?: string
 }
 
 export function useCommentActions({
@@ -39,6 +40,7 @@ export function useCommentActions({
   prNumber,
   headSha,
   setStatusMessage,
+  provider,
 }: UseCommentActionsOptions) {
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [commentError, setCommentError] = useState<string | null>(null)
@@ -135,7 +137,14 @@ export function useCommentActions({
         ? editReviewCommentMutation
         : editIssueComment
       mutation.mutate(
-        { owner, repo, prNumber, commentId: editContext.commentId, body },
+        {
+          owner,
+          repo,
+          prNumber,
+          provider,
+          commentId: editContext.commentId,
+          body,
+        },
         {
           onSuccess: () => {
             setShowCommentModal(false)
@@ -150,6 +159,7 @@ export function useCommentActions({
       owner,
       repo,
       prNumber,
+      provider,
       editContext,
       editIssueComment,
       editReviewCommentMutation,
@@ -162,7 +172,7 @@ export function useCommentActions({
       if (!descriptionEditContext) return
       setCommentError(null)
       updatePRDescription.mutate(
-        { owner, repo, prNumber, body },
+        { owner, repo, prNumber, provider, body },
         {
           onSuccess: () => {
             setShowCommentModal(false)
@@ -177,6 +187,7 @@ export function useCommentActions({
       owner,
       repo,
       prNumber,
+      provider,
       descriptionEditContext,
       updatePRDescription,
       setStatusMessage,
@@ -188,7 +199,7 @@ export function useCommentActions({
       if (!titleEditContext) return
       setCommentError(null)
       updatePRTitle.mutate(
-        { owner, repo, prNumber, title },
+        { owner, repo, prNumber, provider, title },
         {
           onSuccess: () => {
             setShowCommentModal(false)
@@ -199,7 +210,15 @@ export function useCommentActions({
         },
       )
     },
-    [owner, repo, prNumber, titleEditContext, updatePRTitle, setStatusMessage],
+    [
+      owner,
+      repo,
+      prNumber,
+      provider,
+      titleEditContext,
+      updatePRTitle,
+      setStatusMessage,
+    ],
   )
 
   const handleCommentSubmit = useCallback(
@@ -227,7 +246,13 @@ export function useCommentActions({
           const firstLine = replyContext.body?.split('\n')[0] ?? ''
           const quotedBody = `> @${replyContext.user} wrote:\n> ${firstLine}\n\n${body}`
           createComment.mutate(
-            { owner, repo, issueNumber: prNumber, body: quotedBody },
+            {
+              owner,
+              repo,
+              issueNumber: prNumber,
+              provider,
+              body: quotedBody,
+            },
             {
               onSuccess: () => {
                 setShowCommentModal(false)
@@ -239,7 +264,14 @@ export function useCommentActions({
           )
         } else {
           replyToReviewComment.mutate(
-            { owner, repo, prNumber, body, inReplyTo: replyContext.commentId },
+            {
+              owner,
+              repo,
+              prNumber,
+              provider,
+              body,
+              inReplyTo: replyContext.commentId,
+            },
             {
               onSuccess: () => {
                 setShowCommentModal(false)
@@ -256,6 +288,7 @@ export function useCommentActions({
             owner,
             repo,
             prNumber,
+            provider,
             body,
             commitId: headSha,
             path: inlineContext.path,
@@ -275,7 +308,7 @@ export function useCommentActions({
         )
       } else {
         createComment.mutate(
-          { owner, repo, issueNumber: prNumber, body },
+          { owner, repo, issueNumber: prNumber, provider, body },
           {
             onSuccess: () => {
               setShowCommentModal(false)
@@ -290,6 +323,7 @@ export function useCommentActions({
       owner,
       repo,
       prNumber,
+      provider,
       replyContext,
       inlineContext,
       editContext,

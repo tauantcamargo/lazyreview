@@ -4,6 +4,7 @@ import { sanitizeApiError } from '../../utils/sanitize'
 import { updateRateLimit } from '../../hooks/useRateLimit'
 import { touchLastUpdated } from '../../hooks/useLastUpdated'
 import { notifyTokenExpired } from '../../hooks/useTokenExpired'
+import { buildAuthHeaders } from '../BitbucketApiHelpers'
 
 // ---------------------------------------------------------------------------
 // Error handling
@@ -60,17 +61,6 @@ export function parseRetryAfter(headers: Headers): number | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// Auth headers
-// ---------------------------------------------------------------------------
-
-function bitbucketHeaders(token: string): Record<string, string> {
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  }
-}
-
-// ---------------------------------------------------------------------------
 // HTTP helpers
 // ---------------------------------------------------------------------------
 
@@ -90,7 +80,7 @@ export function mutateBitbucket(
     try: async () => {
       const options: RequestInit = {
         method,
-        headers: bitbucketHeaders(token),
+        headers: buildAuthHeaders(token),
       }
 
       if (body !== undefined) {
@@ -134,7 +124,7 @@ export function mutateBitbucketJson<T>(
     try: async () => {
       const response = await fetch(url, {
         method,
-        headers: bitbucketHeaders(token),
+        headers: buildAuthHeaders(token),
         body: JSON.stringify(body),
       })
 
@@ -179,9 +169,7 @@ export function fetchBitbucket<T>(
   return Effect.tryPromise({
     try: async () => {
       const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: buildAuthHeaders(token),
       })
 
       updateRateLimit(response.headers)

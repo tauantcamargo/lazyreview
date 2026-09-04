@@ -1,8 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Effect } from 'effect'
-import { CodeReviewApi } from '../services/GitHubApi'
-import { runEffect } from '../utils/effect'
+import { runProviderEffect } from '../utils/providerEffect'
 import type { FileChange } from '../models/file-change'
 
 /**
@@ -45,6 +43,7 @@ export function usePaginatedFiles(
   prNumber: number,
   changedFileCount: number,
   options?: UsePaginatedFilesOptions,
+  provider?: string,
 ): UsePaginatedFilesResult {
   const enabledFlag = options?.enabled ?? true
   const [maxPage, setMaxPage] = useState(1)
@@ -53,13 +52,10 @@ export function usePaginatedFiles(
 
   // Standard loading for small PRs (no pagination needed)
   const standardQuery = useQuery({
-    queryKey: ['pr-files', owner, repo, prNumber],
+    queryKey: ['pr-files', owner, repo, prNumber, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRFiles(owner, repo, prNumber)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getPRFiles(owner, repo, prNumber),
       ),
     enabled: enabledFlag && !needsPagination && !!owner && !!repo && !!prNumber,
     staleTime: 30 * 1000,
@@ -73,6 +69,7 @@ export function usePaginatedFiles(
     prNumber,
     maxPage,
     enabledFlag && needsPagination,
+    provider,
   )
 
   const loadNextPage = useCallback(() => {
@@ -112,6 +109,7 @@ function usePaginatedPageQueries(
   prNumber: number,
   maxPage: number,
   enabled: boolean,
+  provider?: string,
 ): {
   readonly allFiles: readonly FileChange[]
   readonly isLoading: boolean
@@ -119,52 +117,40 @@ function usePaginatedPageQueries(
 } {
   // Load each page individually
   const page1 = useQuery({
-    queryKey: ['pr-files-page', owner, repo, prNumber, 1],
+    queryKey: ['pr-files-page', owner, repo, prNumber, 1, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRFilesPage(owner, repo, prNumber, 1)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getPRFilesPage(owner, repo, prNumber, 1),
       ),
     enabled: enabled && !!owner && !!repo && !!prNumber,
     staleTime: 30 * 1000,
   })
 
   const page2 = useQuery({
-    queryKey: ['pr-files-page', owner, repo, prNumber, 2],
+    queryKey: ['pr-files-page', owner, repo, prNumber, 2, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRFilesPage(owner, repo, prNumber, 2)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getPRFilesPage(owner, repo, prNumber, 2),
       ),
     enabled: enabled && maxPage >= 2 && !!page1.data?.hasNextPage,
     staleTime: 30 * 1000,
   })
 
   const page3 = useQuery({
-    queryKey: ['pr-files-page', owner, repo, prNumber, 3],
+    queryKey: ['pr-files-page', owner, repo, prNumber, 3, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRFilesPage(owner, repo, prNumber, 3)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getPRFilesPage(owner, repo, prNumber, 3),
       ),
     enabled: enabled && maxPage >= 3 && !!page2.data?.hasNextPage,
     staleTime: 30 * 1000,
   })
 
   const page4 = useQuery({
-    queryKey: ['pr-files-page', owner, repo, prNumber, 4],
+    queryKey: ['pr-files-page', owner, repo, prNumber, 4, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRFilesPage(owner, repo, prNumber, 4)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getPRFilesPage(owner, repo, prNumber, 4),
       ),
     enabled: enabled && maxPage >= 4 && !!page3.data?.hasNextPage,
     staleTime: 30 * 1000,

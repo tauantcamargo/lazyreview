@@ -200,6 +200,18 @@ describe('StateStore', () => {
       expect(repos[0].repo).toBe('repo')
     })
 
+    it('should default provider to github when not specified', () => {
+      store.addBookmarkedRepo('owner', 'repo')
+      const repos = store.getBookmarkedRepos()
+      expect(repos[0].provider).toBe('github')
+    })
+
+    it('should store an explicit provider', () => {
+      store.addBookmarkedRepo('acme', 'web', 'bitbucket')
+      const repos = store.getBookmarkedRepos()
+      expect(repos[0].provider).toBe('bitbucket')
+    })
+
     it('should not duplicate when adding same repo twice', () => {
       store.addBookmarkedRepo('owner', 'repo')
       store.addBookmarkedRepo('owner', 'repo')

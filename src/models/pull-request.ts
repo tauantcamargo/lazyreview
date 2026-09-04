@@ -46,4 +46,8 @@ export class PullRequest extends S.Class<PullRequest>('PullRequest')({
   mergeable: S.optionalWith(S.NullOr(S.Boolean), { default: () => null }),
   mergeable_state: S.optionalWith(S.NullOr(S.String), { default: () => null }),
   merge_commit_sha: S.optionalWith(S.NullOr(S.String), { default: () => null }),
+  provider: S.optionalWith(
+    S.Literal('github', 'gitlab', 'bitbucket', 'azure', 'gitea'),
+    { default: () => 'github' as const },
+  ),
 }) {}

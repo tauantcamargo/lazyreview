@@ -21,6 +21,7 @@ interface UsePendingReviewOptions {
   readonly repo: string
   readonly prNumber: number
   readonly setStatusMessage: (msg: string) => void
+  readonly provider?: string
 }
 
 export function usePendingReview({
@@ -28,6 +29,7 @@ export function usePendingReview({
   repo,
   prNumber,
   setStatusMessage,
+  provider,
 }: UsePendingReviewOptions) {
   const [reviewId, setReviewId] = useState<number | null>(null)
   const [pendingComments, setPendingComments] = useState<
@@ -45,7 +47,7 @@ export function usePendingReview({
   const startReview = useCallback(() => {
     setError(null)
     createPending.mutate(
-      { owner, repo, prNumber },
+      { owner, repo, prNumber, provider },
       {
         onSuccess: (data) => {
           setReviewId(data.id)
@@ -58,7 +60,7 @@ export function usePendingReview({
         },
       },
     )
-  }, [owner, repo, prNumber, createPending, setStatusMessage])
+  }, [owner, repo, prNumber, provider, createPending, setStatusMessage])
 
   const addPendingComment = useCallback(
     (comment: PendingComment, body: string) => {
@@ -69,6 +71,7 @@ export function usePendingReview({
           owner,
           repo,
           prNumber,
+          provider,
           reviewId,
           body,
           path: comment.path,
@@ -95,6 +98,7 @@ export function usePendingReview({
       owner,
       repo,
       prNumber,
+      provider,
       reviewId,
       addComment,
       pendingComments.length,
@@ -107,7 +111,7 @@ export function usePendingReview({
       if (reviewId == null) return
       setError(null)
       submitPending.mutate(
-        { owner, repo, prNumber, reviewId, body, event },
+        { owner, repo, prNumber, provider, reviewId, body, event },
         {
           onSuccess: () => {
             setReviewId(null)
@@ -121,14 +125,22 @@ export function usePendingReview({
         },
       )
     },
-    [owner, repo, prNumber, reviewId, submitPending, setStatusMessage],
+    [
+      owner,
+      repo,
+      prNumber,
+      provider,
+      reviewId,
+      submitPending,
+      setStatusMessage,
+    ],
   )
 
   const discardReview = useCallback(() => {
     if (reviewId == null) return
     setError(null)
     discardPending.mutate(
-      { owner, repo, prNumber, reviewId },
+      { owner, repo, prNumber, provider, reviewId },
       {
         onSuccess: () => {
           setReviewId(null)
@@ -141,7 +153,15 @@ export function usePendingReview({
         },
       },
     )
-  }, [owner, repo, prNumber, reviewId, discardPending, setStatusMessage])
+  }, [
+    owner,
+    repo,
+    prNumber,
+    provider,
+    reviewId,
+    discardPending,
+    setStatusMessage,
+  ])
 
   return {
     isActive,

@@ -8,6 +8,7 @@ import { stat } from 'node:fs/promises'
 import { AuthError } from '../models/errors'
 import { User } from '../models/user'
 import { isValidGitHubToken } from '../utils/sanitize'
+import { buildAuthHeaders as buildBitbucketAuthHeaders } from './BitbucketApiHelpers'
 import type { Provider } from './Config'
 
 const execFileAsync = promisify(execFile)
@@ -94,9 +95,10 @@ const PROVIDER_META: Readonly<Record<Provider, ProviderMeta>> = {
     label: 'Bitbucket',
     envVars: ['LAZYREVIEW_BITBUCKET_TOKEN', 'BITBUCKET_TOKEN'],
     cliCommand: null,
-    tokenUrl: 'bitbucket.org/account/settings/app-passwords/',
-    requiredScopes: 'Repositories: Read, Pull requests: Read/Write',
-    tokenPlaceholder: 'xxxx...',
+    tokenUrl: 'id.atlassian.com/manage-profile/security/api-tokens',
+    requiredScopes:
+      'API token: read:pullrequest:bitbucket, write:pullrequest:bitbucket, read:repository:bitbucket, read:user:bitbucket (Account: Read -- needed to identify "me" for My PRs/Involved/For Review). Enter as email:api_token (app passwords are deprecated). Repository/Workspace Access Tokens also work -- enter those alone, no email needed.',
+    tokenPlaceholder: 'you@example.com:api_token',
   },
   azure: {
     label: 'Azure DevOps',
@@ -204,6 +206,21 @@ async function saveTokenToProviderFile(
 ): Promise<void> {
   await mkdir(TOKENS_DIR, { recursive: true, mode: 0o700 })
   await writeFile(getProviderTokenFile(provider, host), token, { mode: 0o600 })
+}
+
+/**
+ * Save a token for an explicit provider, independent of whichever provider
+ * is currently "focused" (see `getTokenForProvider` for why that matters).
+ * Used by Settings' multi-provider "Enabled Providers" checklist, where a
+ * user can set a Bitbucket token without disturbing GitHub's focused state
+ * elsewhere on the same screen.
+ */
+export async function saveTokenForProvider(
+  provider: Provider,
+  token: string,
+  host?: string | null,
+): Promise<void> {
+  await saveTokenToProviderFile(provider, token, host)
 }
 
 async function saveTokenToFile(token: string): Promise<void> {
@@ -469,6 +486,67 @@ function resolveProviderToken(
   })
 }
 
+/**
+ * Resolve a token for an explicit provider, independent of whichever
+ * provider is currently "focused" via `setAuthProvider` (used by
+ * `TokenInputModal`, `BrowseRepoScreen`, single-PR direct links, etc).
+ *
+ * Unlike `resolveProviderToken`, this does NOT fall back to the shared
+ * `state.sessionToken`/`state.savedToken` slot -- that slot is populated by
+ * `ensureInitialized()` for `getState().provider` only, so reading it here
+ * would silently return the *focused* provider's token instead of the one
+ * requested. Saved tokens are read directly from that provider's own
+ * token file instead (`getProviderTokenFile`), which already coexists on
+ * disk independently per provider+host.
+ *
+ * Used by multi-provider data fetching (e.g. fetching Bitbucket PRs while
+ * GitHub remains the focused/default provider).
+ */
+export function getTokenForProvider(
+  provider: Provider,
+  host?: string | null,
+): Effect.Effect<string, AuthError> {
+  return Effect.gen(function* () {
+    const meta = PROVIDER_META[provider]
+
+    const primaryEnvVar = meta.envVars[0]
+    if (primaryEnvVar) {
+      const primaryToken = process.env[primaryEnvVar]
+      if (primaryToken) return primaryToken
+    }
+
+    const savedToken = yield* Effect.promise(() =>
+      readTokenFile(getProviderTokenFile(provider, host)),
+    )
+    if (savedToken) return savedToken
+
+    const secondaryEnvVar = meta.envVars[1]
+    if (secondaryEnvVar) {
+      const secondaryToken = process.env[secondaryEnvVar]
+      if (secondaryToken) return secondaryToken
+    }
+
+    if (meta.cliCommand) {
+      const cliResult = yield* Effect.tryPromise({
+        try: () => tryGetCliTokenForProvider(provider),
+        catch: () =>
+          new AuthError({
+            message: `No ${meta.label} token found. Set ${meta.envVars[0]} or configure in Settings.`,
+            reason: 'no_token',
+          }),
+      })
+      if (cliResult) return cliResult
+    }
+
+    return yield* Effect.fail(
+      new AuthError({
+        message: `No ${meta.label} token found. Set ${meta.envVars[0]} or configure in Settings.`,
+        reason: 'no_token',
+      }),
+    )
+  })
+}
+
 function findEnvToken(envVars: readonly string[]): string | undefined {
   for (const varName of envVars) {
     const value = process.env[varName]
@@ -633,10 +711,12 @@ function getGitLabUser(token: string): Effect.Effect<User, AuthError> {
         avatar_url: string
         id: number
       }
+      const webBase = baseUrl.replace(/\/api\/v4\/?$/, '')
       // Map GitLab user fields to our User schema
       return S.decodeUnknownSync(User)({
         login: data.username,
         avatar_url: data.avatar_url ?? '',
+        html_url: `${webBase}/${data.username}`,
         id: data.id,
       })
     },
@@ -653,7 +733,7 @@ function getBitbucketUser(token: string): Effect.Effect<User, AuthError> {
     try: async () => {
       const response = await fetch('https://api.bitbucket.org/2.0/user', {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...buildBitbucketAuthHeaders(token),
           Accept: 'application/json',
         },
       })
@@ -671,6 +751,7 @@ function getBitbucketUser(token: string): Effect.Effect<User, AuthError> {
       return S.decodeUnknownSync(User)({
         login: data.username,
         avatar_url: data.links?.avatar?.href ?? '',
+        html_url: `https://bitbucket.org/${data.username}`,
         id: 0,
       })
     },
@@ -703,9 +784,11 @@ function getGiteaUser(token: string): Effect.Effect<User, AuthError> {
         avatar_url?: string
         id: number
       }
+      const webBase = baseUrl.replace(/\/api\/v1\/?$/, '')
       return S.decodeUnknownSync(User)({
         login: data.login,
         avatar_url: data.avatar_url ?? '',
+        html_url: `${webBase}/${data.login}`,
         id: data.id,
       })
     },
@@ -749,6 +832,10 @@ function getAzureUser(token: string): Effect.Effect<User, AuthError> {
       return S.decodeUnknownSync(User)({
         login: data.emailAddress ?? data.displayName,
         avatar_url: '',
+        // Azure DevOps has no canonical profile URL without an org context
+        // at this point -- fall back to the base host rather than leaving
+        // html_url empty (the User schema requires a non-empty string).
+        html_url: baseUrl,
         id: 0,
       })
     },
@@ -784,6 +871,18 @@ function getUser(): Effect.Effect<User, AuthError> {
     const token = yield* resolveToken()
     return yield* getProviderUser(getState().provider, token)
   })
+}
+
+/**
+ * Fetch the authenticated user for an explicit provider + token, independent
+ * of whichever provider is currently "focused". Used alongside
+ * `getTokenForProvider` for multi-provider data fetching.
+ */
+export function getUserForProvider(
+  provider: Provider,
+  token: string,
+): Effect.Effect<User, AuthError> {
+  return getProviderUser(provider, token)
 }
 
 // ---------------------------------------------------------------------------

@@ -81,6 +81,7 @@ export type StoredViewedFile = z.infer<typeof StoredViewedFileSchema>
 export const StoredBookmarkedRepoSchema = z.object({
   owner: z.string(),
   repo: z.string(),
+  provider: z.string().default('github'),
   addedAt: z.string(),
 })
 
@@ -127,7 +128,11 @@ export interface StateStore {
 
   // Bookmarked repos
   readonly getBookmarkedRepos: () => readonly StoredBookmarkedRepo[]
-  readonly addBookmarkedRepo: (owner: string, repo: string) => void
+  readonly addBookmarkedRepo: (
+    owner: string,
+    repo: string,
+    provider?: string,
+  ) => void
   readonly removeBookmarkedRepo: (owner: string, repo: string) => void
 
   // Recent repos

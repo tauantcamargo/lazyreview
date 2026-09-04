@@ -112,8 +112,10 @@ describe('migrations', () => {
       expect(secondCount).toBe(0)
     })
 
-    it('should only run pending migrations', () => {
-      // Manually create migrations table and mark version 1 as applied
+    it('backfills provider=github on bookmarked_repos rows that predate the migration', () => {
+      // Apply only migration 1, insert a row the old way (no provider column
+      // existed yet), then apply the rest and confirm the backfill.
+      const migration1 = migrations.find((m) => m.version === 1)!
       db.run(`
         CREATE TABLE IF NOT EXISTS migrations (
           version INTEGER PRIMARY KEY,
@@ -121,13 +123,44 @@ describe('migrations', () => {
           applied_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
       `)
+      db.run(migration1.up)
       db.run(
-        "INSERT INTO migrations (version, description) VALUES (1, 'Manual')",
+        "INSERT INTO migrations (version, description) VALUES (1, 'Initial schema: create all tables')",
+      )
+      db.run(
+        "INSERT INTO bookmarked_repos (owner, repo) VALUES ('legacy', 'repo')",
       )
 
-      // Now run migrations -- it should skip version 1
-      // But it will fail because the tables from migration 1 don't exist yet
-      // This is expected behavior: we only skip already-applied migrations
+      runMigrations(db)
+
+      const results = db.exec(
+        "SELECT provider FROM bookmarked_repos WHERE owner = 'legacy' AND repo = 'repo'",
+      )
+      expect(results[0].values[0][0]).toBe('github')
+    })
+
+    it('should only run pending migrations', () => {
+      // Manually create migrations table and mark every migration as
+      // already applied (without running their SQL) -- this exercises the
+      // "skip already-applied" path without depending on how many
+      // migrations currently exist.
+      db.run(`
+        CREATE TABLE IF NOT EXISTS migrations (
+          version INTEGER PRIMARY KEY,
+          description TEXT NOT NULL,
+          applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `)
+      for (const m of migrations) {
+        db.run('INSERT INTO migrations (version, description) VALUES (?, ?)', [
+          m.version,
+          'Manual',
+        ])
+      }
+
+      // Now run migrations -- every version is already marked applied, so
+      // nothing should run (and nothing should fail, even though none of
+      // the actual tables exist).
       const count = runMigrations(db)
       expect(count).toBe(0)
     })
@@ -216,6 +249,26 @@ describe('migrations', () => {
           "INSERT INTO bookmarked_repos (owner, repo) VALUES ('user', 'repo')",
         )
       }).toThrow()
+    })
+
+    it('should have a provider column on bookmarked_repos defaulting to github', () => {
+      db.run(
+        "INSERT INTO bookmarked_repos (owner, repo) VALUES ('user', 'repo')",
+      )
+      const results = db.exec(
+        "SELECT provider FROM bookmarked_repos WHERE owner = 'user' AND repo = 'repo'",
+      )
+      expect(results[0].values[0][0]).toBe('github')
+    })
+
+    it('stores an explicit provider on bookmarked_repos', () => {
+      db.run(
+        "INSERT INTO bookmarked_repos (owner, repo, provider) VALUES ('acme', 'web', 'bitbucket')",
+      )
+      const results = db.exec(
+        "SELECT provider FROM bookmarked_repos WHERE owner = 'acme' AND repo = 'web'",
+      )
+      expect(results[0].values[0][0]).toBe('bitbucket')
     })
 
     it('should have correct recent_repos schema', () => {

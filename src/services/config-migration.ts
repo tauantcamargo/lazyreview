@@ -38,6 +38,7 @@ export interface V2ProvidersConfig {
 
 export interface V2Defaults {
   readonly provider: string
+  readonly enabledProviders?: readonly string[]
   readonly theme: string
   readonly pageSize: number
   readonly refreshInterval: number
@@ -100,6 +101,7 @@ export interface V2ConfigFile {
   readonly bookmarkedRepos: readonly {
     readonly owner: string
     readonly repo: string
+    readonly provider?: string
   }[]
   readonly commentTemplates: readonly V2CommentTemplate[]
   readonly reviewChecklist: readonly {
@@ -196,6 +198,9 @@ export function migrateV1Config(v1: Record<string, unknown>): V2ConfigFile {
       : {}),
     ...(v1['botUsernames'] !== undefined
       ? { botUsernames: v1['botUsernames'] as readonly string[] }
+      : {}),
+    ...(v1['enabledProviders'] !== undefined
+      ? { enabledProviders: v1['enabledProviders'] as readonly string[] }
       : {}),
   }
 

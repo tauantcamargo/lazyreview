@@ -7,6 +7,7 @@ import {
   mapBitbucketError,
   parseBitbucketRetryAfter,
   buildBitbucketUrl,
+  buildAuthHeaders,
 } from './BitbucketApiHelpers'
 import { BitbucketError, NetworkError } from '../models/errors'
 
@@ -55,6 +56,23 @@ afterEach(() => {
 })
 
 // ---------------------------------------------------------------------------
+// buildAuthHeaders
+// ---------------------------------------------------------------------------
+
+describe('buildAuthHeaders', () => {
+  it('uses Bearer for a plain token (Repository/Workspace Access Token)', () => {
+    expect(buildAuthHeaders(TOKEN).Authorization).toBe(`Bearer ${TOKEN}`)
+  })
+
+  it('uses Basic for an email:api_token value (Atlassian API token)', () => {
+    const emailToken = 'user@example.com:atl_api_token_xxxxxxxxxxxx'
+    expect(buildAuthHeaders(emailToken).Authorization).toBe(
+      `Basic ${Buffer.from(emailToken).toString('base64')}`,
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
 // bitbucketFetch
 // ---------------------------------------------------------------------------
 
@@ -70,6 +88,24 @@ describe('bitbucketFetch', () => {
         headers: expect.objectContaining({
           Authorization: `Bearer ${TOKEN}`,
           'Content-Type': 'application/json',
+        }),
+      }),
+    )
+  })
+
+  it('sends Authorization Basic header for email:api_token tokens', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse('OK'))
+    const emailToken = 'user@example.com:atl_api_token_xxxxxxxxxxxx'
+
+    await Effect.runPromise(
+      bitbucketFetch('/repositories', BASE_URL, emailToken),
+    )
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/repositories`,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: `Basic ${Buffer.from(emailToken).toString('base64')}`,
         }),
       }),
     )

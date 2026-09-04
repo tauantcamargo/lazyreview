@@ -9,10 +9,12 @@ interface MyPRsScreenProps {
     list?: readonly PullRequest[],
     index?: number,
   ) => void
+  readonly isActive?: boolean
 }
 
 export function MyPRsScreen({
   onSelect,
+  isActive = true,
 }: MyPRsScreenProps): React.ReactElement {
   const [stateFilter, setStateFilter] = useState<PRStateFilter>('open')
   const { data: prs = [], isLoading, error } = useMyPRs(stateFilter)
@@ -29,6 +31,7 @@ export function MyPRsScreen({
       stateFilter={stateFilter}
       onStateChange={setStateFilter}
       onSelect={onSelect}
+      isActive={isActive}
     />
   )
 }

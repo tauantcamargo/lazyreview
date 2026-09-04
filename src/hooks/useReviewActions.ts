@@ -13,6 +13,7 @@ interface UseReviewActionsOptions {
   readonly repo: string
   readonly prNumber: number
   readonly setStatusMessage: (msg: string) => void
+  readonly provider?: string
 }
 
 export function useReviewActions({
@@ -20,6 +21,7 @@ export function useReviewActions({
   repo,
   prNumber,
   setStatusMessage,
+  provider,
 }: UseReviewActionsOptions) {
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [reviewError, setReviewError] = useState<string | null>(null)
@@ -36,7 +38,7 @@ export function useReviewActions({
     (body: string, event: ReviewEvent) => {
       setReviewError(null)
       submitReview.mutate(
-        { owner, repo, prNumber, body, event },
+        { owner, repo, prNumber, provider, body, event },
         {
           onSuccess: () => {
             setShowReviewModal(false)
@@ -46,14 +48,14 @@ export function useReviewActions({
         },
       )
     },
-    [owner, repo, prNumber, submitReview, setStatusMessage],
+    [owner, repo, prNumber, provider, submitReview, setStatusMessage],
   )
 
   const handleToggleResolve = useCallback(
     (context: ResolveContext) => {
       if (context.isResolved) {
         unresolveThread.mutate(
-          { owner, repo, prNumber, threadId: context.threadId },
+          { owner, repo, prNumber, provider, threadId: context.threadId },
           {
             onSuccess: () => setStatusMessage('Thread unresolved'),
             onError: (err) => setStatusMessage(`Error: ${String(err)}`),
@@ -61,7 +63,7 @@ export function useReviewActions({
         )
       } else {
         resolveThread.mutate(
-          { owner, repo, prNumber, threadId: context.threadId },
+          { owner, repo, prNumber, provider, threadId: context.threadId },
           {
             onSuccess: () => setStatusMessage('Thread resolved'),
             onError: (err) => setStatusMessage(`Error: ${String(err)}`),
@@ -69,7 +71,15 @@ export function useReviewActions({
         )
       }
     },
-    [owner, repo, prNumber, resolveThread, unresolveThread, setStatusMessage],
+    [
+      owner,
+      repo,
+      prNumber,
+      provider,
+      resolveThread,
+      unresolveThread,
+      setStatusMessage,
+    ],
   )
 
   const handleToggleShowResolved = useCallback(() => {
@@ -80,7 +90,7 @@ export function useReviewActions({
     (reviewers: readonly string[]) => {
       setReReviewError(null)
       requestReReview.mutate(
-        { owner, repo, prNumber, reviewers },
+        { owner, repo, prNumber, provider, reviewers },
         {
           onSuccess: () => {
             setShowReReviewModal(false)
@@ -90,7 +100,7 @@ export function useReviewActions({
         },
       )
     },
-    [owner, repo, prNumber, requestReReview, setStatusMessage],
+    [owner, repo, prNumber, provider, requestReReview, setStatusMessage],
   )
 
   const openReviewModal = useCallback(() => {

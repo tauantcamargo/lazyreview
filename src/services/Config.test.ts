@@ -653,7 +653,20 @@ describe('flattenV2ToAppConfig', () => {
     expect(config.recentRepos).toEqual([
       { owner: 'foo', repo: 'bar', lastUsed: '2026-01-01' },
     ])
-    expect(config.bookmarkedRepos).toEqual([{ owner: 'baz', repo: 'qux' }])
+    expect(config.bookmarkedRepos).toEqual([
+      { owner: 'baz', repo: 'qux', provider: 'github' },
+    ])
+  })
+
+  it('preserves an explicit bookmark provider', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      bookmarkedRepos: [{ owner: 'acme', repo: 'web', provider: 'bitbucket' }],
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.bookmarkedRepos).toEqual([
+      { owner: 'acme', repo: 'web', provider: 'bitbucket' },
+    ])
   })
 
   it('preserves keybindingOverrides when non-empty', () => {
@@ -709,6 +722,27 @@ describe('flattenV2ToAppConfig', () => {
     expect(config.hostMappings).toEqual([
       { host: 'gt.corp.com', provider: 'gitea' },
     ])
+  })
+
+  it('preserves enabledProviders from defaults', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      defaults: {
+        ...minimalV2.defaults,
+        enabledProviders: ['github', 'bitbucket'],
+      },
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.enabledProviders).toEqual(['github', 'bitbucket'])
+  })
+
+  it('falls back enabledProviders to [provider] for configs written before this field existed', () => {
+    const v2: V2ConfigFile = {
+      ...minimalV2,
+      defaults: { ...minimalV2.defaults, provider: 'gitlab' },
+    }
+    const config = flattenV2ToAppConfig(v2)
+    expect(config.enabledProviders).toEqual(['gitlab'])
   })
 
   it('preserves botUsernames from defaults', () => {
@@ -774,6 +808,14 @@ describe('appConfigToV2', () => {
     expect(v2.defaults.repo).toBe('web')
   })
 
+  it('preserves enabledProviders through AppConfig -> V2', () => {
+    const config = S.decodeUnknownSync(AppConfig)({
+      enabledProviders: ['github', 'bitbucket'],
+    })
+    const v2 = appConfigToV2(config)
+    expect(v2.defaults.enabledProviders).toEqual(['github', 'bitbucket'])
+  })
+
   it('round-trips AppConfig through V2 and back', () => {
     const original = S.decodeUnknownSync(AppConfig)({
       provider: 'github',
@@ -799,6 +841,14 @@ describe('appConfigToV2', () => {
     expect(restored.providers?.gitlab?.hosts).toEqual(
       original.providers?.gitlab?.hosts,
     )
+  })
+
+  it('round-trips enabledProviders through V2 and back', () => {
+    const original = S.decodeUnknownSync(AppConfig)({
+      enabledProviders: ['github', 'bitbucket'],
+    })
+    const restored = flattenV2ToAppConfig(appConfigToV2(original))
+    expect(restored.enabledProviders).toEqual(['github', 'bitbucket'])
   })
 
   it('initializes empty ai config section', () => {

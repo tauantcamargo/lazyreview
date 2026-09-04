@@ -200,6 +200,7 @@ export function mapAzurePRToPullRequest(
     mergeable: null,
     mergeable_state: azPR.mergeStatus ?? null,
     merge_commit_sha: azPR.lastMergeCommit?.commitId ?? null,
+    provider: 'azure',
   })
 }
 

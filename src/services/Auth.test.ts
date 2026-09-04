@@ -13,6 +13,9 @@ import {
   setAuthHost,
   getAuthHost,
   getDefaultHost,
+  getTokenForProvider,
+  getUserForProvider,
+  saveTokenForProvider,
   Auth,
   AuthLive,
   type TokenInfo,
@@ -257,7 +260,7 @@ describe('getProviderMeta', () => {
     expect(meta.envVars).toContain('LAZYREVIEW_BITBUCKET_TOKEN')
     expect(meta.envVars).toContain('BITBUCKET_TOKEN')
     expect(meta.cliCommand).toBeNull()
-    expect(meta.tokenUrl).toContain('bitbucket.org')
+    expect(meta.tokenUrl).toContain('atlassian.com')
   })
 
   it('returns Azure DevOps metadata', () => {
@@ -1146,8 +1149,6 @@ describe('getUser', () => {
     })
 
     it('calls GitLab API with PRIVATE-TOKEN header and correct URL', async () => {
-      // GitLab user decode currently fails because html_url is missing from the
-      // constructed object. We verify the API call is made correctly.
       mockFetch({
         username: 'gitlabuser',
         id: 67890,
@@ -1160,8 +1161,21 @@ describe('getUser', () => {
       const [url, options] = fetchMock.mock.calls[0]
       expect(url).toBe('https://gitlab.com/api/v4/user')
       expect(options.headers['PRIVATE-TOKEN']).toBe('glpat-user_test_12345678')
-      // The decode fails because html_url is missing from the User schema mapping
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(Exit.isSuccess(exit)).toBe(true)
+      if (Exit.isSuccess(exit)) {
+        expect(exit.value.login).toBe('gitlabuser')
+        expect(exit.value.html_url).toBe('https://gitlab.com/gitlabuser')
+      }
+    })
+
+    it('builds html_url from the custom base URL, stripping /api/v4', async () => {
+      setAuthBaseUrl('https://gitlab.example.com')
+      mockFetch({ username: 'user', id: 1, avatar_url: '' })
+      const exit = await runAuthExit((auth) => auth.getUser())
+      expect(Exit.isSuccess(exit)).toBe(true)
+      if (Exit.isSuccess(exit)) {
+        expect(exit.value.html_url).toBe('https://gitlab.example.com/user')
+      }
     })
 
     it('uses custom base URL when set', async () => {
@@ -1211,8 +1225,44 @@ describe('getUser', () => {
       expect(options.headers.Authorization).toBe(
         'Bearer bb_user_test_1234567890',
       )
-      // Decode fails because html_url is missing in the User schema mapping
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(Exit.isSuccess(exit)).toBe(true)
+      if (Exit.isSuccess(exit)) {
+        expect(exit.value.login).toBe('bbuser')
+        expect(exit.value.html_url).toBe('https://bitbucket.org/bbuser')
+      }
+    })
+
+    it('calls Bitbucket API with Basic auth for email:api_token tokens', async () => {
+      process.env['LAZYREVIEW_BITBUCKET_TOKEN'] =
+        'user@example.com:atl_api_token_1234567890'
+      mockFetch({
+        username: 'bbuser',
+        links: { avatar: { href: 'https://bitbucket.org/avatar/bbuser' } },
+        account_id: 'abc123',
+      })
+      const exit = await runAuthExit((auth) => auth.getUser())
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      const [, options] = fetchMock.mock.calls[0]
+      expect(options.headers.Authorization).toBe(
+        `Basic ${Buffer.from('user@example.com:atl_api_token_1234567890').toString('base64')}`,
+      )
+      expect(Exit.isSuccess(exit)).toBe(true)
+    })
+
+    it('builds html_url from the username so User schema decoding succeeds', async () => {
+      // Regression test: getBitbucketUser used to omit html_url entirely,
+      // which the User schema requires -- every Bitbucket "who am I" lookup
+      // failed silently as an AuthError, which fetchBitbucketPRs then
+      // reported as authError:true even with a fully valid token.
+      mockFetch({
+        username: 'someone',
+        links: {},
+      })
+      const exit = await runAuthExit((auth) => auth.getUser())
+      expect(Exit.isSuccess(exit)).toBe(true)
+      if (Exit.isSuccess(exit)) {
+        expect(exit.value.html_url).toBe('https://bitbucket.org/someone')
+      }
     })
 
     it('fails with AuthError on non-ok response', async () => {
@@ -1244,8 +1294,11 @@ describe('getUser', () => {
         'base64',
       )
       expect(options.headers.Authorization).toBe(`Basic ${encoded}`)
-      // Decode fails because html_url is missing in the User schema mapping
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(Exit.isSuccess(exit)).toBe(true)
+      if (Exit.isSuccess(exit)) {
+        expect(exit.value.login).toBe('azure@example.com')
+        expect(exit.value.html_url).toBe('https://dev.azure.com')
+      }
     })
 
     it('fails with AuthError on non-ok response', async () => {
@@ -1275,8 +1328,11 @@ describe('getUser', () => {
       expect(options.headers.Authorization).toBe(
         'token gitea_user_test_12345678',
       )
-      // Decode fails because html_url is missing in the User schema mapping
-      expect(Exit.isFailure(exit)).toBe(true)
+      expect(Exit.isSuccess(exit)).toBe(true)
+      if (Exit.isSuccess(exit)) {
+        expect(exit.value.login).toBe('giteauser')
+        expect(exit.value.html_url).toBe('https://gitea.com/giteauser')
+      }
     })
 
     it('uses custom base URL when set', async () => {
@@ -1773,5 +1829,159 @@ describe('getDefaultHost', () => {
 
   it('returns gitea.com for gitea', () => {
     expect(getDefaultHost('gitea')).toBe('gitea.com')
+  })
+})
+
+describe('getTokenForProvider', () => {
+  const originalEnv = { ...process.env }
+
+  beforeEach(() => {
+    resetAuthState()
+    cliResults = {}
+    cliErrors = {}
+    savedFiles = {}
+    fileStats = {}
+    fileContents = {}
+    deletedFiles = []
+    delete process.env['LAZYREVIEW_GITHUB_TOKEN']
+    delete process.env['GITHUB_TOKEN']
+    delete process.env['LAZYREVIEW_BITBUCKET_TOKEN']
+    delete process.env['BITBUCKET_TOKEN']
+  })
+
+  afterEach(() => {
+    process.env = { ...originalEnv }
+  })
+
+  it("reads the requested provider's saved token file, not the focused provider's", async () => {
+    // Focused/active provider stays 'github' (the default) the whole time --
+    // getTokenForProvider must not be affected by it.
+    setAuthProvider('github')
+
+    const bitbucketPath = getProviderTokenFilePath('bitbucket')
+    fileStats[bitbucketPath] = { mode: 0o100600 }
+    fileContents[bitbucketPath] = 'user@example.com:atl_api_token_12345'
+
+    const exit = await Effect.runPromise(
+      Effect.exit(getTokenForProvider('bitbucket')),
+    )
+    expect(Exit.isSuccess(exit)).toBe(true)
+    if (Exit.isSuccess(exit)) {
+      expect(exit.value).toBe('user@example.com:atl_api_token_12345')
+    }
+  })
+
+  it('does not fall back to the shared session/saved token slot of a different focused provider', async () => {
+    // Simulate a manually-entered GitHub token sitting in the shared
+    // in-memory slot (as if the user just authenticated via TokenInputModal
+    // while GitHub is focused). Requesting Bitbucket's token must not leak it.
+    setAuthProvider('github')
+    await Effect.runPromise(
+      Effect.provide(
+        Effect.gen(function* () {
+          const auth = yield* Auth
+          yield* auth.setToken('ghp_focused_provider_token')
+        }),
+        AuthLive,
+      ),
+    )
+
+    const exit = await Effect.runPromise(
+      Effect.exit(getTokenForProvider('bitbucket')),
+    )
+    expect(Exit.isFailure(exit)).toBe(true)
+  })
+
+  it('prefers the env var for the requested provider over nothing', async () => {
+    process.env['LAZYREVIEW_BITBUCKET_TOKEN'] = 'bb_env_token'
+    const exit = await Effect.runPromise(
+      Effect.exit(getTokenForProvider('bitbucket')),
+    )
+    expect(Exit.isSuccess(exit)).toBe(true)
+    if (Exit.isSuccess(exit)) {
+      expect(exit.value).toBe('bb_env_token')
+    }
+  })
+
+  it('fails when the requested provider has no token available anywhere', async () => {
+    const exit = await Effect.runPromise(
+      Effect.exit(getTokenForProvider('bitbucket')),
+    )
+    expect(Exit.isFailure(exit)).toBe(true)
+  })
+})
+
+describe('saveTokenForProvider', () => {
+  beforeEach(() => {
+    resetAuthState()
+    savedFiles = {}
+    fileStats = {}
+    fileContents = {}
+  })
+
+  it("saves to the requested provider's file without touching the focused provider", async () => {
+    setAuthProvider('github')
+
+    await saveTokenForProvider('bitbucket', 'user@example.com:atl_tok')
+
+    const bitbucketPath = getProviderTokenFilePath('bitbucket')
+    expect(savedFiles[bitbucketPath]).toBe('user@example.com:atl_tok')
+
+    // The focused provider (github) must be untouched.
+    const githubPath = getProviderTokenFilePath('github')
+    expect(savedFiles[githubPath]).toBeUndefined()
+    expect(getAuthProvider()).toBe('github')
+  })
+
+  it('makes the saved token immediately resolvable via getTokenForProvider', async () => {
+    await saveTokenForProvider('bitbucket', 'user@example.com:atl_tok')
+
+    const bitbucketPath = getProviderTokenFilePath('bitbucket')
+    fileStats[bitbucketPath] = { mode: 0o100600 }
+    fileContents[bitbucketPath] = savedFiles[bitbucketPath]!
+
+    const exit = await Effect.runPromise(
+      Effect.exit(getTokenForProvider('bitbucket')),
+    )
+    expect(Exit.isSuccess(exit)).toBe(true)
+    if (Exit.isSuccess(exit)) {
+      expect(exit.value).toBe('user@example.com:atl_tok')
+    }
+  })
+})
+
+describe('getUserForProvider', () => {
+  const originalEnv = { ...process.env }
+  const originalFetch = globalThis.fetch
+
+  beforeEach(() => {
+    resetAuthState()
+  })
+
+  afterEach(() => {
+    process.env = { ...originalEnv }
+    globalThis.fetch = originalFetch
+  })
+
+  it('dispatches to the requested provider regardless of the focused provider', async () => {
+    setAuthProvider('github')
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        username: 'bbuser',
+        links: { avatar: { href: 'https://bitbucket.org/avatar/bbuser' } },
+        account_id: 'abc123',
+      }),
+    })
+
+    await Effect.runPromise(
+      Effect.exit(getUserForProvider('bitbucket', 'some-token')),
+    )
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.bitbucket.org/2.0/user',
+      expect.anything(),
+    )
   })
 })

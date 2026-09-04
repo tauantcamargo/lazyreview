@@ -14,10 +14,12 @@ import {
   cycleSidebarMode,
 } from './components/layout/Sidebar'
 import type { SidebarMode } from './components/layout/Sidebar'
-import { computeSidebarWidth } from './utils/terminal'
+import { computeSidebarWidth, openInBrowser } from './utils/terminal'
 import { MainPanel } from './components/layout/MainPanel'
 import { StatusBar } from './components/layout/StatusBar'
 import { useScreenContext, setScreenContext } from './hooks/useScreenContext'
+import { useStatusMessage } from './hooks/useStatusMessage'
+import { providerBadge } from './utils/provider-helpers'
 import { HelpModal } from './components/layout/HelpModal'
 import { TokenInputModal } from './components/layout/TokenInputModal'
 import { OnboardingScreen } from './components/layout/OnboardingScreen'
@@ -33,7 +35,7 @@ import { ThisRepoScreen } from './screens/ThisRepoScreen'
 import { BrowseRepoScreen } from './screens/BrowseRepoScreen'
 import { TeamDashboardScreen } from './screens/TeamDashboardScreen'
 import { Match } from 'effect'
-import { parseGitHubPRUrl } from './utils/git'
+import { parsePRUrl } from './utils/git'
 import type { ProviderType } from './utils/git'
 import { useAuth } from './hooks/useAuth'
 import { useConfig } from './hooks/useConfig'
@@ -41,6 +43,7 @@ import { setAuthProvider, setAuthBaseUrl } from './services/Auth'
 import type { Provider } from './services/Config'
 import { useListNavigation } from './hooks/useListNavigation'
 import { useActivePanel } from './hooks/useActivePanel'
+import { useModalOverlayOutlet } from './hooks/useModalOverlay'
 import { useKeybindings } from './hooks/useKeybindings'
 import { InputFocusProvider, useInputFocus } from './hooks/useInputFocus'
 import { RepoContextProvider, useRepoContext } from './hooks/useRepoContext'
@@ -83,6 +86,7 @@ function AppContent({
   const { stdout } = useStdout()
   const { user, isAuthenticated, loading, saveToken, error } = useAuth()
   const { config, updateConfig } = useConfig()
+  const { setStatusMessage } = useStatusMessage()
   const teamMembers = useMemo(
     () =>
       (config?.team?.members ?? []).map((m) => ({
@@ -115,7 +119,12 @@ function AppContent({
     isLoading: directPRLoading,
     error: directPRError,
     refetch: directPRRefetch,
-  } = usePullRequest(directPROwner, directPRRepo, directPRNumber)
+  } = usePullRequest(
+    directPROwner,
+    directPRRepo,
+    directPRNumber,
+    directPR?.provider ?? undefined,
+  )
 
   const [directPRNavigated, setDirectPRNavigated] = useState(false)
   React.useEffect(() => {
@@ -251,6 +260,20 @@ function AppContent({
 
   const handleSelectPR = useCallback(
     (pr: PullRequest, list?: readonly PullRequest[], index?: number) => {
+      // The in-app detail screen (reads, comments, reviews, merge, etc.)
+      // only supports GitHub and Bitbucket PRs today. Rather than opening a
+      // screen that will fail to load data, send other providers' PRs to
+      // the browser.
+      if (pr.provider !== 'github' && pr.provider !== 'bitbucket') {
+        const opened = openInBrowser(pr.html_url)
+        setStatusMessage(
+          opened
+            ? `Opened in browser -- in-app ${providerBadge(pr.provider)} PR view isn't supported yet`
+            : 'Could not open PR in browser',
+          opened ? 'info' : 'error',
+        )
+        return
+      }
       setCurrentScreen({
         type: 'detail',
         pr,
@@ -258,7 +281,7 @@ function AppContent({
         prIndex: index ?? 0,
       })
     },
-    [],
+    [setStatusMessage],
   )
 
   const handleBackToList = useCallback(() => {
@@ -338,7 +361,7 @@ function AppContent({
     }
 
     if (currentScreen.type === 'detail') {
-      const parsed = parseGitHubPRUrl(currentScreen.pr.html_url)
+      const parsed = parsePRUrl(currentScreen.pr.html_url)
       const prOwner = parsed?.owner ?? repoOwner ?? ''
       const prRepo = parsed?.repo ?? repoName ?? ''
 
@@ -358,14 +381,30 @@ function AppContent({
     }
 
     return Match.value(sidebarIndex).pipe(
-      Match.when(0, () => <InvolvedScreen onSelect={handleSelectPR} />),
-      Match.when(1, () => <MyPRsScreen onSelect={handleSelectPR} />),
-      Match.when(2, () => <ReviewRequestsScreen onSelect={handleSelectPR} />),
+      Match.when(0, () => (
+        <InvolvedScreen
+          onSelect={handleSelectPR}
+          isActive={activePanel !== 'sidebar'}
+        />
+      )),
+      Match.when(1, () => (
+        <MyPRsScreen
+          onSelect={handleSelectPR}
+          isActive={activePanel !== 'sidebar'}
+        />
+      )),
+      Match.when(2, () => (
+        <ReviewRequestsScreen
+          onSelect={handleSelectPR}
+          isActive={activePanel !== 'sidebar'}
+        />
+      )),
       Match.when(3, () => (
         <ThisRepoScreen
           owner={repoOwner}
           repo={repoName}
           onSelect={handleSelectPR}
+          isActive={activePanel !== 'sidebar'}
         />
       )),
       Match.when(4, () => (
@@ -445,6 +484,8 @@ function AppContent({
     [queryClient],
   )
 
+  const modalOverlay = useModalOverlayOutlet()
+
   const rateLimit = useRateLimit()
   const connectionStatus: ConnectionStatus = !isAuthenticated
     ? 'error'
@@ -500,6 +541,7 @@ function AppContent({
         </MainPanel>
       </Box>
       <StatusBar activePanel={activePanel} screenContext={screenContext} />
+      {modalOverlay}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {showCommandPalette && (
         <CommandPalette

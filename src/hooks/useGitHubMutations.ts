@@ -3,14 +3,13 @@ import {
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query'
-import { Effect } from 'effect'
-import { CodeReviewApi } from '../services/GitHubApi'
+import type { Effect } from 'effect'
 import type {
   CodeReviewApiService,
   ReviewThread,
 } from '../services/CodeReviewApiTypes'
 import type { ApiError } from '../services/CodeReviewApiTypes'
-import { runEffect } from '../utils/effect'
+import { runProviderEffect } from '../utils/providerEffect'
 import {
   createOptimisticComment,
   createOptimisticIssueComment,
@@ -23,6 +22,16 @@ import {
   type OptimisticIssueCommentShape,
   type OptimisticReviewShape,
 } from './optimistic-updates'
+
+/**
+ * Every mutation params shape optionally carries `provider` (see PRParams
+ * below) so the two factories can dispatch to the right CodeReviewApiService
+ * implementation without each of the ~24 mutation definitions needing its
+ * own dispatch logic.
+ */
+function getProvider(params: unknown): string | undefined {
+  return (params as { readonly provider?: string }).provider
+}
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -45,11 +54,8 @@ export function createGitHubMutation<TParams, TResult = void>(
     const queryClient = useQueryClient()
     return useMutation({
       mutationFn: (params: TParams) =>
-        runEffect(
-          Effect.gen(function* () {
-            const api = yield* CodeReviewApi
-            return yield* options.effect(api, params)
-          }),
+        runProviderEffect(getProvider(params), (api) =>
+          options.effect(api, params),
         ),
       ...(options.invalidateKeys
         ? {
@@ -95,11 +101,8 @@ export function createOptimisticMutation<TParams, TResult = void>(
     const queryClient = useQueryClient()
     return useMutation<TResult, Error, TParams, OptimisticContext>({
       mutationFn: (params: TParams) =>
-        runEffect(
-          Effect.gen(function* () {
-            const api = yield* CodeReviewApi
-            return yield* options.effect(api, params)
-          }),
+        runProviderEffect(getProvider(params), (api) =>
+          options.effect(api, params),
         ),
       onMutate: async (params: TParams) => {
         const snapshots = await takeSnapshots(
@@ -193,6 +196,7 @@ interface PRParams {
   readonly owner: string
   readonly repo: string
   readonly prNumber: number
+  readonly provider?: string
 }
 
 interface SubmitReviewParams extends PRParams {
@@ -205,6 +209,7 @@ interface CreateCommentParams {
   readonly repo: string
   readonly issueNumber: number
   readonly body: string
+  readonly provider?: string
 }
 
 interface CreateReviewCommentParams extends PRParams {
@@ -612,6 +617,7 @@ interface CreatePullRequestParams {
   readonly baseBranch: string
   readonly headBranch: string
   readonly draft?: boolean
+  readonly provider?: string
 }
 
 interface CreatePullRequestResult {

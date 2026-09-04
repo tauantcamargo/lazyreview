@@ -1,14 +1,41 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Effect } from 'effect'
-import { CodeReviewApi, type ListPRsOptions } from '../services/GitHubApi'
+import type { ListPRsOptions } from '../services/GitHubApi'
 import { runEffect } from '../utils/effect'
+import { runProviderEffect } from '../utils/providerEffect'
+import { CodeReviewApi } from '../services/GitHubApi'
 import { useRefreshInterval } from './useRefreshInterval'
 import {
   useSharedPRCache,
   crossPopulateFromInvolved,
   crossPopulateToInvolved,
+  mergePRLists,
 } from './useSharedPRCache'
+import { useBitbucketPRs } from './useBitbucketPRs'
+import type { BitbucketScope } from './useBitbucketPRs'
+import type { PullRequest } from '../models/pull-request'
+
+/**
+ * Merges a GitHub-sourced PR list with Bitbucket's (see useBitbucketPRs --
+ * a no-op when Bitbucket isn't enabled or has no matching PRs).
+ */
+function useMergedWithBitbucket(
+  githubData: readonly PullRequest[] | undefined,
+  scope: BitbucketScope,
+  stateFilter: PRStateFilter,
+): {
+  readonly data: readonly PullRequest[] | undefined
+  readonly bitbucketAuthError: boolean
+} {
+  const bitbucket = useBitbucketPRs(scope, stateFilter)
+  const data = useMemo(() => {
+    if (!githubData) return githubData
+    if (!bitbucket.data || bitbucket.data.prs.length === 0) return githubData
+    return mergePRLists(githubData, bitbucket.data.prs)
+  }, [githubData, bitbucket.data])
+  return { data, bitbucketAuthError: bitbucket.data?.authError ?? false }
+}
 
 // Re-export mutations for backwards compatibility
 export {
@@ -40,35 +67,31 @@ export function usePullRequests(
   owner: string,
   repo: string,
   options?: ListPRsOptions,
+  provider?: string,
 ) {
   const refetchInterval = useRefreshInterval()
 
   return useQuery({
-    queryKey: ['prs', owner, repo, options],
+    queryKey: ['prs', owner, repo, options, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.listPRs(owner, repo, options)
-        }),
-      ),
+      runProviderEffect(provider, (api) => api.listPRs(owner, repo, options)),
     enabled: !!owner && !!repo,
     refetchInterval,
   })
 }
 
-export function usePullRequest(owner: string, repo: string, number: number) {
+export function usePullRequest(
+  owner: string,
+  repo: string,
+  number: number,
+  provider?: string,
+) {
   const refetchInterval = useRefreshInterval(30)
 
   return useQuery({
-    queryKey: ['pr', owner, repo, number],
+    queryKey: ['pr', owner, repo, number, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPR(owner, repo, number)
-        }),
-      ),
+      runProviderEffect(provider, (api) => api.getPR(owner, repo, number)),
     enabled: !!owner && !!repo && !!number,
     refetchInterval,
   })
@@ -79,19 +102,15 @@ export function usePRFiles(
   repo: string,
   number: number,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const refetchInterval = useRefreshInterval(30)
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['pr-files', owner, repo, number],
+    queryKey: ['pr-files', owner, repo, number, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRFiles(owner, repo, number)
-        }),
-      ),
+      runProviderEffect(provider, (api) => api.getPRFiles(owner, repo, number)),
     enabled: enabledFlag && !!owner && !!repo && !!number,
     refetchInterval,
   })
@@ -102,18 +121,16 @@ export function usePRComments(
   repo: string,
   number: number,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const refetchInterval = useRefreshInterval(30)
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['pr-comments', owner, repo, number],
+    queryKey: ['pr-comments', owner, repo, number, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRComments(owner, repo, number)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getPRComments(owner, repo, number),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!number,
     refetchInterval,
@@ -125,18 +142,16 @@ export function useIssueComments(
   repo: string,
   issueNumber: number,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const refetchInterval = useRefreshInterval(30)
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['issue-comments', owner, repo, issueNumber],
+    queryKey: ['issue-comments', owner, repo, issueNumber, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getIssueComments(owner, repo, issueNumber)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getIssueComments(owner, repo, issueNumber),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!issueNumber,
     refetchInterval,
@@ -148,18 +163,16 @@ export function usePRReviews(
   repo: string,
   number: number,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const refetchInterval = useRefreshInterval(30)
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['pr-reviews', owner, repo, number],
+    queryKey: ['pr-reviews', owner, repo, number, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRReviews(owner, repo, number)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getPRReviews(owner, repo, number),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!number,
     refetchInterval,
@@ -171,18 +184,16 @@ export function usePRCommits(
   repo: string,
   number: number,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const refetchInterval = useRefreshInterval(30)
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['pr-commits', owner, repo, number],
+    queryKey: ['pr-commits', owner, repo, number, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRCommits(owner, repo, number)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getPRCommits(owner, repo, number),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!number,
     refetchInterval,
@@ -216,7 +227,13 @@ export function useMyPRs(stateFilter: PRStateFilter = 'open') {
     }
   }, [query.data, query.isFetched, queryClient, stateFilter])
 
-  return query
+  const { data, bitbucketAuthError } = useMergedWithBitbucket(
+    query.data,
+    'my',
+    stateFilter,
+  )
+
+  return { ...query, data, bitbucketAuthError }
 }
 
 export function useReviewRequests(stateFilter: PRStateFilter = 'open') {
@@ -244,7 +261,13 @@ export function useReviewRequests(stateFilter: PRStateFilter = 'open') {
     }
   }, [query.data, query.isFetched, queryClient, stateFilter])
 
-  return query
+  const { data, bitbucketAuthError } = useMergedWithBitbucket(
+    query.data,
+    'review-requested',
+    stateFilter,
+  )
+
+  return { ...query, data, bitbucketAuthError }
 }
 
 export function useInvolvedPRs(stateFilter: PRStateFilter = 'open') {
@@ -278,7 +301,13 @@ export function useInvolvedPRs(stateFilter: PRStateFilter = 'open') {
     }
   }, [query.data, query.isFetched, queryClient, stateFilter, currentUserLogin])
 
-  return query
+  const { data, bitbucketAuthError } = useMergedWithBitbucket(
+    query.data,
+    'involved',
+    stateFilter,
+  )
+
+  return { ...query, data, bitbucketAuthError }
 }
 
 export function useReviewThreads(
@@ -286,18 +315,16 @@ export function useReviewThreads(
   repo: string,
   number: number,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const refetchInterval = useRefreshInterval(30)
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['pr-review-threads', owner, repo, number],
+    queryKey: ['pr-review-threads', owner, repo, number, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getReviewThreads(owner, repo, number)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getReviewThreads(owner, repo, number),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!number,
     refetchInterval,
@@ -309,19 +336,15 @@ export function useCheckRuns(
   repo: string,
   ref: string,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const refetchInterval = useRefreshInterval(30)
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['check-runs', owner, repo, ref],
+    queryKey: ['check-runs', owner, repo, ref, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRChecks(owner, repo, ref)
-        }),
-      ),
+      runProviderEffect(provider, (api) => api.getPRChecks(owner, repo, ref)),
     enabled: enabledFlag && !!owner && !!repo && !!ref,
     refetchInterval,
   })
@@ -332,32 +355,22 @@ export function useCommitDiff(
   repo: string,
   sha: string,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['commit-diff', owner, repo, sha],
+    queryKey: ['commit-diff', owner, repo, sha, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getCommitDiff(owner, repo, sha)
-        }),
-      ),
+      runProviderEffect(provider, (api) => api.getCommitDiff(owner, repo, sha)),
     enabled: enabledFlag && !!owner && !!repo && !!sha,
   })
 }
 
-export function useCurrentUser() {
+export function useCurrentUser(provider?: string) {
   return useQuery({
-    queryKey: ['current-user'],
-    queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getCurrentUser()
-        }),
-      ),
+    queryKey: ['current-user', provider],
+    queryFn: () => runProviderEffect(provider, (api) => api.getCurrentUser()),
     staleTime: Infinity,
   })
 }
@@ -366,18 +379,14 @@ export function useRepoLabels(
   owner: string,
   repo: string,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['repo-labels', owner, repo],
+    queryKey: ['repo-labels', owner, repo, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getLabels(owner, repo)
-        }),
-      ),
+      runProviderEffect(provider, (api) => api.getLabels(owner, repo)),
     enabled: enabledFlag && !!owner && !!repo,
     staleTime: 5 * 60 * 1000, // 5 minutes - labels don't change often
   })
@@ -387,18 +396,14 @@ export function useCollaborators(
   owner: string,
   repo: string,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['collaborators', owner, repo],
+    queryKey: ['collaborators', owner, repo, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getCollaborators(owner, repo)
-        }),
-      ),
+      runProviderEffect(provider, (api) => api.getCollaborators(owner, repo)),
     enabled: enabledFlag && !!owner && !!repo,
     staleTime: 5 * 60 * 1000, // 5 minutes - collaborators don't change often
   })
@@ -414,17 +419,15 @@ export function usePRFilesPage(
   number: number,
   page: number,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['pr-files-page', owner, repo, number, page],
+    queryKey: ['pr-files-page', owner, repo, number, page, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getPRFilesPage(owner, repo, number, page)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getPRFilesPage(owner, repo, number, page),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!number && page >= 1,
     staleTime: 30 * 1000,
@@ -441,17 +444,15 @@ export function useFileDiff(
   number: number,
   filename: string | null,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['file-diff', owner, repo, number, filename],
+    queryKey: ['file-diff', owner, repo, number, filename, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          return yield* api.getFileDiff(owner, repo, number, filename!)
-        }),
+      runProviderEffect(provider, (api) =>
+        api.getFileDiff(owner, repo, number, filename!),
       ),
     enabled: enabledFlag && !!owner && !!repo && !!number && !!filename,
     staleTime: 60 * 1000, // 1 minute - file diffs don't change often during review
@@ -468,21 +469,19 @@ export function useCompareFiles(
   base: string | null,
   head: string | null,
   options?: { readonly enabled?: boolean },
+  provider?: string,
 ) {
   const enabledFlag = options?.enabled ?? true
 
   return useQuery({
-    queryKey: ['compare-files', owner, repo, base, head],
+    queryKey: ['compare-files', owner, repo, base, head, provider],
     queryFn: () =>
-      runEffect(
-        Effect.gen(function* () {
-          const api = yield* CodeReviewApi
-          if (api.getCompareFiles) {
-            return yield* api.getCompareFiles(owner, repo, base!, head!)
-          }
-          return [] as const
-        }),
-      ),
+      runProviderEffect(provider, (api) => {
+        if (api.getCompareFiles) {
+          return api.getCompareFiles(owner, repo, base!, head!)
+        }
+        return Effect.succeed([] as const)
+      }),
     enabled: enabledFlag && !!owner && !!repo && !!base && !!head,
     staleTime: 60 * 1000,
   })

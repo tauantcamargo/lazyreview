@@ -3,6 +3,7 @@ import {
   addBookmarkToList,
   removeBookmarkFromList,
   validateBookmarkInput,
+  parseBookmarkInput,
 } from './useBookmarkedRepos'
 import type { BookmarkedRepo } from '../services/Config'
 
@@ -16,7 +17,7 @@ describe('validateBookmarkInput', () => {
   it('rejects input without slash', () => {
     const result = validateBookmarkInput('facebook')
     expect(result.valid).toBe(false)
-    expect(result.error).toBe('Format: owner/repo')
+    expect(result.error).toBe('Format: [provider:]owner/repo')
   })
 
   it('rejects empty owner', () => {
@@ -40,13 +41,69 @@ describe('validateBookmarkInput', () => {
     const result = validateBookmarkInput('  owner / repo  ')
     expect(result.valid).toBe(true)
   })
+
+  it('accepts a known provider prefix', () => {
+    const result = validateBookmarkInput('bitbucket:acme/web')
+    expect(result.valid).toBe(true)
+    expect(result.error).toBeNull()
+  })
+})
+
+describe('parseBookmarkInput', () => {
+  it('defaults to github when no prefix is given', () => {
+    expect(parseBookmarkInput('facebook/react')).toEqual({
+      provider: 'github',
+      owner: 'facebook',
+      repo: 'react',
+    })
+  })
+
+  it('parses a known provider prefix', () => {
+    expect(parseBookmarkInput('bitbucket:acme/web')).toEqual({
+      provider: 'bitbucket',
+      owner: 'acme',
+      repo: 'web',
+    })
+  })
+
+  it('treats an unrecognized prefix as part of the owner, not a provider', () => {
+    // ':' can't appear in a real owner/org name, but we shouldn't silently
+    // eat an unknown prefix -- fall back to treating the whole string as
+    // owner/repo (which will then fail validation elsewhere as malformed).
+    expect(parseBookmarkInput('notaprovider:acme/web')).toEqual({
+      provider: 'github',
+      owner: 'notaprovider:acme',
+      repo: 'web',
+    })
+  })
+
+  it('trims whitespace around the prefix and owner/repo', () => {
+    expect(parseBookmarkInput('  bitbucket : acme / web  ')).toEqual({
+      provider: 'bitbucket',
+      owner: 'acme',
+      repo: 'web',
+    })
+  })
 })
 
 describe('addBookmarkToList', () => {
-  it('adds a new bookmark to an empty list', () => {
+  it('adds a new bookmark to an empty list, defaulting to github', () => {
     const result = addBookmarkToList([], 'facebook', 'react')
     expect(result).toHaveLength(1)
-    expect(result[0]).toEqual({ owner: 'facebook', repo: 'react' })
+    expect(result[0]).toEqual({
+      owner: 'facebook',
+      repo: 'react',
+      provider: 'github',
+    })
+  })
+
+  it('adds a bookmark with an explicit provider', () => {
+    const result = addBookmarkToList([], 'acme', 'web', 'bitbucket')
+    expect(result[0]).toEqual({
+      owner: 'acme',
+      repo: 'web',
+      provider: 'bitbucket',
+    })
   })
 
   it('appends to existing list', () => {

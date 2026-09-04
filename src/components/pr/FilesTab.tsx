@@ -124,6 +124,7 @@ interface FilesTabProps {
   // Merge conflict detection
   readonly mergeable?: boolean | null
   readonly mergeableState?: string | null
+  readonly provider?: string
 }
 
 type FocusPanel = 'tree' | 'diff'
@@ -152,6 +153,7 @@ export function FilesTab({
   commitRangeLabel,
   mergeable,
   mergeableState,
+  provider,
 }: FilesTabProps): React.ReactElement {
   const { stdout } = useStdout()
   const theme = useTheme()
@@ -314,6 +316,7 @@ export function FilesTab({
     prNumber ?? 0,
     needsLazyDiff ? selectedFilename : null,
     { enabled: needsLazyDiff },
+    provider,
   )
 
   const selectedPatch = inlinePatch ?? lazyDiffFile?.patch ?? null

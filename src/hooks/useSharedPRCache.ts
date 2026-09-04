@@ -63,15 +63,20 @@ export function filterReviewRequests(
 }
 
 /**
- * Merge two PR lists into one, deduplicating by PR number.
+ * Merge two PR lists into one, deduplicating by `html_url`.
  * Preserves the order of the first list, appending unique items from the second.
+ *
+ * `html_url` (not `number`) is the dedupe key because PR numbers are only
+ * unique *within* a single provider+repo -- a GitHub PR #12 and a Bitbucket
+ * PR #12 would otherwise collide once both providers' PRs are merged into
+ * the same list.
  */
-function mergePRLists(
+export function mergePRLists(
   a: readonly PullRequest[],
   b: readonly PullRequest[],
 ): readonly PullRequest[] {
-  const seen = new Set(a.map((pr) => pr.number))
-  const unique = b.filter((pr) => !seen.has(pr.number))
+  const seen = new Set(a.map((pr) => pr.html_url))
+  const unique = b.filter((pr) => !seen.has(pr.html_url))
   return [...a, ...unique]
 }
 

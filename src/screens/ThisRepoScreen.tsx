@@ -23,6 +23,7 @@ interface ThisRepoScreenProps {
     list?: readonly PullRequest[],
     index?: number,
   ) => void
+  readonly isActive?: boolean
 }
 
 interface BranchInfo {
@@ -35,6 +36,7 @@ export function ThisRepoScreen({
   owner,
   repo,
   onSelect,
+  isActive = true,
 }: ThisRepoScreenProps): React.ReactElement {
   const [stateFilter, setStateFilter] = useState<PRStateFilter>('open')
   const [showCreatePR, setShowCreatePR] = useState(false)
@@ -141,7 +143,7 @@ export function ThisRepoScreen({
         handleOpenCreatePR()
       }
     },
-    { isActive: !showCreatePR },
+    { isActive: isActive && !showCreatePR },
   )
 
   if (!owner || !repo) {
@@ -177,6 +179,7 @@ export function ThisRepoScreen({
         onSelect={onSelect}
         owner={owner}
         repo={repo}
+        isActive={isActive}
       />
       {showCreatePR && branchInfo && branchInfo.currentBranch && (
         <CreatePRModal

@@ -16,6 +16,7 @@ import { useInputFocus } from '../hooks/useInputFocus'
 import {
   useBookmarkedRepos,
   validateBookmarkInput,
+  parseBookmarkInput,
 } from '../hooks/useBookmarkedRepos'
 import { Divider } from '../components/common/Divider'
 import { LoadingIndicator } from '../components/common/LoadingIndicator'
@@ -33,6 +34,7 @@ import {
   getProviderTokenFilePath,
   getProviderMeta,
   getInstanceAuthStatus,
+  saveTokenForProvider,
 } from '../services/Auth'
 import type { TokenSource } from '../services/Auth'
 import { getConfiguredInstances } from '../services/Config'
@@ -86,6 +88,7 @@ type SettingsItem =
   | 'provider'
   | 'token_source'
   | 'new_token'
+  | 'enabled_providers'
   | 'theme'
   | 'page_size'
   | 'refresh_interval'
@@ -107,6 +110,7 @@ type EditingField =
   | 'default_owner'
   | 'default_repo'
   | 'new_token'
+  | 'enabled_provider_token'
   | 'bookmark_add'
   | 'ai_model'
   | 'ai_api_key'
@@ -117,6 +121,7 @@ const SETTINGS_ITEMS: readonly SettingsItem[] = [
   'provider',
   'token_source',
   'new_token',
+  'enabled_providers',
   'theme',
   'page_size',
   'refresh_interval',
@@ -132,6 +137,30 @@ const SETTINGS_ITEMS: readonly SettingsItem[] = [
   'notify_review_request',
   'bookmarked_repos',
 ]
+
+/**
+ * Providers that can be enabled simultaneously alongside the single
+ * "focused" provider (see `provider` above). Scoped to GitHub + Bitbucket
+ * for now -- other providers aren't wired into the merged-list fetch path
+ * yet (see useBitbucketPRs.ts).
+ */
+const ENABLED_PROVIDERS_CHOICES: readonly Provider[] = ['github', 'bitbucket']
+
+/**
+ * Toggle `provider` in `current`. Returns null (refusing the toggle) rather
+ * than an empty list -- at least one provider must always stay enabled, or
+ * every PR list screen would have no data source at all.
+ */
+export function toggleEnabledProvidersList(
+  current: readonly Provider[],
+  provider: Provider,
+): readonly Provider[] | null {
+  const isEnabled = current.includes(provider)
+  const next = isEnabled
+    ? current.filter((p) => p !== provider)
+    : [...current, provider]
+  return next.length === 0 ? null : next
+}
 
 const AI_PROVIDER_ORDER = [
   '',
@@ -239,6 +268,19 @@ export function SettingsScreen(): React.ReactElement {
       { readonly hasToken: boolean; readonly source: TokenSource }
     >
   >(new Map())
+  const [enabledProvidersSelectedIndex, setEnabledProvidersSelectedIndex] =
+    useState(0)
+  const [enabledProviderStatuses, setEnabledProviderStatuses] = useState<
+    ReadonlyMap<
+      Provider,
+      { readonly hasToken: boolean; readonly source: TokenSource }
+    >
+  >(new Map())
+  const [tokenEntryProvider, setTokenEntryProvider] = useState<Provider | null>(
+    null,
+  )
+  const [enabledProviderStatusRefresh, setEnabledProviderStatusRefresh] =
+    useState(0)
 
   // Compute configured instances from config
   const configuredInstances: readonly ConfiguredInstance[] = config
@@ -272,8 +314,30 @@ export function SettingsScreen(): React.ReactElement {
     }
   }, [config])
 
+  // Load auth status for each provider in the "Enabled Providers" checklist
+  useEffect(() => {
+    let cancelled = false
+    const loadStatuses = async (): Promise<void> => {
+      const entries: Array<
+        [Provider, { hasToken: boolean; source: TokenSource }]
+      > = []
+      for (const provider of ENABLED_PROVIDERS_CHOICES) {
+        const status = await getInstanceAuthStatus(provider)
+        entries.push([provider, status])
+      }
+      if (!cancelled) {
+        setEnabledProviderStatuses(new Map(entries))
+      }
+    }
+    loadStatuses()
+    return () => {
+      cancelled = true
+    }
+  }, [enabledProviderStatusRefresh])
+
   const isEditing = editingField !== null
   const isBookmarkSection = selectedItem === 'bookmarked_repos'
+  const isEnabledProvidersSection = selectedItem === 'enabled_providers'
 
   const cycleProvider = (): void => {
     const currentProvider = (config?.provider ?? 'github') as Provider
@@ -292,6 +356,20 @@ export function SettingsScreen(): React.ReactElement {
       refetch()
       setStatusMessage(`Provider switched to ${PROVIDER_LABELS[nextProvider]}`)
     }
+  }
+
+  const toggleEnabledProvider = (provider: Provider): void => {
+    const current = config?.enabledProviders ?? ['github']
+    const isEnabled = current.includes(provider)
+    const next = toggleEnabledProvidersList(current, provider)
+    if (!next) {
+      setStatusMessage('At least one provider must stay enabled')
+      return
+    }
+    updateConfig({ enabledProviders: next })
+    setStatusMessage(
+      `${PROVIDER_LABELS[provider]} ${isEnabled ? 'disabled' : 'enabled'}`,
+    )
   }
 
   const cycleTheme = (): void => {
@@ -329,6 +407,8 @@ export function SettingsScreen(): React.ReactElement {
       setEditValue(config?.defaultRepo ?? '')
     } else if (field === 'new_token') {
       setEditValue('')
+    } else if (field === 'enabled_provider_token') {
+      setEditValue('')
     } else if (field === 'bookmark_add') {
       setEditValue('')
       setBookmarkError(null)
@@ -347,6 +427,7 @@ export function SettingsScreen(): React.ReactElement {
     setEditingField(null)
     setEditValue('')
     setBookmarkError(null)
+    setTokenEntryProvider(null)
     setInputActive(false)
   }
 
@@ -383,6 +464,23 @@ export function SettingsScreen(): React.ReactElement {
           cancelEditing()
         })
       return
+    } else if (
+      editingField === 'enabled_provider_token' &&
+      trimmed &&
+      tokenEntryProvider
+    ) {
+      const provider = tokenEntryProvider
+      saveTokenForProvider(provider, trimmed)
+        .then(() => {
+          setStatusMessage(`${PROVIDER_LABELS[provider]} token saved`)
+          setEnabledProviderStatusRefresh((n) => n + 1)
+          cancelEditing()
+        })
+        .catch((err: unknown) => {
+          setStatusMessage(`Error: ${String(err)}`)
+          cancelEditing()
+        })
+      return
     } else if (editingField === 'ai_model') {
       updateConfig({ aiModel: trimmed })
       queryClient.invalidateQueries({ queryKey: ['aiConfig'] })
@@ -401,10 +499,8 @@ export function SettingsScreen(): React.ReactElement {
         setBookmarkError(validation.error)
         return
       }
-      const parts = trimmed.split('/')
-      const owner = parts[0]?.trim() ?? ''
-      const repo = parts.slice(1).join('/').trim()
-      addBookmark(owner, repo)
+      const { owner, repo, provider } = parseBookmarkInput(trimmed)
+      addBookmark(owner, repo, provider)
       setStatusMessage('Bookmark added')
     }
 
@@ -423,10 +519,21 @@ export function SettingsScreen(): React.ReactElement {
       }
 
       if (input === 'j' || key.downArrow) {
+        if (
+          isEnabledProvidersSection &&
+          enabledProvidersSelectedIndex < ENABLED_PROVIDERS_CHOICES.length - 1
+        ) {
+          setEnabledProvidersSelectedIndex((prev) => prev + 1)
+          return
+        }
         const currentIndex = SETTINGS_ITEMS.indexOf(selectedItem)
         const nextIndex = Math.min(currentIndex + 1, SETTINGS_ITEMS.length - 1)
         setSelectedItem(SETTINGS_ITEMS[nextIndex]!)
       } else if (input === 'k' || key.upArrow) {
+        if (isEnabledProvidersSection && enabledProvidersSelectedIndex > 0) {
+          setEnabledProvidersSelectedIndex((prev) => prev - 1)
+          return
+        }
         const currentIndex = SETTINGS_ITEMS.indexOf(selectedItem)
         const prevIndex = Math.max(currentIndex - 1, 0)
         setSelectedItem(SETTINGS_ITEMS[prevIndex]!)
@@ -447,6 +554,10 @@ export function SettingsScreen(): React.ReactElement {
           }
         } else if (selectedItem === 'new_token') {
           startEditing('new_token')
+        } else if (selectedItem === 'enabled_providers') {
+          const provider =
+            ENABLED_PROVIDERS_CHOICES[enabledProvidersSelectedIndex]
+          if (provider) toggleEnabledProvider(provider)
         } else if (selectedItem === 'theme') {
           cycleTheme()
         } else if (selectedItem === 'page_size') {
@@ -481,6 +592,13 @@ export function SettingsScreen(): React.ReactElement {
           startEditing('ai_api_key')
         } else if (selectedItem === 'ai_endpoint') {
           startEditing('ai_endpoint')
+        }
+      } else if (isEnabledProvidersSection && input === 't') {
+        const provider =
+          ENABLED_PROVIDERS_CHOICES[enabledProvidersSelectedIndex]
+        if (provider) {
+          setTokenEntryProvider(provider)
+          startEditing('enabled_provider_token')
         }
       } else if (isBookmarkSection && input === 'a') {
         startEditing('bookmark_add')
@@ -644,6 +762,73 @@ export function SettingsScreen(): React.ReactElement {
             >
               {tokenMessage}
             </Text>
+          </Box>
+        )}
+      </Box>
+
+      {/* Enabled Providers Section */}
+      <Box paddingX={1} marginTop={1}>
+        <Divider title="Enabled Providers" />
+      </Box>
+      <Box paddingX={2}>
+        <Text color={theme.colors.muted} dimColor>
+          PRs from every enabled provider are merged into Involved/My PRs/For
+          Review. Bitbucket coverage is limited to bookmarked repos.
+        </Text>
+      </Box>
+      {isEnabledProvidersSection && (
+        <Box paddingX={2}>
+          <Text color={theme.colors.muted} dimColor>
+            j/k:select Enter:toggle t:set token
+          </Text>
+        </Box>
+      )}
+      <Box flexDirection="column" gap={0}>
+        {ENABLED_PROVIDERS_CHOICES.map((provider, index) => {
+          const isRowSelected =
+            isEnabledProvidersSection && index === enabledProvidersSelectedIndex
+          const isEnabled = (config?.enabledProviders ?? ['github']).includes(
+            provider,
+          )
+          const status = enabledProviderStatuses.get(provider)
+          const statusText = status?.hasToken
+            ? status.source === 'env'
+              ? 'env'
+              : status.source === 'gh_cli'
+                ? 'cli'
+                : 'token'
+            : 'no token'
+          const statusColor = status?.hasToken
+            ? theme.colors.success
+            : theme.colors.error
+          return (
+            <Box key={provider} gap={2} paddingX={2}>
+              <Box width={20}>
+                <Text
+                  color={
+                    isRowSelected ? theme.colors.accent : theme.colors.text
+                  }
+                  bold={isRowSelected}
+                >
+                  {isRowSelected ? '> ' : '  '}[{isEnabled ? 'x' : ' '}]{' '}
+                  {PROVIDER_LABELS[provider]}
+                </Text>
+              </Box>
+              <Text color={statusColor}>[{statusText}]</Text>
+            </Box>
+          )
+        })}
+        {editingField === 'enabled_provider_token' && tokenEntryProvider && (
+          <Box gap={2} paddingX={2} marginTop={1}>
+            <Box width={20}>
+              <Text color={theme.colors.secondary}>
+                {PROVIDER_LABELS[tokenEntryProvider]} token:
+              </Text>
+            </Box>
+            {renderEditableField(
+              'enabled_provider_token',
+              getProviderMeta(tokenEntryProvider).tokenPlaceholder,
+            )}
           </Box>
         )}
       </Box>
@@ -849,8 +1034,11 @@ export function SettingsScreen(): React.ReactElement {
       {editingField === 'bookmark_add' && (
         <Box paddingX={2} flexDirection="column">
           <Box gap={1}>
-            <Text color={theme.colors.secondary}>owner/repo:</Text>
-            {renderEditableField('bookmark_add', 'e.g. facebook/react')}
+            <Text color={theme.colors.secondary}>[provider:]owner/repo:</Text>
+            {renderEditableField(
+              'bookmark_add',
+              'e.g. facebook/react or bitbucket:acme/web',
+            )}
           </Box>
           {bookmarkError && (
             <Box paddingLeft={2}>
@@ -883,6 +1071,9 @@ export function SettingsScreen(): React.ReactElement {
                   {isBmSelected ? '> ' : '  '}
                   {bookmark.owner}/{bookmark.repo}
                 </Text>
+                {bookmark.provider && bookmark.provider !== 'github' && (
+                  <Text color={theme.colors.muted}> [{bookmark.provider}]</Text>
+                )}
               </Box>
             )
           })

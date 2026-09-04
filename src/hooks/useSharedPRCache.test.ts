@@ -3,6 +3,7 @@ import {
   filterMyPRs,
   filterReviewRequests,
   deriveCacheData,
+  mergePRLists,
   CACHE_STALENESS_MS,
 } from './useSharedPRCache'
 import type { PullRequest } from '../models/pull-request'
@@ -485,5 +486,39 @@ describe('deriveCacheData', () => {
       expect(result.reviewRequestsPlaceholder).toHaveLength(1)
       expect(result.reviewRequestsPlaceholder?.[0]?.number).toBe(200)
     })
+  })
+})
+
+describe('mergePRLists', () => {
+  it('dedupes by html_url, not by number', () => {
+    const githubPR12 = makePR({ number: 12 }) // html_url: .../github.com/.../pull/12
+    const bitbucketPR12 = {
+      ...makePR({ number: 12 }),
+      html_url: 'https://bitbucket.org/owner/repo/pull-requests/12',
+      provider: 'bitbucket' as const,
+    }
+
+    const merged = mergePRLists([githubPR12], [bitbucketPR12])
+
+    // A naive number-based dedupe would have dropped the Bitbucket PR.
+    expect(merged).toHaveLength(2)
+    expect(merged.map((pr) => pr.html_url)).toEqual([
+      githubPR12.html_url,
+      bitbucketPR12.html_url,
+    ])
+  })
+
+  it('still dedupes true duplicates from the same provider/repo', () => {
+    const pr = makePR({ number: 5 })
+    const merged = mergePRLists([pr], [pr])
+    expect(merged).toHaveLength(1)
+  })
+
+  it('preserves order: all of the first list, then unique items from the second', () => {
+    const a = makePR({ number: 1 })
+    const b = makePR({ number: 2 })
+    const c = makePR({ number: 3 })
+    const merged = mergePRLists([a, b], [b, c])
+    expect(merged.map((pr) => pr.number)).toEqual([1, 2, 3])
   })
 })

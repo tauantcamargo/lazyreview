@@ -82,6 +82,20 @@ describe('PullRequest schema', () => {
     expect(result.assignees).toEqual([])
   })
 
+  it('defaults provider to github when absent', () => {
+    const result = decode(validPR)
+    expect(result.provider).toBe('github')
+  })
+
+  it('decodes an explicit provider', () => {
+    const result = decode({ ...validPR, provider: 'bitbucket' })
+    expect(result.provider).toBe('bitbucket')
+  })
+
+  it('rejects an unknown provider', () => {
+    expect(() => decode({ ...validPR, provider: 'unknown' })).toThrow()
+  })
+
   it('decodes assignees when provided', () => {
     const result = decode({
       ...validPR,

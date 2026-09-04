@@ -22,6 +22,7 @@ interface CommitsTabProps {
   readonly owner: string
   readonly repo: string
   readonly onRangeChange?: (range: CommitRange | null) => void
+  readonly provider?: string
 }
 
 function CommitItem({
@@ -106,6 +107,7 @@ export function CommitsTab({
   owner,
   repo,
   onRangeChange,
+  provider,
 }: CommitsTabProps): React.ReactElement {
   const { stdout } = useStdout()
   const theme = useTheme()
@@ -124,9 +126,13 @@ export function CommitsTab({
   })
 
   const { data: commitFiles = [], isLoading: commitDiffLoading } =
-    useCommitDiff(owner, repo, selectedCommitSha ?? '', {
-      enabled: selectedCommitSha !== null,
-    })
+    useCommitDiff(
+      owner,
+      repo,
+      selectedCommitSha ?? '',
+      { enabled: selectedCommitSha !== null },
+      provider,
+    )
 
   const completeRangeSelection = useCallback(
     (endIdx: number) => {

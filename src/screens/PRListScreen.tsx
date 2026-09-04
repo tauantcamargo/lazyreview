@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useCallback, useMemo, useState, useEffect } from 'react'
 import { Box, Text, useInput, useStdout } from 'ink'
 import { useTheme } from '../theme/index'
 import { useListNavigation } from '../hooks/useListNavigation'
@@ -7,6 +7,7 @@ import { useFilter } from '../hooks/useFilter'
 import { useKeybindings } from '../hooks/useKeybindings'
 import { setSelectionContext } from '../hooks/useSelectionContext'
 import { usePrefetch } from '../hooks/usePrefetch'
+import { useModalOverlay } from '../hooks/useModalOverlay'
 import { PRListItem } from '../components/pr/PRListItem'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorWithRetry } from '../components/common/ErrorWithRetry'
@@ -24,7 +25,7 @@ import { useNotifications } from '../hooks/useNotifications'
 import { useConfig } from '../hooks/useConfig'
 import { useCurrentUser } from '../hooks/useGitHub'
 import { findNextUnread } from '../utils/listHelpers'
-import { parseGitHubPRUrl } from '../utils/git'
+import { parseGitHubPRUrl, parsePRUrl } from '../utils/git'
 import {
   PRPreviewPanel,
   PREVIEW_PANEL_MIN_TERMINAL_WIDTH,
@@ -60,6 +61,8 @@ interface PRListScreenProps {
   readonly owner?: string
   /** Repo for prefetch context. If not provided, extracted from selected PR's html_url. */
   readonly repo?: string
+  /** Whether this panel currently has focus. Defaults to true for backward compatibility. */
+  readonly isActive?: boolean
 }
 
 export function PRListScreen({
@@ -75,6 +78,7 @@ export function PRListScreen({
   onSelect,
   owner: ownerProp,
   repo: repoProp,
+  isActive = true,
 }: PRListScreenProps): React.ReactElement {
   const theme = useTheme()
   const { setStatusMessage } = useStatusMessage()
@@ -150,14 +154,14 @@ export function PRListScreen({
   const { selectedIndex, setSelectedIndex } = useListNavigation({
     itemCount: pageItems.length,
     viewportHeight: pageItems.length,
-    isActive: !showFilter && !showSort,
+    isActive: isActive && !showFilter && !showSort,
   })
 
   const selectedPRForPrefetch = pageItems[selectedIndex]
   const parsedUrl = useMemo(
     () =>
       !ownerProp && selectedPRForPrefetch
-        ? parseGitHubPRUrl(selectedPRForPrefetch.html_url)
+        ? parsePRUrl(selectedPRForPrefetch.html_url)
         : null,
     [ownerProp, selectedPRForPrefetch?.html_url],
   )
@@ -165,11 +169,17 @@ export function PRListScreen({
   const prefetchRepo = repoProp ?? parsedUrl?.repo ?? ''
   const prefetchEnabled = config?.prefetchEnabled ?? true
   const prefetchDelayMs = config?.prefetchDelayMs ?? 500
+  // Prefetching only fetches through the GitHub-backed CodeReviewApi today;
+  // skip it for PRs from other providers rather than issuing a GitHub API
+  // call with a foreign owner/repo.
+  const prefetchProviderOk = ownerProp
+    ? true
+    : (selectedPRForPrefetch?.provider ?? 'github') === 'github'
 
   usePrefetch({
     items: pageItems,
     selectedIndex,
-    enabled: prefetchEnabled && !showFilter && !showSort,
+    enabled: prefetchEnabled && prefetchProviderOk && !showFilter && !showSort,
     owner: prefetchOwner,
     repo: prefetchRepo,
     delayMs: prefetchDelayMs,
@@ -246,9 +256,14 @@ export function PRListScreen({
           const selected = selectedIndices
             .map((i) => pageItems[i])
             .filter((pr): pr is PullRequest => pr !== undefined)
-          const openPRs = selected.filter(
+          const closable = selected.filter(
             (pr) => pr.state === 'open' && !pr.merged,
           )
+          // Batch mutations only route through the GitHub-backed API today;
+          // skip other providers rather than silently no-op them via a
+          // failed URL parse.
+          const openPRs = closable.filter((pr) => pr.provider === 'github')
+          const skippedCount = closable.length - openPRs.length
           for (const pr of openPRs) {
             const parsed = parseGitHubPRUrl(pr.html_url)
             if (parsed) {
@@ -259,7 +274,11 @@ export function PRListScreen({
               })
             }
           }
-          setStatusMessage(`Closing ${openPRs.length} PR(s)...`)
+          setStatusMessage(
+            skippedCount > 0
+              ? `Closing ${openPRs.length} PR(s)... (${skippedCount} non-GitHub PR(s) skipped)`
+              : `Closing ${openPRs.length} PR(s)...`,
+          )
           exitMultiSelect()
           return
         }
@@ -338,8 +357,60 @@ export function PRListScreen({
         }
       }
     },
-    { isActive: !showFilter && !showSort },
+    { isActive: isActive && !showFilter && !showSort },
   )
+
+  const closeFilter = useCallback(() => setShowFilter(false), [])
+  const closeSort = useCallback(() => setShowSort(false), [])
+
+  const modalNode = useMemo(() => {
+    if (showFilter) {
+      return (
+        <FilterModal
+          filter={filter}
+          repoFacets={repoFacets}
+          authorFacets={authorFacets}
+          labelFacets={labelFacets}
+          onSearchChange={setSearch}
+          onRepoChange={setRepo}
+          onAuthorChange={setAuthor}
+          onLabelChange={setLabel}
+          onClear={clearFilters}
+          onClose={closeFilter}
+        />
+      )
+    }
+    if (showSort) {
+      return (
+        <SortModal
+          currentSort={filter.sortBy}
+          sortDirection={filter.sortDirection}
+          onSortChange={setSortBy}
+          onSortDirectionToggle={toggleSortDirection}
+          onClose={closeSort}
+        />
+      )
+    }
+    return null
+  }, [
+    showFilter,
+    showSort,
+    filter,
+    repoFacets,
+    authorFacets,
+    labelFacets,
+    setSearch,
+    setRepo,
+    setAuthor,
+    setLabel,
+    setSortBy,
+    toggleSortDirection,
+    clearFilters,
+    closeFilter,
+    closeSort,
+  ])
+
+  useModalOverlay(modalNode)
 
   const selectedPR = pageItems[selectedIndex]
 
@@ -437,29 +508,6 @@ export function PRListScreen({
           <PRPreviewPanel pr={selectedPR} width={previewWidth} />
         )}
       </Box>
-      {showFilter && (
-        <FilterModal
-          filter={filter}
-          repoFacets={repoFacets}
-          authorFacets={authorFacets}
-          labelFacets={labelFacets}
-          onSearchChange={setSearch}
-          onRepoChange={setRepo}
-          onAuthorChange={setAuthor}
-          onLabelChange={setLabel}
-          onClear={clearFilters}
-          onClose={() => setShowFilter(false)}
-        />
-      )}
-      {showSort && (
-        <SortModal
-          currentSort={filter.sortBy}
-          sortDirection={filter.sortDirection}
-          onSortChange={setSortBy}
-          onSortDirectionToggle={toggleSortDirection}
-          onClose={() => setShowSort(false)}
-        />
-      )}
     </Box>
   )
 }

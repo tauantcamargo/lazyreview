@@ -28,6 +28,42 @@ interface FilterModalProps {
   readonly onClose: () => void
 }
 
+export const FACET_VIEWPORT = 8
+
+export interface FacetWindow {
+  readonly scrollOffset: number
+  readonly hiddenAbove: number
+  readonly hiddenBelow: number
+}
+
+/**
+ * Compute which slice of a facet list should be visible so the highlighted
+ * item always stays in view, instead of hard-capping the list at
+ * FACET_VIEWPORT items with no way to reach the rest.
+ */
+export function computeFacetWindow(
+  highlightIndex: number,
+  itemCount: number,
+  isFocused: boolean,
+  viewport: number = FACET_VIEWPORT,
+): FacetWindow {
+  const scrollOffset = isFocused
+    ? Math.max(
+        0,
+        Math.min(
+          highlightIndex - viewport + 1,
+          Math.max(0, itemCount - viewport),
+        ),
+      )
+    : 0
+  const visibleCount = Math.min(viewport, itemCount - scrollOffset)
+  return {
+    scrollOffset,
+    hiddenAbove: scrollOffset,
+    hiddenBelow: itemCount - scrollOffset - visibleCount,
+  }
+}
+
 function FacetSection({
   title,
   options,
@@ -64,32 +100,51 @@ function FacetSection({
         {options.length === 0 ? (
           <Text color={mutedColor}> (none)</Text>
         ) : (
-          options.slice(0, 8).map((opt, idx) => {
-            const isHighlighted = isFocused && idx === highlightIndex
-            const isSelected = selectedValue === opt.value
-            return (
-              <Box key={opt.value} gap={1}>
-                <Text
-                  color={
-                    isSelected
-                      ? warningColor
-                      : isHighlighted
-                        ? accentColor
-                        : textColor
-                  }
-                  backgroundColor={isHighlighted ? selectionColor : undefined}
-                  bold={isSelected || isHighlighted}
-                >
-                  {isHighlighted ? '▶' : ' '} {isSelected ? '✓' : '○'}{' '}
-                  {opt.value}
-                </Text>
-                <Text color={mutedColor}>({opt.count})</Text>
-              </Box>
+          (() => {
+            const { scrollOffset, hiddenAbove, hiddenBelow } =
+              computeFacetWindow(highlightIndex, options.length, isFocused)
+            const visible = options.slice(
+              scrollOffset,
+              scrollOffset + FACET_VIEWPORT,
             )
-          })
-        )}
-        {options.length > 8 && (
-          <Text color={mutedColor}> +{options.length - 8} more</Text>
+
+            return (
+              <>
+                {hiddenAbove > 0 && (
+                  <Text color={mutedColor}> ↑ {hiddenAbove} more above</Text>
+                )}
+                {visible.map((opt, visibleIdx) => {
+                  const idx = scrollOffset + visibleIdx
+                  const isHighlighted = isFocused && idx === highlightIndex
+                  const isSelected = selectedValue === opt.value
+                  return (
+                    <Box key={opt.value} gap={1}>
+                      <Text
+                        color={
+                          isSelected
+                            ? warningColor
+                            : isHighlighted
+                              ? accentColor
+                              : textColor
+                        }
+                        backgroundColor={
+                          isHighlighted ? selectionColor : undefined
+                        }
+                        bold={isSelected || isHighlighted}
+                      >
+                        {isHighlighted ? '▶' : ' '} {isSelected ? '✓' : '○'}{' '}
+                        {opt.value}
+                      </Text>
+                      <Text color={mutedColor}>({opt.count})</Text>
+                    </Box>
+                  )
+                })}
+                {hiddenBelow > 0 && (
+                  <Text color={mutedColor}> ↓ {hiddenBelow} more below</Text>
+                )}
+              </>
+            )
+          })()
         )}
       </Box>
     </Box>
@@ -131,11 +186,11 @@ export function FilterModal({
   const getMaxIndex = (field: FilterField): number => {
     switch (field) {
       case 'repo':
-        return Math.max(0, Math.min(repoFacets.length, 8) - 1)
+        return Math.max(0, repoFacets.length - 1)
       case 'author':
-        return Math.max(0, Math.min(authorFacets.length, 8) - 1)
+        return Math.max(0, authorFacets.length - 1)
       case 'label':
-        return Math.max(0, Math.min(labelFacets.length, 8) - 1)
+        return Math.max(0, labelFacets.length - 1)
       default:
         return 0
     }

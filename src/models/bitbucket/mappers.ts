@@ -87,6 +87,7 @@ export function mapBitbucketPRToPullRequest(
     mergeable: null,
     mergeable_state: null,
     merge_commit_sha: bbPR.merge_commit?.hash ?? null,
+    provider: 'bitbucket',
   })
 }
 

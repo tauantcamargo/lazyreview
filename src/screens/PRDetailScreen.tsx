@@ -198,7 +198,7 @@ export function PRDetailScreen({
   const needsIssueComments = hasVisited(0) || hasVisited(1)
 
   // Fetch full PR data (search API doesn't include head.sha)
-  const { data: fullPR } = usePullRequest(owner, repo, pr.number)
+  const { data: fullPR } = usePullRequest(owner, repo, pr.number, pr.provider)
   const activePR = fullPR ?? pr
 
   // Lazy-load PR data based on visited tabs (with pagination for 300+ files)
@@ -208,36 +208,50 @@ export function PRDetailScreen({
     hasMoreFiles,
     totalFileCount,
     loadNextPage: loadMoreFiles,
-  } = usePaginatedFiles(owner, repo, pr.number, activePR.changed_files, {
-    enabled: needsFiles,
-  })
+  } = usePaginatedFiles(
+    owner,
+    repo,
+    pr.number,
+    activePR.changed_files,
+    { enabled: needsFiles },
+    pr.provider,
+  )
   const { data: comments = [], isLoading: commentsLoading } = usePRComments(
     owner,
     repo,
     pr.number,
     { enabled: needsComments },
+    pr.provider,
   )
   const { data: reviews = [], isLoading: reviewsLoading } = usePRReviews(
     owner,
     repo,
     pr.number,
+    undefined,
+    pr.provider,
   )
   const { data: commits = [], isLoading: commitsLoading } = usePRCommits(
     owner,
     repo,
     pr.number,
     { enabled: needsCommits },
+    pr.provider,
   )
-  const { data: reviewThreads } = useReviewThreads(owner, repo, pr.number, {
-    enabled: needsThreads,
-  })
+  const { data: reviewThreads } = useReviewThreads(
+    owner,
+    repo,
+    pr.number,
+    { enabled: needsThreads },
+    pr.provider,
+  )
   const { data: issueComments = [] } = useIssueComments(
     owner,
     repo,
     pr.number,
     { enabled: needsIssueComments },
+    pr.provider,
   )
-  const { data: currentUser } = useCurrentUser()
+  const { data: currentUser } = useCurrentUser(pr.provider)
 
   // Fetch compare files when a commit range is active
   const { data: compareFiles = [] } = useCompareFiles(
@@ -246,6 +260,7 @@ export function PRDetailScreen({
     commitRange?.startSha ?? null,
     commitRange?.endSha ?? null,
     { enabled: commitRange !== null },
+    pr.provider,
   )
 
   // Use compare files when range is active, otherwise use full PR files
@@ -270,6 +285,7 @@ export function PRDetailScreen({
     setStatusMessage,
     onMergeSuccess: onBack,
     onCloseSuccess: onBack,
+    provider: pr.provider,
   })
 
   const pendingReview = usePendingReview({
@@ -277,6 +293,7 @@ export function PRDetailScreen({
     repo,
     prNumber: pr.number,
     setStatusMessage,
+    provider: pr.provider,
   })
 
   // AI summary for Description tab
@@ -315,6 +332,7 @@ export function PRDetailScreen({
     repo,
     prNumber: pr.number,
     setStatusMessage,
+    provider: pr.provider,
   })
 
   const convertToDraft = useConvertToDraft()
@@ -324,10 +342,11 @@ export function PRDetailScreen({
     owner,
     repo,
     { enabled: showLabelPicker },
+    pr.provider,
   )
   const updateAssigneesMutation = useUpdateAssignees()
   const { data: collaborators = [], isLoading: collaboratorsLoading } =
-    useCollaborators(owner, repo, { enabled: showAssigneePicker })
+    useCollaborators(owner, repo, { enabled: showAssigneePicker }, pr.provider)
 
   const handleReviewSubmit = useCallback(
     (body: string, event: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT') => {
@@ -405,7 +424,13 @@ export function PRDetailScreen({
           }
           if (activePR.draft) {
             markReady.mutate(
-              { owner, repo, prNumber: pr.number, nodeId },
+              {
+                owner,
+                repo,
+                prNumber: pr.number,
+                provider: pr.provider,
+                nodeId,
+              },
               {
                 onSuccess: () =>
                   setStatusMessage('PR marked as ready for review'),
@@ -414,7 +439,13 @@ export function PRDetailScreen({
             )
           } else {
             convertToDraft.mutate(
-              { owner, repo, prNumber: pr.number, nodeId },
+              {
+                owner,
+                repo,
+                prNumber: pr.number,
+                provider: pr.provider,
+                nodeId,
+              },
               {
                 onSuccess: () => setStatusMessage('PR converted to draft'),
                 onError: (err) => setStatusMessage(`Error: ${String(err)}`),
@@ -479,7 +510,9 @@ export function PRDetailScreen({
       } else if (input === '[' && onNavigate) {
         onNavigate('prev')
       } else if (input === 'W') {
-        if (activePR.state === 'open') {
+        if (pr.provider !== 'github') {
+          setStatusMessage('Draft toggling is not supported on this provider')
+        } else if (activePR.state === 'open') {
           setShowDraftConfirm(true)
         } else {
           setStatusMessage('Can only toggle draft on open PRs')
@@ -564,7 +597,9 @@ export function PRDetailScreen({
           currentUser={currentUser?.login}
           onComment={modals.handleOpenGeneralComment}
           onReply={modals.handleOpenReply}
-          onToggleResolve={modals.handleToggleResolve}
+          onToggleResolve={
+            pr.provider === 'github' ? modals.handleToggleResolve : undefined
+          }
           onToggleShowResolved={modals.handleToggleShowResolved}
           onEditComment={modals.handleOpenEditComment}
           onEditDescription={modals.handleOpenEditDescription}
@@ -580,6 +615,7 @@ export function PRDetailScreen({
           owner={owner}
           repo={repo}
           onRangeChange={setCommitRange}
+          provider={pr.provider}
         />
       )),
       Match.when(3, () => (
@@ -593,7 +629,9 @@ export function PRDetailScreen({
           reviewThreads={reviewThreads}
           currentUser={currentUser?.login}
           onReply={modals.handleOpenReply}
-          onToggleResolve={modals.handleToggleResolve}
+          onToggleResolve={
+            pr.provider === 'github' ? modals.handleToggleResolve : undefined
+          }
           onEditComment={modals.handleOpenEditComment}
           onAddReaction={reactionActions.handleOpenReactionPicker}
           initialFile={initialFile}
@@ -606,6 +644,7 @@ export function PRDetailScreen({
           onLoadMoreFiles={loadMoreFiles}
           mergeable={activePR.mergeable}
           mergeableState={activePR.mergeable_state}
+          provider={pr.provider}
         />
       )),
       Match.when(4, () => (
@@ -614,6 +653,7 @@ export function PRDetailScreen({
           repo={repo}
           sha={activePR.head.sha}
           isActive={!anyModalOpen}
+          provider={pr.provider}
         />
       )),
       Match.when(5, () => (
@@ -776,7 +816,13 @@ export function PRDetailScreen({
           currentLabels={activePR.labels.map((l) => l.name)}
           onSubmit={(labels) => {
             setLabelsMutation.mutate(
-              { owner, repo, prNumber: pr.number, labels },
+              {
+                owner,
+                repo,
+                prNumber: pr.number,
+                provider: pr.provider,
+                labels,
+              },
               {
                 onSuccess: () => {
                   setShowLabelPicker(false)
@@ -812,7 +858,13 @@ export function PRDetailScreen({
           currentAssignees={activePR.assignees.map((a) => a.login)}
           onSubmit={(assignees) => {
             updateAssigneesMutation.mutate(
-              { owner, repo, prNumber: pr.number, assignees: [...assignees] },
+              {
+                owner,
+                repo,
+                prNumber: pr.number,
+                provider: pr.provider,
+                assignees: [...assignees],
+              },
               {
                 onSuccess: () => {
                   setShowAssigneePicker(false)

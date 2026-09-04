@@ -74,6 +74,7 @@ export type RecentRepo = S.Schema.Type<typeof RecentRepoSchema>
 const BookmarkedRepoSchema = S.Struct({
   owner: S.String,
   repo: S.String,
+  provider: S.optionalWith(S.String, { default: () => 'github' }),
 })
 
 export type BookmarkedRepo = S.Schema.Type<typeof BookmarkedRepoSchema>
@@ -88,6 +89,18 @@ export class AppConfig extends S.Class<AppConfig>('AppConfig')({
       S.Literal('gitea'),
     ),
     { default: () => 'github' as const },
+  ),
+  enabledProviders: S.optionalWith(
+    S.Array(
+      S.Union(
+        S.Literal('github'),
+        S.Literal('gitlab'),
+        S.Literal('bitbucket'),
+        S.Literal('azure'),
+        S.Literal('gitea'),
+      ),
+    ),
+    { default: () => ['github'] as readonly Provider[] },
   ),
   baseUrl: S.optional(S.String),
   gitlab: S.optional(GitLabConfigSchema),
@@ -389,6 +402,7 @@ export function flattenV2ToAppConfig(v2: V2ConfigFile): AppConfig {
   const d = v2.defaults
   const flat: Record<string, unknown> = {
     provider: d.provider,
+    enabledProviders: d.enabledProviders ?? [d.provider],
     theme: d.theme,
     pageSize: d.pageSize,
     refreshInterval: d.refreshInterval,

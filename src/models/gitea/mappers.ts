@@ -77,6 +77,7 @@ export function mapGiteaPRToPullRequest(
     mergeable: giteaPR.mergeable ?? null,
     mergeable_state: null,
     merge_commit_sha: null,
+    provider: 'gitea',
   })
 }
 

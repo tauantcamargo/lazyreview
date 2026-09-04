@@ -17,6 +17,7 @@ interface ChecksTabProps {
   readonly repo: string
   readonly sha: string
   readonly isActive: boolean
+  readonly provider?: string
 }
 
 function CheckRunRow({
@@ -84,11 +85,18 @@ export function ChecksTab({
   repo,
   sha,
   isActive,
+  provider,
 }: ChecksTabProps): React.ReactElement {
   const theme = useTheme()
   const { stdout } = useStdout()
   const { setStatusMessage } = useStatusMessage()
-  const { data, isLoading } = useCheckRuns(owner, repo, sha)
+  const { data, isLoading } = useCheckRuns(
+    owner,
+    repo,
+    sha,
+    undefined,
+    provider,
+  )
   const viewportHeight = Math.max(1, (stdout?.rows ?? 24) - 16)
 
   const checkRuns = data?.check_runs ?? []

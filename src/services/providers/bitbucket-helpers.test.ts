@@ -125,6 +125,29 @@ describe('mutateBitbucket', () => {
     const options = calls[0][1] as { body?: string }
     expect(options.body).toBeUndefined()
   })
+
+  it('sends Basic auth for an email:api_token value', async () => {
+    // Regression test: this file used to build its own Authorization header
+    // (always Bearer), separate from -- and never updated alongside --
+    // services/BitbucketApiHelpers.ts's Basic/Bearer auto-detection. Every
+    // Bitbucket mutation (approve, comment, merge, decline, ...) routes
+    // through here, so an Atlassian API token (email:api_token) 401'd on
+    // all of them despite being valid.
+    const emailToken = 'user@example.com:atl_api_token_xxxxxxxxxxxx'
+    mockFetchResponse()
+    await Effect.runPromise(
+      mutateBitbucket('POST', BASE_URL, '/test', emailToken, {}),
+    )
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/test`,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: `Basic ${Buffer.from(emailToken).toString('base64')}`,
+        }),
+      }),
+    )
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -187,5 +210,22 @@ describe('fetchBitbucket', () => {
       fetchBitbucket(BASE_URL, '/nonexistent', TOKEN),
     )
     expect(exit._tag).toBe('Failure')
+  })
+
+  it('sends Basic auth for an email:api_token value (e.g. getCurrentUser)', async () => {
+    const emailToken = 'user@example.com:atl_api_token_xxxxxxxxxxxx'
+    mockFetchResponse({ body: { username: 'alice' } })
+    await Effect.runPromise(
+      fetchBitbucket<{ username: string }>(BASE_URL, '/user', emailToken),
+    )
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/user`,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: `Basic ${Buffer.from(emailToken).toString('base64')}`,
+        }),
+      }),
+    )
   })
 })

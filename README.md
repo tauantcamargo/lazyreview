@@ -35,20 +35,29 @@ LazyReview is the only TUI that provides a full code review workflow across GitH
 
 LazyReview works with five git hosting providers. The provider is auto-detected from your git remote, or you can set it in `config.yaml`.
 
-| Feature | GitHub | GitLab | Bitbucket | Azure DevOps | Gitea/Forgejo |
-|---------|:------:|:------:|:---------:|:------------:|:-------------:|
-| List & filter PRs | Yes | Yes | Yes | Yes | Yes |
-| PR detail (description, files, commits) | Yes | Yes | Yes | Yes | Yes |
-| Syntax-highlighted diffs | Yes | Yes | Yes | Yes | Yes |
-| Side-by-side diff view | Yes | Yes | Yes | Yes | Yes |
-| Submit reviews (approve/request changes) | Yes | Yes | Yes | Yes | Yes |
-| Inline diff comments | Yes | Yes | Yes | Yes | Yes |
-| Resolve/unresolve threads | Yes | Yes | -- | Yes | -- |
-| Draft PRs | Yes | Yes | -- | Yes | -- |
-| CI/CD check runs | Yes | Yes | Yes | Yes | Yes |
-| Merge (merge/squash/rebase) | Yes | Yes | Yes | Yes | Yes |
+**GitHub and Bitbucket are the two actively-maintained, fully-wired providers today**, and can be enabled *simultaneously* (see [Multi-Provider Mode](#multi-provider-mode-github--bitbucket) below). GitLab, Azure DevOps, and Gitea/Forgejo have model/mapper support and a provider adapter, but aren't yet wired into the live PR-fetching path -- selecting them as your `provider` in config will not currently return data. Treat the table below as the target feature surface, not a guarantee for every provider listed.
+
+| Feature | GitHub | Bitbucket | GitLab¹ | Azure DevOps¹ | Gitea/Forgejo¹ |
+|---------|:------:|:---------:|:------:|:------------:|:-------------:|
+| List & filter PRs | Yes | Yes² | -- | -- | -- |
+| PR detail (description, files, commits) | Yes | Yes | -- | -- | -- |
+| Syntax-highlighted diffs | Yes | Yes | -- | -- | -- |
+| Side-by-side diff view | Yes | Yes | -- | -- | -- |
+| Submit reviews (approve/request changes) | Yes | Yes | -- | -- | -- |
+| Inline diff comments | Yes | Yes | -- | -- | -- |
+| Resolve/unresolve threads | Yes | -- (not supported by Bitbucket) | -- | -- | -- |
+| Draft PRs | Yes | -- (not supported by Bitbucket) | -- | -- | -- |
+| Labels / Assignees / Reactions | Yes | Implemented, lightly tested | -- | -- | -- |
+| CI/CD check runs | Yes | Yes (via Pipelines) | -- | -- | -- |
+| Merge (merge/squash/rebase) | Yes | Yes | -- | -- | -- |
 | GraphQL API | Yes | -- | -- | -- | -- |
-| Reactions | Yes | -- | -- | -- | -- |
+
+¹ Not yet wired into the live fetch path -- see note above.
+² Bitbucket has no account-wide "my/involved/review-requested PRs" search API, so Involved/My PRs/For Review only cover PRs in repos you've **bookmarked** (Settings → Bookmarked Repos, `bitbucket:owner/repo`). This Repo/Browse aren't affected.
+
+### Multi-Provider Mode (GitHub + Bitbucket)
+
+You don't have to pick one provider. In **Settings → Enabled Providers**, toggle on any combination of GitHub and Bitbucket (press `t` on a row to set that provider's token). Involved/My PRs/For Review then show a single merged, sorted list from every enabled provider, with a `[GH]`/`[BB]` badge on each row so you can tell them apart. Opening a PR routes to the correct provider automatically.
 
 ## Install
 
@@ -124,7 +133,13 @@ For self-hosted GitLab, set `gitlab.host` in `config.yaml`.
 | **Environment variable** | Export `LAZYREVIEW_BITBUCKET_TOKEN` |
 | **Manual token** | Paste when prompted |
 
-Use an App Password with **Repository** and **Pull Request** read/write permissions. Create one at [bitbucket.org/account/settings/app-passwords](https://bitbucket.org/account/settings/app-passwords).
+Bitbucket **app passwords are deprecated** and being removed by Atlassian. Use an **API token with scopes** instead:
+
+1. Create one at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens).
+2. Grant the Bitbucket scopes: **Repositories: Read**, **Pull requests: Read**, **Pull requests: Write**, and **Account: Read** (the last one is easy to miss in Atlassian's picker — without it, "who am I" lookups fail).
+3. Enter the token as `your-email@example.com:api_token` (both when prompted and in Settings) — Atlassian's scoped tokens authenticate with Basic auth (email + token), not a bearer token.
+
+A plain Repository or Workspace Access Token (no email prefix) also still works and uses Bearer auth automatically — LazyReview detects the format from whether the value contains a colon.
 
 #### Azure DevOps
 
@@ -210,6 +225,7 @@ Ships with four color schemes, cycle through them in Settings:
 Fully configurable from the TUI -- no need to edit files manually:
 
 - Provider selection (GitHub / GitLab / Bitbucket / Azure / Gitea)
+- **Enabled Providers** -- toggle GitHub and/or Bitbucket on to merge both into Involved/My PRs/For Review (see [Multi-Provider Mode](#multi-provider-mode-github--bitbucket)); press `t` on a row to enter/update that provider's token
 - Token source switching
 - Theme cycling
 - Page size (1-100)
@@ -223,7 +239,7 @@ Browse PRs from any repo without leaving the app:
 - Navigate to the **Browse** sidebar item
 - Type `owner/repo` (e.g., `facebook/react`) and press Enter
 - Recent repos are saved automatically (up to 10)
-- Bookmark frequently used repos in **Settings** for quick access
+- Bookmark frequently used repos in **Settings** for quick access -- prefix with a provider to bookmark a non-default one, e.g. `bitbucket:acme/web` (defaults to `github` when omitted); this is also how Bitbucket repos get included in the merged Involved/My PRs/For Review lists, since Bitbucket has no account-wide PR search
 - Full PR list with filtering, sorting, and detail view -- same as local repo
 
 ### Sidebar
@@ -351,10 +367,11 @@ theme: tokyo-night        # tokyo-night | dracula | catppuccin-mocha | gruvbox
 pageSize: 30              # PRs per page (1-100)
 refreshInterval: 60       # Auto-refresh interval in seconds (10-600)
 provider: github          # github | gitlab | bitbucket | azure | gitea
+enabledProviders: [github] # providers merged into Involved/My PRs/For Review -- add "bitbucket" to enable multi-provider mode
 defaultOwner: myorg       # skip auto-detection
 defaultRepo: myrepo       # skip auto-detection
 recentRepos: []           # auto-populated from Browse (max 10)
-bookmarkedRepos: []       # manually managed in Settings
+bookmarkedRepos: []       # manually managed in Settings -- entries can be "owner/repo" or "provider:owner/repo"
 
 # GitLab self-hosted (optional)
 gitlab:

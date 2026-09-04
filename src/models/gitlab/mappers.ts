@@ -76,6 +76,7 @@ export function mapMergeRequestToPR(mr: GitLabMergeRequest): PullRequest {
     mergeable: mr.has_conflicts ? false : null,
     mergeable_state: mr.merge_status ?? null,
     merge_commit_sha: mr.merge_commit_sha ?? null,
+    provider: 'gitlab',
   })
 }
 

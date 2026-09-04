@@ -118,16 +118,22 @@ function updateBitbucketRateLimit(headers: Headers): void {
 /**
  * Build Bitbucket authentication headers.
  *
- * Bitbucket supports two auth mechanisms:
- * - `Authorization: Bearer <token>` for OAuth2 / Repository Access Tokens
- * - Basic Auth with app passwords (user:password) -- handled externally
- *
- * We use Bearer tokens since OAuth2 and repository access tokens are the
- * recommended authentication method for API v2.0.
+ * Bitbucket supports two auth mechanisms, both accepted through the single
+ * "token" field the user enters:
+ * - `Authorization: Bearer <token>` for OAuth2 / Repository & Workspace
+ *   Access Tokens (no colon in the stored value).
+ * - `Authorization: Basic base64(email:api_token)` for Atlassian API tokens
+ *   with scopes, the replacement for deprecated app passwords. The user
+ *   enters this as `email:api_token`, so the stored value already has the
+ *   `user:pass` shape Basic Auth expects -- we just base64 it as-is.
  */
-function buildAuthHeaders(token: string): Record<string, string> {
+export function buildAuthHeaders(token: string): Record<string, string> {
+  const authorization = token.includes(':')
+    ? `Basic ${Buffer.from(token).toString('base64')}`
+    : `Bearer ${token}`
+
   return {
-    Authorization: `Bearer ${token}`,
+    Authorization: authorization,
     'Content-Type': 'application/json',
   }
 }

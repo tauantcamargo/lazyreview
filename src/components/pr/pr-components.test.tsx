@@ -5,7 +5,13 @@ import { render } from 'ink-testing-library'
 import { ThemeProvider, defaultTheme } from '../../theme/index'
 import { TopBar } from '../layout/TopBar'
 import { Sidebar } from '../layout/Sidebar'
-import { getStateBadge, getStateColor, formatDiffStats } from '../pr/PRListItem'
+import {
+  getStateBadge,
+  getStateColor,
+  formatDiffStats,
+  buildNotesKey,
+} from '../pr/PRListItem'
+import type { PullRequest } from '../../models/pull-request'
 import { PRHeader } from '../pr/PRHeader'
 import { buildHints } from '../layout/StatusBar'
 import { buildShortcutGroups } from '../layout/HelpModal'
@@ -141,6 +147,25 @@ describe('PRListItem helpers', () => {
     expect(
       getStateBadge({ state: 'closed', draft: false, merged: false }),
     ).toBe('CLSD')
+  })
+
+  it('buildNotesKey uses owner/repo#number for a github PR', () => {
+    const pr = {
+      html_url: 'https://github.com/acme/web/pull/42',
+      number: 42,
+    } as PullRequest
+    expect(buildNotesKey(pr)).toBe('acme/web#42')
+  })
+
+  it('buildNotesKey resolves a bitbucket PR too (not "unknown#N")', () => {
+    // Regression test: buildNotesKey used to call the GitHub-only URL
+    // parser, so every Bitbucket PR collapsed to the same "unknown#N" notes
+    // key, colliding across different Bitbucket PRs with the same number.
+    const pr = {
+      html_url: 'https://bitbucket.org/acme/web/pull-requests/42',
+      number: 42,
+    } as PullRequest
+    expect(buildNotesKey(pr)).toBe('acme/web#42')
   })
 
   it('formatDiffStats formats additions and deletions', () => {

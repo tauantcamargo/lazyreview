@@ -8,7 +8,8 @@ import { ReviewStatusIcon } from './ReviewStatusIcon'
 import { useReadState } from '../../hooks/useReadState'
 import { usePRNotes } from '../../hooks/usePRNotes'
 import { contrastForeground, normalizeHexColor } from '../../utils/color'
-import { parseGitHubPRUrl, extractRepoFromPRUrl } from '../../utils/git'
+import { parsePRUrl, extractRepoFromPRUrl } from '../../utils/git'
+import { providerBadge } from '../../utils/provider-helpers'
 
 /**
  * Returns a short state badge for a PR: OPEN, DRFT, MRGD, or CLSD.
@@ -47,8 +48,8 @@ export function formatDiffStats(additions: number, deletions: number): string {
 }
 
 /** Build a notes key from a PR's owner/repo and number. */
-function buildNotesKey(item: PullRequest): string {
-  const parsed = parseGitHubPRUrl(item.html_url)
+export function buildNotesKey(item: PullRequest): string {
+  const parsed = parsePRUrl(item.html_url)
   if (parsed) {
     return `${parsed.owner}/${parsed.repo}#${item.number}`
   }
@@ -95,6 +96,7 @@ function CompactPRListItem({
       <Text color={stateColor} bold inverse>
         {getStateBadge(item)}
       </Text>
+      <Text color={theme.colors.muted}>{providerBadge(item.provider)}</Text>
       {unread && (
         <Text color={theme.colors.accent} bold>
           ●
@@ -135,7 +137,11 @@ function FullPRListItem({
 
   const stateColor = getStateColor(item, theme)
   const repoName = extractRepoFromPRUrl(item.html_url)
-  const ownerRepo = parseGitHubPRUrl(item.html_url)
+  // Check runs and review status are only wired up for GitHub today --
+  // gate them off for other providers rather than calling GitHub's API
+  // with a foreign owner/repo.
+  const ownerRepo =
+    item.provider === 'github' ? parsePRUrl(item.html_url) : null
   const headSha = item.head.sha
   const diffStats = formatDiffStats(item.additions ?? 0, item.deletions ?? 0)
 
@@ -154,6 +160,7 @@ function FullPRListItem({
         <Text color={stateColor} bold inverse>
           {getStateBadge(item)}
         </Text>
+        <Text color={theme.colors.muted}>{providerBadge(item.provider)}</Text>
         {ownerRepo && headSha && (
           <CheckStatusIcon
             owner={ownerRepo.owner}

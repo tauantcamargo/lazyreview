@@ -219,6 +219,11 @@ describe('mapBitbucketPRToPullRequest', () => {
     expect(pr.merged).toBe(false)
   })
 
+  it('tags the PR as bitbucket-sourced', () => {
+    const pr = mapBitbucketPRToPullRequest(minimalPR)
+    expect(pr.provider).toBe('bitbucket')
+  })
+
   it('maps MERGED state to closed with merged=true', () => {
     const pr = mapBitbucketPRToPullRequest({
       ...minimalPR,

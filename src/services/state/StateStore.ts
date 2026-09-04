@@ -231,23 +231,28 @@ function buildStoreFromInit(init: StoreInit): StateStore {
   function getBookmarkedRepos(): readonly StoredBookmarkedRepo[] {
     const db = getDb()
     const results = db.exec(
-      'SELECT owner, repo, added_at FROM bookmarked_repos ORDER BY added_at',
+      'SELECT owner, repo, provider, added_at FROM bookmarked_repos ORDER BY added_at',
     )
     if (results.length === 0) return []
 
     return results[0].values.map((row) => ({
       owner: String(row[0]),
       repo: String(row[1]),
-      addedAt: String(row[2]),
+      provider: String(row[2]),
+      addedAt: String(row[3]),
     }))
   }
 
-  function addBookmarkedRepo(owner: string, repo: string): void {
+  function addBookmarkedRepo(
+    owner: string,
+    repo: string,
+    provider = 'github',
+  ): void {
     const db = getDb()
     const now = nowISO()
     db.run(
-      `INSERT OR IGNORE INTO bookmarked_repos (owner, repo, added_at) VALUES (?, ?, ?)`,
-      [owner, repo, now],
+      `INSERT OR IGNORE INTO bookmarked_repos (owner, repo, provider, added_at) VALUES (?, ?, ?, ?)`,
+      [owner, repo, provider, now],
     )
   }
 

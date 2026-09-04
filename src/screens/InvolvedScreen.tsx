@@ -9,10 +9,12 @@ interface InvolvedScreenProps {
     list?: readonly PullRequest[],
     index?: number,
   ) => void
+  readonly isActive?: boolean
 }
 
 export function InvolvedScreen({
   onSelect,
+  isActive = true,
 }: InvolvedScreenProps): React.ReactElement {
   const [stateFilter, setStateFilter] = useState<PRStateFilter>('open')
   const { data: prs = [], isLoading, error } = useInvolvedPRs(stateFilter)
@@ -29,6 +31,7 @@ export function InvolvedScreen({
       stateFilter={stateFilter}
       onStateChange={setStateFilter}
       onSelect={onSelect}
+      isActive={isActive}
     />
   )
 }

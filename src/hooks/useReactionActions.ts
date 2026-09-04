@@ -12,6 +12,7 @@ interface UseReactionActionsOptions {
   readonly repo: string
   readonly prNumber: number
   readonly setStatusMessage: (msg: string) => void
+  readonly provider?: string
 }
 
 export function useReactionActions({
@@ -19,6 +20,7 @@ export function useReactionActions({
   repo,
   prNumber,
   setStatusMessage,
+  provider,
 }: UseReactionActionsOptions) {
   const [showReactionPicker, setShowReactionPicker] = useState(false)
   const [reactionError, setReactionError] = useState<string | null>(null)
@@ -42,6 +44,7 @@ export function useReactionActions({
           owner,
           repo,
           prNumber,
+          provider,
           commentId: reactionContext.commentId,
           reaction,
           commentType: reactionContext.commentType,
@@ -56,7 +59,15 @@ export function useReactionActions({
         },
       )
     },
-    [owner, repo, prNumber, reactionContext, addReaction, setStatusMessage],
+    [
+      owner,
+      repo,
+      prNumber,
+      provider,
+      reactionContext,
+      addReaction,
+      setStatusMessage,
+    ],
   )
 
   const closeReactionPicker = useCallback(() => {

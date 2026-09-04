@@ -84,6 +84,13 @@ export const migrations: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 2,
+    description: 'Add provider column to bookmarked_repos',
+    up: `
+      ALTER TABLE bookmarked_repos ADD COLUMN provider TEXT NOT NULL DEFAULT 'github';
+    `,
+  },
 ]
 
 // ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@ interface UsePRDetailModalsOptions {
   readonly setStatusMessage: (msg: string) => void
   readonly onMergeSuccess: () => void
   readonly onCloseSuccess?: () => void
+  readonly provider?: string
 }
 
 export function usePRDetailModals({
@@ -26,14 +27,22 @@ export function usePRDetailModals({
   setStatusMessage,
   onMergeSuccess,
   onCloseSuccess,
+  provider,
 }: UsePRDetailModalsOptions) {
-  const review = useReviewActions({ owner, repo, prNumber, setStatusMessage })
+  const review = useReviewActions({
+    owner,
+    repo,
+    prNumber,
+    setStatusMessage,
+    provider,
+  })
   const comments = useCommentActions({
     owner,
     repo,
     prNumber,
     headSha,
     setStatusMessage,
+    provider,
   })
   const prState = usePRStateActions({
     owner,
@@ -42,6 +51,7 @@ export function usePRDetailModals({
     setStatusMessage,
     onMergeSuccess,
     onCloseSuccess,
+    provider,
   })
 
   const hasModal =
