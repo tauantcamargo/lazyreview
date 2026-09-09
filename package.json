@@ -69,7 +69,7 @@
     "ink-syntax-highlight": "^2.0.2",
     "ink-tab": "^5.2.0",
     "ink-testing-library": "^4.0.0",
-    "jsdom": "^28.1.0",
+    "jsdom": "^29.0.1",
     "prettier": "^3.5.0",
     "react": "^19.0.0",
     "tsup": "^8.4.0",
